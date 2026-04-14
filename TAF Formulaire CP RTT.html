@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF — Formulaire de demande d'absence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════ PRINT STYLES ═══════════ */
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print { display: none !important; }
+  .form-page { page-break-after: always; box-shadow: none !important; margin: 0 !important; }
+  @page { margin: 10mm; size: A4; }
+}
+
+/* ═══════════ BASE ═══════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, #0A1628 0%, #162848 100%);
+  color: #1a1a2e;
+  line-height: 1.5;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+/* ═══════════ TOOLBAR ═══════════ */
+.toolbar {
+  max-width: 700px;
+  margin: 0 auto 20px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-print {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2) !important;
+  color: #fff;
+}
+.btn-print:hover { background: rgba(255,255,255,.2); }
+.toolbar-info {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgba(255,255,255,.6);
+}
+
+/* ═══════════ FIREBASE STATUS ═══════════ */
+.firebase-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(39,201,122,.15);
+  border: 1px solid rgba(39,201,122,.3);
+  border-radius: 20px;
+  font-size: 11px;
+  color: #27C97A;
+}
+.firebase-badge.offline {
+  background: rgba(240,74,74,.15);
+  border-color: rgba(240,74,74,.3);
+  color: #F04A4A;
+}
+.firebase-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #27C97A;
+  animation: pulse 2s infinite;
+}
+.firebase-badge.offline .dot {
+  background: #F04A4A;
+  animation: none;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* ═══════════ FORM PAGE ═══════════ */
+.form-page {
+  max-width: 700px;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  border-radius: 16px;
+  padding: 30px 40px;
+  position: relative;
+}
+
+/* ═══════════ HEADER ═══════════ */
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #E8A020;
+}
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-box {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #E8A020, #F5C05A);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  color: #0A1628;
+}
+.company-info h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0A1628;
+}
+.company-info p {
+  font-size: 11px;
+  color: #666;
+  margin-top: 2px;
+}
+.doc-info {
+  text-align: right;
+}
+.doc-info .doc-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #E8A020;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.doc-info .doc-ref {
+  font-size: 10px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* ═══════════ SECTIONS ═══════════ */
+.section {
+  margin-bottom: 25px;
+}
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #0A1628;
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  display: inline-block;
+}
+.section-title span {
+  color: #E8A020;
+  margin-right: 8px;
+}
+
+/* ═══════════ FORM FIELDS ═══════════ */
+.field-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+@media (max-width: 600px) {
+  .field-row { flex-direction: column; }
+}
+.field {
+  flex: 1;
+}
+.field.half { flex: 0.5; }
+.field label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: #E8A020;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(232,160,32,.1);
+}
+.field input.error, .field select.error {
+  border-color: #F04A4A;
+  background: rgba(240,74,74,.05);
+}
+.field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ═══════════ CHECKBOXES ═══════════ */
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .checkbox-group { grid-template-columns: repeat(2, 1fr); }
+}
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+.checkbox-item:hover {
+  border-color: #E8A020;
+  background: #fff;
+}
+.checkbox-item input {
+  display: none;
+}
+.checkbox-item.checked {
+  border-color: #E8A020;
+  background: linear-gradient(135deg, rgba(232,160,32,.1), rgba(232,160,32,.05));
+}
+.checkbox-item .check-circle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: transparent;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.checkbox-item.checked .check-circle {
+  border-color: #E8A020;
+  background: #E8A020;
+  color: #fff;
+}
+.checkbox-item label {
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-item .emoji {
+  font-size: 16px;
+}
+
+/* ═══════════ INFO BOX ═══════════ */
+.info-box {
+  background: linear-gradient(135deg, rgba(232,160,32,.1), rgba(232,160,32,.05));
+  border: 1px solid rgba(232,160,32,.2);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 15px;
+}
+.info-box p {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+.info-box p:last-child { margin-bottom: 0; }
+.info-box strong {
+  color: #E8A020;
+}
+
+/* ═══════════ SUBMIT BUTTON ═══════════ */
+.submit-section {
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 2px dashed #e8e8e8;
+}
+.btn-submit {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #E8A020, #F5C05A);
+  border: none;
+  border-radius: 12px;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0A1628;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(232,160,32,.3);
+}
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(232,160,32,.4);
+}
+.btn-submit:active {
+  transform: translateY(0);
+}
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-submit .spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(10,22,40,.2);
+  border-top-color: #0A1628;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: none;
+}
+.btn-submit.loading .spinner { display: block; }
+.btn-submit.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════ SUCCESS MESSAGE ═══════════ */
+.success-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10,22,40,.9);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+.success-overlay.show { display: flex; }
+.success-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px 50px;
+  text-align: center;
+  max-width: 450px;
+  animation: popIn 0.4s ease;
+}
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.success-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #27C97A, #6ee8a8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 30px rgba(39,201,122,.3);
+}
+.success-card h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  color: #0A1628;
+  margin-bottom: 10px;
+}
+.success-card p {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+.success-card .ref-box {
+  background: #f0f4f8;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  color: #0A1628;
+  margin-bottom: 25px;
+}
+.success-card .ref-box span {
+  color: #E8A020;
+  font-weight: 700;
+}
+.success-card button {
+  padding: 12px 30px;
+  background: #0A1628;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.success-card button:hover {
+  background: #162848;
+}
+
+/* ═══════════ ERROR MESSAGE ═══════════ */
+.error-box {
+  background: rgba(240,74,74,.1);
+  border: 1px solid rgba(240,74,74,.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  display: none;
+  font-size: 13px;
+  color: #F04A4A;
+}
+.error-box.show { display: block; }
+
+/* ═══════════ TOAST ═══════════ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #0A1628;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 999;
+  opacity: 0;
+  transition: all 0.3s;
+  box-shadow: 0 8px 30px rgba(0,0,0,.3);
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar no-print">
+  <button class="btn-print" onclick="window.print()">🖨️ Version imprimable</button>
+  <div class="firebase-badge" id="fb-badge">
+    <span class="dot"></span>
+    <span id="fb-status-text">Firebase</span>
+  </div>
+  <span class="toolbar-info">Les demandes sont envoyées directement dans la base de données</span>
+</div>
+
+<!-- FORMULAIRE -->
+<div class="form-page">
+  
+  <!-- HEADER -->
+  <header class="form-header">
+    <div class="logo-section">
+      <div class="logo-box">TAF</div>
+      <div class="company-info">
+        <h1>TAF TRANS</h1>
+        <p>Transit & Fret International</p>
+      </div>
+    </div>
+    <div class="doc-info">
+      <div class="doc-title">📝 Demande d'absence</div>
+      <div class="doc-ref">Formulaire en ligne</div>
+    </div>
+  </header>
+
+  <!-- ERROR BOX -->
+  <div class="error-box" id="error-box"></div>
+
+  <form id="absence-form" onsubmit="submitForm(event)">
+    
+    <!-- SECTION 1: COLLABORATEUR -->
+    <div class="section">
+      <div class="section-title"><span>1</span> Vos informations</div>
+      
+      <div class="field-row">
+        <div class="field">
+          <label>Nom & Prénom *</label>
+          <input type="text" id="collab-nom" placeholder="Ex: DUPONT Jean" required>
+        </div>
+        <div class="field">
+          <label>Service *</label>
+          <select id="collab-service" required>
+            <option value="">— Sélectionner —</option>
+            <option value="import">Import</option>
+            <option value="export-afr">Export Afrique</option>
+            <option value="moyen-orient">Moyen-Orient</option>
+            <option value="magasin">Magasin</option>
+            <option value="admin">Administratif</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="field-row">
+        <div class="field">
+          <label>Email *</label>
+          <input type="email" id="collab-email" placeholder="email@taftrans.fr" required>
+        </div>
+        <div class="field half">
+          <label>Téléphone</label>
+          <input type="tel" id="collab-tel" placeholder="06 XX XX XX XX">
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: TYPE D'ABSENCE -->
+    <div class="section">
+      <div class="section-title"><span>2</span> Type d'absence</div>
+      
+      <div class="checkbox-group">
+        <div class="checkbox-item" onclick="selectType(this, 'Congé')">
+          <input type="radio" name="type-absence" value="Congé">
+          <div class="check-circle">✓</div>
+          <span class="emoji">🏖️</span>
+          <label>Congé payé</label>
+        </div>
+        <div class="checkbox-item" onclick="selectType(this, 'RTT')">
+          <input type="radio" name="type-absence" value="RTT">
+          <div class="check-circle">✓</div>
+          <span class="emoji">📅</span>
+          <label>RTT</label>
+        </div>
+        <div class="checkbox-item" onclick="selectType(this, '1/2 RTT')">
+          <input type="radio" name="type-absence" value="1/2 RTT">
+          <div class="check-circle">✓</div>
+          <span class="emoji">⏰</span>
+          <label>1/2 RTT</label>
+        </div>
+        <div class="checkbox-item" onclick="selectType(this, 'Maladie')">
+          <input type="radio" name="type-absence" value="Maladie">
+          <div class="check-circle">✓</div>
+          <span class="emoji">🏥</span>
+          <label>Maladie</label>
+        </div>
+        <div class="checkbox-item" onclick="selectType(this, 'Famille')">
+          <input type="radio" name="type-absence" value="Famille">
+          <div class="check-circle">✓</div>
+          <span class="emoji">👨‍👩‍👧</span>
+          <label>Événement familial</label>
+        </div>
+        <div class="checkbox-item" onclick="selectType(this, 'Autre')">
+          <input type="radio" name="type-absence" value="Autre">
+          <div class="check-circle">✓</div>
+          <span class="emoji">📋</span>
+          <label>Autre</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: DATES -->
+    <div class="section">
+      <div class="section-title"><span>3</span> Période d'absence</div>
+      
+      <div class="field-row">
+        <div class="field">
+          <label>Date de début *</label>
+          <input type="date" id="date-debut" required>
+        </div>
+        <div class="field">
+          <label>Date de fin *</label>
+          <input type="date" id="date-fin" required>
+        </div>
+        <div class="field half">
+          <label>Jours ouvrés</label>
+          <input type="text" id="nb-jours" readonly style="background:#f0f0f0;text-align:center;font-weight:600;">
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <p><strong>📌 Rappels :</strong></p>
+        <p>• Soumettez vos demandes <strong>au moins 2 semaines</strong> à l'avance</p>
+        <p>• Les RTT ne peuvent pas être posés le samedi</p>
+        <p>• Justificatif requis pour maladie et événements familiaux</p>
+      </div>
+    </div>
+
+    <!-- SECTION 4: COMMENTAIRE -->
+    <div class="section">
+      <div class="section-title"><span>4</span> Commentaire (optionnel)</div>
+      <div class="field">
+        <textarea id="commentaire" placeholder="Précisions sur votre demande..."></textarea>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-section">
+      <button type="submit" class="btn-submit" id="btn-submit">
+        <div class="spinner"></div>
+        <span class="btn-text">📤 Envoyer ma demande</span>
+      </button>
+      <p style="text-align:center;font-size:11px;color:#999;margin-top:12px;">
+        Votre demande sera envoyée au responsable pour validation
+      </p>
+    </div>
+  </form>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-card">
+    <div class="success-icon">✓</div>
+    <h2>Demande envoyée !</h2>
+    <p>Votre demande d'absence a été enregistrée avec succès. Vous recevrez une notification lorsqu'elle sera traitée.</p>
+    <div class="ref-box">
+      Référence : <span id="success-ref">DEM-2026-XXXX</span>
+    </div>
+    <button onclick="newRequest()">📝 Nouvelle demande</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+// Configuration Firebase
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDKb1kxz0mmWDdFRhh0tdll3mq23mQpcPU",
+  authDomain: "rtt-cp.firebaseapp.com",
+  projectId: "rtt-cp",
+  storageBucket: "rtt-cp.firebasestorage.app",
+  messagingSenderId: "44948556666",
+  appId: "1:44948556666:web:d739e366beb4bde852a4c3"
+};
+
+let db = null;
+let selectedType = null;
+
+// Initialize Firebase
+function initFirebase() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    setStatus(true, 'Connecté');
+    console.log('🔥 Firebase connecté');
+    return true;
+  } catch (err) {
+    console.error('Firebase error:', err);
+    setStatus(false, 'Hors ligne');
+    return false;
+  }
+}
+
+function setStatus(online, text) {
+  const badge = document.getElementById('fb-badge');
+  const statusText = document.getElementById('fb-status-text');
+  badge.classList.toggle('offline', !online);
+  statusText.textContent = text;
+}
+
+// Select type
+function selectType(el, type) {
+  document.querySelectorAll('.checkbox-item').forEach(item => item.classList.remove('checked'));
+  el.classList.add('checked');
+  el.querySelector('input').checked = true;
+  selectedType = type;
+}
+
+// Calculate working days
+document.getElementById('date-debut').addEventListener('change', calcDays);
+document.getElementById('date-fin').addEventListener('change', calcDays);
+
+function calcDays() {
+  const deb = document.getElementById('date-debut').value;
+  const fin = document.getElementById('date-fin').value;
+  if (deb && fin) {
+    const d1 = new Date(deb);
+    const d2 = new Date(fin);
+    if (d2 < d1) {
+      document.getElementById('nb-jours').value = 'Erreur';
+      return;
+    }
+    let count = 0;
+    const cur = new Date(d1);
+    while (cur <= d2) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    document.getElementById('nb-jours').value = count + ' jour' + (count > 1 ? 's' : '');
+  }
+}
+
+// Submit form
+async function submitForm(e) {
+  e.preventDefault();
+  
+  const errorBox = document.getElementById('error-box');
+  errorBox.classList.remove('show');
+  
+  // Validation
+  const nom = document.getElementById('collab-nom').value.trim();
+  const service = document.getElementById('collab-service').value;
+  const email = document.getElementById('collab-email').value.trim();
+  const tel = document.getElementById('collab-tel').value.trim();
+  const deb = document.getElementById('date-debut').value;
+  const fin = document.getElementById('date-fin').value;
+  const com = document.getElementById('commentaire').value.trim();
+  
+  if (!nom || !service || !email || !deb || !fin) {
+    showError('Veuillez remplir tous les champs obligatoires (*)');
+    return;
+  }
+  
+  if (!selectedType) {
+    showError('Veuillez sélectionner un type d\'absence');
+    return;
+  }
+  
+  if (new Date(fin) < new Date(deb)) {
+    showError('La date de fin doit être après la date de début');
+    return;
+  }
+  
+  if (!db) {
+    showError('Connexion à la base de données impossible. Réessayez.');
+    initFirebase();
+    return;
+  }
+  
+  // Show loading
+  const btn = document.getElementById('btn-submit');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  
+  // Generate reference
+  const ref = 'DEM-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random() * 9000) + 1000);
+  
+  // Prepare data
+  const data = {
+    ref: ref,
+    nom: nom.toUpperCase(),
+    svc: service,
+    email: email,
+    tel: tel,
+    type: selectedType,
+    deb: deb,
+    fin: fin,
+    st: 'En attente',
+    com: com,
+    dateDemande: new Date().toISOString(),
+    source: 'formulaire-web'
+  };
+  
+  try {
+    // Save to Firestore
+    await db.collection('demandes').add(data);
+    
+    // Show success
+    document.getElementById('success-ref').textContent = ref;
+    document.getElementById('success-overlay').classList.add('show');
+    
+    // Reset form
+    document.getElementById('absence-form').reset();
+    document.querySelectorAll('.checkbox-item').forEach(item => item.classList.remove('checked'));
+    selectedType = null;
+    document.getElementById('nb-jours').value = '';
+    
+    console.log('✅ Demande créée:', ref);
+    
+  } catch (err) {
+    console.error('Firestore error:', err);
+    showError('Erreur lors de l\'envoi: ' + err.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function showError(msg) {
+  const errorBox = document.getElementById('error-box');
+  errorBox.textContent = '⚠️ ' + msg;
+  errorBox.classList.add('show');
+  errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function newRequest() {
+  document.getElementById('success-overlay').classList.remove('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Init
+initFirebase();
+
+// Set min date to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('date-debut').min = today;
+document.getElementById('date-fin').min = today;
+</script>
+
+</body>
+</html>
