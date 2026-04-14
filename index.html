@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAF — Écosystème Applications</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080c14;
+      --bg2: #0d1220;
+      --panel: #111827;
+      --border: #1e2d4a;
+      --cyan: #00d4ff;
+      --green: #00e676;
+      --orange: #ff9800;
+      --purple: #b388ff;
+      --red: #ff5252;
+      --text: #e8edf5;
+      --text2: #8899bb;
+      --text3: #4a5a7a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,0.012) 2px, rgba(0,212,255,0.012) 4px);
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 40px 24px 30px;
+      text-align: center;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    }
+
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      text-shadow: 0 0 30px rgba(0,212,255,0.5);
+      margin-bottom: 8px;
+    }
+
+    .logo span {
+      color: var(--text2);
+      font-weight: 400;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text3);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 20px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text3);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Main */
+    .main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .section-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* Grid */
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .app-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .app-card:hover {
+      border-color: var(--cyan);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,212,255,0.15);
+    }
+
+    .app-card:hover::before {
+      opacity: 1;
+    }
+
+    .app-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .app-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .app-desc {
+      font-size: 12px;
+      color: var(--text3);
+      line-height: 1.5;
+    }
+
+    .app-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-ops { background: rgba(0,212,255,0.15); color: var(--cyan); border: 1px solid rgba(0,212,255,0.3); }
+    .badge-commercial { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+    .badge-factu { background: rgba(255,152,0,0.15); color: var(--orange); border: 1px solid rgba(255,152,0,0.3); }
+    .badge-tool { background: rgba(179,136,255,0.15); color: var(--purple); border: 1px solid rgba(179,136,255,0.3); }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text3);
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--border);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text3);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .logo { font-size: 28px; letter-spacing: 4px; }
+      .status-bar { flex-wrap: wrap; gap: 12px; }
+      .apps-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">TAF<span>TRANS</span></div>
+    <div class="subtitle">Écosystème Applications — Paris CDG</div>
+    <div class="status-bar">
+      <div class="status-item">
+        <span class="status-dot"></span>
+        <span>Système opérationnel</span>
+      </div>
+      <div class="status-item" id="appCount">—</div>
+      <div class="status-item" id="lastUpdate">—</div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="section-title">Applications disponibles</div>
+    <div class="apps-grid" id="appsGrid">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <div>Chargement des applications...</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    TAF — Transit Air Fret · <a href="https://github.com/christophehermann/TAF" target="_blank">GitHub</a>
+  </footer>
+
+  <script>
+    const REPO = 'christophehermann/TAF';
+    const GITHUB_PAGES_BASE = `https://christophehermann.github.io/TAF/`;
+
+    // Mapping des apps avec leurs métadonnées
+    const APP_META = {
+      'TAF_OPS': { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF OPS': { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF_FACTURATION': { icon: '🧾', desc: 'Facturation Pro AI — Envoi factures & déclarations', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF FACTURATION': { icon: '🧾', desc: 'Facturation Pro AI — Envoi factures & déclarations', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF_COMMERCIAL': { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'crm', badgeClass: 'badge-commercial' },
+      'TAF COMMERCIAL': { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'crm', badgeClass: 'badge-commercial' },
+      'TAF_HUB': { icon: '🔗', desc: 'Passerelle Airtable — Export/Seafood/Cargo', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF HUB': { icon: '🔗', desc: 'Passerelle Airtable — Export/Seafood/Cargo', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF_VERICHECK': { icon: '✅', desc: 'Vérification factures multi-handler', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF VERICHECK': { icon: '✅', desc: 'Vérification factures multi-handler', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF_RECOUVREMENT': { icon: '💰', desc: 'Suivi impayés et relances', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF RECOUVREMENT': { icon: '💰', desc: 'Suivi impayés et relances', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF_CONFIG': { icon: '⚙️', desc: 'Configuration centralisée des clés API', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF CONFIG': { icon: '⚙️', desc: 'Configuration centralisée des clés API', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF_DEPLOY': { icon: '🚀', desc: 'Déploiement GitHub & backup Drive', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF DEPLOY': { icon: '🚀', desc: 'Déploiement GitHub & backup Drive', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF_STAT': { icon: '📊', desc: 'Statistiques et KPIs', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF STAT': { icon: '📊', desc: 'Statistiques et KPIs', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF_PERAC': { icon: '📦', desc: 'Gestion périssables avancée', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF PERAC': { icon: '📦', desc: 'Gestion périssables avancée', badge: 'ops', badgeClass: 'badge-ops' },
+    };
+
+    // Récupérer les fichiers du repo
+    async function loadApps() {
+      const grid = document.getElementById('appsGrid');
+      try {
+        const resp = await fetch(`https://api.github.com/repos/${REPO}/contents`);
+        if (!resp.ok) throw new Error('Erreur API GitHub');
+        const files = await resp.json();
+
+        // Filtrer les fichiers HTML (exclure index.html)
+        const htmlFiles = files.filter(f => 
+          f.name.endsWith('.html') && 
+          f.name.toLowerCase() !== 'index.html' &&
+          f.type === 'file'
+        );
+
+        if (htmlFiles.length === 0) {
+          grid.innerHTML = '<div class="empty">Aucune application trouvée</div>';
+          return;
+        }
+
+        // Mettre à jour les stats
+        document.getElementById('appCount').textContent = `${htmlFiles.length} app${htmlFiles.length > 1 ? 's' : ''}`;
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('fr-FR');
+
+        // Générer les cartes
+        grid.innerHTML = htmlFiles.map(file => {
+          const name = file.name.replace('.html', '');
+          const meta = APP_META[name] || { icon: '📄', desc: 'Application TAF', badge: 'app', badgeClass: 'badge-tool' };
+          const url = GITHUB_PAGES_BASE + encodeURIComponent(file.name);
+
+          return `
+            <div class="app-card" onclick="window.open('${url}', '_blank')">
+              <span class="app-badge ${meta.badgeClass}">${meta.badge}</span>
+              <div class="app-icon">${meta.icon}</div>
+              <div class="app-name">${name.replace(/_/g, ' ')}</div>
+              <div class="app-desc">${meta.desc}</div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.error(err);
+        grid.innerHTML = `<div class="empty">Erreur de chargement: ${err.message}</div>`;
+      }
+    }
+
+    // Charger au démarrage
+    loadApps();
+  </script>
+</body>
+</html>
