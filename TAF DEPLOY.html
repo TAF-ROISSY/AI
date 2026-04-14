@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF Deploy Manager v3.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap');
+
+  :root {
+    --bg:        #0a0c10;
+    --surface:   #111318;
+    --card:      #161a22;
+    --border:    #1e2535;
+    --accent:    #00d4ff;
+    --accent2:   #ff6b35;
+    --green:     #00ff88;
+    --red:       #ff3b5c;
+    --yellow:    #ffd700;
+    --purple:    #a855f7;
+    --text:      #e0e8f0;
+    --muted:     #5a6880;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-main: 'Exo 2', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── PIN OVERLAY ── */
+  #pin-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 32px;
+  }
+  #pin-overlay .pin-logo {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 4px;
+    color: var(--muted); text-transform: uppercase;
+  }
+  #pin-overlay h2 {
+    font-family: var(--font-mono);
+    font-size: 28px; color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .pin-dots { display: flex; gap: 14px; }
+  .pin-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    transition: all .15s;
+  }
+  .pin-dot.filled { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .pin-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 10px; }
+  .pin-btn {
+    height: 56px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 22px;
+    cursor: pointer; border-radius: 6px;
+    transition: all .15s;
+  }
+  .pin-btn:hover { background: var(--border); border-color: var(--accent); color: var(--accent); }
+  .pin-btn.del { font-size: 16px; color: var(--muted); }
+  .pin-error { color: var(--red); font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px; opacity: 0; transition: opacity .3s; }
+  .pin-error.show { opacity: 1; }
+
+  /* ── MAIN APP ── */
+  #app { position: relative; z-index: 1; display: none; }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #0d1117 0%, #111827 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #0088bb);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header-title {
+    font-size: 16px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .header-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .version-badge {
+    font-family: var(--font-mono);
+    font-size: 10px; padding: 3px 8px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--muted); letter-spacing: 1px;
+  }
+  .lock-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 16px;
+    width: 36px; height: 36px; border-radius: 6px;
+    cursor: pointer; transition: all .15s;
+  }
+  .lock-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 32px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); font-family: var(--font-main); font-size: 12px;
+    font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── CONTENT ── */
+  .content { padding: 32px; max-width: 1100px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── SECTION TITLE ── */
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px;
+  }
+  .section-bar {
+    width: 3px; height: 28px;
+    background: linear-gradient(180deg, var(--accent), transparent);
+    border-radius: 2px;
+  }
+  .section-title { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+  .section-desc { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── FORM FIELDS ── */
+  .field-group { margin-bottom: 18px; }
+  .field-label {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 1px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field-required { color: var(--accent2); font-size: 10px; }
+  .field-input, .field-select {
+    width: 100%; padding: 11px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: var(--font-mono); font-size: 13px;
+    transition: border-color .2s;
+    outline: none;
+  }
+  .field-input:focus, .field-select:focus { border-color: var(--accent); }
+  .field-input.secret { letter-spacing: 2px; }
+  .field-input[readonly] { color: var(--muted); cursor: default; }
+  .field-select { cursor: pointer; }
+  .field-select option { background: var(--card); color: var(--text); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .field-row { grid-template-columns: 1fr; } }
+
+  /* ── KEY DISPLAY ── */
+  .key-display { display: flex; align-items: center; gap: 8px; }
+  .key-display .field-input { flex: 1; }
+  .icon-btn {
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px;
+    cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.copy-ok { border-color: var(--green); color: var(--green); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 11px 22px;
+    border-radius: 7px; border: none;
+    font-family: var(--font-main); font-size: 13px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #0088bb);
+    color: #000;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,.3); }
+  .btn-success {
+    background: linear-gradient(135deg, var(--green), #00aa55);
+    color: #000;
+  }
+  .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,255,136,.3); }
+  .btn-danger {
+    background: linear-gradient(135deg, var(--red), #cc0033);
+    color: #fff;
+  }
+  .btn-outline {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-warning {
+    background: linear-gradient(135deg, var(--yellow), #e5a000);
+    color: #000;
+  }
+  .btn-purple {
+    background: linear-gradient(135deg, var(--purple), #7c3aed);
+    color: #fff;
+  }
+  .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(168,85,247,.3); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+  /* ── STATUS ROW ── */
+  .status-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .status-card {
+    flex: 1; min-width: 140px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 18px;
+  }
+  .status-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+  .status-value { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--accent); }
+  .status-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 6px;
+  }
+  .dot-ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-warn { background: var(--yellow); }
+  .dot-err { background: var(--red); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { margin-top: 16px; }
+  .progress-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    width: 0%; transition: width .4s ease;
+  }
+
+  /* ── LOG ── */
+  .log-box {
+    background: #05070a;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; min-height: 120px; max-height: 260px;
+    overflow-y: auto; font-family: var(--font-mono);
+    font-size: 12px; line-height: 1.8;
+  }
+  .log-line { display: flex; gap: 10px; }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-ok { color: var(--green); }
+  .log-err { color: var(--red); }
+  .log-info { color: var(--accent); }
+  .log-warn { color: var(--yellow); }
+
+  /* ── SAVE BANNER ── */
+  .save-banner {
+    position: fixed; bottom: 24px; right: 24px; z-index: 500;
+    background: var(--green); color: #000;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    padding: 12px 20px; border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,255,136,.4);
+    transform: translateY(80px); opacity: 0;
+    transition: all .3s;
+  }
+  .save-banner.show { transform: translateY(0); opacity: 1; }
+
+  /* ── APP LIST ── */
+  .app-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px; margin-top: 16px;
+  }
+  .app-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all .2s;
+  }
+  .app-item:hover { border-color: var(--accent); }
+  .app-item .app-name {
+    font-weight: 600; font-size: 13px;
+    color: var(--text); word-break: break-all;
+  }
+  .app-item .app-meta {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted);
+  }
+  .app-item-actions {
+    display: flex; gap: 6px; margin-top: 6px;
+  }
+  .app-item-actions button {
+    flex: 1; padding: 6px; font-size: 10px;
+  }
+
+  /* ── INDEX PREVIEW ── */
+  .index-preview {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px;
+    min-height: 200px;
+  }
+  .index-preview h3 {
+    font-size: 18px; margin-bottom: 16px;
+    color: var(--accent);
+  }
+
+  /* ── WIDGET CHIPS ── */
+  .widget-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .widget-chip {
+    padding: 8px 14px; border-radius: 20px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 11px;
+    cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .widget-chip:hover { border-color: var(--accent); }
+  .widget-chip.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  /* ── THEME SELECT ── */
+  .theme-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px; margin-top: 12px;
+  }
+  .theme-card {
+    border: 2px solid var(--border); border-radius: 8px;
+    padding: 12px; text-align: center; cursor: pointer;
+    transition: all .15s;
+  }
+  .theme-card:hover { border-color: var(--accent); }
+  .theme-card.active { border-color: var(--green); background: rgba(0,255,136,.1); }
+  .theme-card .theme-preview {
+    height: 40px; border-radius: 4px; margin-bottom: 8px;
+  }
+  .theme-card .theme-name {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--muted);
+  }
+
+  /* ── SEPARATOR ── */
+  .sep { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* ── GRID 2 ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* ── DANGER ZONE ── */
+  .danger-zone { border-color: rgba(255,59,92,.2); }
+  .danger-zone .card-title { color: var(--red); }
+
+  /* ── LOCAL BACKUP STATUS ── */
+  .local-backup-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .local-backup-status.connected { border-color: var(--green); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     PIN OVERLAY
+═══════════════════════════════════════════════════ -->
+<div id="pin-overlay">
+  <div class="pin-logo">TAF ◆ Charles de Gaulle ◆ Fret Aérien</div>
+  <h2>🔐 DEPLOY MANAGER</h2>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2</button>
+    <button class="pin-btn" onclick="pinPress('3')">3</button>
+    <button class="pin-btn" onclick="pinPress('4')">4</button>
+    <button class="pin-btn" onclick="pinPress('5')">5</button>
+    <button class="pin-btn" onclick="pinPress('6')">6</button>
+    <button class="pin-btn" onclick="pinPress('7')">7</button>
+    <button class="pin-btn" onclick="pinPress('8')">8</button>
+    <button class="pin-btn" onclick="pinPress('9')">9</button>
+    <button class="pin-btn del" onclick="pinClear()">✕</button>
+    <button class="pin-btn" onclick="pinPress('0')">0</button>
+    <button class="pin-btn del" onclick="pinBack()">⌫</button>
+  </div>
+  <div class="pin-error" id="pinError">PIN INCORRECT</div>
+  <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:8px;">
+    Premier accès → PIN par défaut : <span style="color:var(--accent)">1234</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <div class="header-left">
+      <div class="header-icon">🚀</div>
+      <div>
+        <div class="header-title">TAF Deploy Manager</div>
+        <div class="header-sub">GitHub Pages · Drive · Local Backup · CDG Fret</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="version-badge">v3.0</span>
+      <button class="lock-btn tooltip" title="Verrouiller" onclick="lockApp()">🔒</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('deploy')" id="tab-deploy">
+      <span>🚀</span> Déploiement
+    </button>
+    <button class="tab-btn" onclick="switchTab('index')" id="tab-index">
+      <span>📑</span> Index Manager
+    </button>
+    <button class="tab-btn" onclick="switchTab('keys')" id="tab-keys">
+      <span>🔑</span> Clés &amp; Chemins
+    </button>
+    <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings">
+      <span>⚙️</span> Paramètres
+    </button>
+  </div>
+
+  <div class="content">
+
+    <!-- ══════════════════════════════════════════════
+         TAB : DÉPLOIEMENT
+    ═══════════════════════════════════════════════ -->
+    <div class="tab-panel active" id="panel-deploy">
+
+      <div class="section-header">
+        <div class="section-bar"></div>
+        <div>
+          <div class="section-title">Déploiement GitHub Pages</div>
+          <div class="section-desc">Push fichiers HTML → repo christophehermann/TAF</div>
+        </div>
+      </div>
+
+      <!-- Status cards -->
+      <div class="status-row">
+        <div class="status-card">
+          <div class="status-label">Repo</div>
+          <div class="status-value" style="font-size:12px" id="s-repo">—</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">Dernier déploiement</div>
+          <div class="status-value" id="s-lastdeploy">—</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">Token GitHub</div>
+          <div class="status-value" id="s-token">
+            <span class="status-dot dot-err"></span>Non configuré
+          </div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">Backup Local</div>
+          <div class="status-value" id="s-local">
+            <span class="status-dot dot-warn"></span>Non lié
+          </div>
+        </div>
+      </div>
+
+      <!-- Fichier à déployer -->
+      <div class="card">
+        <div class="card-title">📁 Fichier à déployer</div>
+        <div class="field-group">
+          <div class="field-label">Sélectionner un fichier HTML <span class="field-required">*</span></div>
+          <input type="file" id="deployFile" accept=".html" onchange="handleFileSelect()" style="display:none">
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-outline" onclick="document.getElementById('deployFile').click()">
+              📂 Choisir fichier...
+            </button>
+            <span id="fileName" style="font-family:var(--font-mono);font-size:12px;color:var(--muted)">
+              Aucun fichier sélectionné
+            </span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Nom du fichier cible (GitHub)</div>
+            <input class="field-input" id="targetName" type="text" placeholder="ex: taf-commercial.html">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Dossier Drive cible (ID)</div>
+            <input class="field-input" id="driveFolderTarget" type="text" placeholder="ID dossier Drive">
+          </div>
+        </div>
+
+        <!-- Raccourcis dossiers Drive -->
+        <div style="margin-bottom:16px">
+          <div class="field-label">⚡ Raccourcis dossiers Drive</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="driveShortcuts"></div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Message de commit</div>
+          <input class="field-input" id="commitMsg" type="text" placeholder="ex: Update TAF Commercial v2.3">
+        </div>
+
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="chkGithub" checked style="accent-color:var(--accent)">
+            Push GitHub Pages
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="chkDrive" checked style="accent-color:var(--green)">
+            Backup Google Drive
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="chkLocal" style="accent-color:var(--purple)">
+            Backup Local (HDD)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="chkUpdateIndex" style="accent-color:var(--yellow)">
+            Régénérer Index
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btnDeploy" onclick="deployFile()">
+            🚀 Déployer
+          </button>
+          <button class="btn btn-outline" onclick="clearLog()">🗑 Vider log</button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progressWrap" style="display:none">
+        <div class="progress-label">
+          <span id="progressLabel">Déploiement en cours…</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <!-- Log -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">📋 Journal d'opérations</div>
+        <div class="log-box" id="logBox">
+          <div class="log-line">
+            <span class="log-time">[init]</span>
+            <span class="log-info">TAF Deploy Manager v3.0 initialisé</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         TAB : INDEX MANAGER
+    ═══════════════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-index">
+
+      <div class="section-header">
+        <div class="section-bar" style="background:linear-gradient(180deg,var(--purple),transparent)"></div>
+        <div>
+          <div class="section-title">Index Manager</div>
+          <div class="section-desc">Personnalisation et génération automatique de l'index TAF</div>
+        </div>
+      </div>
+
+      <!-- Config Index -->
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">⚙️ Configuration de l'Index</div>
+
+          <div class="field-group">
+            <div class="field-label">Titre de l'Index</div>
+            <input class="field-input" id="idx-title" type="text" placeholder="TAF Applications Hub" value="TAF Applications Hub">
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Sous-titre</div>
+            <input class="field-input" id="idx-subtitle" type="text" placeholder="CDG Fret Aérien - Écosystème TAF" value="CDG Fret Aérien - Écosystème TAF">
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Logo / Icône</div>
+            <input class="field-input" id="idx-logo" type="text" placeholder="🚀 ou URL image" value="✈️">
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Footer</div>
+            <input class="field-input" id="idx-footer" type="text" placeholder="© 2026 TAF - Tous droits réservés" value="© 2026 TAF CDG - Christophe Hermann">
+          </div>
+
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎨 Thème visuel</div>
+          <div class="theme-grid" id="themeGrid">
+            <!-- Généré dynamiquement -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Widgets -->
+      <div class="card">
+        <div class="card-title">🧩 Widgets à inclure</div>
+        <div class="widget-chips" id="widgetChips">
+          <div class="widget-chip active" data-widget="clock" onclick="toggleWidget(this)">🕐 Horloge</div>
+          <div class="widget-chip active" data-widget="date" onclick="toggleWidget(this)">📅 Date</div>
+          <div class="widget-chip" data-widget="weather" onclick="toggleWidget(this)">🌤️ Météo CDG</div>
+          <div class="widget-chip active" data-widget="search" onclick="toggleWidget(this)">🔍 Recherche</div>
+          <div class="widget-chip" data-widget="stats" onclick="toggleWidget(this)">📊 Stats Apps</div>
+          <div class="widget-chip" data-widget="quicklinks" onclick="toggleWidget(this)">⚡ Liens rapides</div>
+          <div class="widget-chip" data-widget="version" onclick="toggleWidget(this)">🏷️ Versions</div>
+        </div>
+      </div>
+
+      <!-- Liste Apps -->
+      <div class="card">
+        <div class="card-title">📱 Applications détectées dans le repo</div>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <button class="btn btn-outline" onclick="fetchRepoApps()">🔄 Rafraîchir la liste</button>
+          <button class="btn btn-outline" onclick="addManualApp()">➕ Ajouter manuellement</button>
+        </div>
+        <div class="app-list" id="appList">
+          <div style="color:var(--muted);font-family:var(--font-mono);font-size:12px">
+            Cliquez sur "Rafraîchir" pour charger les apps du repo GitHub
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview & Generate -->
+      <div class="card">
+        <div class="card-title">👁️ Aperçu et Génération</div>
+        <div class="btn-row" style="margin-top:0;margin-bottom:20px">
+          <button class="btn btn-primary" onclick="previewIndex()">👁️ Aperçu</button>
+          <button class="btn btn-success" onclick="generateIndex()">⚡ Générer Index</button>
+          <button class="btn btn-purple" onclick="deployIndex()">🚀 Déployer Index sur GitHub</button>
+        </div>
+        <div class="index-preview" id="indexPreview">
+          <div style="color:var(--muted);font-family:var(--font-mono);font-size:12px;text-align:center;padding:40px">
+            Cliquez sur "Aperçu" pour voir le rendu de l'index
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         TAB : CLÉS & CHEMINS
+    ═══════════════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-keys">
+
+      <div class="section-header">
+        <div class="section-bar" style="background:linear-gradient(180deg,var(--yellow),transparent)"></div>
+        <div>
+          <div class="section-title">Clés &amp; Chemins de configuration</div>
+          <div class="section-desc">Sauvegarde locale sécurisée · localStorage</div>
+        </div>
+      </div>
+
+      <!-- GitHub -->
+      <div class="card">
+        <div class="card-title">🐙 GitHub</div>
+        <div class="field-group">
+          <div class="field-label">Token Personnel (PAT) <span class="field-required">*</span></div>
+          <div class="key-display">
+            <input class="field-input secret" id="k-githubToken" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            <button class="icon-btn" title="Afficher/Masquer" onclick="toggleSecret('k-githubToken', this)">👁</button>
+            <button class="icon-btn" title="Copier" onclick="copyField('k-githubToken', this)">📋</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Repo (owner/name)</div>
+            <input class="field-input" id="k-githubRepo" type="text" placeholder="christophehermann/TAF">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Branche cible</div>
+            <input class="field-input" id="k-githubBranch" type="text" placeholder="main">
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">URL GitHub Pages</div>
+          <div class="key-display">
+            <input class="field-input" id="k-githubPages" type="text" placeholder="https://christophehermann.github.io/TAF">
+            <button class="icon-btn" title="Ouvrir" onclick="openUrl('k-githubPages')">🔗</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Drive / App Script -->
+      <div class="card">
+        <div class="card-title">☁️ Google Drive &amp; App Script</div>
+        <div class="field-group">
+          <div class="field-label">URL Proxy App Script (Upload Drive) <span class="field-required">*</span></div>
+          <div class="key-display">
+            <input class="field-input" id="k-appscript" type="text" placeholder="https://script.google.com/macros/s/…/exec">
+            <button class="icon-btn" title="Copier" onclick="copyField('k-appscript', this)">📋</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Dossier Drive pour backup config</div>
+          <div class="key-display">
+            <input class="field-input" id="k-configFolder" type="text" placeholder="ID du dossier Drive">
+            <button class="icon-btn" title="Copier" onclick="copyField('k-configFolder', this)">📋</button>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:6px">
+            Dossier où sera sauvegardé le fichier JSON de configuration
+          </div>
+        </div>
+        <div class="sep"></div>
+        <div class="card-title" style="margin-bottom:16px">📁 IDs Dossiers Drive</div>
+        <div id="driveFoldersList"></div>
+        <button class="btn btn-outline" onclick="addDriveFolder()" style="margin-top:12px;font-size:12px">
+          ＋ Ajouter un dossier
+        </button>
+      </div>
+
+      <!-- Airtable -->
+      <div class="card">
+        <div class="card-title">📊 Airtable</div>
+        <div class="field-group">
+          <div class="field-label">Token PAT Airtable</div>
+          <div class="key-display">
+            <input class="field-input secret" id="k-airtableToken" type="password" placeholder="patXXXXXXXXXXXXXXXX.XXXX">
+            <button class="icon-btn" title="Afficher/Masquer" onclick="toggleSecret('k-airtableToken', this)">👁</button>
+            <button class="icon-btn" title="Copier" onclick="copyField('k-airtableToken', this)">📋</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Base TAF HUB OPS (ID)</div>
+            <input class="field-input" id="k-baseOps" type="text" placeholder="appXXXXXXXXXXX">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Base CRM (ID)</div>
+            <input class="field-input" id="k-baseCrm" type="text" placeholder="appXXXXXXXXXXX">
+          </div>
+        </div>
+      </div>
+
+      <!-- Make.com -->
+      <div class="card">
+        <div class="card-title">⚙️ Make.com — Webhooks</div>
+        <div class="field-group">
+          <div class="field-label">Webhook Emails</div>
+          <div class="key-display">
+            <input class="field-input" id="k-webhookEmails" type="text" placeholder="https://hook.eu2.make.com/…">
+            <button class="icon-btn" title="Copier" onclick="copyField('k-webhookEmails', this)">📋</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Webhook Récap Vols v2</div>
+          <div class="key-display">
+            <input class="field-input" id="k-webhookVols" type="text" placeholder="https://hook.eu2.make.com/…">
+            <button class="icon-btn" title="Copier" onclick="copyField('k-webhookVols', this)">📋</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="saveAllKeys()">💾 Sauvegarder tout</button>
+        <button class="btn btn-purple" onclick="saveConfigToDrive()">☁️ Backup sur Drive</button>
+        <button class="btn btn-outline" onclick="exportKeys()">📤 Exporter JSON</button>
+        <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">
+          📥 Importer JSON
+        </button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importKeys()">
+      </div>
+
+      <!-- Message première config -->
+      <div class="card" style="border-color:var(--yellow)44;margin-top:20px" id="firstConfigMsg">
+        <div class="card-title" style="color:var(--yellow)">⚠️ Première configuration</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Les clés sensibles (GitHub Token, Airtable Token) ne sont pas stockées dans le code pour des raisons de sécurité.
+          <br>Vous devez les saisir manuellement ci-dessus, puis cliquer sur "Sauvegarder tout".
+          <br>Utilisez ensuite <strong>"Backup sur Drive"</strong> pour conserver une copie sécurisée de votre configuration.
+        </p>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent)">
+          💡 Astuce : Après un backup Drive, vous pourrez restaurer votre config sur n'importe quel appareil via "Importer JSON"
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         TAB : PARAMÈTRES
+    ═══════════════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-settings">
+
+      <div class="section-header">
+        <div class="section-bar" style="background:linear-gradient(180deg,var(--accent2),transparent)"></div>
+        <div>
+          <div class="section-title">Paramètres</div>
+          <div class="section-desc">Sécurité · PIN · Backup Local · Préférences</div>
+        </div>
+      </div>
+
+      <!-- Backup Local HDD -->
+      <div class="card">
+        <div class="card-title">💾 Sauvegarde Locale (Disque Dur Externe)</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+          Sélectionnez un dossier sur votre disque dur externe pour y sauvegarder automatiquement vos applications à chaque déploiement.
+          <br><span style="color:var(--yellow)">⚠️ Requiert Chrome/Edge et l'API File System Access</span>
+        </p>
+
+        <div class="local-backup-status" id="localBackupStatus">
+          <span class="status-dot dot-warn"></span>
+          <span id="localFolderName">Aucun dossier sélectionné</span>
+        </div>
+
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-purple" onclick="selectLocalFolder()">📂 Sélectionner un dossier</button>
+          <button class="btn btn-outline" onclick="testLocalWrite()">🧪 Tester l'écriture</button>
+          <button class="btn btn-outline" onclick="clearLocalFolder()">✕ Délier le dossier</button>
+        </div>
+      </div>
+
+      <!-- Changer PIN -->
+      <div class="card">
+        <div class="card-title">🔐 Sécurité — PIN d'accès</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">PIN actuel</div>
+            <input class="field-input" id="currentPin" type="password" maxlength="4" style="width:100px;letter-spacing:4px" placeholder="••••">
+          </div>
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">Nouveau PIN</div>
+            <input class="field-input" id="newPin" type="password" maxlength="4" style="width:100px;letter-spacing:4px" placeholder="••••">
+          </div>
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">Confirmer</div>
+            <input class="field-input" id="confirmPin" type="password" maxlength="4" style="width:100px;letter-spacing:4px" placeholder="••••">
+          </div>
+          <button class="btn btn-warning" onclick="changePin()">Changer</button>
+        </div>
+        <div id="pinChangeMsg" style="margin-top:12px;font-family:var(--font-mono);font-size:12px"></div>
+      </div>
+
+      <!-- Préférences déploiement -->
+      <div class="card">
+        <div class="card-title">🚀 Préférences de déploiement</div>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Timeout requête (ms)</div>
+            <input class="field-input" id="p-timeout" type="number" value="30000" min="5000" max="120000">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Délai entre ops (ms)</div>
+            <input class="field-input" id="p-delay" type="number" value="500" min="0" max="5000">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="p-autoBackup" checked style="accent-color:var(--green)">
+          Backup Drive automatique à chaque déploiement GitHub
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:10px">
+          <input type="checkbox" id="p-autoLocalBackup" style="accent-color:var(--purple)">
+          Backup Local automatique à chaque déploiement
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:10px">
+          <input type="checkbox" id="p-autoIndex" style="accent-color:var(--yellow)">
+          Régénérer l'index automatiquement à chaque nouvelle app
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:10px">
+          <input type="checkbox" id="p-confirmDeploy" checked style="accent-color:var(--accent)">
+          Confirmer avant chaque déploiement
+        </label>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="savePrefs()">💾 Sauvegarder préférences</button>
+        </div>
+      </div>
+
+      <!-- Résumé données -->
+      <div class="card">
+        <div class="card-title">📊 Résumé des données sauvegardées</div>
+        <div id="dataSummary" style="font-family:var(--font-mono);font-size:12px;line-height:2;color:var(--muted)">
+          Chargement…
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="card danger-zone">
+        <div class="card-title">⚠️ Zone Danger</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+          Supprimer toutes les données sauvegardées localement (clés, chemins, PIN).
+        </p>
+        <button class="btn btn-danger" onclick="resetAll()">🗑 Réinitialiser tout</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- Save banner -->
+<div class="save-banner" id="saveBanner">✓ Données sauvegardées</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STORAGE KEYS
+// ═══════════════════════════════════════════════
+const STORAGE = {
+  pin:           'taf_dm_pin',
+  lastDeploy:    'taf_dm_lastdeploy',
+  githubToken:   'taf_github_token',
+  githubRepo:    'taf_github_repo',
+  githubBranch:  'taf_github_branch',
+  githubPages:   'taf_github_pages',
+  appscript:     'taf_appscript_url',
+  configFolder:  'taf_config_folder',
+  driveFolders:  'taf_drive_folders',
+  airtableToken: 'taf_airtable_token',
+  baseOps:       'taf_base_ops',
+  baseCrm:       'taf_base_crm',
+  webhookEmails: 'taf_webhook_emails',
+  webhookVols:   'taf_webhook_vols',
+  prefs:         'taf_deploy_prefs',
+  indexConfig:   'taf_index_config',
+  apps:          'taf_apps_list',
+};
+
+// ═══════════════════════════════════════════════
+// DEFAULTS (pas de clés sensibles ici !)
+// ═══════════════════════════════════════════════
+const DEFAULTS = {
+  [STORAGE.githubRepo]:    'christophehermann/TAF',
+  [STORAGE.githubBranch]:  'main',
+  [STORAGE.githubPages]:   'https://christophehermann.github.io/TAF',
+  // Les tokens et clés sensibles doivent être saisis manuellement
+  // et seront sauvegardés dans localStorage + backup Drive
+};
+
+const DEFAULT_FOLDERS = [
+  { label: 'Super Save COMMERCIAL', id: '1pV1qH4HfSmVHbo60UMm8LUKFMiCx1MS6' },
+  { label: 'App COMMERCIAL',        id: '1RleR0C8uqwiA0c5mcn9VYf63wZVA17OX' },
+  { label: 'Données OPS',           id: '1m4fVin7cxkja3Ji4ENElDg94F1P-NRm6' },
+  { label: 'Proxy Upload',          id: '143DZMp79_EfrVAjyOMquBU0L-JXlKdnF' },
+];
+
+const INDEX_THEMES = [
+  { id: 'cyber',   name: 'Cyber',   colors: ['#0a0c10','#00d4ff','#00ff88'] },
+  { id: 'sunset',  name: 'Sunset',  colors: ['#1a1423','#ff6b35','#ffd700'] },
+  { id: 'ocean',   name: 'Ocean',   colors: ['#0c1929','#0ea5e9','#06b6d4'] },
+  { id: 'forest',  name: 'Forest',  colors: ['#0f1f0f','#22c55e','#84cc16'] },
+  { id: 'royal',   name: 'Royal',   colors: ['#140f29','#a855f7','#ec4899'] },
+  { id: 'minimal', name: 'Minimal', colors: ['#ffffff','#1f2937','#6b7280'] },
+];
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function ls(key) { return localStorage.getItem(key); }
+function lsSet(key, val) { localStorage.setItem(key, val); }
+function lsDel(key) { localStorage.removeItem(key); }
+function getPin() { return ls(STORAGE.pin) || '1234'; }
+
+function getDriveFolders() {
+  try {
+    const raw = ls(STORAGE.driveFolders);
+    return raw ? JSON.parse(raw) : DEFAULT_FOLDERS;
+  } catch(e) { return DEFAULT_FOLDERS; }
+}
+
+function getVal(key) {
+  return ls(key) !== null ? ls(key) : (DEFAULTS[key] || '');
+}
+
+function getIndexConfig() {
+  try {
+    const raw = ls(STORAGE.indexConfig);
+    return raw ? JSON.parse(raw) : {
+      title: 'TAF Applications Hub',
+      subtitle: 'CDG Fret Aérien - Écosystème TAF',
+      logo: '✈️',
+      footer: '© 2026 TAF CDG - Christophe Hermann',
+      theme: 'cyber',
+      widgets: ['clock','date','search']
+    };
+  } catch(e) {
+    return { title: 'TAF Applications Hub', subtitle: '', logo: '✈️', footer: '', theme: 'cyber', widgets: ['clock','date','search'] };
+  }
+}
+
+function getApps() {
+  try {
+    const raw = ls(STORAGE.apps);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+// ═══════════════════════════════════════════════
+// LOCAL FOLDER HANDLE (File System Access API)
+// ═══════════════════════════════════════════════
+let localFolderHandle = null;
+
+async function selectLocalFolder() {
+  if (!('showDirectoryPicker' in window)) {
+    alert('Votre navigateur ne supporte pas l\'API File System Access. Utilisez Chrome ou Edge.');
+    return;
+  }
+  try {
+    localFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const name = localFolderHandle.name;
+    document.getElementById('localFolderName').textContent = '📂 ' + name;
+    document.getElementById('localBackupStatus').classList.add('connected');
+    document.getElementById('s-local').innerHTML = `<span class="status-dot dot-ok"></span>${name}`;
+    addLog(`Dossier local lié: ${name}`, 'ok');
+    showSaveBanner('✓ Dossier local sélectionné');
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      addLog('Erreur sélection dossier: ' + e.message, 'err');
+    }
+  }
+}
+
+async function testLocalWrite() {
+  if (!localFolderHandle) {
+    addLog('Aucun dossier local sélectionné', 'err');
+    return;
+  }
+  try {
+    const testFile = await localFolderHandle.getFileHandle('_taf_test.txt', { create: true });
+    const writable = await testFile.createWritable();
+    await writable.write('TAF Deploy Manager - Test écriture ' + new Date().toISOString());
+    await writable.close();
+    addLog('✓ Écriture locale réussie (_taf_test.txt créé)', 'ok');
+    showSaveBanner('✓ Test écriture OK');
+  } catch(e) {
+    addLog('✗ Erreur écriture locale: ' + e.message, 'err');
+  }
+}
+
+function clearLocalFolder() {
+  localFolderHandle = null;
+  document.getElementById('localFolderName').textContent = 'Aucun dossier sélectionné';
+  document.getElementById('localBackupStatus').classList.remove('connected');
+  document.getElementById('s-local').innerHTML = `<span class="status-dot dot-warn"></span>Non lié`;
+  addLog('Dossier local délié', 'info');
+}
+
+async function saveToLocalFolder(fileName, content) {
+  if (!localFolderHandle) return false;
+  try {
+    const fileHandle = await localFolderHandle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  } catch(e) {
+    addLog(`Erreur sauvegarde locale ${fileName}: ${e.message}`, 'err');
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function initApp() {
+  // Remplir les champs clés
+  const map = {
+    'k-githubToken':   STORAGE.githubToken,
+    'k-githubRepo':    STORAGE.githubRepo,
+    'k-githubBranch':  STORAGE.githubBranch,
+    'k-githubPages':   STORAGE.githubPages,
+    'k-appscript':     STORAGE.appscript,
+    'k-configFolder':  STORAGE.configFolder,
+    'k-airtableToken': STORAGE.airtableToken,
+    'k-baseOps':       STORAGE.baseOps,
+    'k-baseCrm':       STORAGE.baseCrm,
+    'k-webhookEmails': STORAGE.webhookEmails,
+    'k-webhookVols':   STORAGE.webhookVols,
+  };
+  for (const [id, key] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el) el.value = getVal(key);
+  }
+
+  renderDriveFolders();
+  renderDriveShortcuts();
+  renderThemeGrid();
+  loadIndexConfig();
+
+  const prefs = getPrefs();
+  document.getElementById('p-timeout').value = prefs.timeout;
+  document.getElementById('p-delay').value = prefs.delay;
+  document.getElementById('p-autoBackup').checked = prefs.autoBackup;
+  document.getElementById('p-autoLocalBackup').checked = prefs.autoLocalBackup || false;
+  document.getElementById('p-autoIndex').checked = prefs.autoIndex || false;
+  document.getElementById('p-confirmDeploy').checked = prefs.confirmDeploy;
+
+  updateStatus();
+  updateDataSummary();
+  checkFirstConfig();
+
+  const ld = ls(STORAGE.lastDeploy);
+  document.getElementById('s-lastdeploy').textContent = ld || '—';
+}
+
+function checkFirstConfig() {
+  // Vérifier si les clés essentielles sont configurées
+  const githubToken = ls(STORAGE.githubToken);
+  const appscript = ls(STORAGE.appscript);
+  
+  const msgEl = document.getElementById('firstConfigMsg');
+  if (msgEl) {
+    // Cacher le message si les clés essentielles sont présentes
+    if (githubToken && appscript) {
+      msgEl.style.display = 'none';
+    } else {
+      msgEl.style.display = 'block';
+    }
+  }
+}
+
+function getPrefs() {
+  try {
+    const raw = ls(STORAGE.prefs);
+    const base = { timeout: 30000, delay: 500, autoBackup: true, autoLocalBackup: false, autoIndex: false, confirmDeploy: true };
+    return raw ? { ...base, ...JSON.parse(raw) } : base;
+  } catch(e) {
+    return { timeout: 30000, delay: 500, autoBackup: true, autoLocalBackup: false, autoIndex: false, confirmDeploy: true };
+  }
+}
+
+function updateStatus() {
+  const token = getVal(STORAGE.githubToken);
+  const repo  = getVal(STORAGE.githubRepo);
+
+  document.getElementById('s-repo').textContent = repo || '—';
+
+  const tokenEl = document.getElementById('s-token');
+  if (token) {
+    tokenEl.innerHTML = `<span class="status-dot dot-ok"></span>ghp_…${token.slice(-6)}`;
+  } else {
+    tokenEl.innerHTML = `<span class="status-dot dot-err"></span>Non configuré`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DRIVE FOLDERS
+// ═══════════════════════════════════════════════
+function renderDriveFolders() {
+  const folders = getDriveFolders();
+  const container = document.getElementById('driveFoldersList');
+  container.innerHTML = '';
+  folders.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:12px';
+    row.innerHTML = `
+      <div class="field-group" style="flex:1;margin-bottom:0">
+        <div class="field-label">${i+1}. Libellé</div>
+        <input class="field-input" value="${f.label}" style="font-size:12px" onchange="updateFolder(${i},'label',this.value)">
+      </div>
+      <div class="field-group" style="flex:1.5;margin-bottom:0">
+        <div class="field-label">ID Google Drive</div>
+        <input class="field-input" value="${f.id}" style="font-size:12px;color:var(--accent)" onchange="updateFolder(${i},'id',this.value)">
+      </div>
+      <button class="icon-btn" title="Copier ID" onclick="copyText('${f.id}', this)">📋</button>
+      <button class="icon-btn" title="Supprimer" onclick="removeFolder(${i})" style="color:var(--red)">✕</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderDriveShortcuts() {
+  const folders = getDriveFolders();
+  const container = document.getElementById('driveShortcuts');
+  if (!container) return;
+  container.innerHTML = '';
+  folders.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline';
+    btn.style.cssText = 'font-size:11px;padding:6px 12px';
+    btn.textContent = f.label;
+    btn.onclick = () => { document.getElementById('driveFolderTarget').value = f.id; };
+    container.appendChild(btn);
+  });
+}
+
+function updateFolder(i, key, val) {
+  const folders = getDriveFolders();
+  folders[i][key] = val;
+  lsSet(STORAGE.driveFolders, JSON.stringify(folders));
+  renderDriveShortcuts();
+}
+
+function removeFolder(i) {
+  const folders = getDriveFolders();
+  folders.splice(i, 1);
+  lsSet(STORAGE.driveFolders, JSON.stringify(folders));
+  renderDriveFolders();
+  renderDriveShortcuts();
+}
+
+function addDriveFolder() {
+  const folders = getDriveFolders();
+  folders.push({ label: 'Nouveau dossier', id: '' });
+  lsSet(STORAGE.driveFolders, JSON.stringify(folders));
+  renderDriveFolders();
+}
+
+// ═══════════════════════════════════════════════
+// INDEX MANAGER
+// ═══════════════════════════════════════════════
+function renderThemeGrid() {
+  const container = document.getElementById('themeGrid');
+  const config = getIndexConfig();
+  container.innerHTML = '';
+  INDEX_THEMES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'theme-card' + (t.id === config.theme ? ' active' : '');
+    card.onclick = () => selectTheme(t.id);
+    card.innerHTML = `
+      <div class="theme-preview" style="background:linear-gradient(135deg,${t.colors[0]},${t.colors[1]})"></div>
+      <div class="theme-name">${t.name}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function selectTheme(id) {
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.theme-card[onclick*="${id}"]`)?.classList.add('active');
+  saveIndexConfig();
+}
+
+function toggleWidget(el) {
+  el.classList.toggle('active');
+  saveIndexConfig();
+}
+
+function loadIndexConfig() {
+  const config = getIndexConfig();
+  document.getElementById('idx-title').value = config.title || '';
+  document.getElementById('idx-subtitle').value = config.subtitle || '';
+  document.getElementById('idx-logo').value = config.logo || '';
+  document.getElementById('idx-footer').value = config.footer || '';
+
+  // Widgets
+  document.querySelectorAll('.widget-chip').forEach(chip => {
+    const w = chip.dataset.widget;
+    chip.classList.toggle('active', config.widgets?.includes(w));
+  });
+}
+
+function saveIndexConfig() {
+  const widgets = [];
+  document.querySelectorAll('.widget-chip.active').forEach(c => widgets.push(c.dataset.widget));
+
+  let theme = 'cyber';
+  document.querySelectorAll('.theme-card.active').forEach(c => {
+    const match = c.onclick?.toString().match(/selectTheme\('(\w+)'\)/);
+    if (match) theme = match[1];
+  });
+
+  const config = {
+    title: document.getElementById('idx-title').value,
+    subtitle: document.getElementById('idx-subtitle').value,
+    logo: document.getElementById('idx-logo').value,
+    footer: document.getElementById('idx-footer').value,
+    theme,
+    widgets
+  };
+  lsSet(STORAGE.indexConfig, JSON.stringify(config));
+}
+
+async function fetchRepoApps() {
+  const token = getVal(STORAGE.githubToken);
+  const repo = getVal(STORAGE.githubRepo);
+  if (!token || !repo) {
+    addLog('Token ou repo non configuré', 'err');
+    return;
+  }
+
+  addLog('Chargement des apps depuis GitHub…', 'info');
+  const container = document.getElementById('appList');
+  container.innerHTML = '<div style="color:var(--accent)">Chargement…</div>';
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    if (!res.ok) throw new Error('Erreur API GitHub');
+    const files = await res.json();
+    const htmlFiles = files.filter(f => f.name.endsWith('.html') && f.type === 'file');
+
+    const apps = htmlFiles.map(f => ({
+      name: f.name,
+      size: f.size,
+      url: `https://${repo.split('/')[0]}.github.io/${repo.split('/')[1]}/${f.name}`,
+      sha: f.sha
+    }));
+
+    lsSet(STORAGE.apps, JSON.stringify(apps));
+    renderAppList(apps);
+    addLog(`${apps.length} apps HTML trouvées`, 'ok');
+  } catch(e) {
+    addLog('Erreur: ' + e.message, 'err');
+    container.innerHTML = '<div style="color:var(--red)">Erreur chargement</div>';
+  }
+}
+
+function renderAppList(apps) {
+  const container = document.getElementById('appList');
+  if (!apps.length) {
+    container.innerHTML = '<div style="color:var(--muted)">Aucune app trouvée</div>';
+    return;
+  }
+  container.innerHTML = '';
+  apps.forEach((app, i) => {
+    const item = document.createElement('div');
+    item.className = 'app-item';
+    item.innerHTML = `
+      <div class="app-name">${app.name}</div>
+      <div class="app-meta">${(app.size/1024).toFixed(1)} KB</div>
+      <div class="app-item-actions">
+        <button class="btn btn-outline" onclick="window.open('${app.url}','_blank')">🔗</button>
+        <button class="btn btn-outline" onclick="removeApp(${i})" style="color:var(--red)">✕</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function removeApp(i) {
+  const apps = getApps();
+  apps.splice(i, 1);
+  lsSet(STORAGE.apps, JSON.stringify(apps));
+  renderAppList(apps);
+}
+
+function addManualApp() {
+  const name = prompt('Nom du fichier (ex: taf-newapp.html):');
+  if (!name) return;
+  const apps = getApps();
+  const repo = getVal(STORAGE.githubRepo);
+  apps.push({
+    name,
+    size: 0,
+    url: `https://${repo.split('/')[0]}.github.io/${repo.split('/')[1]}/${name}`,
+    manual: true
+  });
+  lsSet(STORAGE.apps, JSON.stringify(apps));
+  renderAppList(apps);
+}
+
+function previewIndex() {
+  saveIndexConfig();
+  const config = getIndexConfig();
+  const apps = getApps();
+  const theme = INDEX_THEMES.find(t => t.id === config.theme) || INDEX_THEMES[0];
+
+  let widgetsHtml = '';
+  if (config.widgets.includes('clock')) widgetsHtml += '<div style="font-size:28px;font-family:monospace" id="prevClock">--:--:--</div>';
+  if (config.widgets.includes('date')) widgetsHtml += '<div style="font-size:14px;opacity:.7" id="prevDate"></div>';
+  if (config.widgets.includes('search')) widgetsHtml += '<input type="text" placeholder="🔍 Rechercher une app…" style="padding:10px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:inherit;width:100%;max-width:300px;margin-top:10px">';
+
+  let appsHtml = apps.map(a => `
+    <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px;text-align:center">
+      <div style="font-size:13px;font-weight:600">${a.name.replace('.html','')}</div>
+      <div style="font-size:10px;opacity:.5;margin-top:4px">${(a.size/1024).toFixed(1)} KB</div>
+    </div>
+  `).join('');
+
+  const preview = document.getElementById('indexPreview');
+  preview.innerHTML = `
+    <div style="background:linear-gradient(135deg,${theme.colors[0]},${theme.colors[1]}22);padding:30px;border-radius:8px;color:#fff;text-align:center">
+      <div style="font-size:40px;margin-bottom:10px">${config.logo}</div>
+      <h2 style="font-size:22px;margin-bottom:4px;color:${theme.colors[1]}">${config.title}</h2>
+      <div style="font-size:12px;opacity:.7">${config.subtitle}</div>
+      <div style="margin:20px 0">${widgetsHtml}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:20px">${appsHtml || '<div style="opacity:.5">Aucune app</div>'}</div>
+      <div style="margin-top:30px;font-size:11px;opacity:.5">${config.footer}</div>
+    </div>
+  `;
+
+  // Clock update
+  const updateClock = () => {
+    const now = new Date();
+    const c = document.getElementById('prevClock');
+    const d = document.getElementById('prevDate');
+    if (c) c.textContent = now.toLocaleTimeString('fr-FR');
+    if (d) d.textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  };
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function generateIndex() {
+  saveIndexConfig();
+  const config = getIndexConfig();
+  const apps = getApps();
+  const theme = INDEX_THEMES.find(t => t.id === config.theme) || INDEX_THEMES[0];
+
+  const html = generateIndexHTML(config, apps, theme);
+
+  // Download
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  a.click();
+
+  addLog('Index généré et téléchargé', 'ok');
+  showSaveBanner('✓ Index généré');
+}
+
+function generateIndexHTML(config, apps, theme) {
+  const widgetClock = config.widgets.includes('clock') ? `<div id="clock" style="font-size:42px;font-family:'Share Tech Mono',monospace;color:${theme.colors[1]}">--:--:--</div>` : '';
+  const widgetDate = config.widgets.includes('date') ? `<div id="dateDisplay" style="font-size:14px;color:${theme.colors[2]};margin-top:4px"></div>` : '';
+  const widgetSearch = config.widgets.includes('search') ? `<input type="text" id="searchInput" placeholder="🔍 Rechercher…" onkeyup="filterApps()" style="padding:12px 20px;border-radius:25px;border:1px solid ${theme.colors[1]}44;background:${theme.colors[0]};color:#fff;width:100%;max-width:350px;margin-top:16px;font-family:inherit;font-size:14px;outline:none">` : '';
+
+  const appsHtml = apps.map(a => `
+    <a href="${a.url}" class="app-card" data-name="${a.name.toLowerCase()}">
+      <div class="app-icon">📱</div>
+      <div class="app-name">${a.name.replace('.html','').replace(/-/g,' ').replace(/_/g,' ')}</div>
+    </a>
+  `).join('\n    ');
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${config.title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: ${theme.colors[0]};
+      color: #e0e8f0;
+      font-family: 'Exo 2', sans-serif;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, ${theme.colors[1]}11 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .logo { font-size: 60px; margin-bottom: 16px; }
+    h1 { font-size: 28px; font-weight: 700; color: ${theme.colors[1]}; letter-spacing: 2px; }
+    .subtitle { font-size: 13px; color: ${theme.colors[2]}; margin-top: 6px; letter-spacing: 1px; }
+    .widgets { margin: 24px 0; text-align: center; }
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+      width: 100%; max-width: 900px;
+      margin-top: 30px;
+    }
+    .app-card {
+      background: ${theme.colors[0]};
+      border: 1px solid ${theme.colors[1]}33;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      text-decoration: none;
+      color: #e0e8f0;
+      transition: all .2s;
+    }
+    .app-card:hover {
+      border-color: ${theme.colors[1]};
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px ${theme.colors[1]}22;
+    }
+    .app-icon { font-size: 32px; margin-bottom: 10px; }
+    .app-name { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+    .app-card.hidden { display: none; }
+    footer {
+      margin-top: auto;
+      padding-top: 40px;
+      font-size: 11px;
+      color: ${theme.colors[2]}88;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .version-badge {
+      position: fixed; bottom: 10px; right: 10px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px; padding: 4px 8px;
+      background: ${theme.colors[0]}; border: 1px solid ${theme.colors[1]}33;
+      border-radius: 4px; color: ${theme.colors[2]};
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">${config.logo}</div>
+  <h1>${config.title}</h1>
+  <div class="subtitle">${config.subtitle}</div>
+
+  <div class="widgets">
+    ${widgetClock}
+    ${widgetDate}
+    ${widgetSearch}
+  </div>
+
+  <div class="apps-grid" id="appsGrid">
+    ${appsHtml}
+  </div>
+
+  <footer>${config.footer}</footer>
+  <div class="version-badge">Index v1.0 - ${new Date().toLocaleDateString('fr-FR')}</div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const clock = document.getElementById('clock');
+      const dateEl = document.getElementById('dateDisplay');
+      if (clock) clock.textContent = now.toLocaleTimeString('fr-FR');
+      if (dateEl) dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    function filterApps() {
+      const q = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      document.querySelectorAll('.app-card').forEach(card => {
+        const name = card.dataset.name || '';
+        card.classList.toggle('hidden', !name.includes(q));
+      });
+    }
+  <\/script>
+</body>
+</html>`;
+}
+
+async function deployIndex() {
+  saveIndexConfig();
+  const config = getIndexConfig();
+  const apps = getApps();
+  const theme = INDEX_THEMES.find(t => t.id === config.theme) || INDEX_THEMES[0];
+
+  const html = generateIndexHTML(config, apps, theme);
+
+  const token = getVal(STORAGE.githubToken);
+  const repo = getVal(STORAGE.githubRepo);
+  const branch = getVal(STORAGE.githubBranch) || 'main';
+
+  if (!token || !repo) {
+    addLog('Token ou repo non configuré', 'err');
+    return;
+  }
+
+  addLog('Déploiement de l\'index sur GitHub…', 'info');
+
+  try {
+    const b64 = btoa(unescape(encodeURIComponent(html)));
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/index.html`;
+    const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
+
+    // Get SHA
+    let sha = null;
+    const getRes = await fetch(apiUrl, { headers });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+    }
+
+    const body = {
+      message: 'Update index.html - TAF Deploy Manager',
+      content: b64,
+      branch
+    };
+    if (sha) body.sha = sha;
+
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT', headers,
+      body: JSON.stringify(body)
+    });
+
+    if (putRes.ok) {
+      addLog('✓ Index déployé sur GitHub', 'ok');
+      showSaveBanner('✓ Index déployé');
+    } else {
+      const err = await putRes.json();
+      addLog('✗ Erreur GitHub: ' + err.message, 'err');
+    }
+  } catch(e) {
+    addLog('Erreur: ' + e.message, 'err');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SAVE ALL KEYS
+// ═══════════════════════════════════════════════
+function saveAllKeys() {
+  const map = {
+    'k-githubToken':   STORAGE.githubToken,
+    'k-githubRepo':    STORAGE.githubRepo,
+    'k-githubBranch':  STORAGE.githubBranch,
+    'k-githubPages':   STORAGE.githubPages,
+    'k-appscript':     STORAGE.appscript,
+    'k-configFolder':  STORAGE.configFolder,
+    'k-airtableToken': STORAGE.airtableToken,
+    'k-baseOps':       STORAGE.baseOps,
+    'k-baseCrm':       STORAGE.baseCrm,
+    'k-webhookEmails': STORAGE.webhookEmails,
+    'k-webhookVols':   STORAGE.webhookVols,
+  };
+  for (const [id, key] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el) lsSet(key, el.value);
+  }
+  updateStatus();
+  updateDataSummary();
+  checkFirstConfig();
+  showSaveBanner();
+  addLog('Données de configuration sauvegardées', 'ok');
+}
+
+function savePrefs() {
+  lsSet(STORAGE.prefs, JSON.stringify({
+    timeout:        parseInt(document.getElementById('p-timeout').value),
+    delay:          parseInt(document.getElementById('p-delay').value),
+    autoBackup:     document.getElementById('p-autoBackup').checked,
+    autoLocalBackup:document.getElementById('p-autoLocalBackup').checked,
+    autoIndex:      document.getElementById('p-autoIndex').checked,
+    confirmDeploy:  document.getElementById('p-confirmDeploy').checked,
+  }));
+  showSaveBanner('✓ Préférences sauvegardées');
+}
+
+// ═══════════════════════════════════════════════
+// EXPORT / IMPORT JSON
+// ═══════════════════════════════════════════════
+function exportKeys() {
+  const data = {};
+  for (const [k, v] of Object.entries(STORAGE)) {
+    const val = ls(v);
+    if (val !== null) data[k] = val;
+  }
+  data['_driveFolders'] = getDriveFolders();
+  data['_indexConfig'] = getIndexConfig();
+  data['_apps'] = getApps();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `taf-config-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  addLog('Configuration exportée en JSON', 'ok');
+}
+
+async function saveConfigToDrive() {
+  const proxy = getVal(STORAGE.appscript);
+  const configFolder = getVal(STORAGE.configFolder);
+  
+  if (!proxy) {
+    addLog('URL App Script non configurée', 'err');
+    alert('Veuillez d\'abord configurer l\'URL Proxy App Script dans la section "Google Drive & App Script"');
+    return;
+  }
+  
+  if (!configFolder) {
+    addLog('Dossier Drive pour config non configuré', 'err');
+    alert('Veuillez d\'abord configurer le dossier Drive pour backup config');
+    return;
+  }
+
+  // Préparer les données de config
+  const data = {};
+  for (const [k, v] of Object.entries(STORAGE)) {
+    const val = ls(v);
+    if (val !== null) data[k] = val;
+  }
+  data['_driveFolders'] = getDriveFolders();
+  data['_indexConfig'] = getIndexConfig();
+  data['_apps'] = getApps();
+  data['_savedAt'] = new Date().toISOString();
+
+  const jsonContent = JSON.stringify(data, null, 2);
+  const fileName = `taf-deploy-config-${new Date().toISOString().slice(0,10)}.json`;
+
+  addLog('Sauvegarde de la config sur Google Drive…', 'info');
+
+  try {
+    const formData = new FormData();
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    formData.append('file', blob, fileName);
+    formData.append('folderId', configFolder);
+
+    await fetch(proxy, { method: 'POST', body: formData, mode: 'no-cors' });
+    
+    addLog(`✓ Config sauvegardée sur Drive: ${fileName}`, 'ok');
+    showSaveBanner('✓ Config sauvegardée sur Drive');
+    
+    // Sauvegarder la date du dernier backup
+    lsSet('taf_last_drive_backup', new Date().toISOString());
+    
+  } catch(e) {
+    addLog(`✗ Erreur sauvegarde Drive: ${e.message}`, 'err');
+  }
+}
+
+function importKeys() {
+  const file = document.getElementById('importFile').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      for (const [k, v] of Object.entries(data)) {
+        if (k === '_driveFolders') {
+          lsSet(STORAGE.driveFolders, JSON.stringify(v));
+        } else if (k === '_indexConfig') {
+          lsSet(STORAGE.indexConfig, JSON.stringify(v));
+        } else if (k === '_apps') {
+          lsSet(STORAGE.apps, JSON.stringify(v));
+        } else if (STORAGE[k]) {
+          lsSet(STORAGE[k], v);
+        }
+      }
+      initApp();
+      showSaveBanner('✓ Configuration importée');
+      addLog('Configuration importée depuis JSON', 'ok');
+    } catch(err) {
+      addLog('Erreur import JSON: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════
+// DATA SUMMARY
+// ═══════════════════════════════════════════════
+function updateDataSummary() {
+  const checks = [
+    { label: 'GitHub Token',   key: STORAGE.githubToken },
+    { label: 'GitHub Repo',    key: STORAGE.githubRepo },
+    { label: 'App Script URL', key: STORAGE.appscript },
+    { label: 'Airtable Token', key: STORAGE.airtableToken },
+    { label: 'Base OPS',       key: STORAGE.baseOps },
+    { label: 'Base CRM',       key: STORAGE.baseCrm },
+  ];
+  const folders = getDriveFolders();
+  const apps = getApps();
+  let html = '';
+  checks.forEach(c => {
+    const val = getVal(c.key);
+    const ok = val && val.length > 0;
+    html += `<div><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? '✓' : '✗'}</span>  ${c.label}</div>`;
+  });
+  html += `<div style="margin-top:8px"><span style="color:var(--accent)">📁</span>  ${folders.length} dossier(s) Drive</div>`;
+  html += `<div><span style="color:var(--purple)">📱</span>  ${apps.length} app(s) indexées</div>`;
+  html += `<div><span style="color:${localFolderHandle ? 'var(--green)' : 'var(--yellow)'}">${localFolderHandle ? '✓' : '○'}</span>  Backup local: ${localFolderHandle ? localFolderHandle.name : 'non lié'}</div>`;
+  document.getElementById('dataSummary').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+// DEPLOY
+// ═══════════════════════════════════════════════
+let selectedFileContent = null;
+let selectedFileName = '';
+
+function handleFileSelect() {
+  const file = document.getElementById('deployFile').files[0];
+  if (!file) return;
+  selectedFileName = file.name;
+  document.getElementById('fileName').textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+  if (!document.getElementById('targetName').value)
+    document.getElementById('targetName').value = file.name;
+  if (!document.getElementById('commitMsg').value)
+    document.getElementById('commitMsg').value = 'Update ' + file.name.replace('.html','');
+  const reader = new FileReader();
+  reader.onload = e => { selectedFileContent = e.target.result; };
+  reader.readAsText(file);
+}
+
+async function deployFile() {
+  const prefs = getPrefs();
+  if (!selectedFileContent) { addLog('Aucun fichier sélectionné', 'err'); return; }
+
+  const targetName = document.getElementById('targetName').value.trim();
+  if (!targetName) { addLog('Nom cible vide', 'err'); return; }
+
+  const doGithub = document.getElementById('chkGithub').checked;
+  const doDrive  = document.getElementById('chkDrive').checked;
+  const doLocal  = document.getElementById('chkLocal').checked;
+  const doIndex  = document.getElementById('chkUpdateIndex').checked;
+
+  if (prefs.confirmDeploy) {
+    let msg = `Déployer "${targetName}"?`;
+    if (doGithub) msg += '\n• GitHub Pages';
+    if (doDrive) msg += '\n• Google Drive';
+    if (doLocal) msg += '\n• Backup Local';
+    if (doIndex) msg += '\n• Régénérer Index';
+    if (!confirm(msg)) return;
+  }
+
+  const token  = getVal(STORAGE.githubToken);
+  const repo   = getVal(STORAGE.githubRepo);
+  const branch = getVal(STORAGE.githubBranch) || 'main';
+  const proxy  = getVal(STORAGE.appscript);
+
+  document.getElementById('btnDeploy').disabled = true;
+  showProgress(0, 'Préparation…');
+
+  let steps = 0;
+  const total = (doGithub ? 1 : 0) + (doDrive ? 1 : 0) + (doLocal ? 1 : 0) + (doIndex ? 1 : 0);
+
+  try {
+    // ── GitHub ──
+    if (doGithub) {
+      addLog(`Push GitHub: ${repo}/${targetName}`, 'info');
+      showProgress(15, 'Vérification SHA…');
+
+      const b64 = btoa(unescape(encodeURIComponent(selectedFileContent)));
+      const apiUrl = `https://api.github.com/repos/${repo}/contents/${targetName}`;
+      const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
+
+      let sha = null;
+      let isNewFile = false;
+      const getRes = await fetch(apiUrl, { headers });
+      if (getRes.ok) {
+        const data = await getRes.json();
+        sha = data.sha;
+      } else {
+        isNewFile = true;
+      }
+
+      showProgress(35, 'Push en cours…');
+
+      const body = {
+        message: document.getElementById('commitMsg').value || `Update ${targetName}`,
+        content: b64,
+        branch
+      };
+      if (sha) body.sha = sha;
+
+      const putRes = await fetch(apiUrl, { method: 'PUT', headers, body: JSON.stringify(body) });
+
+      if (putRes.ok) {
+        addLog(`✓ GitHub: ${targetName} déployé`, 'ok');
+        steps++;
+
+        // Add to apps list if new
+        if (isNewFile && targetName.endsWith('.html') && targetName !== 'index.html') {
+          const apps = getApps();
+          if (!apps.find(a => a.name === targetName)) {
+            apps.push({
+              name: targetName,
+              size: selectedFileContent.length,
+              url: `https://${repo.split('/')[0]}.github.io/${repo.split('/')[1]}/${targetName}`
+            });
+            lsSet(STORAGE.apps, JSON.stringify(apps));
+            addLog(`+ App ajoutée à l'index: ${targetName}`, 'info');
+          }
+        }
+      } else {
+        const err = await putRes.json();
+        addLog(`✗ GitHub error: ${err.message}`, 'err');
+      }
+    }
+
+    // ── Drive ──
+    if (doDrive) {
+      const folderId = document.getElementById('driveFolderTarget').value.trim();
+      if (!proxy || !folderId) {
+        addLog('App Script URL ou dossier Drive manquant', 'err');
+      } else {
+        showProgress(55, 'Upload Drive…');
+        addLog(`Upload Drive → dossier: ${folderId.slice(0,20)}…`, 'info');
+
+        const formData = new FormData();
+        const blob = new Blob([selectedFileContent], { type: 'text/html' });
+        formData.append('file', blob, targetName);
+        formData.append('folderId', folderId);
+
+        try {
+          await fetch(proxy, { method: 'POST', body: formData, mode: 'no-cors' });
+          addLog(`✓ Drive: upload envoyé`, 'ok');
+          steps++;
+        } catch(e) {
+          addLog(`✗ Drive error: ${e.message}`, 'err');
+        }
+      }
+    }
+
+    // ── Local Backup ──
+    if (doLocal) {
+      showProgress(70, 'Sauvegarde locale…');
+      if (!localFolderHandle) {
+        addLog('Aucun dossier local sélectionné', 'warn');
+      } else {
+        const saved = await saveToLocalFolder(targetName, selectedFileContent);
+        if (saved) {
+          addLog(`✓ Local: ${targetName} sauvegardé`, 'ok');
+          steps++;
+        }
+      }
+    }
+
+    // ── Regenerate Index ──
+    if (doIndex) {
+      showProgress(85, 'Régénération index…');
+      await deployIndex();
+      steps++;
+    }
+
+    showProgress(100, 'Terminé !');
+    const now = new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    lsSet(STORAGE.lastDeploy, now);
+    document.getElementById('s-lastdeploy').textContent = now;
+    addLog(`Déploiement terminé (${steps}/${total} op. réussies)`, steps === total ? 'ok' : 'warn');
+    setTimeout(() => hideProgress(), 2500);
+
+  } catch(e) {
+    addLog('Erreur critique: ' + e.message, 'err');
+    hideProgress();
+  } finally {
+    document.getElementById('btnDeploy').disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// PROGRESS
+// ═══════════════════════════════════════════════
+function showProgress(pct, label) {
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+  document.getElementById('progressPct').textContent = pct + '%';
+}
+function hideProgress() {
+  document.getElementById('progressWrap').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════
+function addLog(msg, type = 'info') {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const now = new Date().toLocaleTimeString('fr-FR');
+  line.innerHTML = `<span class="log-time">[${now}]</span><span class="log-${type}">${msg}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog() {
+  document.getElementById('logBox').innerHTML = '';
+  addLog('Log effacé', 'info');
+}
+
+// ═══════════════════════════════════════════════
+// UI UTILS
+// ═══════════════════════════════════════════════
+function toggleSecret(id, btn) {
+  const el = document.getElementById(id);
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = '🙈'; }
+  else { el.type = 'password'; btn.textContent = '👁'; }
+}
+
+function copyField(id, btn) {
+  const val = document.getElementById(id).value;
+  copyText(val, btn);
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓'; btn.classList.add('copy-ok');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copy-ok'); }, 1500);
+    }
+  });
+}
+
+function openUrl(id) {
+  const val = document.getElementById(id).value;
+  if (val) window.open(val, '_blank');
+}
+
+function showSaveBanner(msg = '✓ Données sauvegardées') {
+  const b = document.getElementById('saveBanner');
+  b.textContent = msg;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'settings') updateDataSummary();
+  if (name === 'index') renderAppList(getApps());
+}
+
+// ═══════════════════════════════════════════════
+// PIN
+// ═══════════════════════════════════════════════
+let pinBuffer = '';
+
+function pinPress(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  document.getElementById('d' + (pinBuffer.length - 1)).classList.add('filled');
+  if (pinBuffer.length === 4) setTimeout(checkPin, 200);
+}
+
+function pinBack() {
+  if (!pinBuffer.length) return;
+  pinBuffer = pinBuffer.slice(0,-1);
+  document.querySelectorAll('.pin-dot').forEach((d,i) => {
+    d.classList.toggle('filled', i < pinBuffer.length);
+  });
+}
+
+function pinClear() {
+  pinBuffer = '';
+  document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
+}
+
+function checkPin() {
+  if (pinBuffer === getPin()) {
+    document.getElementById('pin-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    const errEl = document.getElementById('pinError');
+    errEl.classList.add('show');
+    setTimeout(() => errEl.classList.remove('show'), 1500);
+    pinClear();
+    document.querySelectorAll('.pin-dot').forEach(d => { d.style.borderColor = 'var(--red)'; });
+    setTimeout(() => {
+      document.querySelectorAll('.pin-dot').forEach(d => { d.style.borderColor = ''; });
+    }, 700);
+  }
+}
+
+function lockApp() {
+  pinBuffer = '';
+  document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
+  document.getElementById('pin-overlay').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function changePin() {
+  const current = document.getElementById('currentPin').value;
+  const newp    = document.getElementById('newPin').value;
+  const conf    = document.getElementById('confirmPin').value;
+  const msgEl   = document.getElementById('pinChangeMsg');
+
+  if (current !== getPin()) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ PIN actuel incorrect'; return;
+  }
+  if (newp.length !== 4 || !/^\d{4}$/.test(newp)) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ Le PIN doit être 4 chiffres'; return;
+  }
+  if (newp !== conf) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ Les PINs ne correspondent pas'; return;
+  }
+  lsSet(STORAGE.pin, newp);
+  msgEl.style.color = 'var(--green)'; msgEl.textContent = '✓ PIN modifié';
+  document.getElementById('currentPin').value = '';
+  document.getElementById('newPin').value = '';
+  document.getElementById('confirmPin').value = '';
+  setTimeout(() => { msgEl.textContent = ''; }, 3000);
+}
+
+// ═══════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════
+function resetAll() {
+  if (!confirm('Supprimer toutes les données sauvegardées ? Cette action est irréversible.')) return;
+  Object.values(STORAGE).forEach(k => lsDel(k));
+  location.reload();
+}
+
+// Keyboard PIN support
+document.addEventListener('keydown', e => {
+  if (document.getElementById('pin-overlay').offsetParent !== null) {
+    if (e.key >= '0' && e.key <= '9') pinPress(e.key);
+    if (e.key === 'Backspace') pinBack();
+    if (e.key === 'Escape') pinClear();
+  }
+});
+</script>
+</body>
+</html>
