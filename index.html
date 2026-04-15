@@ -30,6 +30,78 @@
       --radius-sm: 8px;
     }
 
+    /* ═══════════════════════════════════════════════════════════════
+       THEMES
+    ═══════════════════════════════════════════════════════════════ */
+    [data-theme="dark"] {
+      --bg: #0f0f0f;
+      --bg-warm: #1a1a1a;
+      --bg-card: #1f1f1f;
+      --bg-hover: #2a2a2a;
+      --border: #333333;
+      --border-hover: #444444;
+      --text: #f5f5f5;
+      --text-secondary: #b0b0b0;
+      --text-muted: #707070;
+      --accent: #f5f5f5;
+      --gold: #d4bc7c;
+    }
+
+    [data-theme="ocean"] {
+      --bg: #f0f7fa;
+      --bg-warm: #e5f0f5;
+      --bg-card: #ffffff;
+      --border: #c5dbe5;
+      --border-hover: #a5c5d5;
+      --text: #1a3a4a;
+      --text-secondary: #456070;
+      --text-muted: #7090a0;
+      --accent: #0066a0;
+      --gold: #40a0c0;
+      --success: #209070;
+    }
+
+    [data-theme="forest"] {
+      --bg: #f5f8f5;
+      --bg-warm: #e8f0e8;
+      --bg-card: #ffffff;
+      --border: #c5d5c5;
+      --border-hover: #a5c0a5;
+      --text: #1a2a1a;
+      --text-secondary: #405040;
+      --text-muted: #708070;
+      --accent: #2a6b4a;
+      --gold: #8ab060;
+      --success: #1a6b50;
+    }
+
+    [data-theme="sunset"] {
+      --bg: #faf5f0;
+      --bg-warm: #f5ebe0;
+      --bg-card: #ffffff;
+      --border: #e5d5c5;
+      --border-hover: #d5c0a5;
+      --text: #3a2a1a;
+      --text-secondary: #6a5040;
+      --text-muted: #9a8070;
+      --accent: #c05030;
+      --gold: #e0a040;
+      --success: #609040;
+    }
+
+    [data-theme="minimal"] {
+      --bg: #ffffff;
+      --bg-warm: #fafafa;
+      --bg-card: #ffffff;
+      --border: #eeeeee;
+      --border-hover: #dddddd;
+      --text: #111111;
+      --text-secondary: #666666;
+      --text-muted: #aaaaaa;
+      --accent: #000000;
+      --gold: #888888;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -56,7 +128,7 @@
     .bg-pattern {
       position: fixed;
       inset: 0;
-      background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.015) 1px, transparent 0);
+      background-image: radial-gradient(circle at 1px 1px, rgba(128,128,128,0.06) 1px, transparent 0);
       background-size: 40px 40px;
       pointer-events: none;
       z-index: 0;
@@ -487,6 +559,13 @@
       color: var(--gold);
     }
 
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .footer-link {
       display: inline-flex;
       align-items: center;
@@ -499,6 +578,7 @@
       border: 1px solid var(--border);
       border-radius: 100px;
       transition: all 0.3s;
+      cursor: pointer;
     }
 
     .footer-link:hover {
@@ -513,6 +593,286 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
+       ADMIN PANEL
+    ═══════════════════════════════════════════════════════════════ */
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .admin-overlay.active { display: flex; }
+
+    .admin-panel {
+      background: var(--bg-card);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.3);
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-card);
+      z-index: 10;
+    }
+
+    .admin-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .admin-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--bg-warm);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .admin-close:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .admin-body {
+      padding: 24px;
+    }
+
+    .admin-section {
+      margin-bottom: 32px;
+    }
+
+    .admin-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .theme-btn {
+      padding: 16px 12px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .theme-btn:hover { border-color: var(--border-hover); }
+    .theme-btn.active { border-color: var(--gold); background: var(--bg-warm); }
+
+    .theme-preview {
+      width: 100%;
+      height: 32px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .theme-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .admin-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg);
+      color: var(--text);
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .admin-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .admin-input-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .admin-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .admin-btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .admin-btn-primary:hover { opacity: 0.9; }
+
+    .admin-btn-secondary {
+      background: var(--bg-warm);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .admin-btn-secondary:hover { border-color: var(--border-hover); }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .order-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: grab;
+      transition: all 0.2s;
+    }
+    .order-item:hover { border-color: var(--border-hover); }
+    .order-item:active { cursor: grabbing; }
+    .order-item.dragging { opacity: 0.5; background: var(--bg-warm); }
+
+    .order-handle {
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .order-icon {
+      font-size: 18px;
+    }
+
+    .order-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .order-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      text-transform: uppercase;
+    }
+
+    /* PIN Modal */
+    .pin-modal {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .pin-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: var(--bg-warm);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .pin-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .pin-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .pin-input {
+      width: 180px;
+      padding: 16px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 8px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .pin-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .pin-input.error {
+      border-color: #c05030;
+      animation: shake 0.4s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+
+    .pin-btn {
+      padding: 14px 40px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pin-btn:hover { opacity: 0.9; }
+
+    /* ═══════════════════════════════════════════════════════════════
        RESPONSIVE
     ═══════════════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
@@ -524,6 +884,8 @@
       .status-item { padding: 8px 16px; font-size: 12px; }
       .footer { padding: 48px 20px; }
       .footer-credits { flex-direction: column; gap: 12px; }
+      .theme-grid { grid-template-columns: repeat(2, 1fr); }
+      .admin-panel { max-height: 80vh; }
     }
 
     @media (max-width: 480px) {
@@ -554,6 +916,17 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--border-hover);
     }
+
+    /* Version badge */
+    .version-badge {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.5;
+      font-family: 'IBM Plex Mono', monospace;
+    }
   </style>
 </head>
 <body>
@@ -563,11 +936,11 @@
   <!-- Header -->
   <header class="header">
     <div class="logo-mark">
-      <span>TAF</span>
+      <span id="logoMarkText">TAF</span>
     </div>
-    <h1 class="logo-text">TAF</h1>
-    <p class="logo-sub">Transit Air Fret</p>
-    <p class="tagline">Écosystème d'applications · Paris Charles de Gaulle</p>
+    <h1 class="logo-text" id="logoText">TAF</h1>
+    <p class="logo-sub" id="logoSub">Transit Air Fret</p>
+    <p class="tagline" id="tagline">Écosystème d'applications · Paris Charles de Gaulle</p>
     
     <div class="status-bar">
       <div class="status-item">
@@ -608,15 +981,136 @@
       <span class="divider">·</span>
       <span>Powered by <span class="ai-badge">Claude AI</span></span>
     </div>
-    <a href="https://github.com/TAF-ROISSY/AI" target="_blank" class="footer-link">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-      GitHub
-    </a>
+    <div class="footer-links">
+      <a href="https://github.com/TAF-ROISSY/AI" target="_blank" class="footer-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        GitHub
+      </a>
+      <button class="footer-link" onclick="showPinModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Admin
+      </button>
+    </div>
   </footer>
+
+  <!-- Admin Overlay -->
+  <div class="admin-overlay" id="adminOverlay">
+    <!-- PIN Modal -->
+    <div class="admin-panel" id="pinPanel">
+      <div class="pin-modal">
+        <div class="pin-icon">🔐</div>
+        <h2 class="pin-title">Accès Admin</h2>
+        <p class="pin-subtitle">Entrez le code PIN pour continuer</p>
+        <input type="password" class="pin-input" id="pinInput" maxlength="4" placeholder="••••" autofocus>
+        <br>
+        <button class="pin-btn" onclick="checkPin()">Déverrouiller</button>
+      </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="adminPanel" style="display: none;">
+      <div class="admin-header">
+        <h2 class="admin-title">⚙️ Administration</h2>
+        <button class="admin-close" onclick="closeAdmin()">✕</button>
+      </div>
+      <div class="admin-body">
+        <!-- Theme Section -->
+        <div class="admin-section">
+          <div class="admin-section-title">🎨 Thème</div>
+          <div class="theme-grid" id="themeGrid">
+            <button class="theme-btn active" data-theme="default" onclick="setTheme('default')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#fafafa"></div>
+                <div style="flex:1;background:#1a1a1a"></div>
+                <div style="flex:1;background:#c9a962"></div>
+              </div>
+              <div class="theme-name">Corporate</div>
+            </button>
+            <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#0f0f0f"></div>
+                <div style="flex:1;background:#1f1f1f"></div>
+                <div style="flex:1;background:#d4bc7c"></div>
+              </div>
+              <div class="theme-name">Dark Pro</div>
+            </button>
+            <button class="theme-btn" data-theme="ocean" onclick="setTheme('ocean')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#f0f7fa"></div>
+                <div style="flex:1;background:#0066a0"></div>
+                <div style="flex:1;background:#40a0c0"></div>
+              </div>
+              <div class="theme-name">Ocean</div>
+            </button>
+            <button class="theme-btn" data-theme="forest" onclick="setTheme('forest')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#f5f8f5"></div>
+                <div style="flex:1;background:#2a6b4a"></div>
+                <div style="flex:1;background:#8ab060"></div>
+              </div>
+              <div class="theme-name">Forest</div>
+            </button>
+            <button class="theme-btn" data-theme="sunset" onclick="setTheme('sunset')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#faf5f0"></div>
+                <div style="flex:1;background:#c05030"></div>
+                <div style="flex:1;background:#e0a040"></div>
+              </div>
+              <div class="theme-name">Sunset</div>
+            </button>
+            <button class="theme-btn" data-theme="minimal" onclick="setTheme('minimal')">
+              <div class="theme-preview">
+                <div style="flex:1;background:#ffffff"></div>
+                <div style="flex:1;background:#111111"></div>
+                <div style="flex:1;background:#888888"></div>
+              </div>
+              <div class="theme-name">Minimal</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Banner Section -->
+        <div class="admin-section">
+          <div class="admin-section-title">🖼 Bandeau</div>
+          <label class="admin-input-label">Logo (texte)</label>
+          <input type="text" class="admin-input" id="inputLogo" placeholder="TAF" maxlength="5">
+          <label class="admin-input-label">Titre principal</label>
+          <input type="text" class="admin-input" id="inputTitle" placeholder="TAF">
+          <label class="admin-input-label">Sous-titre</label>
+          <input type="text" class="admin-input" id="inputSubtitle" placeholder="Transit Air Fret">
+          <label class="admin-input-label">Tagline</label>
+          <input type="text" class="admin-input" id="inputTagline" placeholder="Écosystème d'applications · Paris CDG">
+          <button class="admin-btn admin-btn-secondary" onclick="saveBanner()">💾 Enregistrer le bandeau</button>
+        </div>
+
+        <!-- App Order Section -->
+        <div class="admin-section">
+          <div class="admin-section-title">📱 Ordre des applications</div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Glissez-déposez pour réorganiser</p>
+          <div class="order-list" id="orderList">
+            <div class="loading-text">Chargement...</div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:12px;">
+            <button class="admin-btn admin-btn-secondary" style="flex:1" onclick="saveOrder()">💾 Enregistrer l'ordre</button>
+            <button class="admin-btn admin-btn-secondary" style="flex:1" onclick="resetOrder()">↺ Réinitialiser</button>
+          </div>
+        </div>
+
+        <!-- Reset Section -->
+        <div class="admin-section" style="border-top:1px solid var(--border);padding-top:24px;">
+          <button class="admin-btn admin-btn-secondary" onclick="resetAll()" style="color:#c05030;">🗑 Réinitialiser tous les paramètres</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="version-badge">v2.0</div>
 
   <script>
     const REPO = 'TAF-ROISSY/AI';
     const GITHUB_PAGES_BASE = 'https://taf-roissy.github.io/AI/';
+    const STORAGE_KEY = 'taf_index_config';
+    const ADMIN_PIN = '2709';
 
     // Couleurs d'accent par catégorie
     const ACCENT_COLORS = {
@@ -631,45 +1125,252 @@
 
     // Métadonnées des apps
     const APP_META = {
-      // OPS & Dashboard
       'TAF OPS': { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
       'TAF STAT': { icon: '📊', desc: 'Statistiques et KPIs opérationnels', badge: 'ops', badgeClass: 'badge-ops' },
       'TAF SUIVI DES VOLS': { icon: '✈️', desc: 'Tracking temps réel des vols cargo', badge: 'ops', badgeClass: 'badge-ops' },
       'TAF CAPTURE': { icon: '📸', desc: 'Capture et documentation terrain', badge: 'ops', badgeClass: 'badge-ops' },
-      
-      // Commercial & CRM
       'TAF COMMERCIAL': { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'commercial', badgeClass: 'badge-commercial' },
       'TAF CONTACT': { icon: '📇', desc: 'Gestion des contacts et annuaire', badge: 'commercial', badgeClass: 'badge-commercial' },
       'TAF COTATION': { icon: '💰', desc: 'Élaboration et suivi des cotations', badge: 'commercial', badgeClass: 'badge-commercial' },
       'TAF COMPAGNIE': { icon: '🏢', desc: 'Base compagnies aériennes partenaires', badge: 'commercial', badgeClass: 'badge-commercial' },
       'TAF LITIGE': { icon: '⚠️', desc: 'Gestion et suivi des litiges', badge: 'commercial', badgeClass: 'badge-commercial' },
-      
-      // Facturation & Finance
       'TAF FACTURATION': { icon: '🧾', desc: 'Facturation Pro — Génération automatique', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF_FACTURATION_ding': { icon: '🔔', desc: 'Notifications facturation temps réel', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF RECOUVREMENT': { icon: '💳', desc: 'Suivi impayés et relances automatiques', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF VERICHECK': { icon: '✓', desc: 'Vérification factures multi-handler v3.0', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF NOTE DE FRAIS': { icon: '📝', desc: 'Saisie et validation notes de frais', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF RAHAND': { icon: '🤝', desc: 'Rapprochement handling et facturation', badge: 'factu', badgeClass: 'badge-factu' },
-      
-      // Outils & Config
       'TAF Config Manager': { icon: '⚙️', desc: 'Configuration centralisée des clés API', badge: 'tool', badgeClass: 'badge-tool' },
       'TAF DEPLOY': { icon: '🚀', desc: 'Déploiement GitHub & backup Drive', badge: 'tool', badgeClass: 'badge-tool' },
       'TAFCOFFREFORT': { icon: '🔐', desc: 'Coffre-fort sécurisé documents', badge: 'tool', badgeClass: 'badge-tool' },
       'taf-ps': { icon: '🔧', desc: 'PowerShell & Scripts automation', badge: 'tool', badgeClass: 'badge-tool' },
-      
-      // RH & Admin
       'TAF CP-RTT': { icon: '🗓', desc: 'Gestion congés payés et RTT', badge: 'rh', badgeClass: 'badge-rh' },
       'TAF Formulaire CP RTT': { icon: '📋', desc: 'Formulaire demande CP/RTT', badge: 'rh', badgeClass: 'badge-rh' },
       'TAF-TEAM': { icon: '👥', desc: 'Gestion équipe et planning', badge: 'rh', badgeClass: 'badge-rh' },
-      
-      // Douane & EUR1
       'TAF Courrier Douane': { icon: '📨', desc: 'Génération courriers douaniers', badge: 'douane', badgeClass: 'badge-douane' },
       'TAF EUR1': { icon: '🇪🇺', desc: 'Certificats EUR1 & origine', badge: 'douane', badgeClass: 'badge-douane' },
       'TAF_Douane IntelligencE': { icon: '🔍', desc: 'Intelligence douanière avancée', badge: 'douane', badgeClass: 'badge-douane' },
     };
 
-    // Charger les apps
+    let allApps = [];
+    let config = loadConfig();
+
+    // ═══════════════════════════════════════════════════════════════
+    // CONFIG MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+    function loadConfig() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : {
+          theme: 'default',
+          logo: 'TAF',
+          title: 'TAF',
+          subtitle: 'Transit Air Fret',
+          tagline: 'Écosystème d\'applications · Paris Charles de Gaulle',
+          appOrder: []
+        };
+      } catch {
+        return { theme: 'default', logo: 'TAF', title: 'TAF', subtitle: 'Transit Air Fret', tagline: 'Écosystème d\'applications · Paris Charles de Gaulle', appOrder: [] };
+      }
+    }
+
+    function saveConfig() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    }
+
+    function applyConfig() {
+      // Apply theme
+      if (config.theme && config.theme !== 'default') {
+        document.documentElement.setAttribute('data-theme', config.theme);
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+
+      // Apply banner
+      document.getElementById('logoMarkText').textContent = config.logo || 'TAF';
+      document.getElementById('logoText').textContent = config.title || 'TAF';
+      document.getElementById('logoSub').textContent = config.subtitle || 'Transit Air Fret';
+      document.getElementById('tagline').textContent = config.tagline || 'Écosystème d\'applications · Paris Charles de Gaulle';
+
+      // Update active theme button
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === (config.theme || 'default'));
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ADMIN PANEL
+    // ═══════════════════════════════════════════════════════════════
+    function showPinModal() {
+      document.getElementById('adminOverlay').classList.add('active');
+      document.getElementById('pinPanel').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinInput').focus();
+    }
+
+    function checkPin() {
+      const input = document.getElementById('pinInput');
+      if (input.value === ADMIN_PIN) {
+        document.getElementById('pinPanel').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        populateAdminFields();
+        populateOrderList();
+      } else {
+        input.classList.add('error');
+        setTimeout(() => input.classList.remove('error'), 400);
+        input.value = '';
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('pinPanel').style.display !== 'none') {
+        checkPin();
+      }
+      if (e.key === 'Escape') {
+        closeAdmin();
+      }
+    });
+
+    function closeAdmin() {
+      document.getElementById('adminOverlay').classList.remove('active');
+    }
+
+    function populateAdminFields() {
+      document.getElementById('inputLogo').value = config.logo || 'TAF';
+      document.getElementById('inputTitle').value = config.title || 'TAF';
+      document.getElementById('inputSubtitle').value = config.subtitle || 'Transit Air Fret';
+      document.getElementById('inputTagline').value = config.tagline || 'Écosystème d\'applications · Paris Charles de Gaulle';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // THEME
+    // ═══════════════════════════════════════════════════════════════
+    function setTheme(theme) {
+      config.theme = theme;
+      saveConfig();
+      applyConfig();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // BANNER
+    // ═══════════════════════════════════════════════════════════════
+    function saveBanner() {
+      config.logo = document.getElementById('inputLogo').value || 'TAF';
+      config.title = document.getElementById('inputTitle').value || 'TAF';
+      config.subtitle = document.getElementById('inputSubtitle').value || 'Transit Air Fret';
+      config.tagline = document.getElementById('inputTagline').value || 'Écosystème d\'applications · Paris Charles de Gaulle';
+      saveConfig();
+      applyConfig();
+      alert('✅ Bandeau enregistré !');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // APP ORDER (Drag & Drop)
+    // ═══════════════════════════════════════════════════════════════
+    function populateOrderList() {
+      const list = document.getElementById('orderList');
+      const orderedApps = getOrderedApps();
+      
+      list.innerHTML = orderedApps.map((app, i) => {
+        const meta = APP_META[app.name] || { icon: '📄', badge: 'tool', badgeClass: 'badge-tool' };
+        return `
+          <div class="order-item" draggable="true" data-name="${app.name}">
+            <span class="order-handle">☰</span>
+            <span class="order-icon">${meta.icon}</span>
+            <span class="order-name">${app.name.replace(/_/g, ' ')}</span>
+            <span class="order-badge ${meta.badgeClass}">${meta.badge}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Setup drag & drop
+      setupDragDrop();
+    }
+
+    function getOrderedApps() {
+      if (config.appOrder && config.appOrder.length > 0) {
+        // Return apps in saved order, then any new apps at the end
+        const ordered = [];
+        const remaining = [...allApps];
+        
+        config.appOrder.forEach(name => {
+          const idx = remaining.findIndex(a => a.name === name);
+          if (idx !== -1) {
+            ordered.push(remaining.splice(idx, 1)[0]);
+          }
+        });
+        
+        return [...ordered, ...remaining];
+      }
+      return allApps;
+    }
+
+    function setupDragDrop() {
+      const list = document.getElementById('orderList');
+      const items = list.querySelectorAll('.order-item');
+      let draggedItem = null;
+
+      items.forEach(item => {
+        item.addEventListener('dragstart', () => {
+          draggedItem = item;
+          item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          draggedItem = null;
+        });
+
+        item.addEventListener('dragover', e => {
+          e.preventDefault();
+          if (draggedItem && draggedItem !== item) {
+            const rect = item.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+              list.insertBefore(draggedItem, item);
+            } else {
+              list.insertBefore(draggedItem, item.nextSibling);
+            }
+          }
+        });
+      });
+    }
+
+    function saveOrder() {
+      const items = document.querySelectorAll('#orderList .order-item');
+      config.appOrder = Array.from(items).map(item => item.dataset.name);
+      saveConfig();
+      loadApps(); // Refresh grid
+      alert('✅ Ordre enregistré !');
+    }
+
+    function resetOrder() {
+      config.appOrder = [];
+      saveConfig();
+      populateOrderList();
+      loadApps();
+      alert('✅ Ordre réinitialisé !');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RESET ALL
+    // ═══════════════════════════════════════════════════════════════
+    function resetAll() {
+      if (confirm('⚠️ Réinitialiser tous les paramètres (thème, bandeau, ordre) ?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        config = loadConfig();
+        applyConfig();
+        populateAdminFields();
+        populateOrderList();
+        loadApps();
+        alert('✅ Paramètres réinitialisés !');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LOAD APPS
+    // ═══════════════════════════════════════════════════════════════
     async function loadApps() {
       const grid = document.getElementById('appsGrid');
       
@@ -689,22 +1390,27 @@
           return;
         }
 
+        // Store all apps
+        allApps = htmlFiles.map(f => ({ name: f.name.replace('.html', ''), file: f.name }));
+
+        // Get ordered apps
+        const orderedApps = getOrderedApps();
+
         // Mettre à jour les compteurs
         document.getElementById('appCount').innerHTML = `Applications: <span class="status-value">${htmlFiles.length}</span>`;
         document.getElementById('lastUpdate').innerHTML = `Mise à jour: <span class="status-value">${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`;
         document.getElementById('sectionCount').textContent = `${htmlFiles.length} applications`;
 
         // Générer les cartes
-        grid.innerHTML = htmlFiles.map(file => {
-          const name = file.name.replace('.html', '');
-          const meta = APP_META[name] || { 
+        grid.innerHTML = orderedApps.map(app => {
+          const meta = APP_META[app.name] || { 
             icon: '📄', 
             desc: 'Application TAF', 
             badge: 'tool', 
             badgeClass: 'badge-tool'
           };
-          const url = GITHUB_PAGES_BASE + encodeURIComponent(file.name);
-          const displayName = name.replace(/_/g, ' ').replace(/-/g, ' ');
+          const url = GITHUB_PAGES_BASE + encodeURIComponent(app.file);
+          const displayName = app.name.replace(/_/g, ' ').replace(/-/g, ' ');
           const accentColor = ACCENT_COLORS[meta.badge] || ACCENT_COLORS.tool;
 
           return `
@@ -734,7 +1440,10 @@
       }
     }
 
-    // Initialiser
+    // ═══════════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════════
+    applyConfig();
     loadApps();
   </script>
 </body>
