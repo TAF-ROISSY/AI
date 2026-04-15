@@ -2121,7 +2121,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.0.0
+  v2.2.0
 </div>
 
 <!-- Firebase SDK -->
@@ -2182,6 +2182,11 @@
       whenReady(() => {
         const data = snapshot.val();
         if (!data) return;
+
+        // 🔔 Détection nouvelles demandes + alerte sonore
+        if (typeof window.__tafCheckNewDemandes === 'function') {
+          try { window.__tafCheckNewDemandes(data); } catch(e) { console.warn('[ALERTE SONORE] Erreur:', e); }
+        }
 
         // Router chaque demande vers le bon module selon flux + type
         const modules = { export:[], import:[], perishable:[], cotation:[] };
@@ -2407,6 +2412,9 @@ function switchParamsTab(el, section) {
   }
   if (section === 'handling') {
     renderHandlingParams();
+  }
+  if (section === 'alertesonore') {
+    renderAlerteSonoreParams();
   }
   if (section === 'api') {
     const k = document.getElementById('api-flightaware');
@@ -7186,6 +7194,9 @@ function handleDocUpload(event, docId) {
       console.warn('[DOCS] localStorage full — doc non mis en cache local:', docId);
     }
 
+    // ── Upload Google Drive automatique (qualité originale) ──
+    uploadDocToDriveAuto(currentDossier, docId, base64, file.name, file.type);
+
     // Enregistrer dans les stats
     if (typeof autoRegisterDeclaration === 'function') autoRegisterDeclaration(currentDossier);
 
@@ -7244,26 +7255,8 @@ function loadDocumentsForDossier(dossier) {
 }
 function viewDocSlot(docId) {
   if (!currentDossier?.documents?.[docId]) return;
-  const doc = currentDossier.documents[docId];
-
-  // Récupérer base64 depuis localStorage
-  const lsKey = `taf_doc_${currentDossier.id}_${docId}`;
-  const base64 = localStorage.getItem(lsKey);
-
-  if (base64) {
-    const url = `data:application/pdf;base64,${base64}`;
-    const win = window.open('', '_blank');
-    if (win) {
-      const pdfHtml = '<html><head><title>' + doc.name + '</title></head>'
-        + '<body style="margin:0;background:#111;">'
-        + '<embed src="' + url + '" type="application/pdf" width="100%" height="100%" style="min-height:100vh;">'
-        + '<' + '/body><' + '/html>';
-      win.document.write(pdfHtml);
-      win.document.close();
-    }
-  } else {
-    notify('Fichier non disponible en cache — re-uploadez pour le visualiser', 'orange');
-  }
+  // Réutiliser le viewer unifié (Drive + HD + zoom)
+  openPdfViewer(docId);
 }
 
 // Démarrage
@@ -8026,6 +8019,9 @@ const SC_TEMPLATES = [
             style="color:rgba(0,230,118,0.8);">
             <span class="params-tab-icon">📧</span> Notifications
           </button>
+          <button class="params-tab" onclick="switchParamsTab(this,'alertesonore')">
+            <span class="params-tab-icon">🔔</span> Alertes sonores
+          </button>
         </div>
 
         <div class="params-nav-group">
@@ -8640,6 +8636,73 @@ const SC_TEMPLATES = [
         </div>
       </div>
 
+    </div>
+
+    <!-- 🔔 ALERTES SONORES -->
+    <div class="params-section" id="ps-alertesonore">
+      <div class="params-section-header">
+        <div class="params-section-icon" style="background:rgba(255,214,0,0.12);">🔔</div>
+        <div>
+          <div class="params-section-title">Alertes sonores — Nouvelle demande</div>
+          <div class="params-section-desc">Choisissez le son joué à chaque réception d'une nouvelle demande de douane en temps réel</div>
+        </div>
+      </div>
+
+      <!-- Toggle global -->
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,214,0,0.04);border:1px solid rgba(255,214,0,0.12);border-radius:10px;margin-bottom:18px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+          <input type="checkbox" id="alerteSonoreEnabled" onchange="saveAlerteSonoreConfig()" style="width:18px;height:18px;accent-color:var(--yellow);">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">Activer les alertes sonores</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Un son sera joué dès qu'une nouvelle demande arrive via Firebase</div>
+          </div>
+        </label>
+        <button onclick="testAlerteSonore()" style="padding:7px 16px;background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.25);border-radius:7px;color:var(--yellow);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font-main);white-space:nowrap;">
+          ▶ Tester le son
+        </button>
+      </div>
+
+      <!-- Volume -->
+      <div style="margin-bottom:18px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">🔊 Volume</label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:11px;color:var(--text3);">🔈</span>
+          <input type="range" id="alerteSonoreVolume" min="0" max="100" value="70" oninput="saveAlerteSonoreConfig()" style="flex:1;accent-color:var(--yellow);height:4px;">
+          <span style="font-size:11px;color:var(--text3);">🔊</span>
+          <span id="alerteVolumeLabel" style="font-size:11px;color:var(--yellow);font-weight:700;min-width:32px;text-align:right;">70%</span>
+        </div>
+      </div>
+
+      <!-- Choix du son -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:10px;">🎵 Son de notification</label>
+        <div id="alerteSonoreList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <!-- Filtrage par type -->
+      <div style="margin-top:20px;padding:14px 16px;background:rgba(0,212,255,0.03);border:1px solid rgba(0,212,255,0.1);border-radius:10px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:10px;">📋 Jouer le son pour ces types de demande</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="alerteSonoreFilters">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);padding:5px 10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:6px;">
+            <input type="checkbox" checked onchange="saveAlerteSonoreConfig()" data-filter="export" style="accent-color:var(--cyan);"> ✈️ Export
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);padding:5px 10px;background:rgba(0,230,118,0.05);border:1px solid rgba(0,230,118,0.12);border-radius:6px;">
+            <input type="checkbox" checked onchange="saveAlerteSonoreConfig()" data-filter="import" style="accent-color:var(--green);"> 📦 Import
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);padding:5px 10px;background:rgba(255,152,0,0.05);border:1px solid rgba(255,152,0,0.12);border-radius:6px;">
+            <input type="checkbox" checked onchange="saveAlerteSonoreConfig()" data-filter="perishable" style="accent-color:var(--orange);"> 🌿 Périssable
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2);padding:5px 10px;background:rgba(179,136,255,0.05);border:1px solid rgba(179,136,255,0.12);border-radius:6px;">
+            <input type="checkbox" checked onchange="saveAlerteSonoreConfig()" data-filter="cotation" style="accent-color:var(--purple);"> 📊 Cotation
+          </label>
+        </div>
+      </div>
+
+      <!-- Historique dernières alertes -->
+      <div style="margin-top:20px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">📜 Dernières alertes jouées</label>
+        <div id="alerteSonoreHistory" style="font-size:11px;color:var(--text3);max-height:100px;overflow-y:auto;"></div>
+      </div>
     </div>
 
     <!-- ⚡ ACTION BUILDER -->
@@ -13865,7 +13928,7 @@ async function deleteDossier() {
             <div class="rs-pdf-empty">📄</div>
           </div>
           <div class="rs-pdf-label">Déclaration</div>
-          <input type="file" id="rsUpload-declaration" accept=".pdf" style="display:none;" onchange="handleRsUpload(event,'declaration')">
+          <input type="file" id="rsUpload-declaration" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="handleRsUpload(event,'declaration')">
         </div>
         <!-- Bon Magasinier -->
         <div class="rs-pdf-slot" id="rsPdf-bon_mag" onclick="handlePdfSlotClick('bon_mag')">
@@ -13873,7 +13936,7 @@ async function deleteDossier() {
             <div class="rs-pdf-empty">📄</div>
           </div>
           <div class="rs-pdf-label">Bon Mag</div>
-          <input type="file" id="rsUpload-bon_mag" accept=".pdf" style="display:none;" onchange="handleRsUpload(event,'bon_mag')">
+          <input type="file" id="rsUpload-bon_mag" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="handleRsUpload(event,'bon_mag')">
         </div>
         <!-- Trace NT -->
         <div class="rs-pdf-slot" id="rsPdf-trace_nt" onclick="handlePdfSlotClick('trace_nt')">
@@ -13881,7 +13944,7 @@ async function deleteDossier() {
             <div class="rs-pdf-empty">📄</div>
           </div>
           <div class="rs-pdf-label">Trace NT</div>
-          <input type="file" id="rsUpload-trace_nt" accept=".pdf" style="display:none;" onchange="handleRsUpload(event,'trace_nt')">
+          <input type="file" id="rsUpload-trace_nt" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="handleRsUpload(event,'trace_nt')">
         </div>
       </div>
     </div>
@@ -13889,13 +13952,29 @@ async function deleteDossier() {
 </div>
 
 <!-- ═══ POPUP VISUALISEUR PDF ═══ -->
-<div id="pdfViewerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;">
-  <div style="position:relative;width:90vw;max-width:800px;height:85vh;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel);">
-      <span id="pdfViewerTitle" style="font-size:12px;font-weight:700;color:var(--text);"></span>
-      <button onclick="closePdfViewer()" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:16px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+<div id="pdfViewerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;align-items:center;justify-content:center;">
+  <div style="position:relative;width:96vw;max-width:1200px;height:94vh;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">
+    <!-- Header viewer -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;">
+      <span id="pdfViewerTitle" style="font-size:12px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <!-- Zoom controls -->
+        <button id="pdfZoomOut" onclick="pdfViewerZoom(-1)" style="background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:14px;width:30px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Zoom -">−</button>
+        <span id="pdfZoomLevel" style="font-size:10px;color:var(--text3);min-width:36px;text-align:center;">100%</span>
+        <button id="pdfZoomIn" onclick="pdfViewerZoom(1)" style="background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:14px;width:30px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Zoom +">+</button>
+        <div style="width:1px;height:20px;background:var(--border2);margin:0 4px;"></div>
+        <!-- Open in Drive -->
+        <button id="pdfOpenDriveBtn" onclick="openCurrentDocInDrive()" style="display:none;padding:5px 10px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:5px;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);white-space:nowrap;" title="Ouvrir dans Google Drive">📂 Drive</button>
+        <!-- Download -->
+        <button id="pdfDownloadBtn" onclick="downloadCurrentDoc()" style="padding:5px 10px;background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.25);border-radius:5px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);white-space:nowrap;" title="Télécharger">⬇ Télécharger</button>
+        <!-- Fullscreen -->
+        <button onclick="togglePdfFullscreen()" style="background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:13px;width:30px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Plein écran">⛶</button>
+        <!-- Close -->
+        <button onclick="closePdfViewer()" style="background:rgba(255,61,61,0.1);border:1px solid rgba(255,61,61,0.25);border-radius:6px;color:var(--red);font-size:16px;width:30px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
     </div>
-    <div id="pdfViewerBody" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#1a1a2e;padding:12px;"></div>
+    <!-- Body viewer -->
+    <div id="pdfViewerBody" style="flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#111118;padding:16px;"></div>
   </div>
 </div>
 
@@ -14057,8 +14136,14 @@ async function renderPdfThumbnails(dossier) {
       const base64 = localStorage.getItem(lsKey);
       const btnDel = '<button class="rs-pdf-delete" onclick="event.stopPropagation();deleteRsDoc(\'' + dt.id + '\')" title="Supprimer">✕</button>';
       const btnRe  = '<button class="rs-pdf-reupload" onclick="event.stopPropagation();triggerRsUpload(\'' + dt.id + '\')" title="Re-uploader">↻</button>';
+      const docType = (doc.type || '').toLowerCase();
+      const docName = (doc.name || '').toLowerCase();
+      const isPdf = docType.includes('pdf') || docName.endsWith('.pdf');
+      const isImage = docType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/.test(docName);
+      const isExcel = docType.includes('spreadsheet') || docType.includes('excel') || /\.(xls|xlsx)$/.test(docName);
+      const isWord  = docType.includes('word') || /\.(doc|docx)$/.test(docName);
 
-      if (base64 && typeof pdfjsLib !== 'undefined') {
+      if (isPdf && base64 && typeof pdfjsLib !== 'undefined') {
         try {
           const pdfData = atob(base64);
           const arr = new Uint8Array(pdfData.length);
@@ -14066,18 +14151,24 @@ async function renderPdfThumbnails(dossier) {
 
           const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
           const page = await pdf.getPage(1);
-          const scale = 0.4;
+          const scale = 0.8;
           const vp = page.getViewport({ scale });
           const canvas = document.createElement('canvas');
           canvas.width = vp.width;
           canvas.height = vp.height;
           await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
 
-          const imgUrl = canvas.toDataURL('image/jpeg', 0.8);
+          const imgUrl = canvas.toDataURL('image/jpeg', 0.92);
           thumb.innerHTML = '<img src="' + imgUrl + '" alt="' + dt.label + '">' + btnDel + btnRe;
         } catch(e) {
           thumb.innerHTML = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>' + btnDel + btnRe;
         }
+      } else if (isImage && base64) {
+        thumb.innerHTML = '<img src="data:' + (doc.type||'image/jpeg') + ';base64,' + base64 + '" alt="' + dt.label + '" style="object-fit:cover;">' + btnDel + btnRe;
+      } else if (isExcel) {
+        thumb.innerHTML = '<div style="font-size:24px;opacity:0.9;">📊</div><div style="font-size:8px;color:var(--green);margin-top:2px;">' + (doc.name||'XLS').slice(0,12) + '</div>' + btnDel + btnRe;
+      } else if (isWord) {
+        thumb.innerHTML = '<div style="font-size:24px;opacity:0.9;">📝</div><div style="font-size:8px;color:var(--cyan);margin-top:2px;">' + (doc.name||'DOC').slice(0,12) + '</div>' + btnDel + btnRe;
       } else {
         thumb.innerHTML = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>' + btnDel + btnRe;
       }
@@ -14110,13 +14201,19 @@ function triggerRsUpload(docId) {
   }
 }
 
-// ── Upload d'un PDF depuis la rightSidebar ──
+// ── Upload d'un document depuis la rightSidebar (PDF, XLS, XLSX, DOC, DOCX) ──
 function handleRsUpload(event, docId) {
   const file = event.target.files?.[0];
   if (!file || !currentDossier) return;
 
-  if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
-    notify('Seuls les fichiers PDF sont acceptés', 'red');
+  // Formats acceptés : PDF, XLS, XLSX, DOC, DOCX, images
+  const acceptedTypes = ['application/pdf','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg','image/png','image/webp'];
+  const acceptedExts = ['.pdf','.xls','.xlsx','.doc','.docx','.jpg','.jpeg','.png','.webp'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!acceptedTypes.includes(file.type) && !acceptedExts.includes(ext)) {
+    notify('Format non supporté — PDF, XLS, XLSX, DOC, DOCX ou images acceptés', 'red');
     return;
   }
 
@@ -14129,15 +14226,18 @@ function handleRsUpload(event, docId) {
     try {
       localStorage.setItem(lsKey, base64);
     } catch(err) {
-      notify('Fichier trop volumineux pour le cache local', 'red');
-      return;
+      console.warn('[DOCS] localStorage full — fichier en cache Drive uniquement');
     }
+
+    // Déterminer le bon mimeType
+    const mimeType = file.type || getMimeFromExt(ext);
 
     // Mettre à jour le dossier
     if (!currentDossier.documents) currentDossier.documents = {};
     currentDossier.documents[docId] = {
       id: docId,
       name: file.name,
+      type: mimeType,
       uploaded: true,
       date: new Date().toISOString().slice(0, 10),
       size: file.size
@@ -14177,7 +14277,7 @@ function handleRsUpload(event, docId) {
     const docLabel = labels[docId] || docId;
     try {
       const dossierRef = currentDossier.ref || currentDossier.num_dossier || currentDossier.lta || currentDossier.id || '';
-      const driveFilename = dossierRef.replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + docId + '.pdf';
+      const driveFilename = dossierRef.replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + docId + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const folderId = currentDossier.folder_drive_id || DRIVE_ROOT;
       const driveRes = await fetch(DRIVE_PROXY, {
         method: 'POST',
@@ -14187,13 +14287,18 @@ function handleRsUpload(event, docId) {
           filename: driveFilename,
           base64: base64,
           folder: folderId,
-          mimeType: 'application/pdf'
+          mimeType: mimeType
         })
       });
       const driveResult = await driveRes.json().catch(() => ({}));
       if (driveResult.url || driveResult.id) {
         currentDossier.documents[docId].drive_url = driveResult.url || '';
         currentDossier.documents[docId].drive_id = driveResult.id || '';
+        // Persister drive_url et drive_id dans Firebase
+        if (window.__firebaseReady && fbKey) {
+          writeFirebase('demandes/' + fbKey + '/documents/' + docId + '/drive_url', driveResult.url || '').catch(()=>{});
+          writeFirebase('demandes/' + fbKey + '/documents/' + docId + '/drive_id', driveResult.id || '').catch(()=>{});
+        }
         notify('✅ ' + docLabel + ' uploadé + sauvegardé Drive ✓', 'green');
       } else {
         notify('✅ ' + docLabel + ' uploadé (Drive: pas de réponse)', 'orange');
@@ -14257,6 +14362,56 @@ async function deleteRsDoc(docId) {
   notify('🗑 ' + docLabel + ' supprimé', 'orange');
 }
 
+// ── État du viewer ──
+let _viewerCurrentDoc = null; // {docId, driveUrl, driveId, base64, name, type}
+let _viewerZoom = 100;
+
+function pdfViewerZoom(dir) {
+  _viewerZoom = Math.max(50, Math.min(400, _viewerZoom + dir * 25));
+  document.getElementById('pdfZoomLevel').textContent = _viewerZoom + '%';
+  const body = document.getElementById('pdfViewerBody');
+  body.querySelectorAll('canvas, img, iframe, embed').forEach(el => {
+    el.style.transform = 'scale(' + (_viewerZoom / 100) + ')';
+    el.style.transformOrigin = 'top center';
+  });
+}
+
+function togglePdfFullscreen() {
+  const overlay = document.getElementById('pdfViewerOverlay');
+  const inner = overlay?.firstElementChild;
+  if (!inner) return;
+  if (inner.style.width === '100vw') {
+    inner.style.width = '96vw'; inner.style.maxWidth = '1200px'; inner.style.height = '94vh'; inner.style.borderRadius = '12px';
+  } else {
+    inner.style.width = '100vw'; inner.style.maxWidth = '100vw'; inner.style.height = '100vh'; inner.style.borderRadius = '0';
+  }
+}
+
+function openCurrentDocInDrive() {
+  if (!_viewerCurrentDoc) return;
+  const driveUrl = _viewerCurrentDoc.driveUrl;
+  const driveId = _viewerCurrentDoc.driveId;
+  if (driveUrl) { window.open(driveUrl, '_blank'); return; }
+  if (driveId) { window.open('https://drive.google.com/file/d/' + driveId + '/view', '_blank'); return; }
+  notify('Pas de lien Drive disponible — re-uploadez le document', 'orange');
+}
+
+function downloadCurrentDoc() {
+  if (!_viewerCurrentDoc) return;
+  // Préférer Drive
+  if (_viewerCurrentDoc.driveId) {
+    window.open('https://drive.google.com/uc?export=download&id=' + _viewerCurrentDoc.driveId, '_blank'); return;
+  }
+  // Sinon base64
+  const base64 = _viewerCurrentDoc.base64 || localStorage.getItem('taf_doc_' + currentDossier?.id + '_' + _viewerCurrentDoc.docId);
+  if (!base64) { notify('Fichier non disponible', 'orange'); return; }
+  const mime = _viewerCurrentDoc.type || 'application/pdf';
+  const a = document.createElement('a');
+  a.href = 'data:' + mime + ';base64,' + base64;
+  a.download = _viewerCurrentDoc.name || 'document';
+  a.click();
+}
+
 function openPdfViewer(docId) {
   if (!currentDossier) return;
   const docs = currentDossier.documents || {};
@@ -14267,66 +14422,145 @@ function openPdfViewer(docId) {
     return;
   }
 
-  const lsKey = 'taf_doc_' + currentDossier.id + '_' + docId;
-  const base64 = localStorage.getItem(lsKey);
-
-  if (!base64) {
-    notify('Fichier non disponible en cache — re-uploadez pour le visualiser', 'orange');
-    return;
-  }
-
   // Labels
-  const labels = { declaration: 'Déclaration en douane', bon_mag: 'Bon de magasinage', trace_nt: 'Trace NT' };
+  const labels = { declaration: 'Déclaration en douane', bon_mag: 'Bon de magasinage', trace_nt: 'Trace NT', bae: 'BAE', facture: 'Facture', autre: 'Document' };
   const title = labels[docId] || doc.name || docId;
   document.getElementById('pdfViewerTitle').textContent = '📄 ' + title + (doc.name ? ' — ' + doc.name : '');
 
   const body = document.getElementById('pdfViewerBody');
   body.innerHTML = '<div style="color:var(--text3);font-size:12px;">Chargement…</div>';
 
-  // Rendre le PDF page par page via PDF.js
-  if (typeof pdfjsLib !== 'undefined') {
-    (async () => {
-      try {
-        const pdfData = atob(base64);
-        const arr = new Uint8Array(pdfData.length);
-        for (let i = 0; i < pdfData.length; i++) arr[i] = pdfData.charCodeAt(i);
+  // Reset zoom
+  _viewerZoom = 100;
+  document.getElementById('pdfZoomLevel').textContent = '100%';
 
-        const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
-        body.innerHTML = '';
-        body.style.flexDirection = 'column';
-        body.style.alignItems = 'center';
-        body.style.gap = '12px';
+  // Stocker le doc courant
+  _viewerCurrentDoc = {
+    docId: docId,
+    driveUrl: doc.drive_url || null,
+    driveId: doc.drive_id || null,
+    name: doc.name || 'document',
+    type: doc.type || 'application/pdf',
+    base64: null
+  };
 
-        for (let p = 1; p <= Math.min(pdf.numPages, 10); p++) {
-          const page = await pdf.getPage(p);
-          const scale = 1.5;
-          const vp = page.getViewport({ scale });
-          const canvas = document.createElement('canvas');
-          canvas.width = vp.width;
-          canvas.height = vp.height;
-          canvas.style.maxWidth = '100%';
-          canvas.style.borderRadius = '4px';
-          canvas.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)';
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-          body.appendChild(canvas);
-        }
-        if (pdf.numPages > 10) {
-          const more = document.createElement('div');
-          more.style.cssText = 'color:var(--text3);font-size:11px;padding:8px;';
-          more.textContent = '… ' + (pdf.numPages - 10) + ' pages supplémentaires';
-          body.appendChild(more);
-        }
-      } catch(e) {
-        // Fallback embed
-        body.innerHTML = '<embed src="data:application/pdf;base64,' + base64 + '" type="application/pdf" style="width:100%;height:100%;border:none;">';
-      }
-    })();
-  } else {
-    body.innerHTML = '<embed src="data:application/pdf;base64,' + base64 + '" type="application/pdf" style="width:100%;height:100%;border:none;">';
+  // Bouton Drive visible si Drive URL dispo
+  const driveBtn = document.getElementById('pdfOpenDriveBtn');
+  if (driveBtn) driveBtn.style.display = (doc.drive_url || doc.drive_id) ? 'inline-flex' : 'none';
+
+  // ─── 1) Si Drive disponible → iframe Google Drive viewer (qualité max) ───
+  if (doc.drive_id) {
+    body.innerHTML = '<iframe src="https://drive.google.com/file/d/' + doc.drive_id + '/preview" '
+      + 'style="width:100%;height:100%;border:none;border-radius:6px;" allowfullscreen></iframe>';
+    document.getElementById('pdfViewerOverlay').style.display = 'flex';
+    return;
+  }
+  if (doc.drive_url && doc.drive_url.includes('/d/')) {
+    // Extraire l'ID depuis l'URL
+    const match = doc.drive_url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match) {
+      _viewerCurrentDoc.driveId = match[1];
+      body.innerHTML = '<iframe src="https://drive.google.com/file/d/' + match[1] + '/preview" '
+        + 'style="width:100%;height:100%;border:none;border-radius:6px;" allowfullscreen></iframe>';
+      document.getElementById('pdfViewerOverlay').style.display = 'flex';
+      return;
+    }
   }
 
-  const overlay = document.getElementById('pdfViewerOverlay');
-  overlay.style.display = 'flex';
+  // ─── 2) Fallback : base64 depuis localStorage ou Firebase ───
+  const lsKey = 'taf_doc_' + currentDossier.id + '_' + docId;
+  let base64 = localStorage.getItem(lsKey);
+
+  if (base64) {
+    _viewerCurrentDoc.base64 = base64;
+    renderDocInViewer(base64, doc, body);
+  } else {
+    // Tenter Firebase pdf_store
+    const fbKey = (currentDossier.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+    if (fbKey) {
+      body.innerHTML = '<div style="color:var(--text3);font-size:12px;">📥 Récupération depuis le cloud…</div>';
+      fetch('https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/pdf_store/' + fbKey + '/' + docId + '.json')
+        .then(r => r.ok ? r.json() : null)
+        .then(b64 => {
+          if (b64 && typeof b64 === 'string' && b64.length > 100) {
+            _viewerCurrentDoc.base64 = b64;
+            try { localStorage.setItem(lsKey, b64); } catch(e) {}
+            renderDocInViewer(b64, doc, body);
+          } else {
+            body.innerHTML = '<div style="color:var(--orange);font-size:13px;text-align:center;padding:40px;">⚠️ Fichier non disponible en cache ni sur le cloud.<br><br><span style="font-size:11px;color:var(--text3);">Re-uploadez le document pour le sauvegarder sur Google Drive.</span></div>';
+          }
+        })
+        .catch(() => {
+          body.innerHTML = '<div style="color:var(--orange);font-size:13px;">⚠️ Erreur de récupération</div>';
+        });
+    } else {
+      body.innerHTML = '<div style="color:var(--orange);font-size:13px;">⚠️ Fichier non disponible — re-uploadez</div>';
+    }
+  }
+
+  document.getElementById('pdfViewerOverlay').style.display = 'flex';
+}
+
+// Rendu du document dans le viewer (base64)
+function renderDocInViewer(base64, doc, body) {
+  const mime = doc.type || 'application/pdf';
+  const name = (doc.name || '').toLowerCase();
+
+  // ── PDF → rendu haute résolution via PDF.js ──
+  if (mime.includes('pdf') || name.endsWith('.pdf')) {
+    if (typeof pdfjsLib !== 'undefined') {
+      (async () => {
+        try {
+          const pdfData = atob(base64);
+          const arr = new Uint8Array(pdfData.length);
+          for (let i = 0; i < pdfData.length; i++) arr[i] = pdfData.charCodeAt(i);
+
+          const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
+          body.innerHTML = '';
+          body.style.flexDirection = 'column';
+          body.style.alignItems = 'center';
+          body.style.gap = '12px';
+
+          const scale = 3.0; // HAUTE RÉSOLUTION (était 1.5)
+          for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const vp = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = vp.width;
+            canvas.height = vp.height;
+            canvas.style.maxWidth = '100%';
+            canvas.style.borderRadius = '4px';
+            canvas.style.boxShadow = '0 2px 16px rgba(0,0,0,0.4)';
+            canvas.style.transition = 'transform 0.2s';
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+            body.appendChild(canvas);
+          }
+        } catch(e) {
+          console.warn('[Viewer] PDF.js error:', e);
+          body.innerHTML = '<embed src="data:application/pdf;base64,' + base64 + '" type="application/pdf" style="width:100%;height:100%;border:none;">';
+        }
+      })();
+    } else {
+      body.innerHTML = '<embed src="data:application/pdf;base64,' + base64 + '" type="application/pdf" style="width:100%;height:100%;border:none;">';
+    }
+    return;
+  }
+
+  // ── Images (JPG, PNG) ──
+  if (mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(name)) {
+    body.innerHTML = '<img src="data:' + mime + ';base64,' + base64 + '" style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 2px 16px rgba(0,0,0,0.4);transition:transform 0.2s;" alt="' + doc.name + '">';
+    return;
+  }
+
+  // ── XLS, XLSX, DOC, DOCX → message + téléchargement ──
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">'
+    + '<div style="font-size:48px;margin-bottom:16px;">' + (name.endsWith('.xls') || name.endsWith('.xlsx') ? '📊' : '📝') + '</div>'
+    + '<div style="font-size:15px;font-weight:700;margin-bottom:6px;">' + doc.name + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:20px;">Ce type de fichier ne peut pas être prévisualisé directement.<br>Ouvrez-le depuis Google Drive ou téléchargez-le.</div>'
+    + '<div style="display:flex;gap:10px;justify-content:center;">'
+    + (_viewerCurrentDoc.driveId ? '<button onclick="openCurrentDocInDrive()" style="padding:8px 18px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);border-radius:7px;color:var(--cyan);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-main);">📂 Ouvrir dans Drive</button>' : '')
+    + '<button onclick="downloadCurrentDoc()" style="padding:8px 18px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);border-radius:7px;color:var(--green);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-main);">⬇ Télécharger</button>'
+    + '</div></div>';
 }
 
 function closePdfViewer() {
@@ -14334,6 +14568,10 @@ function closePdfViewer() {
   if (overlay) overlay.style.display = 'none';
   const body = document.getElementById('pdfViewerBody');
   if (body) body.innerHTML = '';
+  _viewerCurrentDoc = null;
+  // Reset taille fenêtre
+  const inner = overlay?.firstElementChild;
+  if (inner) { inner.style.width = '96vw'; inner.style.maxWidth = '1200px'; inner.style.height = '94vh'; inner.style.borderRadius = '12px'; }
 }
 
 // Fermer le viewer PDF avec Escape
@@ -14625,6 +14863,340 @@ _si:function(s){
 };
 window.TAFBridge=B;
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
+<!-- ═══ TAF OPS — Upload Drive automatique + utilitaires fichiers ═══ -->
+<script>
+// ── Déterminer le mimeType depuis l'extension ──
+function getMimeFromExt(ext) {
+  const map = {
+    '.pdf': 'application/pdf',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif',
+  };
+  return map[(ext||'').toLowerCase()] || 'application/octet-stream';
+}
+
+// ── Upload automatique vers Google Drive (appelé par handleDocUpload popup) ──
+async function uploadDocToDriveAuto(dossier, docId, base64, fileName, fileType) {
+  if (!dossier || !base64) return;
+  const labels = { declaration: 'Déclaration', bon_mag: 'Bon Mag', trace_nt: 'Trace NT', bae: 'BAE', facture: 'Facture', autre: 'Document' };
+  const docLabel = labels[docId] || docId;
+  try {
+    const dossierRef = dossier.ref || dossier.num_dossier || dossier.lta || dossier.id || '';
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const driveFilename = dossierRef.replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + docId + '_' + safeName;
+    const folderId = dossier.folder_drive_id || (typeof DRIVE_ROOT !== 'undefined' ? DRIVE_ROOT : '');
+    const mimeType = fileType || getMimeFromExt('.' + fileName.split('.').pop());
+
+    const driveRes = await fetch(DRIVE_PROXY, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'uploadPDF',
+        filename: driveFilename,
+        base64: base64,
+        folder: folderId,
+        mimeType: mimeType
+      })
+    });
+    const driveResult = await driveRes.json().catch(() => ({}));
+    if (driveResult.url || driveResult.id) {
+      // Sauvegarder les IDs Drive dans le dossier et Firebase
+      if (!dossier.documents) dossier.documents = {};
+      if (!dossier.documents[docId]) dossier.documents[docId] = {};
+      dossier.documents[docId].drive_url = driveResult.url || '';
+      dossier.documents[docId].drive_id  = driveResult.id || '';
+
+      const fbKey = (dossier.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+      if (window.__firebaseReady && fbKey) {
+        writeFirebase('demandes/' + fbKey + '/documents/' + docId + '/drive_url', driveResult.url || '').catch(()=>{});
+        writeFirebase('demandes/' + fbKey + '/documents/' + docId + '/drive_id', driveResult.id || '').catch(()=>{});
+      }
+      notify('📂 ' + docLabel + ' → Drive ✓', 'green');
+      console.log('[Drive] Uploadé →', driveFilename, driveResult.id);
+    } else {
+      console.warn('[Drive] Pas de réponse pour', docLabel);
+    }
+  } catch(err) {
+    console.warn('[Drive] Upload auto:', err);
+  }
+}
+</script>
+
+<!-- ═══ TAF OPS — MODULE ALERTES SONORES v1.0 ═══ -->
+<script>
+(function(){
+'use strict';
+
+// ── Catalogue de sons (Web Audio API — aucun fichier externe) ──
+const SONS_CATALOGUE = [
+  { id: 'ding',        nom: 'Ding classique',       emoji: '🔔', desc: 'Un ding net et clair' },
+  { id: 'double_bip',  nom: 'Double bip',           emoji: '📟', desc: 'Deux bips courts rapides' },
+  { id: 'carillon',    nom: 'Carillon 3 notes',     emoji: '🎵', desc: 'Do-Mi-Sol ascendant' },
+  { id: 'radar',       nom: 'Radar / Sonar',        emoji: '📡', desc: 'Ping sonar type aéroport' },
+  { id: 'alerte',      nom: 'Alerte urgente',       emoji: '🚨', desc: 'Signal d\'alerte court' },
+  { id: 'soft',        nom: 'Notification douce',   emoji: '🌊', desc: 'Son doux et feutré' },
+  { id: 'xylophone',   nom: 'Xylophone',            emoji: '🎹', desc: 'Notes de xylophone' },
+  { id: 'cash',        nom: 'Ka-ching!',            emoji: '💰', desc: 'Son de caisse enregistreuse' },
+];
+
+// ── Générateur de sons via Web Audio API ──
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playNote(freq, duration, startTime, type, volume, detune) {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  if (detune) osc.detune.value = detune;
+  gain.gain.setValueAtTime(volume, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+const SOUND_PLAYERS = {
+  ding: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    playNote(880, 0.6, t, 'sine', vol * 0.5);
+    playNote(1760, 0.4, t, 'sine', vol * 0.15);
+  },
+  double_bip: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    playNote(1200, 0.12, t, 'square', vol * 0.25);
+    playNote(1200, 0.12, t + 0.18, 'square', vol * 0.25);
+  },
+  carillon: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    playNote(523, 0.35, t, 'sine', vol * 0.4);
+    playNote(659, 0.35, t + 0.15, 'sine', vol * 0.4);
+    playNote(784, 0.5, t + 0.30, 'sine', vol * 0.4);
+  },
+  radar: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, t);
+    osc.frequency.exponentialRampToValueAtTime(1800, t + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(600, t + 0.5);
+    gain.gain.setValueAtTime(vol * 0.35, t);
+    gain.gain.setValueAtTime(vol * 0.35, t + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.65);
+  },
+  alerte: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      playNote(1400, 0.08, t + i * 0.12, 'sawtooth', vol * 0.2);
+    }
+    playNote(1800, 0.15, t + 0.4, 'sawtooth', vol * 0.25);
+  },
+  soft: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    playNote(440, 0.8, t, 'sine', vol * 0.25);
+    playNote(554, 0.7, t + 0.1, 'sine', vol * 0.2);
+    playNote(659, 0.6, t + 0.2, 'sine', vol * 0.15);
+  },
+  xylophone: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    const notes = [1047, 1175, 1319, 1397];
+    notes.forEach((f, i) => {
+      playNote(f, 0.25, t + i * 0.1, 'triangle', vol * 0.35);
+    });
+  },
+  cash: function(vol) {
+    const ctx = getAudioCtx(); const t = ctx.currentTime;
+    playNote(1500, 0.06, t, 'square', vol * 0.2);
+    playNote(2000, 0.06, t + 0.06, 'square', vol * 0.2);
+    playNote(2500, 0.15, t + 0.12, 'square', vol * 0.25);
+    // Shimmer
+    playNote(4000, 0.4, t + 0.15, 'sine', vol * 0.08);
+    playNote(5000, 0.35, t + 0.18, 'sine', vol * 0.06);
+  }
+};
+
+// ── Config localStorage ──
+const LS_KEY = 'taf_ops_alerte_sonore';
+
+function getAlerteSonoreConfig() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { enabled: true, sound: 'carillon', volume: 70, filters: ['export','import','perishable','cotation'] };
+}
+
+function saveAlerteSonoreConfig() {
+  const cfg = {
+    enabled: document.getElementById('alerteSonoreEnabled')?.checked ?? true,
+    sound: document.querySelector('input[name="alerteSonoreChoice"]:checked')?.value || 'carillon',
+    volume: parseInt(document.getElementById('alerteSonoreVolume')?.value || '70'),
+    filters: []
+  };
+  document.querySelectorAll('#alerteSonoreFilters input[data-filter]').forEach(cb => {
+    if (cb.checked) cfg.filters.push(cb.dataset.filter);
+  });
+  // Mettre à jour le label volume
+  const lbl = document.getElementById('alerteVolumeLabel');
+  if (lbl) lbl.textContent = cfg.volume + '%';
+  try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e) {}
+}
+window.saveAlerteSonoreConfig = saveAlerteSonoreConfig;
+
+function testAlerteSonore() {
+  const cfg = getAlerteSonoreConfig();
+  const player = SOUND_PLAYERS[cfg.sound];
+  if (player) player(cfg.volume / 100);
+}
+window.testAlerteSonore = testAlerteSonore;
+
+// ── Jouer le son lors d'une nouvelle demande ──
+function playNewDemandeAlert(type) {
+  const cfg = getAlerteSonoreConfig();
+  if (!cfg.enabled) return;
+  if (!cfg.filters.includes(type)) return;
+  const player = SOUND_PLAYERS[cfg.sound];
+  if (player) {
+    try { player(cfg.volume / 100); } catch(e) { console.warn('[ALERTE SONORE]', e); }
+  }
+  // Historique
+  addAlertHistory(type);
+}
+window.playNewDemandeAlert = playNewDemandeAlert;
+
+// ── Historique ──
+function addAlertHistory(type) {
+  try {
+    const hist = JSON.parse(localStorage.getItem(LS_KEY + '_hist') || '[]');
+    const typeLabels = { export: '✈️ Export', import: '📦 Import', perishable: '🌿 Périssable', cotation: '📊 Cotation' };
+    hist.unshift({ type: typeLabels[type] || type, time: new Date().toLocaleString('fr-FR') });
+    if (hist.length > 20) hist.length = 20;
+    localStorage.setItem(LS_KEY + '_hist', JSON.stringify(hist));
+    renderAlertHistory();
+  } catch(e) {}
+}
+
+function renderAlertHistory() {
+  const el = document.getElementById('alerteSonoreHistory');
+  if (!el) return;
+  try {
+    const hist = JSON.parse(localStorage.getItem(LS_KEY + '_hist') || '[]');
+    if (!hist.length) { el.innerHTML = '<span style="color:var(--text3);">Aucune alerte pour le moment</span>'; return; }
+    el.innerHTML = hist.slice(0, 10).map(h =>
+      '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);">' +
+        '<span>' + h.type + '</span>' +
+        '<span style="color:var(--text3);">' + h.time + '</span>' +
+      '</div>'
+    ).join('');
+  } catch(e) { el.innerHTML = ''; }
+}
+
+// ── Render de la section Paramètres ──
+function renderAlerteSonoreParams() {
+  const cfg = getAlerteSonoreConfig();
+  // Toggle
+  const toggle = document.getElementById('alerteSonoreEnabled');
+  if (toggle) toggle.checked = cfg.enabled;
+  // Volume
+  const vol = document.getElementById('alerteSonoreVolume');
+  if (vol) vol.value = cfg.volume;
+  const lbl = document.getElementById('alerteVolumeLabel');
+  if (lbl) lbl.textContent = cfg.volume + '%';
+  // Filtres
+  document.querySelectorAll('#alerteSonoreFilters input[data-filter]').forEach(cb => {
+    cb.checked = cfg.filters.includes(cb.dataset.filter);
+  });
+  // Liste des sons
+  const list = document.getElementById('alerteSonoreList');
+  if (!list) return;
+  list.innerHTML = SONS_CATALOGUE.map(s => {
+    const checked = cfg.sound === s.id ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:' +
+      (cfg.sound === s.id ? 'rgba(255,214,0,0.06)' : 'rgba(255,255,255,0.02)') +
+      ';border:1px solid ' + (cfg.sound === s.id ? 'rgba(255,214,0,0.25)' : 'rgba(255,255,255,0.05)') +
+      ';border-radius:9px;cursor:pointer;transition:all 0.2s;">' +
+      '<input type="radio" name="alerteSonoreChoice" value="' + s.id + '" ' + checked +
+        ' onchange="saveAlerteSonoreConfig();renderAlerteSonoreParams();" style="accent-color:var(--yellow);width:16px;height:16px;">' +
+      '<span style="font-size:20px;width:28px;text-align:center;">' + s.emoji + '</span>' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text);">' + s.nom + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:1px;">' + s.desc + '</div>' +
+      '</div>' +
+      '<button onclick="event.preventDefault();event.stopPropagation();SOUND_PLAYERS[\'' + s.id + '\'](' + (cfg.volume/100) + ');" ' +
+        'style="padding:4px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font-main);" ' +
+        'title="Écouter">▶</button>' +
+    '</label>';
+  }).join('');
+  // Historique
+  renderAlertHistory();
+}
+window.renderAlerteSonoreParams = renderAlerteSonoreParams;
+
+// ── Tracking des demandes connues (pour détecter les nouvelles) ──
+window.__tafKnownDemandeIds = null;
+
+window.__tafCheckNewDemandes = function(data) {
+  if (!data) return;
+  const currentIds = new Set(Object.keys(data));
+
+  // Premier chargement — on mémorise sans alerter
+  if (window.__tafKnownDemandeIds === null) {
+    window.__tafKnownDemandeIds = currentIds;
+    console.log('[ALERTE SONORE] 📋 Init —', currentIds.size, 'demandes connues');
+    return;
+  }
+
+  // Trouver les nouvelles
+  const prev = window.__tafKnownDemandeIds;
+  const newIds = [];
+  currentIds.forEach(id => { if (!prev.has(id)) newIds.push(id); });
+
+  if (newIds.length > 0) {
+    console.log('[ALERTE SONORE] 🆕', newIds.length, 'nouvelle(s) demande(s) :', newIds);
+    // Déterminer le type de chaque nouvelle demande
+    newIds.forEach(id => {
+      const d = data[id];
+      if (!d) return;
+      const flux = (d.flux || '').toLowerCase();
+      const type = (d.type || '').toLowerCase();
+      let cat = 'cotation';
+      if (type.includes('seafood') || type.includes('animaux') || type.includes('fruits') || type.includes('avi') || type.includes('fl')) {
+        cat = 'perishable';
+      } else if (flux === 'export') {
+        cat = 'export';
+      } else if (flux === 'import') {
+        cat = 'import';
+      }
+      playNewDemandeAlert(cat);
+      // Notification visuelle aussi
+      const catLabels = { export:'✈️ Export', import:'📦 Import', perishable:'🌿 Périssable', cotation:'📊 Cotation' };
+      if (typeof notify === 'function') {
+        notify('🔔 Nouvelle demande ' + (catLabels[cat]||cat) + (d.client ? ' — ' + d.client : ''), 'green');
+      }
+    });
+  }
+
+  // Mettre à jour le set connu
+  window.__tafKnownDemandeIds = currentIds;
+};
+
+console.log('[TAF OPS] 🔔 Module alertes sonores chargé');
 })();
 </script>
 
