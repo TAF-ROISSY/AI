@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF Compagnies v1.0.0</title>
+<style>
+:root{--bg:#06080f;--s:#0c0f1a;--s2:#111526;--bd:#181d30;--ac:#818cf8;--ac2:#c084fc;--gn:#34d399;--yw:#fcd34d;--rd:#f87171;--bl:#60a5fa;--tx:#e2e5f5;--mt:#4b5280;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+.hdr{background:var(--s);border-bottom:1px solid var(--bd);padding:0 26px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo-g{display:flex;align-items:center;gap:12px;}
+.logo-ic{width:36px;height:36px;background:linear-gradient(135deg,var(--ac),var(--ac2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 14px rgba(129,140,248,.22);}
+.logo-n{font-size:15px;font-weight:700;}
+.ver{background:var(--s2);border:1px solid var(--bd);padding:2px 8px;border-radius:4px;font-size:10px;font-family:monospace;color:var(--mt);}
+.srch{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:7px 13px;width:280px;}
+.srch input{background:none;border:none;color:var(--tx);font-size:13px;outline:none;flex:1;}
+.srch input::placeholder{color:var(--mt);}
+/* Filters */
+.filters{display:flex;gap:7px;padding:13px 26px;background:var(--s);border-bottom:1px solid var(--bd);overflow-x:auto;}
+.pill{display:flex;align-items:center;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid;white-space:nowrap;background:transparent;color:var(--mt);border-color:var(--bd);transition:all .15s;}
+.pill.act{background-color:rgba(129,140,248,.12);border-color:var(--ac);color:var(--ac);}
+/* Layout */
+.lay{display:flex;flex:1;overflow:hidden;}
+/* Company list */
+.clist{width:300px;min-width:300px;background:var(--s);border-right:1px solid var(--bd);overflow-y:auto;}
+.citem{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .15s;}
+.citem:hover{background:var(--s2);}
+.citem.act{background:var(--s2);border-left:3px solid var(--ac);padding-left:15px;}
+.clogo{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.cname{font-size:13px;font-weight:600;}
+.ciata{font-family:monospace;font-size:11px;color:var(--mt);margin-top:1px;}
+.ctags{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;}
+.mtag{font-size:10px;padding:1px 6px;border-radius:10px;}
+/* Detail */
+.det{flex:1;overflow-y:auto;padding:26px 30px;}
+.empty-det{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mt);gap:12px;text-align:center;padding:60px;}
+.det-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;}
+.co-hero{display:flex;align-items:center;gap:18px;}
+.co-logo-lg{width:68px;height:68px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;}
+.co-name{font-size:24px;font-weight:700;}
+.co-codes{display:flex;gap:10px;align-items:center;margin:6px 0;}
+.cbadge{font-family:monospace;font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;background:var(--s2);border:1px solid var(--bd);}
+.co-caps{display:flex;gap:7px;flex-wrap:wrap;}
+.captag{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;}
+/* Sections */
+.sg2{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-bottom:17px;}
+.sg1{margin-bottom:17px;}
+.sec{background:var(--s);border:1px solid var(--bd);border-radius:13px;overflow:hidden;}
+.sec.full{grid-column:span 2;}
+.sec-h{display:flex;align-items:center;gap:7px;padding:13px 16px;border-bottom:1px solid var(--bd);background:var(--s2);font-size:13px;font-weight:700;}
+.sec-b{padding:14px 16px;display:flex;flex-direction:column;gap:9px;}
+/* Contact card */
+.ctcrd{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px 15px;}
+.ctrole{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--mt);margin-bottom:5px;}
+.ctname{font-size:13px;font-weight:600;margin-bottom:4px;}
+.ctline{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mt);}
+.ctline a{color:var(--ac);text-decoration:none;}
+.ctline a:hover{text-decoration:underline;}
+/* Proc */
+.proc{display:flex;gap:11px;align-items:flex-start;}
+.pnum{width:22px;height:22px;border-radius:50%;background:rgba(129,140,248,.18);border:1px solid rgba(129,140,248,.35);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ac);flex-shrink:0;margin-top:1px;}
+.ptxt{font-size:13px;line-height:1.5;}
+/* Info row */
+.irow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px;}
+.irow:last-child{border-bottom:none;}
+.ikey{color:var(--mt);font-size:12px;}
+.ival{font-weight:500;}
+/* Warn box */
+.wbox{display:flex;gap:9px;padding:11px 13px;border-radius:8px;background:rgba(252,211,77,.07);border:1px solid rgba(252,211,77,.22);font-size:13px;color:var(--yw);line-height:1.5;}
+/* Note box */
+.nbox{padding:12px 14px;border-radius:8px;background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.18);font-size:13px;line-height:1.6;opacity:.88;}
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s;}
+.bg{background:transparent;color:var(--mt);border:1px solid var(--bd);}
+.bg:hover{color:var(--tx);background:var(--s2);}
+.bp{background:var(--ac);color:#000;font-weight:600;}
+.bd2{background:rgba(248,113,113,.1);color:var(--rd);border:1px solid rgba(248,113,113,.28);}
+/* Modal */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.mdl{background:var(--s);border:1px solid var(--bd);border-radius:14px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:26px;}
+.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.mt2{font-size:17px;font-weight:600;}
+.mcl{background:none;border:none;color:var(--mt);font-size:20px;cursor:pointer;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fp{display:flex;flex-direction:column;gap:4px;}
+.fp.ful{grid-column:span 2;}
+.fl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mt);}
+.fi{background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px 11px;color:var(--tx);font-size:13px;outline:none;width:100%;}
+.fi:focus{border-color:var(--ac);}
+.fac{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:15px;border-top:1px solid var(--bd);}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="logo-g">
+    <div class="logo-ic">✈️</div>
+    <div class="logo-n">TAF COMPAGNIES</div>
+    <span class="ver">v1.0.0</span>
+  </div>
+  <div class="srch"><span style="color:var(--mt)">🔍</span><input type="text" id="srchInp" placeholder="Rechercher..." oninput="doSearch(this.value)"><button id="srchClr" style="background:none;border:none;color:var(--mt);cursor:pointer;display:none" onclick="clearSearch()">✕</button></div>
+  <button class="btn bp" onclick="openAdd()">+ Ajouter</button>
+</header>
+<div class="filters" id="filtersRow"></div>
+<div class="lay">
+  <div class="clist" id="cList"></div>
+  <div class="det" id="det"></div>
+</div>
+<div class="ov" id="fModal" style="display:none">
+  <div class="mdl">
+    <div class="mh"><div class="mt2" id="fTtl">Nouvelle compagnie</div><button class="mcl" onclick="closeF()">✕</button></div>
+    <div class="fg">
+      <div class="fp ful"><label class="fl">Nom *</label><input class="fi" id="fNm" placeholder="Nom complet"></div>
+      <div class="fp"><label class="fl">Code IATA</label><input class="fi" id="fIA" placeholder="AF"></div>
+      <div class="fp"><label class="fl">Code ICAO</label><input class="fi" id="fIC" placeholder="AFR"></div>
+      <div class="fp ful"><label class="fl">Hub principal</label><input class="fi" id="fHb" placeholder="Ex: Paris-CDG"></div>
+      <div class="fp"><label class="fl">Icône</label><input class="fi" id="fIc" placeholder="✈️"></div>
+      <div class="fp"><label class="fl">Couleur accent</label><input type="color" class="fi" id="fCl" value="#6366f1"></div>
+      <div class="fp ful">
+        <label class="fl">Capacités</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px" id="capsCkb"></div>
+      </div>
+      <div class="fp ful"><label class="fl">Notes</label><textarea class="fi" id="fNt" style="min-height:70px"></textarea></div>
+    </div>
+    <div class="fac"><button class="btn bg" onclick="closeF()">Annuler</button><button class="btn bp" onclick="saveF()">💾 Enregistrer</button></div>
+  </div>
+</div>
+
+<script>
+const CAPS=['Poisson frais','F&L','AVI','Cargo','Export','Passagers'];
+const CAPS_COLORS={'Poisson frais':'#22d3ee','F&L':'#34d399','AVI':'#8b5cf6','Cargo':'#fbbf24','Export':'#f472b6','Passagers':'#60a5fa'};
+
+const INIT=[
+  {id:1,name:'Air France Cargo',iata:'AF',icao:'AFR',icon:'🇫🇷',color:'#1e3a8a',hub:'Paris-CDG',caps:['Poisson frais','F&L','AVI','Cargo','Export'],
+    contacts:[{role:'Service import cargo CDG',name:'Air France Cargo CDG',phone:'01 41 56 70 00',email:'cargo.cdg@airfrance.fr',hours:'24h/24 7j/7'},{role:'Handling — SAF Station',name:'AFI/SAF Station',phone:'01 41 56 78 90',email:'safhandling@airfrance.fr',hours:'5h00 – 22h00'}],
+    procedures:['Pré-déclaration dans AFC au plus tard H-2 avant arrivée','Bon de livraison au guichet cargo après notification','AVI : réserver station animalière 48h avant + docs CITES','F&L périssables : contrôle phyto sur place — prévoir 2h','Délai mise à dispo : 4h après notification confirmée'],
+    infos:[{k:'Système suivi',v:'AFC — Air France Cargo System'},{k:'Remise docs',v:'H-3 avant arrivée vol'},{k:'Stockage froid',v:'Zone froide secteur 6, Bât. F'},{k:'Max poids/envoi',v:'6 800 kg (B777)'},{k:'Notif. arrivée',v:'Automatique par email AFC'}],
+    warnings:['Délais de réserves stricts : J+14 pour avaries/manquants. Passé ce délai, aucune réclamation acceptée.'],
+    notes:"Compagnie principale CDG. Excellents créneaux vers Afrique de l'Ouest, Antilles, Réunion."
+  },
+  {id:2,name:'Ethiopian Cargo',iata:'ET',icao:'ETH',icon:'🇪🇹',color:'#7c3aed',hub:'Addis Abeba (ADD)',caps:['Poisson frais','F&L','AVI','Cargo','Export'],
+    contacts:[{role:'Bureau cargo Paris',name:'Ethiopian Airlines Paris',phone:'01 53 43 26 00',email:'cargo.paris@ethiopianairlines.com',hours:'8h – 18h L-V'},{role:'Handling — Swissport CDG',name:'Swissport CDG',phone:'01 49 19 80 00',email:'cdg.cargo@swissport.com',hours:'6h – 22h'}],
+    procedures:['Envoyer le manifeste cargo 24h avant départ depuis ADD','Récupérer OSD dès réception si anomalie visible','F&L Éthiopie : très bonnes fréquences haricots verts, roses','AVI : contacter bureau Paris 48h avant pour confirmation espace'],
+    infos:[{k:'Système suivi',v:'Ethiopian Cargo Tracking'},{k:'Fréquences CDG',v:'Quotidien (B777F + pax belly)'},{k:'Force',v:'Haricots verts, roses, café'},{k:'Stockage CDG',v:'Terminal Swissport T2F'}],
+    warnings:['Retards fréquents sur vols mixtes passagers/fret. Prévoir buffer +2h sur mise à dispo.'],
+    notes:"Incontournable pour F&L Éthiopie. Bonne fiabilité sur le cargo lourd."
+  },
+  {id:3,name:'Qatar Airways Cargo',iata:'QR',icao:'QTR',icon:'🇶🇦',color:'#7c0a02',hub:'Doha (DOH)',caps:['Poisson frais','AVI','Cargo','Export'],
+    contacts:[{role:'Qatar Cargo Paris',name:'Service commercial',phone:'01 57 32 22 00',email:'cargo.paris@qatarairways.com',hours:'8h30 – 17h30 L-V'},{role:'Handling — WFS CDG',name:'World Fuel Services',phone:'01 49 19 37 00',email:'cdg@wfscargo.com',hours:'H24'}],
+    procedures:['Booking fret frais : réserver 48h à l\'avance via Qatar Cargo Online','Remise docs : H-4 avant décollage de DOH','Poissons vivants et coraux : appel préalable (quota espace)','Transit DOH : vérifier température minimum 4h de connexion'],
+    infos:[{k:'Système suivi',v:'qrcargo.com'},{k:'Fréquences CDG',v:'2× quotidien'},{k:'Points forts',v:'Poisson frais Asie SE, crustacés'},{k:'Transit DOH',v:'4h minimum de connexion'}],
+    warnings:['Tarif CO₂ appliqué depuis 2024 sur tous les dossiers (~8% surcharge).','Transit DOH : risque rupture chaîne du froid si connexion <4h.'],
+    notes:"Excellent pour poisson frais Asie du Sud-Est, crustacés vivants. Tarifs élevés mais fiabilité très bonne."
+  },
+  {id:4,name:'WFS / dnata CDG',iata:'—',icao:'—',icon:'🏭',color:'#0f766e',hub:'CDG Zone Fret',caps:['Cargo','Poisson frais','F&L','AVI'],
+    contacts:[{role:'Handling général',name:'WFS CDG Opérations',phone:'01 49 19 37 00',email:'cdg-ops@wfscargo.com',hours:'H24'},{role:'Périssables & AVI',name:'WFS Perishable Desk',phone:'01 49 19 37 11',email:'perishable.cdg@wfscargo.com',hours:'5h – 23h'}],
+    procedures:['Bon de livraison au guichet principal Zone Fret 2','AVI : présenter passeport sanitaire et CITES en original','Poisson frais : contrôle température à l\'ouverture — noter anomalie BL','En cas d\'avarie : OSD signé par WFS OBLIGATOIRE avant quitter le site','Entreposage >48h : frais de magasinage appliqués automatiquement'],
+    infos:[{k:'Localisation',v:'Zone Fret 2 — Roissy CDG'},{k:'Type',v:'Handler (pas compagnie)'},{k:'Tarif handling',v:'118€ + 0.115€/kg'},{k:'Délai OSD',v:'À obtenir le jour même'}],
+    warnings:['OSD (Outturn Statement) : document CRITIQUE. Ne jamais quitter le site sans signature en cas d\'anomalie.'],
+    notes:"Handler principal CDG. Contacter le Perishable Desk directement pour toute urgence."
+  },
+  {id:5,name:'Air Algérie Cargo',iata:'AH',icao:'DAH',icon:'🇩🇿',color:'#16a34a',hub:'Alger (ALG)',caps:['F&L','Cargo','Export'],
+    contacts:[{role:'Bureau Paris',name:'Air Algérie CDG',phone:'01 49 19 20 30',email:'cargo.paris@airalgerie.dz',hours:'8h – 17h L-V'}],
+    procedures:['Remise docs au plus tard H-3 avant départ CDG','F&L Algérie : tomates, poivrons, agrumes — saisonnalité nov-mars','Prévoir délai douane algérienne (document phyto Algérie requis)'],
+    infos:[{k:'Fréquences CDG',v:'3-4× par semaine'},{k:'Points forts',v:'F&L Algérie, agrumes, tomates'}],
+    warnings:['Documents phytosanitaires algériens stricts — toujours vérifier conformité.'],
+    notes:"Principal fournisseur F&L Algérie. Saisonnalité forte (agrumes hiver)."
+  },
+  {id:6,name:'Corsair Cargo',iata:'SS',icao:'CRL',icon:'🇷🇪',color:'#d97706',hub:'Paris-Orly',caps:['Poisson frais','F&L','Cargo'],
+    contacts:[{role:'Cargo Orly',name:'Corsair Cargo',phone:'01 41 75 40 00',email:'cargo@corsair.fr',hours:'8h – 18h L-V'}],
+    procedures:['Navette CDG ↔ Orly à prévoir — inclure dans la cotation','Poisson frais DOM : bonne fréquence, tarifs compétitifs','Remise docs H-4 avant décollage'],
+    infos:[{k:'Hub',v:'Orly (navette CDG requise)'},{k:'Fréquences',v:'Quotidien vers DOM-TOM'},{k:'Points forts',v:'Réunion, Martinique, Guadeloupe'}],
+    warnings:['Opère depuis Orly — toujours inclure frais navette CDG-Orly dans la cotation client.'],
+    notes:"Incontournable pour les DOM-TOM. Toujours facturer la navette."
+  },
+];
+
+let companies,selId=null,filterCap=null,searchQ='',editId=null;
+function load(){try{companies=JSON.parse(localStorage.getItem('taf_comp_v1'))||JSON.parse(JSON.stringify(INIT));}catch{companies=JSON.parse(JSON.stringify(INIT));}}
+function sv(){localStorage.setItem('taf_comp_v1',JSON.stringify(companies));}
+
+function doSearch(q){searchQ=q;document.getElementById('srchClr').style.display=q?'block':'none';renderList();}
+function clearSearch(){document.getElementById('srchInp').value='';searchQ='';document.getElementById('srchClr').style.display='none';renderList();}
+
+function renderFilters(){
+  const row=document.getElementById('filtersRow');
+  row.innerHTML=`<button class="pill${!filterCap?' act':''}" onclick="setCapFilter(null)">Toutes (${companies.length})</button>`+
+    CAPS.map(c=>{const cnt=companies.filter(x=>x.caps.includes(c)).length;if(!cnt)return'';const col=CAPS_COLORS[c];const act=filterCap===c;return`<button class="pill${act?' act':''}" style="${act?`background:${col}18;border-color:${col};color:${col}`:''}" onclick="setCapFilter('${c}')">${c} (${cnt})</button>`;}).join('');
+}
+function setCapFilter(c){filterCap=c;renderList();}
+
+function renderList(){
+  renderFilters();
+  const fil=companies.filter(c=>{
+    const q=searchQ.toLowerCase();
+    const ms=!q||c.name.toLowerCase().includes(q)||c.iata.toLowerCase().includes(q)||c.hub.toLowerCase().includes(q);
+    const mc=!filterCap||c.caps.includes(filterCap);
+    return ms&&mc;
+  });
+  document.getElementById('cList').innerHTML=fil.map(c=>`
+    <div class="citem${selId===c.id?' act':''}" onclick="select(${c.id})">
+      <div class="clogo" style="background:${c.color}22;border:1px solid ${c.color}44">${c.icon}</div>
+      <div>
+        <div class="cname">${c.name}</div>
+        <div class="ciata">${c.iata!=='—'?'IATA: '+c.iata:'Hub: '+c.hub}</div>
+        <div class="ctags">${c.caps.slice(0,3).map(cap=>`<span class="mtag" style="background:${CAPS_COLORS[cap]}22;color:${CAPS_COLORS[cap]}">${cap}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function select(id){
+  selId=id;
+  renderList();
+  const c=companies.find(x=>x.id===id);
+  if(!c){document.getElementById('det').innerHTML='';return;}
+  document.getElementById('det').innerHTML=`
+  <div class="det-hdr">
+    <div class="co-hero">
+      <div class="co-logo-lg" style="background:${c.color}22;border:2px solid ${c.color}44">${c.icon}</div>
+      <div>
+        <div class="co-name">${c.name}</div>
+        <div class="co-codes">${c.iata!=='—'?`<span class="cbadge">IATA: ${c.iata}</span>`:''}${c.icao!=='—'?`<span class="cbadge">ICAO: ${c.icao}</span>`:''}<span style="font-size:12px;color:var(--mt)">Hub: ${c.hub}</span></div>
+        <div class="co-caps">${c.caps.map(cap=>`<span class="captag" style="background:${CAPS_COLORS[cap]}22;color:${CAPS_COLORS[cap]};border:1px solid ${CAPS_COLORS[cap]}44">${cap}</span>`).join('')}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn bg" onclick="openEdit(${c.id})">✏️ Modifier</button>
+      <button class="btn bd2" onclick="del(${c.id})">🗑</button>
+    </div>
+  </div>
+  <!-- Contacts -->
+  <div class="sg1 sec">
+    <div class="sec-h">📞 Contacts</div>
+    <div class="sec-b" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
+      ${c.contacts.map(ct=>`<div class="ctcrd"><div class="ctrole">${ct.role}</div><div class="ctname">${ct.name}</div><div style="display:flex;flex-direction:column;gap:3px">${ct.phone?`<div class="ctline">📞 <a href="tel:${ct.phone}">${ct.phone}</a></div>`:''} ${ct.email?`<div class="ctline">✉️ <a href="mailto:${ct.email}">${ct.email}</a></div>`:''} ${ct.hours?`<div class="ctline">🕐 ${ct.hours}</div>`:''}</div></div>`).join('')}
+    </div>
+  </div>
+  <!-- Procedures + Infos -->
+  <div class="sg2">
+    <div class="sec">
+      <div class="sec-h">📋 Procédures opérationnelles</div>
+      <div class="sec-b">${c.procedures.map((p,i)=>`<div class="proc"><div class="pnum">${i+1}</div><div class="ptxt">${p}</div></div>`).join('')}</div>
+    </div>
+    <div class="sec">
+      <div class="sec-h">ℹ️ Informations clés</div>
+      <div class="sec-b">${c.infos.map(info=>`<div class="irow"><span class="ikey">${info.k}</span><span class="ival">${info.v}</span></div>`).join('')}</div>
+    </div>
+  </div>
+  ${c.warnings.some(w=>w)?`<div class="sg1 sec">
+    <div class="sec-h">⚠️ Points d'attention</div>
+    <div class="sec-b">${c.warnings.filter(w=>w).map(w=>`<div class="wbox">⚠️ ${w}</div>`).join('')}</div>
+  </div>`:''}
+  ${c.notes?`<div class="sg1 sec">
+    <div class="sec-h">📝 Notes internes</div>
+    <div class="sec-b"><div class="nbox">${c.notes}</div></div>
+  </div>`:''}`;
+}
+
+function del(id){
+  if(!confirm('Supprimer cette compagnie ?'))return;
+  companies=companies.filter(x=>x.id!==id);sv();
+  if(selId===id)selId=null;
+  renderList();document.getElementById('det').innerHTML='';
+}
+
+function buildCapsChk(sel){
+  return CAPS.map(c=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="${c}" ${sel.includes(c)?'checked':''} style="accent-color:var(--ac)"> ${c}</label>`).join('');
+}
+
+function openAdd(){editId=null;document.getElementById('fTtl').textContent='Nouvelle compagnie';['fNm','fIA','fIC','fHb','fNt'].forEach(i=>document.getElementById(i).value='');document.getElementById('fIc').value='✈️';document.getElementById('fCl').value='#6366f1';document.getElementById('capsCkb').innerHTML=buildCapsChk([]);document.getElementById('fModal').style.display='flex';}
+function openEdit(id){editId=id;const c=companies.find(x=>x.id===id);document.getElementById('fTtl').textContent='Modifier';document.getElementById('fNm').value=c.name;document.getElementById('fIA').value=c.iata;document.getElementById('fIC').value=c.icao;document.getElementById('fHb').value=c.hub;document.getElementById('fIc').value=c.icon;document.getElementById('fCl').value=c.color;document.getElementById('capsCkb').innerHTML=buildCapsChk(c.caps||[]);document.getElementById('fNt').value=c.notes||'';document.getElementById('fModal').style.display='flex';}
+function closeF(){document.getElementById('fModal').style.display='none';}
+function saveF(){
+  const nm=document.getElementById('fNm').value.trim();if(!nm){alert('Nom requis');return;}
+  const caps=[...document.getElementById('capsCkb').querySelectorAll('input:checked')].map(i=>i.value);
+  const obj={id:editId||Date.now(),name:nm,iata:document.getElementById('fIA').value||'—',icao:document.getElementById('fIC').value||'—',hub:document.getElementById('fHb').value,icon:document.getElementById('fIc').value||'✈️',color:document.getElementById('fCl').value,caps,contacts:[{role:'Contact principal',name:nm,phone:'',email:'',hours:''}],procedures:[],infos:[],warnings:[],notes:document.getElementById('fNt').value};
+  if(editId){companies=companies.map(c=>c.id===editId?{...companies.find(c=>c.id===editId),...obj,id:editId}:c);}
+  else companies.push(obj);
+  sv();closeF();renderList();if(editId)select(editId);
+}
+
+load();renderList();
+document.getElementById('capsCkb').innerHTML=buildCapsChk([]);
+</script>
+</body>
+</html>

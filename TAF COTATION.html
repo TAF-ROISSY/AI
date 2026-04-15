@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF Cotation Express v1.0.0</title>
+<style>
+:root{--bg:#090c12;--s:#0e1220;--s2:#141826;--bd:#1c2235;--ac:#10b981;--ac2:#34d399;--bl:#3b82f6;--yw:#f59e0b;--rd:#ef4444;--tx:#e4e9f5;--mt:#5a6484;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+.hdr{background:var(--s);border-bottom:1px solid var(--bd);padding:0 26px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo-g{display:flex;align-items:center;gap:12px;}
+.logo-ic{width:36px;height:36px;background:linear-gradient(135deg,var(--ac),var(--ac2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 16px rgba(16,185,129,.25);}
+.logo-n{font-size:15px;font-weight:700;}
+.ver{background:var(--s2);border:1px solid var(--bd);padding:2px 8px;border-radius:4px;font-size:10px;font-family:monospace;color:var(--mt);}
+.lay{display:flex;flex:1;}
+/* Sidebar */
+.sdbar{width:400px;min-width:400px;background:var(--s);border-right:1px solid var(--bd);padding:20px;overflow-y:auto;}
+.sec-ttl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);padding-bottom:8px;border-bottom:1px solid var(--bd);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.fp{display:flex;flex-direction:column;gap:4px;}
+.fp.ful{grid-column:span 2;}
+.fl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mt);}
+.fi{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px;color:var(--tx);font-size:13px;outline:none;width:100%;}
+.fi:focus{border-color:var(--ac);}
+textarea.fi{resize:vertical;min-height:65px;}
+/* Type buttons */
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;}
+.tbtn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);cursor:pointer;font-size:11px;font-weight:600;color:var(--mt);transition:all .15s;}
+.tbtn:hover{border-color:var(--ac);}
+.tbtn.act{background:rgba(16,185,129,.1);border-color:var(--ac);color:var(--ac2);}
+.tbtn .ti{font-size:20px;}
+/* Options checkboxes */
+.opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.orow{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;}
+.orow input{width:15px;height:15px;accent-color:var(--ac);}
+/* Calc btn */
+.calc-btn{width:100%;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#000;font-size:15px;font-weight:700;padding:13px;border-radius:9px;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(16,185,129,.28);transition:all .15s;}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(16,185,129,.38);}
+/* Result panel */
+.res{flex:1;padding:22px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;}
+.empty-res{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mt);gap:12px;text-align:center;padding:40px;}
+.empty-ic{font-size:52px;}
+/* Quote card */
+.qc{background:var(--s);border:1px solid var(--bd);border-radius:14px;overflow:hidden;}
+.qh{background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(52,211,153,.07));border-bottom:1px solid rgba(16,185,129,.18);padding:22px 26px;display:flex;justify-content:space-between;align-items:flex-start;}
+.qref{font-family:monospace;font-size:12px;color:var(--mt);margin-bottom:4px;}
+.qtit{font-size:19px;font-weight:700;}
+.qcln{font-size:14px;color:var(--ac2);margin-top:3px;}
+.qtotal-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--mt);text-align:right;}
+.qtotal-v{font-family:monospace;font-size:36px;font-weight:700;color:var(--ac2);line-height:1;}
+.qtotal-ttc{font-size:12px;color:var(--mt);text-align:right;margin-top:3px;}
+.qb{padding:22px 26px;}
+.qdets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.qdet{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:10px 13px;}
+.qdlbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);margin-bottom:3px;}
+.qdval{font-size:13px;font-weight:600;}
+.qtbl{width:100%;border-collapse:collapse;}
+.qtbl th{text-align:left;padding:7px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);border-bottom:1px solid var(--bd);}
+.qtbl td{padding:9px 12px;font-size:13px;border-bottom:1px solid rgba(28,34,53,.45);}
+.qtbl tr:last-child td{border-bottom:none;}
+.qtbl .tr-sub td{background:var(--s2);font-weight:600;border-top:2px solid var(--bd);}
+.qtbl .tr-tot td{background:rgba(16,185,129,.07);font-weight:700;font-size:14px;border-top:2px solid rgba(16,185,129,.28);color:var(--ac2);}
+.qtbl .lamt{font-family:monospace;font-weight:700;text-align:right;}
+.qtbl .lcalc{font-size:11px;color:var(--mt);font-family:monospace;}
+.qfoot{padding:14px 26px;border-top:1px solid var(--bd);display:flex;gap:9px;align-items:center;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.bp{background:var(--ac);color:#000;}
+.bp:hover{background:var(--ac2);}
+.bs{background:var(--s2);color:var(--tx);border:1px solid var(--bd);}
+.bg{background:transparent;color:var(--mt);border:1px solid var(--bd);font-size:12px;}
+.bg:hover{color:var(--tx);background:var(--s2);}
+/* History */
+.hst{background:var(--s);border:1px solid var(--bd);border-radius:12px;overflow:hidden;}
+.hh{display:flex;align-items:center;justify-content:space-between;padding:13px 17px;border-bottom:1px solid var(--bd);background:var(--s2);}
+.ht{font-size:13px;font-weight:700;}
+.hr2{display:flex;align-items:center;gap:10px;padding:9px 17px;border-bottom:1px solid rgba(28,34,53,.4);font-size:12px;}
+.hr2:last-child{border-bottom:none;}
+.hrf{font-family:monospace;font-size:11px;color:var(--mt);width:90px;}
+.hcl{flex:1;font-weight:500;}
+.ham{font-family:monospace;font-weight:700;color:var(--ac2);}
+@media print{.sdbar,.qfoot,.hdr,.hst{display:none!important;}.res{padding:0;}.qc{box-shadow:none;border:none;}body{background:#fff;color:#000;}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="logo-g">
+    <div class="logo-ic">💰</div>
+    <div class="logo-n">TAF COTATION EXPRESS</div>
+    <span class="ver">v1.0.0</span>
+  </div>
+  <span style="font-size:12px;color:var(--mt)">Grilles tarifaires 2026 · Paris-CDG</span>
+</header>
+<div class="lay">
+  <aside class="sdbar">
+    <!-- Client -->
+    <div class="sec-ttl">👤 Client</div>
+    <div class="fg">
+      <div class="fp ful"><label class="fl">Nom client</label><input class="fi" id="fCli" placeholder="Ex : CAPMARIN IMPORT"></div>
+      <div class="fp"><label class="fl">Contact</label><input class="fi" id="fCnt" placeholder="Prénom Nom"></div>
+      <div class="fp"><label class="fl">Email</label><input type="email" class="fi" id="fEml" placeholder="email@client.com"></div>
+    </div>
+    <!-- Type -->
+    <div class="sec-ttl">📦 Marchandise</div>
+    <div class="tgrid">
+      <button class="tbtn act" id="tbtn-fish" onclick="setType('fish')"><span class="ti">🐟</span>Poisson frais</button>
+      <button class="tbtn" id="tbtn-fl" onclick="setType('fl')"><span class="ti">🥑</span>F&L</button>
+      <button class="tbtn" id="tbtn-avi" onclick="setType('avi')"><span class="ti">🐾</span>AVI</button>
+      <button class="tbtn" id="tbtn-cargo" onclick="setType('cargo')"><span class="ti">📦</span>Cargo général</button>
+      <button class="tbtn" id="tbtn-export" onclick="setType('export')"><span class="ti">✈️</span>Export</button>
+      <button class="tbtn" id="tbtn-custom" onclick="setType('custom')"><span class="ti">⚙️</span>Sur mesure</button>
+    </div>
+    <div class="fp ful" style="margin-bottom:12px"><label class="fl">Description marchandise</label><input class="fi" id="fDsc" placeholder="Ex : Saumon frais, Roses Kenya..."></div>
+    <!-- Transport -->
+    <div class="sec-ttl">✈️ Transport</div>
+    <div class="fg">
+      <div class="fp"><label class="fl">Poids (kg) *</label><input type="number" class="fi" id="fPds" placeholder="0"></div>
+      <div class="fp"><label class="fl">Nb colis</label><input type="number" class="fi" id="fCls" placeholder="1"></div>
+      <div class="fp">
+        <label class="fl">Compagnie</label>
+        <select class="fi" id="fAir"><option>Air France</option><option>Air Algerie</option><option>Corsair</option><option>Emirates</option><option>Ethiopian</option><option>Qatar Airways</option><option>Turkish Airlines</option><option>WFS</option><option>Autre</option></select>
+      </div>
+      <div class="fp"><label class="fl">Origine</label><input class="fi" id="fOri" placeholder="Ex: NOU, ADD..."></div>
+    </div>
+    <!-- Options -->
+    <div class="sec-ttl">⚙️ Options</div>
+    <div class="opts">
+      <label class="orow"><input type="checkbox" id="oDed" checked> Dédouanement inclus</label>
+      <label class="orow"><input type="checkbox" id="oMsg" checked> Frais messagerie / documents</label>
+      <label class="orow"><input type="checkbox" id="oReg"> Régime particulier (AT/IP…)</label>
+      <label class="orow" id="oBioRow"><input type="checkbox" id="oBio"> Contrôle biologique (F&L)</label>
+    </div>
+    <div class="fg">
+      <div class="fp" id="certRow"><label class="fl">Nb cert. phyto</label><input type="number" class="fi" id="oPhy" value="0" min="0"></div>
+      <div class="fp"><label class="fl">Entreposage (jours)</label><input type="number" class="fi" id="oEnt" value="0" min="0"></div>
+    </div>
+    <div class="fp" style="margin-bottom:14px"><label class="fl">Notes internes</label><textarea class="fi" id="fNot" placeholder="Conditions particulières..."></textarea></div>
+    <button class="calc-btn" onclick="calculate()">⚡ Calculer la cotation</button>
+  </aside>
+  <div class="res" id="resPanel">
+    <div class="empty-res">
+      <div class="empty-ic">💰</div>
+      <div style="font-size:17px;font-weight:700;color:var(--tx)">Cotation instantanée</div>
+      <div style="font-size:13px;max-width:300px;line-height:1.6">Renseignez le type, le poids et les options, puis cliquez sur <strong>Calculer</strong>.<br>Grilles 2026 intégrées.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let curType='fish';
+let cotCounter=+localStorage.getItem('taf_cot_ctr')||100;
+let history=[];try{history=JSON.parse(localStorage.getItem('taf_cot_hist'))||[];}catch{}
+
+function setType(t){
+  curType=t;
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('act'));
+  document.getElementById('tbtn-'+t).classList.add('act');
+  document.getElementById('certRow').style.display=(t==='fl')?'block':'none';
+  document.getElementById('oBioRow').style.display=(t==='fl')?'flex':'none';
+}
+setType('fish');
+
+function getFraisArrivee(p){if(p<1000)return 180;if(p<2000)return 200;if(p<3000)return 235;if(p<4000)return 280;if(p<5000)return 310;if(p<6000)return 350;if(p<7000)return 390;return 440;}
+function getMad(type,p){
+  if(type==='fish'){if(p<=500)return 24;if(p<=1000)return 39;if(p<=2000)return 69;return Math.ceil(p/1000)*49;}
+  if(type==='fl'){if(p<=200)return 35;if(p<=1000)return 45;return 65;}
+  if(p<=500)return 24;return 39;
+}
+
+function buildLines(type,poids,opts){
+  const lines=[];
+  const p=+poids||0;
+  const fa=getFraisArrivee(p);
+  if(type==='fish'){
+    lines.push({n:'Intervention importation',c:'forfait',v:132});
+    lines.push({n:"Frais d'arrivée (AF/WFS)",c:'grille '+p+'kg',v:fa});
+    lines.push({n:'Mise à disposition',c:'grille poids',v:getMad('fish',p)});
+    lines.push({n:'Handling WFS',c:'118€ + 0.115€/kg',v:Math.round(118+0.115*p)});
+  } else if(type==='fl'){
+    lines.push({n:'Intervention importation',c:'forfait',v:130});
+    lines.push({n:'TID',c:'forfait',v:20});
+    lines.push({n:"Frais d'arrivée",c:'grille '+p+'kg',v:fa});
+    lines.push({n:'Contrôle phytosanitaire',c:'forfait',v:35});
+    if(opts.bio) lines.push({n:'Contrôle biologique',c:'forfait',v:35});
+    lines.push({n:'Mise à disposition',c:'grille poids',v:getMad('fl',p)});
+    if(opts.phy>0) lines.push({n:'Taxe phytosanitaire',c:opts.phy+' cert × 32€',v:opts.phy*32});
+  } else if(type==='avi'){
+    lines.push({n:'Intervention importation',c:'forfait',v:135});
+    lines.push({n:"Frais d'arrivée",c:'grille '+p+'kg',v:fa});
+    lines.push({n:'Station animalière',c:'forfait',v:47});
+    lines.push({n:'Frais vétérinaires',c:'forfait',v:45});
+    const uc=Math.ceil(p/150)||1;
+    lines.push({n:'Unités de charge',c:uc+' UC × 48€',v:uc*48});
+    lines.push({n:'Transfert',c:'0.10€/kg mini 120€',v:Math.max(120,Math.round(p*0.1))});
+    lines.push({n:'Sortie compagnie',c:'forfait',v:25});
+  } else {
+    lines.push({n:'Intervention importation',c:'forfait',v:130});
+    lines.push({n:"Frais d'arrivée",c:'grille '+p+'kg',v:fa});
+    lines.push({n:'Mise à disposition',c:'forfait',v:getMad('other',p)});
+  }
+  if(opts.ded){lines.push({sep:true});lines.push({n:'DAU — Déclaration en douane',c:'par déclaration',v:75});lines.push({n:'DAU numérique',c:'forfait',v:25});}
+  if(opts.reg) lines.push({n:'Régime particulier',c:'forfait',v:45});
+  if(opts.msg) lines.push({n:'Messagerie / documents',c:'forfait',v:28});
+  if(opts.ent>0){const rate=p>1000?55:35;lines.push({n:'Entreposage frigorifique',c:opts.ent+'j × '+rate+'€',v:opts.ent*rate});}
+  return lines;
+}
+
+const TYPE_LABELS={fish:'🐟 Poisson frais',fl:'🥑 Fruits & Légumes',avi:'🐾 Animaux vivants',cargo:'📦 Cargo général',export:'✈️ Export',custom:'⚙️ Sur mesure'};
+
+function calculate(){
+  const poids=document.getElementById('fPds').value;
+  if(!poids||+poids<=0){alert('Veuillez saisir un poids');return;}
+  const opts={
+    ded:document.getElementById('oDed').checked,
+    msg:document.getElementById('oMsg').checked,
+    reg:document.getElementById('oReg').checked,
+    bio:document.getElementById('oBio').checked,
+    phy:+document.getElementById('oPhy').value||0,
+    ent:+document.getElementById('oEnt').value||0,
+  };
+  const lines=buildLines(curType,poids,opts);
+  const total=lines.filter(l=>!l.sep&&l.v).reduce((a,b)=>a+b.v,0);
+  const tva=total*0.2;
+  const ttc=total+tva;
+  cotCounter++;
+  localStorage.setItem('taf_cot_ctr',cotCounter);
+  const ref='COT-'+new Date().getFullYear()+'-'+String(cotCounter).padStart(4,'0');
+  const date=new Date().toLocaleDateString('fr-FR');
+  const cli=document.getElementById('fCli').value||'—';
+  const air=document.getElementById('fAir').value;
+  const ori=document.getElementById('fOri').value;
+  const dsc=document.getElementById('fDsc').value;
+  const cls=document.getElementById('fCls').value;
+  const not=document.getElementById('fNot').value;
+
+  history=[{ref,client:cli,type:curType,total,date},...history].slice(0,15);
+  localStorage.setItem('taf_cot_hist',JSON.stringify(history));
+
+  const panel=document.getElementById('resPanel');
+  panel.innerHTML=`
+  <div class="qc" id="printZone">
+    <div class="qh">
+      <div>
+        <div class="qref">${ref} · ${date}</div>
+        <div class="qtit">${TYPE_LABELS[curType]||'Cotation'}</div>
+        <div class="qcln">${cli}${ori?' · '+ori+' → CDG':''}</div>
+        ${air?`<div style="font-size:12px;color:var(--mt);margin-top:2px">${air}</div>`:''}
+      </div>
+      <div>
+        <div class="qtotal-lbl">Total HT</div>
+        <div class="qtotal-v">${total.toLocaleString('fr-FR')} €</div>
+        <div class="qtotal-ttc">TTC : ${Math.round(ttc).toLocaleString('fr-FR')} €</div>
+      </div>
+    </div>
+    <div class="qb">
+      <div class="qdets">
+        <div class="qdet"><div class="qdlbl">Poids</div><div class="qdval">${poids} kg</div></div>
+        ${cls?`<div class="qdet"><div class="qdlbl">Colis</div><div class="qdval">${cls}</div></div>`:''}
+        <div class="qdet"><div class="qdlbl">Compagnie</div><div class="qdval">${air}</div></div>
+      </div>
+      <table class="qtbl">
+        <thead><tr><th>Prestation</th><th>Calcul</th><th style="text-align:right">Montant HT</th></tr></thead>
+        <tbody>
+          ${lines.map(l=>l.sep
+            ?`<tr><td colspan="3" style="padding:4px 12px;font-size:11px;color:var(--mt);background:var(--s2);font-style:italic">— Dédouanement</td></tr>`
+            :`<tr><td>${l.n}</td><td class="lcalc">${l.c||''}</td><td class="lamt" style="color:${l.v>200?'var(--ac2)':'var(--tx)'}">${l.v?.toLocaleString('fr-FR')} €</td></tr>`
+          ).join('')}
+          <tr class="tr-sub"><td colspan="2">Total HT</td><td class="lamt">${total.toLocaleString('fr-FR')} €</td></tr>
+          <tr><td colspan="2" style="font-size:12px;color:var(--mt)">TVA 20%</td><td class="lamt" style="color:var(--mt)">${Math.round(tva).toLocaleString('fr-FR')} €</td></tr>
+          <tr class="tr-tot"><td colspan="2">TOTAL TTC</td><td class="lamt">${Math.round(ttc).toLocaleString('fr-FR')} €</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;padding:9px 13px;background:var(--s2);border-radius:7px;font-size:12px;color:var(--mt);border:1px solid var(--bd)">
+        ℹ️ Cotation indicative valable 30 jours. Prix HT, hors droits et taxes douaniers. Sous réserve de confirmation.
+        ${not?`<div style="margin-top:4px;color:var(--tx)">${not}</div>`:''}
+      </div>
+    </div>
+    <div class="qfoot">
+      <button class="btn bp" onclick="window.print()">🖨️ Imprimer</button>
+      <button class="btn bs" onclick="copyCot()">📋 Copier texte</button>
+      <div style="flex:1"></div>
+      <span style="font-size:11px;color:var(--mt)">Trans Air Freight · import@taftrans.fr</span>
+    </div>
+  </div>
+  ${history.length>1?`<div class="hst">
+    <div class="hh"><div class="ht">📋 Historique</div><span style="font-size:12px;color:var(--mt)">${history.length} cotations</span></div>
+    ${history.slice(0,8).map(h=>`<div class="hr2"><span class="hrf">${h.ref}</span><span class="hcl">${h.client||'—'}</span><span style="font-size:11px">${TYPE_LABELS[h.type]?.split(' ')[0]||''}</span><span class="ham">${h.total.toLocaleString('fr-FR')} €</span><span style="font-size:11px;color:var(--mt)">${h.date}</span></div>`).join('')}
+  </div>`:''}`;
+
+  window._lastCot={ref,cli,air,ori,poids,dsc,type:curType,lines,total,tva,ttc};
+}
+
+function copyCot(){
+  const c=window._lastCot;if(!c)return;
+  const today=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const txt=`COTATION TRANSPORT AÉRIEN — ${c.ref}\nTrans Air Freight | Paris-CDG\n${today}\n\nClient : ${c.cli}\nMarchandise : ${c.dsc||c.type}\nCompagnie : ${c.air}\nOrigine : ${c.ori||'N/A'}\nPoids : ${c.poids} kg\n\nDÉTAIL DES FRAIS\n${c.lines.filter(l=>!l.sep&&l.v).map(l=>'  '+l.n.padEnd(38)+(l.v+'€').padStart(8)).join('\n')}\n\nTOTAL HT : ${c.total.toLocaleString('fr-FR')} €\nTVA 20%  : ${Math.round(c.tva).toLocaleString('fr-FR')} €\nTOTAL TTC: ${Math.round(c.ttc).toLocaleString('fr-FR')} €\n\nValable 30 jours — Trans Air Freight — import@taftrans.fr`;
+  navigator.clipboard.writeText(txt).then(()=>alert('Copié !'));
+}
+</script>
+</body>
+</html>

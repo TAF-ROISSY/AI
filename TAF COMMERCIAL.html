@@ -1,0 +1,962 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+// ═══════════════════════════════════════════════════════════
+// TAF COMMERCIAL v3.1 — GUERRE COMMERCIALE + FIREBASE
+// Migration complète : Firebase RTDB + Drive backup
+// ═══════════════════════════════════════════════════════════
+
+const APP_VERSION = "3.1.0";
+const LOCAL_KEY = "taf_commercial_v3";
+
+// ═══════════════════════════════════════
+// FIREBASE REALTIME DATABASE — SERVICE
+// ═══════════════════════════════════════
+class FirebaseService {
+  constructor() {
+    this.dbUrl = "";
+    this.authToken = "";
+    this.connected = false;
+    this.lastSync = null;
+    this.listeners = [];
+  }
+
+  configure(url, token = "") {
+    this.dbUrl = url?.replace(/\/$/, "") || "";
+    this.authToken = token;
+    this.connected = !!this.dbUrl;
+  }
+
+  _url(path) {
+    let url = `${this.dbUrl}/${path}.json`;
+    if (this.authToken) url += `?auth=${this.authToken}`;
+    return url;
+  }
+
+  async get(path) {
+    if (!this.connected) return null;
+    try {
+      const r = await fetch(this._url(path));
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      this.lastSync = new Date();
+      return data;
+    } catch (e) {
+      console.error("Firebase GET error:", e);
+      return null;
+    }
+  }
+
+  async set(path, data) {
+    if (!this.connected) return false;
+    try {
+      const r = await fetch(this._url(path), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      this.lastSync = new Date();
+      return true;
+    } catch (e) {
+      console.error("Firebase SET error:", e);
+      return false;
+    }
+  }
+
+  async patch(path, data) {
+    if (!this.connected) return false;
+    try {
+      const r = await fetch(this._url(path), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      this.lastSync = new Date();
+      return true;
+    } catch (e) {
+      console.error("Firebase PATCH error:", e);
+      return false;
+    }
+  }
+
+  async delete(path) {
+    if (!this.connected) return false;
+    try {
+      const r = await fetch(this._url(path), { method: "DELETE" });
+      return r.ok;
+    } catch (e) { return false; }
+  }
+
+  async testConnection() {
+    if (!this.dbUrl) return { ok: false, error: "URL non configurée" };
+    try {
+      const r = await fetch(this._url("_ping"), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ts: Date.now(), app: "taf_commercial", version: APP_VERSION }) });
+      if (!r.ok) return { ok: false, error: `HTTP ${r.status} — vérifier les règles Firebase` };
+      this.connected = true;
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+}
+
+const firebase = new FirebaseService();
+
+// ═══ TEMPLATES HUMANISÉS ═══
+const HUMAN_TEMPLATES = {
+  prospection: [
+    { id: "p1", name: "Premier contact — Naturel", lang: "fr", subject: "Une question rapide sur vos imports", body: "Bonjour {contact},\n\nJ'espère ne pas vous déranger. Je me permets de vous contacter car j'ai vu que {nom} travaille sur des flux d'import {specialites}.\n\nChez Trans Air Freight à CDG, on gère exactement ce type d'opérations depuis plus de 40 ans — et on a une approche un peu différente : on suit chaque dossier en temps réel, avec une petite équipe dédiée (5 personnes, pas un call center).\n\nEst-ce que ça vous dirait qu'on en discute 10 minutes ?\n\nBonne journée,\nChristophe Hermann\nTrans Air Freight CDG" },
+    { id: "p2", name: "Premier contact — Expert", lang: "fr", subject: "Import {specialites} à CDG — une approche terrain", body: "Bonjour {contact},\n\nJe travaille dans le fret aérien à CDG depuis plus de 40 ans, et je me suis dit que notre expérience sur {specialites} pourrait vous intéresser.\n\nOn a une particularité chez TAF : on est une petite structure (5 personnes) mais ultra-spécialisée. Résultat : chaque dossier est suivi personnellement, du tracking vol jusqu'à la livraison.\n\nSi vous cherchez un partenaire fiable sur CDG, je serais ravi d'échanger.\n\nCordialement,\nChristophe Hermann — TAF CDG" },
+    { id: "p3", name: "First contact — English", lang: "en", subject: "Quick question about your imports through CDG", body: "Hi {contact},\n\nI hope I'm not bothering you. I came across {nom} and noticed you handle {specialites} imports.\n\nAt Trans Air Freight (CDG), we've been specializing in exactly this for over 40 years — with a dedicated team of 5 who personally track every single shipment in real-time.\n\nWould you be open to a quick 10-minute chat?\n\nBest regards,\nChristophe Hermann\nTrans Air Freight CDG" },
+    { id: "p4", name: "Approche LinkedIn", lang: "fr", subject: "", body: "Bonjour {contact},\n\nJ'ai vu votre profil et votre expertise sur {specialites} m'a interpellé. Chez TAF CDG, on est spécialisés dans l'import fret aérien depuis 40 ans — une petite équipe de 5 qui fait du sur-mesure.\n\nSeriez-vous ouvert(e) à un échange ? Pas de commercial agressif, juste une discussion entre pros.\n\nChristophe" },
+  ],
+  relance: [
+    { id: "r1", name: "Relance J+3 — Douce", lang: "fr", subject: "Suite à mon message", body: "Bonjour {contact},\n\nJe me permets de revenir vers vous suite à mon précédent message. Je ne veux surtout pas être insistant — je sais que vous êtes débordé(e).\n\nSi le timing n'est pas bon, pas de souci du tout. On pourra en reparler quand ça vous arrangera.\n\nBelle journée,\nChristophe" },
+    { id: "r2", name: "Relance J+7 — Valeur", lang: "fr", subject: "Un retour d'expérience qui pourrait vous intéresser", body: "Bonjour {contact},\n\nPlutôt que de simplement relancer, je voulais partager un retour d'expérience récent : un de nos clients sur {specialites} a réduit ses délais de dédouanement de 40% en passant par notre process de suivi temps réel.\n\nSi ça vous parle, je serais ravi d'en discuter.\n\nCordialement,\nChristophe — TAF CDG" },
+    { id: "r3", name: "Relance J+14 — Dernière", lang: "fr", subject: "Dernier message — promis !", body: "Bonjour {contact},\n\nC'est mon dernier message, promis ! Je ne veux pas encombrer votre boîte.\n\nSi un jour vous avez besoin d'un partenaire fiable sur CDG pour vos imports {specialites}, gardez mon contact. On sera là.\n\nBonne continuation,\nChristophe Hermann — TAF CDG" },
+    { id: "r4", name: "Follow-up D+7 — EN", lang: "en", subject: "Following up — quick thought", body: "Hi {contact},\n\nRather than just following up, I wanted to share something concrete: one of our {specialites} clients recently cut their clearance time by 40% using our real-time tracking system.\n\nHappy to discuss if that sounds relevant.\n\nBest,\nChristophe — TAF CDG" },
+  ],
+  rescue: [
+    { id: "rescue1", name: "INGIE RESCUE — Urgence", lang: "fr", subject: "Votre expédition bloquée — on peut aider", body: "Bonjour {contact},\n\nJe vous contacte car j'ai appris que {nom} rencontre des difficultés avec une expédition bloquée. C'est une situation stressante, je comprends parfaitement.\n\nChez Trans Air Freight CDG, c'est exactement notre spécialité : on intervient en urgence sur les dossiers bloqués.\n\nConcrètement :\n— Prise en charge immédiate\n— Intervention douanière express\n— Suivi en temps réel jusqu'à la libération\n\n40 ans d'expérience sur CDG. Pas de promesses en l'air.\n\nPuis-je vous appeler dans les prochaines minutes ?\n\nChristophe Hermann\nTAF CDG — Urgences Import" },
+    { id: "rescue2", name: "INGIE RESCUE — DHL/Chrono", lang: "fr", subject: "Vos expéditions bloquées — solution rapide", body: "Bonjour {contact},\n\nJ'imagine la pression que vous subissez avec vos colis bloqués.\n\nNous avons un process de déblocage rapide. En 24-48h :\n— Identifier le point de blocage exact\n— Constituer le dossier douanier\n— Obtenir la mainlevée et organiser la livraison\n\nPas de discours commercial, juste une solution concrète.\n\nQuand seriez-vous disponible pour un appel de 5 minutes ?\n\nChristophe Hermann — TAF CDG" },
+    { id: "rescue3", name: "INGIE — Post-résolution", lang: "fr", subject: "Ravi d'avoir pu vous aider", body: "Bonjour {contact},\n\nContent que la situation ait pu se débloquer rapidement.\n\nPour éviter que ça ne se reproduise, je voulais vous proposer un suivi préventif de vos flux réguliers. Ça ne coûte rien en plus, et ça évite les mauvaises surprises.\n\nSi ça vous intéresse, on peut en discuter tranquillement.\n\nBelle journée,\nChristophe" },
+  ],
+  cotation: [
+    { id: "c1", name: "Envoi cotation — Pro", lang: "fr", subject: "TAF CDG — Votre proposition tarifaire", body: "Bonjour {contact},\n\nSuite à notre échange, voici notre proposition pour {nom}.\n\nQuelques points qui nous distinguent :\n— Suivi en temps réel de chaque dossier\n— Interlocuteur unique et dédié\n— 40 ans d'expertise CDG\n— Équipe réactive 7j/7\n\nN'hésitez pas si vous avez des questions.\n\nCordialement,\nChristophe Hermann — TAF CDG" },
+  ],
+  fidelisation: [
+    { id: "f1", name: "Check-in client actif", lang: "fr", subject: "Petit point — tout roule ?", body: "Bonjour {contact},\n\nJuste un petit message pour prendre des nouvelles. Est-ce que tout se passe bien de votre côté avec nos services ?\n\nSi vous avez le moindre retour (positif ou négatif), je suis preneur.\n\nÀ bientôt,\nChristophe" },
+    { id: "f2", name: "Cross-sell", lang: "fr", subject: "Une idée qui pourrait vous intéresser", body: "Bonjour {contact},\n\nEn regardant vos derniers dossiers, j'ai remarqué que vous travaillez surtout sur {specialites}. On a récemment développé une offre complémentaire qui pourrait vous faire gagner du temps.\n\nQuand est-ce qu'on pourrait en discuter 5 minutes ?\n\nChristophe — TAF CDG" },
+  ]
+};
+
+// ═══ APE CODES ═══
+const APE_SECTORS = [
+  { code: "4638A", label: "Commerce gros poissons/crustacés" },
+  { code: "4631Z", label: "Commerce gros fruits et légumes" },
+  { code: "4639B", label: "Commerce gros alimentaire non spéc." },
+  { code: "4646Z", label: "Commerce gros produits pharmaceutiques" },
+  { code: "4690Z", label: "Commerce gros non spécialisé" },
+  { code: "5229A", label: "Messagerie, fret express" },
+  { code: "5229B", label: "Affrètement et org. transports" },
+  { code: "5223Z", label: "Services auxiliaires transports aériens" },
+  { code: "5210B", label: "Entreposage frigorifique" },
+  { code: "0311Z", label: "Pêche en mer" },
+  { code: "0321Z", label: "Aquaculture en mer" },
+  { code: "0149Z", label: "Élevage d'autres animaux" },
+  { code: "4776Z", label: "Commerce détail fleurs/plantes" },
+  { code: "4632B", label: "Commerce gros viandes" },
+  { code: "4675Z", label: "Commerce gros produits chimiques" },
+];
+
+// ═══ HELPERS ═══
+const uid = () => "tc" + Date.now() + Math.random().toString(36).slice(2, 6);
+const today = () => new Date().toISOString().slice(0, 10);
+const now = () => new Date().toISOString();
+const fmt = (iso) => iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const daysUntil = (iso) => iso ? Math.floor((new Date(iso) - new Date()) / 86400000) : null;
+
+const defaultDB = () => ({
+  prospects: [], cotations: [], activites: [], tasks: [], rescueLeads: [], intelligence: [], weeklyReports: [],
+  objectives: { clientsMonth: 0, impactQuarter: 0, prospectsWeek: 0 },
+  config: { apiKey: "", webhookMake: "", proxyDrive: "", driveFolder: "", emailFrom: "christophe@taftrans.fr", firebaseUrl: "", firebaseToken: "" },
+  customTemplates: [], version: APP_VERSION,
+});
+
+// ═══ COLORS ═══
+const C = {
+  bg: "#06090f", bg2: "#0c1220", bg3: "#121c30", card: "#0e1828", card2: "#142035",
+  border: "#1c2e4a", border2: "#2a4060",
+  gold: "#f5a623", gold2: "#ffcc5c", teal: "#00d4aa", blue: "#4d9fff",
+  orange: "#ff6b35", red: "#ff4560", green: "#00e396", purple: "#b388ff", pink: "#ff80ab",
+  text: "#dce8f5", text2: "#8aa8c4", text3: "#4a6580",
+};
+
+// ═══════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════
+export default function App() {
+  const [db, setDb] = useState(defaultDB);
+  const [screen, setScreen] = useState("dash");
+  const [selectedId, setSelectedId] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResults, setAiResults] = useState([]);
+  const [searchQ, setSearchQ] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [syncStatus, setSyncStatus] = useState("offline"); // offline | syncing | synced | error
+  const [firebaseSetup, setFirebaseSetup] = useState(false);
+  const saveTimer = useRef(null);
+  const [machineParams, setMP] = useState({ type: "importateur", spec: "", zone: "France", ape: "", extra: "", count: 20 });
+  const [intelQ, setIntelQ] = useState("");
+  const [rescueQ, setRescueQ] = useState("");
+  const [rescueResults, setRescueResults] = useState([]);
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [selTpl, setSelTpl] = useState("");
+
+  // ═══ INIT: Load from localStorage, then Firebase ═══
+  useEffect(() => {
+    (async () => {
+      // 1. Load from localStorage (instant)
+      try {
+        const local = localStorage.getItem(LOCAL_KEY);
+        if (local) {
+          const parsed = JSON.parse(local);
+          setDb(prev => ({ ...defaultDB(), ...parsed }));
+          // Configure Firebase if URL exists
+          if (parsed.config?.firebaseUrl) {
+            firebase.configure(parsed.config.firebaseUrl, parsed.config.firebaseToken || "");
+          }
+        }
+      } catch (e) {}
+
+      // 2. Load from Firebase (async)
+      if (firebase.connected) {
+        setSyncStatus("syncing");
+        const remote = await firebase.get("taf_commercial");
+        if (remote) {
+          setDb(prev => {
+            // Merge: remote wins if newer, local wins otherwise
+            const merged = { ...defaultDB(), ...remote };
+            localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
+            return merged;
+          });
+          setSyncStatus("synced");
+        } else {
+          setSyncStatus("offline");
+        }
+      }
+    })();
+  }, []);
+
+  // ═══ SAVE: localStorage + Firebase ═══
+  const save = useCallback((newDb) => {
+    setDb(newDb);
+    // Immediate localStorage
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(newDb)); } catch (e) {}
+    // Debounced Firebase
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      if (firebase.connected) {
+        setSyncStatus("syncing");
+        const ok = await firebase.set("taf_commercial", newDb);
+        setSyncStatus(ok ? "synced" : "error");
+      }
+    }, 800);
+  }, []);
+
+  // ═══ FORCE SYNC ═══
+  const forceSync = async () => {
+    if (!firebase.connected) { showToast("Firebase non configuré", "err"); return; }
+    setSyncStatus("syncing");
+    const ok = await firebase.set("taf_commercial", db);
+    setSyncStatus(ok ? "synced" : "error");
+    showToast(ok ? "Synchronisé Firebase ✅" : "Erreur sync Firebase", ok ? "ok" : "err");
+  };
+
+  const forcePull = async () => {
+    if (!firebase.connected) { showToast("Firebase non configuré", "err"); return; }
+    setSyncStatus("syncing");
+    const remote = await firebase.get("taf_commercial");
+    if (remote) {
+      const merged = { ...defaultDB(), ...remote };
+      setDb(merged);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
+      setSyncStatus("synced");
+      showToast("Données Firebase chargées ✅", "ok");
+    } else {
+      setSyncStatus("error");
+      showToast("Erreur chargement Firebase", "err");
+    }
+  };
+
+  const showToast = (msg, type = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // ═══ CLAUDE API ═══
+  const callClaude = async (prompt, sys = "") => {
+    if (!db.config.apiKey) { showToast("Clé API Claude requise → Config", "err"); return null; }
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": db.config.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 4000, system: sys || "Tu es un agent commercial expert fret aérien CDG. Réponds UNIQUEMENT en JSON valide sans markdown.", messages: [{ role: "user", content: prompt }] })
+      });
+      const data = await r.json();
+      return data.content?.map(c => c.text || "").join("") || "";
+    } catch (e) { showToast("Erreur API: " + e.message, "err"); return null; }
+  };
+
+  // ═══ AI FUNCTIONS ═══
+  const runIntelligence = async (q) => {
+    setAiLoading(true);
+    const result = await callClaude(`Analyse le marché du fret aérien et trouve des opportunités pour TAF CDG (import fret aérien CDG, 40 ans, périssables/AVI/cargo). RECHERCHE: ${q}\n\nRetourne JSON: {"titre":"...","date":"${today()}","opportunites":[{"titre":"...","description":"...","potentiel":"élevé/moyen/faible","action":"...","secteur":"sf/avi/fl/cargo","urgence":"immédiat/court-terme/moyen-terme"}],"tendances":["..."],"menaces":["..."],"recommandations":["..."]}`);
+    setAiLoading(false);
+    if (result) {
+      try {
+        const parsed = JSON.parse(result.replace(/```json|```/g, "").trim());
+        const report = { id: uid(), ...parsed, dateCreation: now() };
+        save({ ...db, intelligence: [...db.intelligence, report] });
+        showToast("Analyse terminée ✅");
+      } catch (e) { showToast("Erreur parsing", "err"); }
+    }
+  };
+
+  const prospectMachine = async (p) => {
+    setAiLoading(true);
+    const result = await callClaude(`Trouve ${p.count} prospects ULTRA-QUALIFIÉS pour TAF CDG (import fret aérien CDG 40 ans). Type:${p.type} Spec:${p.spec||"toutes"} Zone:${p.zone} APE:${p.ape||"tous"} Extra:${p.extra||"aucun"}. Retourne JSON array: [{"nom":"...","type":"agent/importateur/courtier/grossiste","contact":"...","poste":"...","email":"...","tel":"...","pays":"...","ville":"...","specialites":["sf","avi","fl","cargo"],"score":4,"potentielCA":2000,"probaConversion":"60%","canalOptimal":"email/tel/LinkedIn","accroche":"...","source":"...","website":"...","ape":"..."}]`);
+    setAiLoading(false);
+    if (result) {
+      try { setAiResults(JSON.parse(result.replace(/```json|```/g, "").trim())); showToast("Prospects trouvés ✅"); } catch (e) { showToast("Erreur parsing", "err"); }
+    }
+  };
+
+  const rescueSearch = async (q) => {
+    setAiLoading(true);
+    const result = await callClaude(`Tu es INGIE, agent spécialisé SAUVETAGE d'expéditions bloquées. Trouve des entreprises en difficulté (colis bloqués DHL/Chronopost/FedEx/douane). Recherche: ${q}. Retourne JSON: [{"nom":"...","contact":"...","email":"...","probleme":"...","transporteur":"DHL/Chronopost/FedEx/UPS","urgence":"critique/haute/moyenne","solution":"...","accroche":"...","score":4}]`);
+    setAiLoading(false);
+    if (result) {
+      try { setRescueResults(JSON.parse(result.replace(/```json|```/g, "").trim())); } catch (e) { showToast("Erreur", "err"); }
+    }
+  };
+
+  const saveAiProspect = (p) => {
+    if (db.prospects.find(x => x.nom.toLowerCase() === p.nom.toLowerCase())) { showToast("Existe déjà", "warn"); return; }
+    save({ ...db, prospects: [...db.prospects, { id: uid(), nom: p.nom, type: p.type || "agent", contact: p.contact || "", poste: p.poste || "", email: p.email || "", tel: p.tel || "", pays: p.pays || "France", ville: p.ville || "", statut: "prospect", specialites: p.specialites || [], score: p.score || 3, valeur: p.potentielCA || 0, notes: `${p.accroche || ""}\nCanal: ${p.canalOptimal || ""}`.trim(), source: "ai_machine", website: p.website || "", ape: p.ape || "", dateCreation: now(), dernier_contact: null, relance: null }], objectives: { ...db.objectives, prospectsWeek: (db.objectives.prospectsWeek || 0) + 1 } });
+    showToast(`${p.nom} ajouté ✅`);
+  };
+
+  const applyTpl = (tpl, p) => {
+    if (!p) return tpl.body;
+    return tpl.body.replace(/\{nom\}/g, p.nom || "").replace(/\{contact\}/g, p.contact || "Madame, Monsieur").replace(/\{email\}/g, p.email || "").replace(/\{specialites\}/g, (p.specialites || []).map(s => ({ sf: "poisson frais", avi: "animaux vivants", fl: "fruits et légumes", cargo: "cargo général" }[s] || s)).join(", ") || "fret aérien");
+  };
+
+  // ═══ KPIs ═══
+  const kpis = (() => {
+    const pp = db.prospects;
+    return {
+      total: pp.length,
+      hot: pp.filter(p => p.dernier_contact && Math.floor((new Date() - new Date(p.dernier_contact)) / 86400000) < 7).length,
+      gagnes: pp.filter(p => p.statut === "gagne").length,
+      nego: pp.filter(p => ["cotation", "negociation"].includes(p.statut)).length,
+      relDues: pp.filter(p => p.relance && daysUntil(p.relance) <= 0 && !["gagne", "perdu"].includes(p.statut)).length,
+      rescue: db.rescueLeads.filter(r => r.statut !== "resolu").length,
+      forecast: pp.filter(p => ["cotation", "negociation", "gagne"].includes(p.statut)).reduce((a, p) => a + (p.valeur || 0), 0),
+      wk: db.objectives.prospectsWeek || 0,
+      mo: db.objectives.clientsMonth || 0,
+    };
+  })();
+
+  // ═══ UI COMPONENTS ═══
+  const Badge = ({ children, color = C.gold }) => <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 12, letterSpacing: ".3px", textTransform: "uppercase", background: `${color}18`, color, border: `1px solid ${color}30` }}>{children}</span>;
+  const Btn = ({ children, onClick, v = "ghost", s = "md", style: st = {} }) => {
+    const vars = { gold: { background: `linear-gradient(135deg, ${C.gold}, ${C.gold2})`, color: "#000" }, ghost: { background: C.card2, color: C.text, border: `1px solid ${C.border2}` }, teal: { background: `${C.teal}18`, color: C.teal, border: `1px solid ${C.teal}30` }, blue: { background: `${C.blue}18`, color: C.blue, border: `1px solid ${C.blue}30` }, red: { background: `${C.red}15`, color: C.red, border: `1px solid ${C.red}28` }, purple: { background: `${C.purple}15`, color: C.purple, border: `1px solid ${C.purple}30` }, rescue: { background: `linear-gradient(135deg, ${C.red}, ${C.orange})`, color: "#fff" }, firebase: { background: `linear-gradient(135deg, #FFA000, #F57C00)`, color: "#fff" } };
+    return <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 7, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", letterSpacing: ".2px", transition: "all .15s", fontFamily: "inherit", padding: s === "sm" ? "3px 9px" : "6px 13px", fontSize: s === "sm" ? 10 : 11, ...vars[v], ...st }}>{children}</button>;
+  };
+  const Card = ({ title, tr, children, style: st = {} }) => (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", ...st }}>
+      {title && <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 13, letterSpacing: ".8px" }}>{title}</span>{tr}</div>}
+      <div style={{ padding: "14px 16px" }}>{children}</div>
+    </div>
+  );
+  const KpiCard = ({ label, value, color, sub }) => (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", position: "relative", overflow: "hidden" }}>
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: C.text3, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: C.text3, marginTop: 3 }}>{sub}</div>}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${color}, ${color}60)` }} />
+    </div>
+  );
+  const Inp = ({ label, ...p }) => <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>{label && <label style={{ fontSize: 9, fontWeight: 700, color: C.text2, textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</label>}<input {...p} style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 11px", color: C.text, fontSize: 12, outline: "none", width: "100%", fontFamily: "inherit", ...p.style }} /></div>;
+  const Sel = ({ label, children, ...p }) => <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>{label && <label style={{ fontSize: 9, fontWeight: 700, color: C.text2, textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</label>}<select {...p} style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 11px", color: C.text, fontSize: 12, outline: "none", width: "100%", fontFamily: "inherit", ...p.style }}>{children}</select></div>;
+  const Txt = ({ label, ...p }) => <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>{label && <label style={{ fontSize: 9, fontWeight: 700, color: C.text2, textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</label>}<textarea {...p} style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 11px", color: C.text, fontSize: 12, outline: "none", width: "100%", minHeight: 80, resize: "vertical", fontFamily: "inherit", ...p.style }} /></div>;
+  const specB = (s) => { const m = { sf: ["🐟 SF", C.teal], avi: ["🐦 AVI", C.blue], fl: ["🌿 F/L", C.gold], cargo: ["📦 Cargo", C.purple] }; const [l, c] = m[s] || [s, C.text3]; return <Badge key={s} color={c}>{l}</Badge>; };
+  const statB = (s) => { const m = { prospect: [C.text3, "Prospect"], contact: [C.blue, "Contacté"], cotation: [C.gold, "Cotation"], negociation: [C.orange, "Négo"], gagne: [C.green, "Gagné"], perdu: [C.red, "Perdu"] }; const [c, l] = m[s] || [C.text3, s]; return <Badge color={c}>{l}</Badge>; };
+  const Spin = ({ color = C.gold }) => <div style={{ width: 16, height: 16, border: `2px solid ${C.border}`, borderTopColor: color, borderRadius: "50%", animation: "spin .8s linear infinite", flexShrink: 0 }} />;
+  const syncDot = { offline: C.text3, syncing: C.gold, synced: C.green, error: C.red };
+
+  // ═══════════════════════════════════════
+  // FIREBASE SETUP SCREEN
+  // ═══════════════════════════════════════
+  const renderFirebaseSetup = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <Btn onClick={() => setScreen("config")}>← Retour</Btn>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, background: `linear-gradient(90deg, #FFA000, #F57C00)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🔥 CONFIGURATION FIREBASE</h1>
+      </div>
+
+      {/* GUIDE ÉTAPE PAR ÉTAPE */}
+      <Card title="📋 GUIDE DE CONFIGURATION — 5 minutes" style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.8, color: C.text2 }}>
+          {[
+            { n: 1, t: "Créer un projet Firebase", d: "Aller sur console.firebase.google.com → Ajouter un projet → Nommer « TAF-Commercial » → Créer" },
+            { n: 2, t: "Créer la Realtime Database", d: "Menu latéral → Realtime Database → Créer une base → Choisir la région (europe-west1) → Démarrer en mode TEST" },
+            { n: 3, t: "Copier l'URL de la base", d: "L'URL ressemble à : https://taf-commercial-xxxxx-default-rtdb.europe-west1.firebasedatabase.app" },
+            { n: 4, t: "Configurer les règles", d: "Onglet Règles → Remplacer par les règles ci-dessous → Publier" },
+            { n: 5, t: "Coller l'URL ci-dessous", d: "Coller l'URL dans le champ « Database URL » et tester la connexion" },
+          ].map(s => (
+            <div key={s.n} style={{ padding: "10px 14px", background: C.bg3, borderRadius: 8, marginBottom: 8, borderLeft: `3px solid ${C.gold}` }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ width: 24, height: 24, borderRadius: "50%", background: `linear-gradient(135deg, #FFA000, #F57C00)`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{s.n}</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: C.text }}>{s.t}</div>
+                  <div style={{ fontSize: 11, color: C.text2, marginTop: 1 }}>{s.d}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* RÈGLES FIREBASE */}
+      <Card title="🔒 RÈGLES FIREBASE (à copier)" style={{ marginBottom: 16 }}>
+        <div style={{ background: "#0a0f18", borderRadius: 8, padding: 14, fontFamily: "monospace", fontSize: 12, color: C.teal, lineHeight: 1.6, whiteSpace: "pre", overflowX: "auto" }}>
+{`{
+  "rules": {
+    "taf_commercial": {
+      ".read": true,
+      ".write": true
+    },
+    "taf_stat": {
+      ".read": true,
+      ".write": true
+    },
+    "_ping": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}`}
+        </div>
+        <Btn v="ghost" s="sm" onClick={() => { navigator.clipboard.writeText('{\n  "rules": {\n    "taf_commercial": {\n      ".read": true,\n      ".write": true\n    },\n    "taf_stat": {\n      ".read": true,\n      ".write": true\n    },\n    "_ping": {\n      ".read": true,\n      ".write": true\n    }\n  }\n}'); showToast("Règles copiées ✅"); }} style={{ marginTop: 8 }}>📋 Copier les règles</Btn>
+        <div style={{ fontSize: 10, color: C.text3, marginTop: 8 }}>⚠️ Ces règles sont ouvertes pour simplifier. Pour plus de sécurité, ajoutez un token d'authentification dans le champ ci-dessous.</div>
+      </Card>
+
+      {/* CONNEXION */}
+      <Card title="🔗 CONNEXION FIREBASE" style={{ borderColor: `${firebase.connected ? C.green : C.border}40` }}>
+        <Inp label="Database URL *" placeholder="https://taf-commercial-xxxxx-default-rtdb.europe-west1.firebasedatabase.app" value={db.config.firebaseUrl} onChange={e => {
+          const newDb = { ...db, config: { ...db.config, firebaseUrl: e.target.value } };
+          setDb(newDb);
+          localStorage.setItem(LOCAL_KEY, JSON.stringify(newDb));
+        }} />
+        <Inp label="Token (optionnel — pour les règles sécurisées)" placeholder="Database secret ou custom token" type="password" value={db.config.firebaseToken || ""} onChange={e => {
+          const newDb = { ...db, config: { ...db.config, firebaseToken: e.target.value } };
+          setDb(newDb);
+          localStorage.setItem(LOCAL_KEY, JSON.stringify(newDb));
+        }} />
+
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          <Btn v="firebase" onClick={async () => {
+            firebase.configure(db.config.firebaseUrl, db.config.firebaseToken || "");
+            const r = await firebase.testConnection();
+            if (r.ok) {
+              showToast("✅ Firebase connecté !", "ok");
+              save(db);
+            } else {
+              showToast("❌ " + r.error, "err");
+            }
+          }}>🔥 Tester la connexion</Btn>
+          <Btn v="gold" onClick={forceSync}>⬆️ Push vers Firebase</Btn>
+          <Btn v="teal" onClick={forcePull}>⬇️ Pull depuis Firebase</Btn>
+        </div>
+
+        {/* Status */}
+        <div style={{ marginTop: 14, padding: 12, background: C.bg3, borderRadius: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: syncDot[syncStatus], boxShadow: syncStatus === "synced" ? `0 0 8px ${C.green}60` : "none" }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: syncDot[syncStatus] }}>
+              {syncStatus === "offline" ? "Non connecté" : syncStatus === "syncing" ? "Synchronisation..." : syncStatus === "synced" ? "Synchronisé ✅" : "Erreur de sync"}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: C.text3 }}>
+            URL : {db.config.firebaseUrl || "Non configurée"}<br />
+            Dernière sync : {firebase.lastSync ? firebase.lastSync.toLocaleTimeString("fr-FR") : "Jamais"}<br />
+            Données locales : {Math.round(new Blob([JSON.stringify(db)]).size / 1024)}KB ({db.prospects.length} prospects)
+          </div>
+        </div>
+      </Card>
+
+      {/* Architecture */}
+      <Card title="🏗️ ARCHITECTURE DONNÉES FIREBASE" style={{ marginTop: 14 }}>
+        <div style={{ fontFamily: "monospace", fontSize: 11, color: C.text2, lineHeight: 1.8, padding: 10, background: C.bg3, borderRadius: 8 }}>
+          <div style={{ color: C.gold }}>📂 taf-commercial-rtdb/</div>
+          <div style={{ paddingLeft: 16, color: C.teal }}>├── taf_commercial/     ← CRM data (cette app)</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── prospects[]</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── cotations[]</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── activites[]</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── rescueLeads[]</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── intelligence[]</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>├── objectives{}</div>
+          <div style={{ paddingLeft: 32, color: C.text3 }}>└── config{}</div>
+          <div style={{ paddingLeft: 16, color: C.teal }}>├── taf_stat/           ← Données TAF STAT</div>
+          <div style={{ paddingLeft: 16, color: C.teal }}>└── _ping               ← Test connexion</div>
+        </div>
+        <div style={{ fontSize: 10, color: C.text3, marginTop: 8 }}>TAF COMMERCIAL et TAF STAT partagent la même base Firebase. Elles se synchronisent automatiquement via les mêmes collections.</div>
+      </Card>
+    </div>
+  );
+
+  // ═══ CONFIG SCREEN ═══
+  const renderConfig = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <Btn onClick={() => setScreen("dash")}>← Retour</Btn>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>⚙️ CONFIGURATION</h1>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {/* FIREBASE */}
+        <Card title="🔥 FIREBASE" tr={<div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: syncDot[syncStatus] }} /><span style={{ fontSize: 10, color: syncDot[syncStatus] }}>{syncStatus === "synced" ? "Connecté" : syncStatus === "syncing" ? "Sync..." : syncStatus === "error" ? "Erreur" : "Offline"}</span></div>}>
+          <div style={{ fontSize: 11, color: C.text2, marginBottom: 10 }}>
+            {firebase.connected ? "✅ Firebase connecté — synchronisation automatique active" : "⚠️ Firebase non configuré — données en localStorage uniquement"}
+          </div>
+          <Btn v="firebase" onClick={() => setScreen("firebase-setup")}>🔥 {firebase.connected ? "Reconfigurer" : "Configurer"} Firebase</Btn>
+          {firebase.connected && (
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              <Btn v="gold" s="sm" onClick={forceSync}>⬆️ Push</Btn>
+              <Btn v="teal" s="sm" onClick={forcePull}>⬇️ Pull</Btn>
+            </div>
+          )}
+        </Card>
+
+        {/* API & WEBHOOKS */}
+        <Card title="🔑 API & WEBHOOKS">
+          <Inp label="Clé API Anthropic (Claude)" type="password" placeholder="sk-ant-api03-..." value={db.config.apiKey} onChange={e => save({ ...db, config: { ...db.config, apiKey: e.target.value } })} />
+          <Inp label="Webhook Make — Envoi emails" placeholder="https://hook.eu2.make.com/..." value={db.config.webhookMake} onChange={e => save({ ...db, config: { ...db.config, webhookMake: e.target.value } })} />
+          <Inp label="Proxy Google Drive" value={db.config.proxyDrive} onChange={e => save({ ...db, config: { ...db.config, proxyDrive: e.target.value } })} />
+          <Inp label="Email expéditeur" value={db.config.emailFrom} onChange={e => save({ ...db, config: { ...db.config, emailFrom: e.target.value } })} />
+        </Card>
+      </div>
+
+      {/* DATA */}
+      <Card title="💾 DONNÉES" style={{ marginTop: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.gold }}>{db.prospects.length}</div><div style={{ fontSize: 9, color: C.text3 }}>PROSPECTS</div></div>
+          <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.red }}>{db.rescueLeads.length}</div><div style={{ fontSize: 9, color: C.text3 }}>RESCUE</div></div>
+          <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.teal }}>{db.intelligence.length}</div><div style={{ fontSize: 9, color: C.text3 }}>RAPPORTS IA</div></div>
+          <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: C.text2 }}>{Math.round(new Blob([JSON.stringify(db)]).size / 1024)}KB</div><div style={{ fontSize: 9, color: C.text3 }}>TAILLE</div></div>
+        </div>
+        <div style={{ display: "flex", gap: 7 }}>
+          <Btn v="gold" onClick={() => { const a = document.createElement("a"); a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2)); a.download = `taf_v3_${today()}.json`; a.click(); showToast("Export ✅"); }}>📤 Export JSON</Btn>
+          <Btn v="ghost" onClick={() => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { try { const d = JSON.parse(ev.target.result); save({ ...defaultDB(), ...d }); showToast("Restauré ✅"); } catch { showToast("Erreur JSON", "err"); } }; r.readAsText(f); }; i.click(); }}>📥 Importer JSON</Btn>
+          <Btn v="red" onClick={() => { if (confirm("⚠️ Reset toutes les données ?")) { save(defaultDB()); showToast("Reset ✅", "warn"); } }}>🗑 Reset</Btn>
+        </div>
+      </Card>
+    </div>
+  );
+
+  // ═══ DASHBOARD ═══
+  const renderDash = () => (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: 1, margin: 0 }}>GUERRE COMMERCIALE</h1>
+          <div style={{ color: C.text3, fontSize: 11, marginTop: 2 }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+          {/* Sync indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, background: C.card, border: `1px solid ${C.border}`, fontSize: 10 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: syncDot[syncStatus], boxShadow: syncStatus === "synced" ? `0 0 6px ${C.green}60` : "none" }} />
+            <span style={{ color: syncDot[syncStatus] }}>{syncStatus === "synced" ? "🔥 Firebase" : syncStatus === "syncing" ? "Sync..." : syncStatus === "error" ? "Erreur" : "Local"}</span>
+          </div>
+          <Btn v="gold" onClick={() => setScreen("machine")}>🎯 Prospects</Btn>
+          <Btn v="rescue" onClick={() => setScreen("rescue")}>🚨 Rescue</Btn>
+          <Btn v="teal" onClick={() => setScreen("intel")}>🧠 Intel</Btn>
+        </div>
+      </div>
+
+      {/* OBJECTIFS */}
+      <Card title="🎯 OBJECTIFS" style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          {[
+            { v: kpis.wk, t: 100, l: "PROSPECTS / SEMAINE", c: C.gold },
+            { v: kpis.mo, t: 5, l: "CLIENTS / MOIS", c: C.teal },
+            { v: db.objectives.impactQuarter || 0, t: 1, l: "CLIENT IMPACT / TRIM.", c: C.blue },
+          ].map((o, i) => (
+            <div key={i} style={{ textAlign: "center", padding: 14, background: C.bg3, borderRadius: 10 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: o.v >= o.t ? C.green : o.c }}>{o.v}<span style={{ fontSize: 14, color: C.text3 }}>/{o.t}</span></div>
+              <div style={{ fontSize: 10, color: C.text2, fontWeight: 700 }}>{o.l}</div>
+              <div style={{ height: 4, background: C.border, borderRadius: 2, marginTop: 6 }}><div style={{ height: "100%", borderRadius: 2, background: o.c, width: `${Math.min(100, o.v / o.t * 100)}%`, transition: "width .5s" }} /></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
+        <KpiCard label="Prospects" value={kpis.total} color={C.gold} sub="Base active" />
+        <KpiCard label="Chauds" value={kpis.hot} color={C.red} sub="< 7 jours" />
+        <KpiCard label="En négo" value={kpis.nego} color={C.orange} />
+        <KpiCard label="Gagnés" value={kpis.gagnes} color={C.green} />
+        <KpiCard label="Relances" value={kpis.relDues} color={C.red} sub="Dues" />
+        <KpiCard label="Rescue" value={kpis.rescue} color={C.orange} sub="Actifs" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Card title="🔥 PROSPECTS CHAUDS" tr={<Btn s="sm" onClick={() => setScreen("pros")}>Voir</Btn>}>
+          {db.prospects.filter(p => !["gagne", "perdu"].includes(p.statut)).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5).map(p => (
+            <div key={p.id} onClick={() => { setSelectedId(p.id); setScreen("detail"); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
+              <div style={{ width: 3, height: 24, borderRadius: 2, background: p.score >= 4 ? C.red : C.gold }} />
+              <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 12 }}>{p.nom}</div><div style={{ fontSize: 9, color: C.text3 }}>{p.contact}</div></div>
+              {statB(p.statut)}
+            </div>
+          ))}
+          {db.prospects.length === 0 && <div style={{ padding: 20, textAlign: "center", color: C.text3, fontSize: 11 }}>Lancez la Prospect Machine 🎯</div>}
+        </Card>
+        <Card title="⚡ RELANCES URGENTES" tr={<Btn s="sm" onClick={() => setScreen("relance")}>Plan</Btn>}>
+          {db.prospects.filter(p => p.relance && daysUntil(p.relance) <= 1 && !["gagne", "perdu"].includes(p.statut)).sort((a, b) => (a.relance || "").localeCompare(b.relance || "")).slice(0, 5).map(p => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ width: 3, height: 24, borderRadius: 2, background: daysUntil(p.relance) < 0 ? C.red : C.gold }} />
+              <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 12 }}>{p.nom}</div></div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: daysUntil(p.relance) < 0 ? C.red : C.gold }}>{daysUntil(p.relance) < 0 ? `J${daysUntil(p.relance)}` : "Aujourd'hui"}</span>
+              <Btn s="sm" v="teal" onClick={() => { setSelectedId(p.id); setModal("email"); }}>⚡</Btn>
+            </div>
+          ))}
+          {db.prospects.filter(p => p.relance && daysUntil(p.relance) <= 1 && !["gagne", "perdu"].includes(p.statut)).length === 0 && <div style={{ padding: 16, textAlign: "center", color: C.text3, fontSize: 11 }}>✅ RAS</div>}
+        </Card>
+      </div>
+    </div>
+  );
+
+  // ═══ INTELLIGENCE ═══
+  const renderIntel = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>🧠 INTELLIGENCE COMMERCIALE</h1></div>
+      <Card title="🔍 VEILLE MARCHÉ" style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+          <Inp placeholder="Ex: Marchés porteurs seafood, importateurs AVI Europe..." value={intelQ} onChange={e => setIntelQ(e.target.value)} style={{ marginBottom: 0 }} />
+          <Btn v="gold" onClick={() => intelQ && runIntelligence(intelQ)}>🧠 Analyser</Btn>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          {["Marchés porteurs seafood CDG 2026", "Importateurs animaux vivants Europe", "Tendances import fruits exotiques France", "Entreprises cherchant transitaire CDG"].map(q => (
+            <Btn key={q} s="sm" onClick={() => { setIntelQ(q); runIntelligence(q); }}>{q}</Btn>
+          ))}
+        </div>
+      </Card>
+      {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: C.gold }}><Spin />Analyse en cours...</div>}
+      {db.intelligence.slice().reverse().map(r => (
+        <Card key={r.id} title={`📊 ${r.titre}`} style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: C.text3, marginBottom: 10 }}>{fmt(r.dateCreation)}</div>
+          {(r.opportunites || []).map((o, i) => (
+            <div key={i} style={{ padding: "10px 14px", background: C.bg3, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${o.potentiel === "élevé" ? C.gold : C.blue}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 12 }}>{o.titre}</span><div style={{ display: "flex", gap: 4 }}><Badge color={o.potentiel === "élevé" ? C.gold : C.blue}>{o.potentiel}</Badge><Badge color={o.urgence === "immédiat" ? C.red : C.teal}>{o.urgence}</Badge></div></div>
+              <div style={{ fontSize: 11, color: C.text2, marginTop: 4 }}>{o.description}</div>
+              <div style={{ fontSize: 10, color: C.teal, marginTop: 4, fontWeight: 600 }}>→ {o.action}</div>
+            </div>
+          ))}
+          {r.recommandations && <div style={{ marginTop: 10 }}>{r.recommandations.map((rc, i) => <div key={i} style={{ fontSize: 11, color: C.green, padding: "3px 0" }}>✅ {rc}</div>)}</div>}
+        </Card>
+      ))}
+    </div>
+  );
+
+  // ═══ PROSPECT MACHINE ═══
+  const renderMachine = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>🎯 PROSPECT MACHINE</h1></div>
+      <div style={{ color: C.text3, fontSize: 11, marginBottom: 16 }}>Objectif : <span style={{ color: C.gold, fontWeight: 700 }}>{kpis.wk}/100</span> cette semaine{firebase.connected && <span style={{ color: C.green, marginLeft: 8 }}>🔥 Firebase sync</span>}</div>
+      <Card title="🔍 CRITÈRES" style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <Sel label="Type" value={machineParams.type} onChange={e => setMP(p => ({ ...p, type: e.target.value }))}><option value="importateur">📦 Importateurs</option><option value="agent">🚚 Agents fret</option><option value="courtier">⚖️ Courtiers</option><option value="grossiste">🏢 Grossistes</option></Sel>
+          <Sel label="Spécialité" value={machineParams.spec} onChange={e => setMP(p => ({ ...p, spec: e.target.value }))}><option value="">Toutes</option><option value="seafood">🐟 Seafood</option><option value="avi">🐦 AVI</option><option value="fl">🌿 F/L</option><option value="cargo">📦 Cargo</option><option value="pharma">💊 Pharma</option></Sel>
+          <Sel label="Zone" value={machineParams.zone} onChange={e => setMP(p => ({ ...p, zone: e.target.value }))}><option value="France">🇫🇷 France</option><option value="Europe">🇪🇺 Europe</option><option value="Afrique">🌍 Afrique</option><option value="Asie">🌏 Asie</option></Sel>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 10 }}>
+          <Sel label="Code APE" value={machineParams.ape} onChange={e => setMP(p => ({ ...p, ape: e.target.value }))}><option value="">Tous</option>{APE_SECTORS.map(s => <option key={s.code} value={s.code}>{s.code} — {s.label}</option>)}</Sel>
+          <Inp label="Critères extra" value={machineParams.extra} onChange={e => setMP(p => ({ ...p, extra: e.target.value }))} placeholder="volume > 5t, CDG..." />
+          <Sel label="Nb" value={machineParams.count} onChange={e => setMP(p => ({ ...p, count: +e.target.value }))}><option value={10}>10</option><option value={20}>20</option><option value={30}>30</option><option value={50}>50</option></Sel>
+        </div>
+        <Btn v="gold" onClick={() => prospectMachine(machineParams)}>🎯 Rechercher ({machineParams.count})</Btn>
+      </Card>
+      {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: C.gold }}><Spin />Recherche prospects...</div>}
+      {aiResults.length > 0 && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: C.gold }}>🎯 {aiResults.length} prospects qualifiés</span>
+            <Btn v="gold" s="sm" onClick={() => { aiResults.forEach(p => saveAiProspect(p)); setAiResults([]); }}>✅ Tous enregistrer</Btn>
+          </div>
+          {aiResults.map((p, i) => (
+            <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{p.nom}</div>
+                  <div style={{ fontSize: 10, color: C.text2 }}>{p.contact}{p.ville ? ` · ${p.ville}` : ""}{p.pays ? ` · ${p.pays}` : ""}</div>
+                  {p.email && <div style={{ fontSize: 10, color: C.gold }}>{p.email}</div>}
+                  <div style={{ fontSize: 10, color: C.text3, marginTop: 3 }}>{p.accroche}</div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>{(p.specialites || []).map(s => specB(s))}{p.potentielCA && <Badge color={C.green}>{p.potentielCA}€/m</Badge>}{p.probaConversion && <Badge color={C.blue}>{p.probaConversion}</Badge>}</div>
+                </div>
+                <Btn s="sm" v="teal" onClick={() => saveAiProspect(p)}>✅</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // ═══ RESCUE ═══
+  const renderRescue = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, background: `linear-gradient(90deg, ${C.red}, ${C.orange})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🚨 INGIE RESCUE</h1></div>
+      <Card title="🔍 RECHERCHE LEADS" style={{ marginBottom: 16, borderColor: `${C.red}40` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+          <Inp placeholder="Entreprises colis bloqués DHL/Chrono..." value={rescueQ} onChange={e => setRescueQ(e.target.value)} style={{ marginBottom: 0 }} />
+          <Btn v="rescue" onClick={async () => { const r = await rescueSearch(rescueQ); }}>🚨 Chercher</Btn>
+        </div>
+      </Card>
+      {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: C.red }}><Spin color={C.red} />Recherche...</div>}
+      {rescueResults.length > 0 && <Card title={`🚨 ${rescueResults.length} leads trouvés`} style={{ marginBottom: 16 }}>{rescueResults.map((r, i) => (
+        <div key={i} style={{ padding: "10px 14px", background: C.bg3, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${r.urgence === "critique" ? C.red : C.orange}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div><div style={{ fontWeight: 700, fontSize: 12 }}>{r.nom}</div><div style={{ fontSize: 10, color: C.text2 }}>{r.probleme}</div><div style={{ display: "flex", gap: 4, marginTop: 4 }}><Badge color={C.orange}>{r.transporteur}</Badge><Badge color={r.urgence === "critique" ? C.red : C.gold}>{r.urgence}</Badge></div></div>
+            <Btn s="sm" v="rescue" onClick={() => { save({ ...db, rescueLeads: [...db.rescueLeads, { id: uid(), ...r, statut: "nouveau", dateCreation: now() }] }); showToast("Sauvé ✅"); }}>💾</Btn>
+          </div>
+        </div>
+      ))}</Card>}
+      <Card title="📋 DOSSIERS RESCUE">
+        {db.rescueLeads.map(r => (
+          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ width: 3, height: 28, borderRadius: 2, background: r.urgence === "critique" ? C.red : C.orange }} />
+            <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 12 }}>{r.nom}</div><div style={{ fontSize: 10, color: C.text2 }}>{r.probleme}</div></div>
+            <Badge color={r.statut === "resolu" ? C.green : r.statut === "en_cours" ? C.blue : C.orange}>{r.statut}</Badge>
+            <Sel style={{ width: 95, padding: "3px 6px", fontSize: 10, marginBottom: 0 }} value={r.statut} onChange={e => save({ ...db, rescueLeads: db.rescueLeads.map(x => x.id === r.id ? { ...x, statut: e.target.value } : x) })}><option value="nouveau">Nouveau</option><option value="contacte">Contacté</option><option value="en_cours">En cours</option><option value="resolu">Résolu</option></Sel>
+          </div>
+        ))}
+        {db.rescueLeads.length === 0 && <div style={{ padding: 16, textAlign: "center", color: C.text3, fontSize: 11 }}>Aucun dossier</div>}
+      </Card>
+    </div>
+  );
+
+  // ═══ PROSPECTS LIST ═══
+  const renderPros = () => {
+    let list = db.prospects;
+    if (searchQ) list = list.filter(p => `${p.nom}${p.contact}${p.email}${p.pays}`.toLowerCase().includes(searchQ.toLowerCase()));
+    if (filterType !== "all") list = list.filter(p => p.type === filterType);
+    list = list.sort((a, b) => (b.score || 0) - (a.score || 0));
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>👥 PROSPECTS</h1></div>
+          <Btn v="gold" onClick={() => setScreen("machine")}>🎯 Machine</Btn>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          <input placeholder="🔍 Rechercher..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ flex: 1, minWidth: 160, background: C.card, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 11px", color: C.text, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+          {["all", "agent", "importateur", "courtier", "grossiste"].map(t => <Btn key={t} s="sm" v={filterType === t ? "gold" : "ghost"} onClick={() => setFilterType(t)}>{t === "all" ? "Tous" : t}</Btn>)}
+        </div>
+        <Card>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead><tr>{["PROSPECT", "TYPE", "CONTACT", "SPÉC.", "STATUT", "SCORE", "ACTIONS"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: C.text3, borderBottom: `1px solid ${C.border}`, background: C.bg2 }}>{h}</th>)}</tr></thead>
+            <tbody>{list.map(p => (
+              <tr key={p.id}><td style={{ padding: "8px 10px" }}><div style={{ fontWeight: 700, fontSize: 12, color: C.gold, cursor: "pointer" }} onClick={() => { setSelectedId(p.id); setScreen("detail"); }}>{p.nom}</div><div style={{ fontSize: 9, color: C.text3 }}>{p.pays}</div></td>
+              <td style={{ padding: "8px 10px" }}><Badge color={C.orange}>{p.type}</Badge></td>
+              <td style={{ padding: "8px 10px" }}><div style={{ fontSize: 11 }}>{p.contact || "—"}</div><div style={{ fontSize: 9, color: C.text3 }}>{p.email}</div></td>
+              <td style={{ padding: "8px 10px" }}><div style={{ display: "flex", gap: 2 }}>{(p.specialites || []).map(s => specB(s))}</div></td>
+              <td style={{ padding: "8px 10px" }}>{statB(p.statut)}</td>
+              <td style={{ padding: "8px 10px", color: C.gold }}>{"★".repeat(p.score || 0)}{"☆".repeat(5 - (p.score || 0))}</td>
+              <td style={{ padding: "8px 10px" }}><div style={{ display: "flex", gap: 2 }}><Btn s="sm" v="teal" onClick={() => { setSelectedId(p.id); setModal("email"); }}>⚡</Btn><Btn s="sm" v="red" onClick={() => { save({ ...db, prospects: db.prospects.filter(x => x.id !== p.id) }); }}>🗑</Btn></div></td></tr>
+            ))}</tbody>
+          </table>
+          {list.length === 0 && <div style={{ textAlign: "center", padding: 30, color: C.text3 }}>Aucun prospect</div>}
+        </Card>
+      </div>
+    );
+  };
+
+  // ═══ RELANCE ═══
+  const renderRelance = () => {
+    const pp = db.prospects.filter(p => !["gagne", "perdu"].includes(p.statut));
+    const late = pp.filter(p => p.relance && daysUntil(p.relance) < 0);
+    const todayR = pp.filter(p => p.relance && daysUntil(p.relance) === 0);
+    const week = pp.filter(p => p.relance && daysUntil(p.relance) > 0 && daysUntil(p.relance) <= 7);
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>⚡ RELANCE ULTRA</h1></div>
+        <Card title="📋 SÉQUENCE INTELLIGENTE" style={{ marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+            {[{ j: "J+1", l: "Contact", c: C.green }, { j: "J+3", l: "Douce", c: C.teal }, { j: "J+7", l: "Valeur", c: C.gold }, { j: "J+14", l: "Dernière", c: C.orange }, { j: "J+30", l: "Réactiv.", c: C.red }].map((s, i) => (
+              <div key={i} style={{ padding: 8, background: C.bg3, borderRadius: 8, borderTop: `2px solid ${s.c}`, textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 800, color: s.c }}>{s.j}</div><div style={{ fontSize: 9, fontWeight: 700 }}>{s.l}</div></div>
+            ))}
+          </div>
+        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Card title={`🔴 RETARD (${late.length})`}>{late.map(p => <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}><div style={{ width: 3, height: 24, background: C.red, borderRadius: 2 }} /><div style={{ flex: 1, fontWeight: 700, fontSize: 12 }}>{p.nom}</div><span style={{ fontSize: 10, fontWeight: 700, color: C.red }}>J{daysUntil(p.relance)}</span><Btn s="sm" v="teal" onClick={() => { setSelectedId(p.id); setModal("email"); }}>⚡</Btn></div>)}{late.length === 0 && <div style={{ padding: 12, textAlign: "center", color: C.text3, fontSize: 11 }}>✅ RAS</div>}</Card>
+          <Card title={`🟡 AUJOURD'HUI + SEMAINE (${todayR.length + week.length})`}>{[...todayR, ...week].map(p => <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}><div style={{ width: 3, height: 24, background: C.gold, borderRadius: 2 }} /><div style={{ flex: 1, fontWeight: 700, fontSize: 12 }}>{p.nom}</div><span style={{ fontSize: 10, color: C.gold }}>J+{daysUntil(p.relance)}</span><Btn s="sm" v="teal" onClick={() => { setSelectedId(p.id); setModal("email"); }}>⚡</Btn></div>)}{todayR.length + week.length === 0 && <div style={{ padding: 12, textAlign: "center", color: C.text3, fontSize: 11 }}>RAS</div>}</Card>
+        </div>
+        <Btn v="gold" onClick={() => { let n = 0; const up = db.prospects.map(p => { if (!p.relance && p.dernier_contact && !["gagne", "perdu"].includes(p.statut)) { const d = Math.floor((new Date() - new Date(p.dernier_contact)) / 86400000); const next = d <= 1 ? 1 : d <= 3 ? 3 : d <= 7 ? 7 : 14; const nr = new Date(); nr.setDate(nr.getDate() + next); n++; return { ...p, relance: nr.toISOString().slice(0, 10) }; } return p; }); save({ ...db, prospects: up }); showToast(`${n} relances planifiées`); }} style={{ marginTop: 14 }}>⚡ Auto-planifier les séquences</Btn>
+      </div>
+    );
+  };
+
+  // ═══ TEMPLATES ═══
+  const renderTemplates = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>✉️ TEMPLATES HUMANISÉS</h1></div>
+      {Object.entries(HUMAN_TEMPLATES).map(([cat, tpls]) => (
+        <Card key={cat} title={`${cat === "prospection" ? "🎯 PROSPECTION" : cat === "relance" ? "⚡ RELANCE" : cat === "rescue" ? "🚨 RESCUE" : cat === "cotation" ? "📋 COTATION" : "❤️ FIDÉLISATION"} — ${tpls.length}`} style={{ marginBottom: 14 }}>
+          {tpls.map(t => (
+            <div key={t.id} style={{ padding: "10px 14px", background: C.bg3, borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${cat === "rescue" ? C.red : cat === "relance" ? C.orange : C.gold}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div><span style={{ fontWeight: 700, fontSize: 11 }}>{t.name}</span><span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{t.lang === "en" ? "🇬🇧" : "🇫🇷"}</span></div>
+                <Btn s="sm" onClick={() => { navigator.clipboard.writeText(t.body); showToast("Copié ✅"); }}>📋</Btn>
+              </div>
+              {t.subject && <div style={{ fontSize: 10, color: C.text2 }}>Objet : {t.subject}</div>}
+            </div>
+          ))}
+        </Card>
+      ))}
+    </div>
+  );
+
+  // ═══ PIPELINE ═══
+  const STAGES = [{ k: "prospect", l: "🔵 PROSPECT", c: C.text3 }, { k: "contact", l: "📞 CONTACTÉ", c: C.blue }, { k: "cotation", l: "📋 COTATION", c: C.gold }, { k: "negociation", l: "🤝 NÉGO", c: C.orange }, { k: "gagne", l: "✅ GAGNÉ", c: C.green }, { k: "perdu", l: "❌ PERDU", c: C.red }];
+  const renderPipe = () => (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}><Btn onClick={() => setScreen("dash")}>← Retour</Btn><h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>📊 PIPELINE</h1></div>
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12 }}>
+        {STAGES.map(s => { const cards = db.prospects.filter(p => p.statut === s.k); return (
+          <div key={s.k} style={{ minWidth: 210, width: 210, flexShrink: 0, background: C.bg2, borderRadius: 14, border: `1px solid ${C.border}` }}>
+            <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", borderTop: `2px solid ${s.c}`, borderRadius: "14px 14px 0 0" }}><span style={{ fontSize: 11, fontWeight: 700 }}>{s.l}</span><span style={{ background: C.bg3, borderRadius: 20, fontSize: 9, fontWeight: 800, padding: "1px 6px" }}>{cards.length}</span></div>
+            <div style={{ padding: 7, minHeight: 80 }}>{cards.map(p => (
+              <div key={p.id} onClick={() => { setSelectedId(p.id); setScreen("detail"); }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", marginBottom: 5, cursor: "pointer", borderLeft: `2px solid ${s.c}` }}>
+                <div style={{ fontWeight: 700, fontSize: 11 }}>{p.nom}</div><div style={{ fontSize: 9, color: C.text3 }}>{p.contact}</div>
+                {p.valeur > 0 && <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, marginTop: 2 }}>{p.valeur}€/m</div>}
+              </div>
+            ))}</div>
+          </div>
+        ); })}
+      </div>
+    </div>
+  );
+
+  // ═══ DETAIL ═══
+  const renderDetail = () => {
+    const p = db.prospects.find(x => x.id === selectedId);
+    if (!p) return <div>Non trouvé</div>;
+    return (
+      <div>
+        <Btn onClick={() => setScreen("pros")}>← Retour</Btn>
+        <Card style={{ marginTop: 10 }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ width: 50, height: 50, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: "#000", background: `linear-gradient(135deg, ${C.gold}, ${C.gold2})`, flexShrink: 0 }}>{p.nom.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 5 }}>{p.nom}</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{statB(p.statut)}{(p.specialites || []).map(s => specB(s))}{p.valeur > 0 && <Badge color={C.green}>{p.valeur}€/m</Badge>}</div>
+            </div>
+            <div style={{ display: "flex", gap: 5 }}>
+              <Btn v="teal" onClick={() => setModal("email")}>⚡ Email</Btn>
+              <Sel style={{ width: 110, marginBottom: 0, padding: "4px", fontSize: 10 }} value={p.statut} onChange={e => save({ ...db, prospects: db.prospects.map(x => x.id === p.id ? { ...x, statut: e.target.value } : x) })}><option value="prospect">Prospect</option><option value="contact">Contacté</option><option value="cotation">Cotation</option><option value="negociation">Négo</option><option value="gagne">Gagné</option><option value="perdu">Perdu</option></Sel>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 14 }}>
+            {[["Contact", p.contact], ["Poste", p.poste], ["Email", p.email], ["Tél", p.tel], ["Pays", p.pays], ["Ville", p.ville], ["Source", p.source], ["Website", p.website], ["APE", p.ape], ["Relance", p.relance ? fmt(p.relance) : "—"], ["Dernier contact", fmt(p.dernier_contact)]].map(([l, v]) => <div key={l}><div style={{ fontSize: 9, fontWeight: 700, color: C.text3, textTransform: "uppercase" }}>{l}</div><div style={{ fontSize: 12, marginTop: 2 }}>{v || "—"}</div></div>)}
+          </div>
+          {p.notes && <div style={{ marginTop: 14, padding: 10, background: C.bg3, borderRadius: 7, fontSize: 11, color: C.text2, whiteSpace: "pre-line" }}>{p.notes}</div>}
+        </Card>
+      </div>
+    );
+  };
+
+  // ═══ EMAIL MODAL ═══
+  const renderEmailModal = () => {
+    const p = db.prospects.find(x => x.id === selectedId);
+    if (!p) return null;
+    const allTpls = [...HUMAN_TEMPLATES.prospection, ...HUMAN_TEMPLATES.relance, ...HUMAN_TEMPLATES.rescue, ...HUMAN_TEMPLATES.cotation, ...HUMAN_TEMPLATES.fidelisation];
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", backdropFilter: "blur(8px)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setModal(null)}>
+        <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 17, fontWeight: 700 }}>⚡ {p.nom}</span><button onClick={() => setModal(null)} style={{ background: "none", border: "none", color: C.text3, cursor: "pointer", fontSize: 16 }}>✕</button></div>
+          <div style={{ padding: "18px 20px" }}>
+            <Sel label="Template" value={selTpl} onChange={e => { const t = allTpls.find(x => x.id === e.target.value); if (t) { setEmailBody(applyTpl(t, p)); setEmailSubject(t.subject ? applyTpl({ body: t.subject }, p) : ""); } setSelTpl(e.target.value); }}>
+              <option value="">— Template —</option>
+              <optgroup label="🎯 Prospection">{HUMAN_TEMPLATES.prospection.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+              <optgroup label="⚡ Relance">{HUMAN_TEMPLATES.relance.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+              <optgroup label="🚨 Rescue">{HUMAN_TEMPLATES.rescue.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+              <optgroup label="📋 Cotation">{HUMAN_TEMPLATES.cotation.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+              <optgroup label="❤️ Fidélisation">{HUMAN_TEMPLATES.fidelisation.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+            </Sel>
+            <Inp label="Objet" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} />
+            <Txt label="Message" value={emailBody} onChange={e => setEmailBody(e.target.value)} style={{ minHeight: 160 }} />
+            <div style={{ display: "flex", gap: 7 }}>
+              <Btn onClick={() => setModal(null)}>Annuler</Btn>
+              <Btn v="teal" onClick={() => { navigator.clipboard.writeText(emailBody); showToast("Copié ✅"); }}>📋 Copier</Btn>
+              <Btn v="gold" onClick={() => {
+                if (!p.email) { showToast("Pas d'email", "err"); return; }
+                if (db.config.webhookMake) {
+                  fetch(db.config.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: p.email, from: db.config.emailFrom, subject: emailSubject, body: emailBody }) }).catch(() => {});
+                }
+                save({ ...db, prospects: db.prospects.map(x => x.id === p.id ? { ...x, dernier_contact: now() } : x), activites: [{ id: uid(), prospectId: p.id, type: "email", date: now(), description: `Email: ${emailSubject}` }, ...db.activites] });
+                setModal(null); showToast("Envoyé ✅");
+              }}>🚀 Envoyer</Btn>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══ NAV ═══
+  const navItems = [
+    { id: "dash", icon: "🏠", label: "Dashboard" },
+    { id: "intel", icon: "🧠", label: "Intel", a: true },
+    { id: "machine", icon: "🎯", label: "Machine", a: true },
+    { id: "pipe", icon: "📊", label: "Pipeline" },
+    { id: "pros", icon: "👥", label: "Prospects" },
+    { id: "rescue", icon: "🚨", label: "Rescue", r: true },
+    { id: "relance", icon: "⚡", label: "Relance" },
+    { id: "templates", icon: "✉️", label: "Templates" },
+    { id: "config", icon: "⚙️", label: "Config" },
+  ];
+
+  // ═══ RENDER ═══
+  return (
+    <div style={{ background: C.bg, color: C.text, fontFamily: '"IBM Plex Sans", sans-serif', fontSize: 13, minHeight: "100vh" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:${C.bg2}}::-webkit-scrollbar-thumb{background:${C.border2};border-radius:2px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, height: 52, zIndex: 100, background: "rgba(6,9,15,.97)", backdropFilter: "blur(24px)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 14px", gap: 2, overflowX: "auto" }}>
+        <div onClick={() => setScreen("dash")} style={{ fontWeight: 800, fontSize: 15, letterSpacing: 3, background: `linear-gradient(135deg, ${C.gold}, ${C.teal})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginRight: 14, cursor: "pointer", whiteSpace: "nowrap" }}>TAF</div>
+        {navItems.map(n => (
+          <button key={n.id} onClick={() => setScreen(n.id)} style={{ padding: "4px 10px", borderRadius: 6, border: screen === n.id ? `1px solid ${n.r ? `${C.red}30` : `${C.blue}30`}` : "1px solid transparent", cursor: "pointer", fontSize: 10, fontWeight: 600, fontFamily: "inherit", background: screen === n.id ? (n.r ? `${C.red}18` : `${C.blue}18`) : n.r ? `${C.red}08` : n.a ? `${C.gold}08` : "transparent", color: screen === n.id ? (n.r ? C.red : C.blue) : n.r ? C.red : n.a ? C.gold : C.text3, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3, transition: "all .15s" }}>
+            {n.icon} {n.label}
+            {n.id === "relance" && kpis.relDues > 0 && <span style={{ background: C.red, color: "#fff", borderRadius: 10, fontSize: 8, padding: "1px 4px", fontWeight: 800 }}>{kpis.relDues}</span>}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {/* Sync dot in nav */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 12, background: C.card, border: `1px solid ${C.border}`, fontSize: 9, marginRight: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: syncDot[syncStatus] }} />
+          <span style={{ color: syncDot[syncStatus] }}>{syncStatus === "synced" ? "🔥" : syncStatus === "syncing" ? "⏳" : ""}</span>
+        </div>
+        <Btn s="sm" v="gold" onClick={() => setScreen("machine")}>➕</Btn>
+      </nav>
+
+      <div style={{ paddingTop: 52 }}>
+        <div style={{ padding: 18, animation: "fadeIn .2s ease" }}>
+          {screen === "dash" && renderDash()}
+          {screen === "intel" && renderIntel()}
+          {screen === "machine" && renderMachine()}
+          {screen === "pipe" && renderPipe()}
+          {screen === "pros" && renderPros()}
+          {screen === "rescue" && renderRescue()}
+          {screen === "relance" && renderRelance()}
+          {screen === "templates" && renderTemplates()}
+          {screen === "config" && renderConfig()}
+          {screen === "firebase-setup" && renderFirebaseSetup()}
+          {screen === "detail" && renderDetail()}
+        </div>
+      </div>
+
+      {modal === "email" && renderEmailModal()}
+
+      {toast && <div style={{ position: "fixed", top: 60, right: 14, zIndex: 300, background: C.bg2, border: `1px solid ${toast.type === "ok" ? `${C.green}30` : toast.type === "err" ? `${C.red}30` : `${C.gold}30`}`, borderRadius: 8, padding: "9px 13px", display: "flex", alignItems: "center", gap: 7, boxShadow: "0 12px 48px rgba(0,0,0,.7)", fontSize: 11, animation: "fadeIn .2s ease" }}>{toast.type === "ok" ? "✅" : toast.type === "err" ? "❌" : "⚠️"} {toast.msg}</div>}
+
+      <div style={{ position: "fixed", bottom: 12, right: 12, zIndex: 150, padding: "4px 10px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.card, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: syncDot[syncStatus], boxShadow: syncStatus === "synced" ? `0 0 6px ${C.green}60` : "none" }} />
+        v{APP_VERSION}
+      </div>
+    </div>
+  );
+}

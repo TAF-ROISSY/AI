@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF Config Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0f1a;--surface:#131b2e;--surface2:#1a2540;--accent:#3b82f6;--accent2:#06d6a0;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;--border:#1e293b;--input-bg:#0f1729}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1rem}
+h1{text-align:center;font-size:1.6rem;margin:1rem 0 .3rem;background:linear-gradient(135deg,#fff 30%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:1.5rem}
+.tabs{display:flex;gap:.5rem;max-width:900px;margin:0 auto 1.5rem;flex-wrap:wrap;justify-content:center}
+.tab{padding:.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .2s}
+.tab:hover{border-color:var(--accent);color:var(--text)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.container{max-width:900px;margin:0 auto}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.section h2{font-size:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.section h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+.row{display:grid;grid-template-columns:160px 1fr;gap:.5rem;align-items:center;margin-bottom:.6rem}
+.row label{font-size:.8rem;color:var(--muted)}
+.row input{background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;color:var(--text);font-family:inherit;font-size:.85rem;width:100%}
+.row input:focus{outline:none;border-color:var(--accent)}
+.row input[type="password"]{letter-spacing:2px}
+.actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.5rem;justify-content:center}
+.btn{padding:.5rem 1.2rem;border-radius:8px;border:none;font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-green{background:var(--accent2);color:#0a0f1a}
+.btn-green:hover{background:#05c493}
+.btn-red{background:transparent;border:1px solid var(--red);color:var(--red)}
+.btn-red:hover{background:var(--red);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent)}
+.toggle-vis{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-family:inherit}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:55px}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--accent2);color:#0a0f1a;padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+.app-panel{display:none}
+.app-panel.active{display:block}
+.summary-box{background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.8rem;line-height:1.6;white-space:pre-wrap;max-height:400px;overflow-y:auto;margin-bottom:1rem;font-family:'DM Sans',monospace}
+@media(max-width:600px){
+.row{grid-template-columns:1fr;gap:.2rem}
+.row label{font-size:.75rem}
+h1{font-size:1.3rem}
+}
+</style>
+</head>
+<body>
+
+<h1>🔐 TAF Config Manager</h1>
+<p class="subtitle">Gestion centralisée des clés API, tokens et chemins Drive</p>
+
+<div class="container">
+
+<!-- Global keys -->
+<div class="section">
+<h2><span class="dot"></span>Clés globales</h2>
+<div class="row"><label>Clé API Anthropic</label><div class="pw-wrap"><input type="password" id="global-anthropic" placeholder="sk-ant-api03-..."><button class="toggle-vis" onclick="toggleVis(this)">Voir</button></div></div>
+<div class="row"><label>Token Airtable (PAT)</label><div class="pw-wrap"><input type="password" id="global-airtable" placeholder="pat..."><button class="toggle-vis" onclick="toggleVis(this)">Voir</button></div></div>
+<div class="row"><label>Webhook Make.com (email)</label><input type="text" id="global-make-email" placeholder="https://hook.eu2.make.com/..."></div>
+<div class="row"><label>Proxy Drive Upload</label><input type="text" id="global-drive-proxy" placeholder="https://script.google.com/macros/s/..."></div>
+</div>
+
+<!-- Tabs per app -->
+<div class="section">
+<h2><span class="dot"></span>Configuration par application</h2>
+<div class="tabs" id="app-tabs"></div>
+<div id="app-panels"></div>
+</div>
+
+<!-- Actions -->
+<div class="actions">
+<button class="btn btn-primary" onclick="saveAll()">💾 Sauvegarder</button>
+<button class="btn btn-green" onclick="showSummary()">📋 Synthèse</button>
+<button class="btn btn-outline" onclick="exportJSON()">⬇ Exporter JSON</button>
+<button class="btn btn-outline" onclick="document.getElementById('import-file').click()">⬆ Importer JSON</button>
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+<button class="btn btn-red" onclick="resetAll()">🗑 Tout effacer</button>
+</div>
+
+<!-- Summary panel -->
+<div class="section" id="summary-section" style="display:none;margin-top:1rem">
+<h2><span class="dot"></span>Synthèse de configuration</h2>
+<div class="summary-box" id="summary-content"></div>
+<div class="actions" style="margin-top:.5rem">
+<button class="btn btn-primary" onclick="copySummary()">📋 Copier</button>
+<button class="btn btn-green" onclick="sendByEmail()">📧 Envoyer par email</button>
+</div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const APPS = [
+  {id:"facturation", name:"Facturation AI (PERAC)", fields:["driveFolder","webhook","notes"]},
+  {id:"recouvrement", name:"Recouvrement AI", fields:["driveFolder","webhook","notes"]},
+  {id:"ops", name:"TAF OPS AI", fields:["airtableBase","driveFolder","notes"]},
+  {id:"courrier", name:"Courrier Douane", fields:["driveFolder","webhookSend","webhookBackup","notes"]},
+  {id:"douane", name:"Douane Intelligence", fields:["notes"]},
+  {id:"commercial", name:"Commercial", fields:["driveFolder","driveFolderSave","airtableBase","notes"]},
+  {id:"vols", name:"Suivi des Vols AI", fields:["notes"]},
+  {id:"rahand", name:"Rahand AI", fields:["notes"]},
+  {id:"transport", name:"Transport AI", fields:["notes"]},
+  {id:"aide_courrier", name:"Aide Courrier", fields:["notes"]},
+  {id:"note_frais", name:"Note de Frais", fields:["notes"]},
+  {id:"conge", name:"Congé AI", fields:["notes"]},
+  {id:"capture", name:"Capture", fields:["notes"]},
+  {id:"devstudio", name:"TAF Dev Studio", fields:["notes"]}
+];
+
+const FIELD_LABELS = {
+  driveFolder:"Dossier Drive (ID)",
+  driveFolderSave:"Dossier Drive Save (ID)",
+  webhook:"Webhook Make.com",
+  webhookSend:"Webhook envoi",
+  webhookBackup:"Webhook backup",
+  airtableBase:"Base Airtable (ID)",
+  notes:"Notes"
+};
+
+const LS_KEY = "taf_config_manager";
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(e){ return {}; }
+}
+
+function save(data){
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2000);
+}
+
+function toggleVis(btn){
+  const inp = btn.previousElementSibling;
+  if(inp.type==="password"){inp.type="text";btn.textContent="Masquer";}
+  else{inp.type="password";btn.textContent="Voir";}
+}
+
+function buildUI(){
+  const tabsEl = document.getElementById("app-tabs");
+  const panelsEl = document.getElementById("app-panels");
+  const data = load();
+
+  APPS.forEach((app, i) => {
+    // Tab
+    const tab = document.createElement("button");
+    tab.className = "tab" + (i===0?" active":"");
+    tab.textContent = app.name;
+    tab.onclick = () => {
+      document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+      document.querySelectorAll(".app-panel").forEach(p=>p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("panel-"+app.id).classList.add("active");
+    };
+    tabsEl.appendChild(tab);
+
+    // Panel
+    const panel = document.createElement("div");
+    panel.className = "app-panel" + (i===0?" active":"");
+    panel.id = "panel-"+app.id;
+
+    app.fields.forEach(f => {
+      const row = document.createElement("div");
+      row.className = "row";
+      const label = document.createElement("label");
+      label.textContent = FIELD_LABELS[f] || f;
+      row.appendChild(label);
+
+      if(f === "notes"){
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.id = `app-${app.id}-${f}`;
+        inp.placeholder = "Notes libres...";
+        inp.value = data[app.id]?.[f] || "";
+        row.appendChild(inp);
+      } else {
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.id = `app-${app.id}-${f}`;
+        inp.placeholder = FIELD_LABELS[f];
+        inp.value = data[app.id]?.[f] || "";
+        row.appendChild(inp);
+      }
+      panel.appendChild(row);
+    });
+
+    panelsEl.appendChild(panel);
+  });
+
+  // Load globals
+  document.getElementById("global-anthropic").value = data._global?.anthropic || "";
+  document.getElementById("global-airtable").value = data._global?.airtable || "";
+  document.getElementById("global-make-email").value = data._global?.makeEmail || "";
+  document.getElementById("global-drive-proxy").value = data._global?.driveProxy || "";
+}
+
+function saveAll(){
+  const data = {};
+  data._global = {
+    anthropic: document.getElementById("global-anthropic").value,
+    airtable: document.getElementById("global-airtable").value,
+    makeEmail: document.getElementById("global-make-email").value,
+    driveProxy: document.getElementById("global-drive-proxy").value
+  };
+  APPS.forEach(app => {
+    data[app.id] = {};
+    app.fields.forEach(f => {
+      data[app.id][f] = document.getElementById(`app-${app.id}-${f}`).value;
+    });
+  });
+  save(data);
+  toast("✅ Configuration sauvegardée !");
+}
+
+function generateSummaryText(){
+  const data = load();
+  let txt = "═══════════════════════════════════════\n";
+  txt += "   TAF CONFIG MANAGER — SYNTHÈSE\n";
+  txt += "   " + new Date().toLocaleString("fr-FR") + "\n";
+  txt += "═══════════════════════════════════════\n\n";
+
+  txt += "🔑 CLÉS GLOBALES\n";
+  txt += "─────────────────────────────────────\n";
+  const g = data._global || {};
+  txt += `Anthropic API : ${g.anthropic ? g.anthropic.substring(0,12)+"••••••" : "(non définie)"}\n`;
+  txt += `Airtable PAT  : ${g.airtable ? g.airtable.substring(0,12)+"••••••" : "(non défini)"}\n`;
+  txt += `Webhook Make  : ${g.makeEmail || "(non défini)"}\n`;
+  txt += `Proxy Drive   : ${g.driveProxy || "(non défini)"}\n\n`;
+
+  txt += "📦 APPLICATIONS\n";
+  txt += "─────────────────────────────────────\n";
+  APPS.forEach(app => {
+    const d = data[app.id] || {};
+    const hasData = app.fields.some(f => d[f]);
+    if(hasData){
+      txt += `\n▸ ${app.name}\n`;
+      app.fields.forEach(f => {
+        if(d[f]) txt += `  ${FIELD_LABELS[f]} : ${d[f]}\n`;
+      });
+    }
+  });
+
+  return txt;
+}
+
+function showSummary(){
+  saveAll();
+  const section = document.getElementById("summary-section");
+  section.style.display = "block";
+  document.getElementById("summary-content").textContent = generateSummaryText();
+  section.scrollIntoView({behavior:"smooth"});
+}
+
+function copySummary(){
+  navigator.clipboard.writeText(generateSummaryText()).then(()=>toast("📋 Copié !"));
+}
+
+function sendByEmail(){
+  const subject = encodeURIComponent("TAF Config Manager — Synthèse");
+  const body = encodeURIComponent(generateSummaryText());
+  window.open(`mailto:?subject=${subject}&body=${body}`);
+}
+
+function exportJSON(){
+  saveAll();
+  const data = load();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "taf-config-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  toast("⬇ Export JSON téléchargé !");
+}
+
+function importJSON(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const data = JSON.parse(ev.target.result);
+      save(data);
+      location.reload();
+    }catch(err){
+      alert("Fichier JSON invalide");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetAll(){
+  if(confirm("Effacer TOUTE la configuration ?")){
+    localStorage.removeItem(LS_KEY);
+    location.reload();
+  }
+}
+
+buildUI();
+</script>
+</body>
+</html>
