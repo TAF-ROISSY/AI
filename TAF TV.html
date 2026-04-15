@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF TV v3.6 — Hub Média</title>
+<title>TAF TV v3.7 — Hub Média</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.06);--bc:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:3;--rows:2}
+:root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.06);--bc:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:2;--rows:2}
 *{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
 body *::-webkit-scrollbar{display:none}body *{-ms-overflow-style:none;scrollbar-width:none}
 body{font-family:var(--ui);background:var(--bg);color:var(--txt)}
@@ -104,7 +104,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <div style="padding:12px;border-top:1px solid var(--bd)">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <label style="font-size:10px;color:var(--t2)">COL</label>
-        <input type="number" min="1" max="6" value="3" id="gcols" onchange="updGrid()" style="width:46px;padding:5px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-family:var(--mono);font-size:12px">
+        <input type="number" min="1" max="6" value="2" id="gcols" onchange="updGrid()" style="width:46px;padding:5px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-family:var(--mono);font-size:12px">
         <label style="font-size:10px;color:var(--t2)">LIG</label>
         <input type="number" min="1" max="5" value="2" id="grows" onchange="updGrid()" style="width:46px;padding:5px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-family:var(--mono);font-size:12px">
         <label style="font-size:10px;color:var(--t2)">⏱</label>
@@ -117,7 +117,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
   <div class="grid-area"><div class="tv-grid" id="grid"></div></div>
 </div>
-<div class="ver">TAF TV v3.6</div>
+<div class="ver">TAF TV v3.7</div>
 
 <script>
 /* ═══ FIREBASE ═══ */
@@ -288,10 +288,10 @@ function renderGrid(){
   const g=document.getElementById('grid');
   if(!widgets.length){g.innerHTML=`<div class="ge" style="grid-column:1/-1;grid-row:1/-1" onclick="toggleCfg()"><div style="text-align:center"><div style="font-size:48px;margin-bottom:12px;opacity:.3">📡</div><div style="font-size:16px;font-weight:500">TAF TV — Hub Média</div><div style="font-size:12px;margin-top:4px">Cliquez CONFIG pour ajouter des widgets</div></div></div>`;return;}
   g.innerHTML=widgets.map(w=>{
-    /* vols_card prend automatiquement TOUT l'écran */
-    const fullScreen=w.viz==='vols_card';
-    const gc=fullScreen?'1/-1':('span '+w.colSpan);
-    const gr=fullScreen?'1/-1':('span '+w.rowSpan);
+    /* vols_card prend toute la HAUTEUR mais pas toute la largeur */
+    const fullH=w.viz==='vols_card';
+    const gc='span '+w.colSpan;
+    const gr=fullH?'1/-1':('span '+w.rowSpan);
     return`<div class="wc" id="w-${w.id}" style="grid-column:${gc};grid-row:${gr}">
       <div class="wh">
         <div class="wt"><span style="font-size:14px">${w.icon}</span>${w.title}${w.mode==='carousel'?' <span class="tc">↻</span>':''}</div>
