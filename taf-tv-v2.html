@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF TV v2.0 — Hub Média</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060a14;--panel:#0c1220;--card:#111827;--cyan:#00d4ff;--cyan-dim:rgba(0,212,255,.15);--amber:#ffaa00;--amber-dim:rgba(255,170,0,.15);--green:#00ff88;--green-dim:rgba(0,255,136,.15);--red:#ff3366;--red-dim:rgba(255,51,102,.15);--purple:#a78bfa;--purple-dim:rgba(167,139,250,.15);--txt:#e8ecf4;--txt2:#8892a4;--txt3:#4a5568;--brd:rgba(255,255,255,.06);--brd-c:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:4;--rows:3}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{font-family:var(--ui);background:var(--bg);color:var(--txt)}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
+
+/* TOPBAR */
+.top{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--panel);border-bottom:1px solid var(--brd);z-index:100}
+.logo{font-weight:800;font-size:22px;letter-spacing:2px;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:11px;color:var(--txt2);letter-spacing:3px;text-transform:uppercase}
+.clock{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--cyan);letter-spacing:2px}
+.date-d{font-size:13px;color:var(--txt2)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pg 2s ease-in-out infinite}
+@keyframes pg{0%,100%{box-shadow:0 0 4px var(--green);opacity:1}50%{box-shadow:0 0 12px var(--green);opacity:.6}}
+.rtimer{font-family:var(--mono);font-size:11px;color:var(--txt3)}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--brd-c);background:transparent;color:var(--cyan);cursor:pointer;font-family:var(--ui);font-size:13px;font-weight:500;transition:.2s}
+.btn:hover{background:var(--cyan-dim)}.btn-on{background:var(--cyan);color:var(--bg);border-color:var(--cyan)}
+.btn-a{border-color:rgba(255,170,0,.3);color:var(--amber)}.btn-a:hover{background:var(--amber-dim)}.btn-a.btn-on{background:var(--amber);color:var(--bg)}
+
+/* LAYOUT */
+.main{display:flex;height:calc(100vh - 56px)}
+.side{width:340px;min-width:340px;background:var(--panel);border-right:1px solid var(--brd);display:flex;flex-direction:column;transition:.4s;overflow:hidden}
+.side.hide{width:0;min-width:0;opacity:0;pointer-events:none}
+.side-h{padding:16px 20px;border-bottom:1px solid var(--brd);font-size:13px;font-weight:600;color:var(--txt2);letter-spacing:2px;text-transform:uppercase}
+.cat{flex:1;overflow-y:auto;padding:12px}
+.cat::-webkit-scrollbar{width:4px}.cat::-webkit-scrollbar-thumb{background:var(--txt3);border-radius:2px}
+.sec{margin-bottom:16px}
+.sec-t{font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:3px;text-transform:uppercase;padding:8px 8px 6px;display:flex;align-items:center;gap:8px}
+.sec-t::after{content:'';flex:1;height:1px;background:var(--brd)}
+.wi{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:.2s;border:1px solid transparent;margin-bottom:4px}
+.wi:hover{background:var(--card);border-color:var(--brd-c)}
+.wi-ic{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.wi-nm{font-size:13px;font-weight:500}.wi-ds{font-size:10px;color:var(--txt3);margin-top:2px}
+.wi-add{width:28px;height:28px;border-radius:6px;border:1px solid var(--brd-c);background:transparent;color:var(--cyan);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:.2s;opacity:0}
+.wi:hover .wi-add{opacity:1}.wi-add:hover{background:var(--cyan);color:var(--bg)}
+
+/* GRID */
+.grid-area{flex:1;padding:16px;overflow:auto;background:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);background-size:40px 40px}
+.tv-grid{height:100%;display:grid;gap:12px;grid-template-columns:repeat(var(--cols),1fr);grid-template-rows:repeat(var(--rows),1fr)}
+
+/* WIDGET CARDS */
+.wc{background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:16px;position:relative;display:flex;flex-direction:column;overflow:hidden;transition:.3s;animation:wi-in .5s ease-out}
+@keyframes wi-in{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.wc:hover{border-color:var(--brd-c)}
+.wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0}
+.wt{font-size:11px;font-weight:600;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.wt-i{font-size:14px}
+.wa{display:flex;gap:4px;opacity:0;transition:.2s}.wc:hover .wa{opacity:1}
+.wa-b{width:24px;height:24px;border-radius:4px;border:none;background:var(--panel);color:var(--txt3);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:.2s}
+.wa-b:hover{color:var(--cyan);background:var(--cyan-dim)}.wa-b.del:hover{color:var(--red);background:var(--red-dim)}
+.wb{flex:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.wm{font-family:var(--mono);font-weight:700;line-height:1}
+.m-xl{font-size:48px}.m-lg{font-size:36px}.m-md{font-size:28px}.m-sm{font-size:20px}
+.ml{font-size:12px;color:var(--txt3);margin-top:6px}
+.mc{color:var(--cyan)}.ma{color:var(--amber)}.mg{color:var(--green)}.mr{color:var(--red)}.mp{color:var(--purple)}
+.wl{list-style:none}.wl li{padding:6px 0;border-bottom:1px solid var(--brd);font-size:12px;display:flex;align-items:center;justify-content:space-between}.wl li:last-child{border-bottom:none}
+.sd{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
+.sg{background:var(--green);box-shadow:0 0 6px var(--green-dim)}.sa{background:var(--amber);box-shadow:0 0 6px var(--amber-dim)}.sr{background:var(--red);box-shadow:0 0 6px var(--red-dim)}.sc{background:var(--cyan);box-shadow:0 0 6px var(--cyan-dim)}
+.tag{padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);font-weight:500}
+.tc{background:var(--cyan-dim);color:var(--cyan)}.ta{background:var(--amber-dim);color:var(--amber)}.tg{background:var(--green-dim);color:var(--green)}.tr{background:var(--red-dim);color:var(--red)}.tp{background:var(--purple-dim);color:var(--purple)}
+.ft{width:100%;border-collapse:collapse}.ft th{font-size:9px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:4px 6px;text-align:left;border-bottom:1px solid var(--brd)}.ft td{font-size:12px;padding:5px 6px;font-family:var(--mono);font-weight:400;border-bottom:1px solid var(--brd)}.ft tr:last-child td{border-bottom:none}
+.wld{display:flex;align-items:center;justify-content:center;height:100%;color:var(--txt3);font-size:12px}
+.spin{width:20px;height:20px;border:2px solid var(--brd);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;margin-right:8px}@keyframes sp{to{transform:rotate(360deg)}}
+.ge{border:2px dashed var(--brd);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:12px;cursor:pointer;transition:.3s}.ge:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.03)}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:.3s}
+.mo.on{opacity:1;pointer-events:all}
+.md{background:var(--panel);border:1px solid var(--brd-c);border-radius:16px;padding:24px;width:520px;max-width:90vw;max-height:80vh;overflow-y:auto;transform:scale(.95);transition:.3s}
+.mo.on .md{transform:scale(1)}
+.md h3{font-size:16px;font-weight:600;margin-bottom:20px;color:var(--cyan)}
+.mf{margin-bottom:16px}.mf label{display:block;font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.mf select,.mf input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--brd);background:var(--card);color:var(--txt);font-family:var(--ui);font-size:14px}
+.mf select[multiple]{height:140px}
+.mb{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.cdots{display:flex;gap:6px;justify-content:center;margin-top:8px}.cdot{width:6px;height:6px;border-radius:50%;background:var(--txt3);transition:.3s}.cdot.on{background:var(--cyan);width:18px;border-radius:3px}
+.ver{position:fixed;bottom:8px;right:12px;font-size:10px;color:var(--txt3);font-family:var(--mono);z-index:9998}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--txt3);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;align-items:center;gap:16px"><div><div class="logo">TAF TV</div><div class="logo-sub">Hub Média v2</div></div></div>
+  <div style="display:flex;align-items:center;gap:24px"><div class="clock" id="clk">--:--:--</div><div class="date-d" id="dt">--</div></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="pulse" id="pls"></div><span class="rtimer" id="rtm">45s</span>
+    <button class="btn btn-a" id="bcfg" onclick="toggleCfg()">CONFIG</button>
+    <button class="btn" onclick="refreshAll()">REFRESH</button>
+  </div>
+</div>
+<div class="main">
+  <div class="side hide" id="sidebar">
+    <div class="side-h">Créer un widget</div>
+    <div class="cat" id="catalog">
+      <div style="text-align:center;padding:20px;">
+        <button class="btn" onclick="openCustom()" style="width:100%;padding:14px;font-size:15px;">⚡ Nouveau widget personnalisé</button>
+        <p style="font-size:11px;color:var(--txt3);margin-top:12px;">Connectez n'importe quelle donnée de vos apps TAF</p>
+      </div>
+      <div id="activeList"></div>
+    </div>
+    <div style="padding:12px;border-top:1px solid var(--brd);">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <label style="font-size:11px;color:var(--txt2);letter-spacing:1px;">COL</label>
+        <input type="number" min="1" max="6" value="4" id="gcols" onchange="updGrid()" style="background:var(--card);border:1px solid var(--brd);color:var(--txt);padding:6px;border-radius:6px;font-family:var(--mono);font-size:12px;width:50px;">
+        <label style="font-size:11px;color:var(--txt2);letter-spacing:1px;">LIG</label>
+        <input type="number" min="1" max="5" value="3" id="grows" onchange="updGrid()" style="background:var(--card);border:1px solid var(--brd);color:var(--txt);padding:6px;border-radius:6px;font-family:var(--mono);font-size:12px;width:50px;">
+        <label style="font-size:11px;color:var(--txt2);letter-spacing:1px;">⏱</label>
+        <select id="rint" onchange="updRefresh()" style="background:var(--card);border:1px solid var(--brd);color:var(--txt);padding:6px;border-radius:6px;font-family:var(--mono);font-size:12px;flex:1;">
+          <option value="30">30s</option><option value="45" selected>45s</option><option value="60">60s</option><option value="120">2m</option><option value="300">5m</option>
+        </select>
+      </div>
+      <button class="btn" onclick="saveCfg()" style="width:100%;margin-top:4px;">💾 SAUVEGARDER</button>
+    </div>
+  </div>
+  <div class="grid-area"><div class="tv-grid" id="grid"></div></div>
+</div>
+
+<!-- MODAL -->
+<div class="mo" id="modal">
+  <div class="md">
+    <h3>⚡ Nouveau widget — Choisissez vos données</h3>
+    <div class="mf"><label>Source (Base Airtable)</label><select id="mBase" onchange="onBase()"><option value="">Chargement des bases...</option></select></div>
+    <div class="mf"><label>Table</label><select id="mTable" onchange="onTable()"><option value="">-- Choisir une table --</option></select></div>
+    <div class="mf"><label>Champs à afficher (Ctrl+clic pour multi)</label><select id="mFields" multiple></select></div>
+    <div class="mf"><label>Titre du widget</label><input id="mTitle" placeholder="Mon widget..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Visualisation</label><select id="mViz">
+        <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="sum">➕ Somme</option>
+      </select></div>
+      <div class="mf"><label>Icône</label><select id="mIcon">
+        <option value="📊">📊</option><option value="📋">📋</option><option value="📦">📦</option><option value="✈">✈</option><option value="💰">💰</option><option value="👥">👥</option><option value="📅">📅</option><option value="🎯">🎯</option><option value="⚡">⚡</option><option value="🔔">🔔</option><option value="🚨">🚨</option><option value="🚚">🚚</option><option value="📈">📈</option><option value="✅">✅</option><option value="📥">📥</option><option value="🏖">🏖</option>
+      </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div class="mf"><label>Colonnes</label><select id="mCol"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="mf"><label>Lignes</label><select id="mRow"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+      <div class="mf"><label>Max items</label><input type="number" id="mMax" value="10" min="1" max="100"></div>
+    </div>
+    <div class="mf"><label>Mode</label><select id="mMode"><option value="fixed">Fixe</option><option value="carousel">Carrousel</option></select></div>
+    <div class="mf"><label>Filtre Airtable (optionnel)</label><input id="mFilter" placeholder='ex: NOT({Status}="CLOTURE")'></div>
+    <div class="mf"><label>Couleur</label><select id="mColor"><option value="cyan">🔵 Cyan</option><option value="amber">🟠 Amber</option><option value="green">🟢 Vert</option><option value="red">🔴 Rouge</option><option value="purple">🟣 Violet</option></select></div>
+    <div class="mb"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-on" onclick="addWidget()">Ajouter au dashboard</button></div>
+  </div>
+</div>
+<div class="ver">TAF TV v2.0</div>
+
+<script>
+// ═══ CONFIG ═══
+const PAT = localStorage.getItem('AIRTABLE_PAT') || '';
+let widgets = [], basesCache = null, tablesCache = {}, refreshId = null, countdown = 45, carIntervals = {};
+
+// ═══ INIT ═══
+function init() {
+  updClock(); setInterval(updClock, 1000);
+  if (!PAT) { const k = prompt('TAF TV — Clé API Airtable :'); if (k) { localStorage.setItem('AIRTABLE_PAT', k); location.reload(); } return; }
+  loadCfg(); renderGrid(); startRefresh();
+  // Précharger les bases
+  loadBases();
+}
+
+// ═══ CLOCK ═══
+function updClock() {
+  const n = new Date(), h = String(n.getHours()).padStart(2,'0'), m = String(n.getMinutes()).padStart(2,'0'), s = String(n.getSeconds()).padStart(2,'0');
+  document.getElementById('clk').textContent = `${h}:${m}:${s}`;
+  const j = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const ms = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('dt').textContent = `${j[n.getDay()]} ${n.getDate()} ${ms[n.getMonth()]} ${n.getFullYear()}`;
+}
+
+// ═══ AIRTABLE META API — Découverte universelle ═══
+async function loadBases() {
+  if (basesCache) return basesCache;
+  try {
+    const r = await fetch('https://api.airtable.com/v0/meta/bases', { headers: { 'Authorization': `Bearer ${PAT}` } });
+    const d = await r.json();
+    basesCache = d.bases || [];
+    return basesCache;
+  } catch(e) { console.error('Bases error:', e); return []; }
+}
+
+async function loadTables(baseId) {
+  if (tablesCache[baseId]) return tablesCache[baseId];
+  try {
+    const r = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, { headers: { 'Authorization': `Bearer ${PAT}` } });
+    const d = await r.json();
+    tablesCache[baseId] = d.tables || [];
+    return tablesCache[baseId];
+  } catch(e) { console.error('Tables error:', e); return []; }
+}
+
+async function fetchData(baseId, tableName, fields, filter, max) {
+  if (!PAT) return [];
+  const p = new URLSearchParams();
+  fields.forEach(f => p.append('fields[]', f));
+  if (filter) p.append('filterByFormula', filter);
+  p.append('maxRecords', max || 50);
+  try {
+    const r = await fetch(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?${p}`, { headers: { 'Authorization': `Bearer ${PAT}` } });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return d.records || [];
+  } catch(e) { return []; }
+}
+
+// ═══ MODAL — Création widget ═══
+async function openCustom() {
+  document.getElementById('modal').classList.add('on');
+  const sel = document.getElementById('mBase');
+  sel.innerHTML = '<option value="">Chargement...</option>';
+  const bases = await loadBases();
+  sel.innerHTML = '<option value="">-- Choisir une source --</option>' + bases.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  document.getElementById('mTable').innerHTML = '<option value="">-- Choisir une table --</option>';
+  document.getElementById('mFields').innerHTML = '';
+  document.getElementById('mTitle').value = '';
+  document.getElementById('mFilter').value = '';
+}
+function closeModal() { document.getElementById('modal').classList.remove('on'); }
+
+async function onBase() {
+  const bid = document.getElementById('mBase').value;
+  const tsel = document.getElementById('mTable');
+  document.getElementById('mFields').innerHTML = '';
+  if (!bid) { tsel.innerHTML = '<option value="">-- Choisir --</option>'; return; }
+  tsel.innerHTML = '<option value="">Chargement...</option>';
+  const tables = await loadTables(bid);
+  tsel.innerHTML = '<option value="">-- Choisir --</option>' + tables.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name} (${t.fields.length} champs)</option>`).join('');
+}
+
+function onTable() {
+  const bid = document.getElementById('mBase').value;
+  const tid = document.getElementById('mTable').value;
+  const fsel = document.getElementById('mFields');
+  fsel.innerHTML = '';
+  if (!bid || !tid || !tablesCache[bid]) return;
+  const tbl = tablesCache[bid].find(t => t.id === tid);
+  if (!tbl) return;
+  const icons = {singleLineText:'📝',multilineText:'📝',number:'🔢',currency:'💰',percent:'%',singleSelect:'🏷',multipleSelects:'🏷',date:'📅',dateTime:'📅',checkbox:'☑',email:'📧',phoneNumber:'📞',url:'🔗',formula:'🧮',autoNumber:'#',multipleRecordLinks:'🔗',multipleLookupValues:'👁',richText:'📝',rollup:'📊',createdTime:'🕐'};
+  fsel.innerHTML = tbl.fields.filter(f => !['button','multipleAttachments'].includes(f.type)).map(f => `<option value="${f.name}" title="${f.type}">${icons[f.type]||'📄'} ${f.name}</option>`).join('');
+  // Auto-fill title
+  if (!document.getElementById('mTitle').value) document.getElementById('mTitle').value = tbl.name;
+}
+
+function addWidget() {
+  const baseId = document.getElementById('mBase').value;
+  const tableId = document.getElementById('mTable').value;
+  const tableName = document.getElementById('mTable').selectedOptions[0]?.dataset?.name || '';
+  const fields = Array.from(document.getElementById('mFields').selectedOptions).map(o => o.value);
+  if (!baseId || !tableId || !fields.length) { alert('Sélectionnez une base, une table et au moins un champ.'); return; }
+
+  widgets.push({
+    id: Date.now().toString(),
+    baseId, tableId, tableName, fields,
+    title: document.getElementById('mTitle').value || tableName,
+    icon: document.getElementById('mIcon').value,
+    viz: document.getElementById('mViz').value,
+    color: document.getElementById('mColor').value,
+    colSpan: +document.getElementById('mCol').value,
+    rowSpan: +document.getElementById('mRow').value,
+    maxItems: +document.getElementById('mMax').value,
+    mode: document.getElementById('mMode').value,
+    filter: document.getElementById('mFilter').value,
+    data: null, ci: 0
+  });
+  closeModal();
+  renderGrid();
+  refreshWidget(widgets[widgets.length - 1]);
+  saveCfg();
+}
+
+// ═══ GRID ═══
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  renderActiveList();
+  if (!widgets.length) {
+    g.innerHTML = `<div class="ge" style="grid-column:1/-1;grid-row:1/-1" onclick="toggleCfg()"><div style="text-align:center"><div style="font-size:48px;margin-bottom:12px;opacity:.3">📡</div><div style="font-size:16px;font-weight:500">TAF TV — Hub Média</div><div style="font-size:12px;margin-top:4px">Cliquez sur CONFIG pour ajouter des widgets</div></div></div>`;
+    return;
+  }
+  widgets.forEach(w => {
+    const c = document.createElement('div');
+    c.className = 'wc'; c.id = `w-${w.id}`;
+    c.style.gridColumn = `span ${w.colSpan}`;
+    c.style.gridRow = `span ${w.rowSpan}`;
+    c.innerHTML = `<div class="wh"><div class="wt"><span class="wt-i">${w.icon}</span>${w.title}${w.mode==='carousel'?' <span class="tc">CARROUSEL</span>':''}</div><div class="wa"><button class="wa-b" onclick="resizeW('${w.id}')" title="Resize">⤢</button><button class="wa-b del" onclick="removeW('${w.id}')" title="Supprimer">✕</button></div></div><div class="wb" id="b-${w.id}"><div class="wld"><div class="spin"></div>Chargement...</div></div>`;
+    g.appendChild(c);
+  });
+}
+
+function renderActiveList() {
+  const el = document.getElementById('activeList');
+  if (!widgets.length) { el.innerHTML = '<p style="font-size:11px;color:var(--txt3);text-align:center;padding:8px;">Aucun widget ajouté</p>'; return; }
+  el.innerHTML = '<div class="sec-t">Widgets actifs</div>' + widgets.map(w => `<div class="wi"><div class="wi-ic" style="background:var(--${w.color}-dim);color:var(--${w.color})">${w.icon}</div><div><div class="wi-nm">${w.title}</div><div class="wi-ds">${w.tableName} • ${w.viz}</div></div></div>`).join('');
+}
+
+function removeW(id) { widgets = widgets.filter(w => w.id !== id); if (carIntervals[id]) clearInterval(carIntervals[id]); renderGrid(); saveCfg(); }
+function resizeW(id) { const w = widgets.find(w => w.id === id); if (!w) return; w.colSpan = w.colSpan >= 3 ? 1 : w.colSpan + 1; renderGrid(); renderData(w); saveCfg(); }
+
+// ═══ REFRESH ═══
+async function refreshWidget(w) {
+  const recs = await fetchData(w.baseId, w.tableName, w.fields, w.filter, w.maxItems);
+  w.data = recs.map(r => r.fields);
+  renderData(w);
+}
+
+async function refreshAll() {
+  document.getElementById('pls').style.background = 'var(--amber)';
+  await Promise.all(widgets.map(w => refreshWidget(w)));
+  document.getElementById('pls').style.background = 'var(--green)';
+  countdown = +(document.getElementById('rint').value) || 45;
+}
+
+function startRefresh() {
+  if (refreshId) clearInterval(refreshId);
+  refreshId = setInterval(() => {
+    countdown--;
+    document.getElementById('rtm').textContent = `${countdown}s`;
+    if (countdown <= 0) refreshAll();
+  }, 1000);
+}
+function updRefresh() { countdown = +(document.getElementById('rint').value) || 45; }
+
+// ═══ RENDER DATA ═══
+function renderData(w) {
+  const b = document.getElementById(`b-${w.id}`);
+  if (!b) return;
+  const d = w.data || [];
+  if (w.mode === 'carousel' && d.length > 3) { renderCarousel(w, b, d); return; }
+  switch(w.viz) {
+    case 'metric': renderMetric(b, w, d); break;
+    case 'table': renderTable(b, w, d); break;
+    case 'list': renderList(b, w, d); break;
+    case 'bars': renderBars(b, w, d); break;
+    case 'sum': renderSum(b, w, d); break;
+    default: renderTable(b, w, d);
+  }
+}
+
+function tr(s, m) { if (!s) return '—'; s = String(s); return s.length > m ? s.slice(0, m) + '…' : s; }
+function av(v) { return Array.isArray(v) ? v[0] || '—' : v || '—'; }
+function fm(v) { return v ? Math.round(v).toLocaleString('fr-FR') + ' €' : '0 €'; }
+function fv(v) { if (v === null || v === undefined) return '—'; if (typeof v === 'object') { if (v.name) return v.name; if (Array.isArray(v)) return v.map(x => typeof x === 'object' && x.name ? x.name : x).join(', '); return JSON.stringify(v); } return String(v); }
+
+function renderMetric(b, w, d) {
+  const col = w.color || 'cyan';
+  b.innerHTML = `<div class="wm m-xl m${col[0]}">${d.length}</div><div class="ml">${w.title}</div>`;
+}
+
+function renderSum(b, w, d) {
+  const col = w.color || 'cyan';
+  const numField = w.fields.find(f => d.some(r => typeof r[f] === 'number'));
+  const sum = numField ? d.reduce((s, r) => s + (parseFloat(r[numField]) || 0), 0) : d.length;
+  b.innerHTML = `<div class="wm m-xl m${col[0]}">${Math.round(sum).toLocaleString('fr-FR')}</div><div class="ml">${numField || 'records'} — ${d.length} lignes</div>`;
+}
+
+function renderTable(b, w, d) {
+  const cols = w.fields.slice(0, 6);
+  const rows = d.slice(0, 12).map(r => '<tr>' + cols.map(c => `<td>${tr(fv(r[c]), 18)}</td>`).join('') + '</tr>').join('');
+  b.innerHTML = `<div style="overflow:auto;flex:1"><table class="ft"><thead><tr>${cols.map(c => `<th>${tr(c,12)}</th>`).join('')}</tr></thead><tbody>${rows || '<tr><td colspan="'+cols.length+'" style="text-align:center;color:var(--txt3)">Aucune donnée</td></tr>'}</tbody></table></div><div style="margin-top:8px;font-size:11px;color:var(--txt3)">${d.length} enregistrements</div>`;
+}
+
+function renderList(b, w, d) {
+  const f1 = w.fields[0], f2 = w.fields[1];
+  const items = d.slice(0, 10).map(r => `<li><span>${tr(fv(r[f1]),25)}</span>${f2 ? `<span class="tc">${tr(fv(r[f2]),15)}</span>` : ''}</li>`).join('');
+  b.innerHTML = `<div style="margin-bottom:8px"><span class="wm m-md m${(w.color||'c')[0]}">${d.length}</span> <span class="ml">${w.title}</span></div><ul class="wl">${items}</ul>`;
+}
+
+function renderBars(b, w, d) {
+  const f1 = w.fields[0];
+  const counts = {};
+  d.forEach(r => { const v = fv(r[f1]) || 'N/A'; counts[v] = (counts[v]||0)+1; });
+  const bars = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,8).map(([k, v]) => {
+    const pct = Math.round(v / d.length * 100);
+    return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>${tr(k,20)}</span><span style="font-family:var(--mono);color:var(--cyan)">${v}</span></div><div style="height:4px;background:var(--brd);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--cyan);border-radius:2px"></div></div></div>`;
+  }).join('');
+  b.innerHTML = bars || '<div class="ml">Aucune donnée</div>';
+}
+
+function renderCarousel(w, b, d) {
+  const ps = 3, pages = [];
+  for (let i = 0; i < d.length; i += ps) pages.push(d.slice(i, i + ps));
+  w.ci = w.ci % pages.length;
+  const tmp = {...w, mode: 'fixed', data: pages[w.ci]};
+  renderData(tmp);
+  const inner = b.innerHTML;
+  const dots = '<div class="cdots">' + pages.map((_, i) => `<div class="cdot ${i === w.ci ? 'on' : ''}"></div>`).join('') + '</div>';
+  b.innerHTML = inner + dots;
+  if (carIntervals[w.id]) clearInterval(carIntervals[w.id]);
+  carIntervals[w.id] = setInterval(() => { w.ci = (w.ci + 1) % pages.length; const bd = document.getElementById(`b-${w.id}`); if (bd) renderCarousel(w, bd, d); }, 6000);
+}
+
+// ═══ CONFIG ═══
+function toggleCfg() { document.getElementById('sidebar').classList.toggle('hide'); document.getElementById('bcfg').classList.toggle('btn-on'); }
+function updGrid() { document.documentElement.style.setProperty('--cols', document.getElementById('gcols').value); document.documentElement.style.setProperty('--rows', document.getElementById('grows').value); saveCfg(); }
+
+function saveCfg() {
+  const cfg = {
+    widgets: widgets.map(w => ({id:w.id,baseId:w.baseId,tableId:w.tableId,tableName:w.tableName,fields:w.fields,title:w.title,icon:w.icon,viz:w.viz,color:w.color,colSpan:w.colSpan,rowSpan:w.rowSpan,maxItems:w.maxItems,mode:w.mode,filter:w.filter})),
+    cols: +document.getElementById('gcols').value,
+    rows: +document.getElementById('grows').value,
+    rint: +document.getElementById('rint').value
+  };
+  localStorage.setItem('TAF_TV_CONFIG', JSON.stringify(cfg));
+}
+
+function loadCfg() {
+  const s = localStorage.getItem('TAF_TV_CONFIG');
+  if (!s) return;
+  try {
+    const c = JSON.parse(s);
+    widgets = (c.widgets || []).map(w => ({...w, data: null, ci: 0}));
+    if (c.cols) { document.getElementById('gcols').value = c.cols; document.documentElement.style.setProperty('--cols', c.cols); }
+    if (c.rows) { document.getElementById('grows').value = c.rows; document.documentElement.style.setProperty('--rows', c.rows); }
+    if (c.rint) { document.getElementById('rint').value = c.rint; countdown = c.rint; }
+    renderGrid();
+    refreshAll();
+  } catch(e) { console.error('Config error:', e); }
+}
+
+// ═══ KEYBOARD ═══
+document.addEventListener('keydown', e => {
+  if (e.key === 'c' && !e.ctrlKey && !e.target.closest('input,select,textarea')) toggleCfg();
+  if (e.key === 'r' && !e.ctrlKey && !e.target.closest('input,select,textarea')) refreshAll();
+  if (e.key === 'f' || e.key === 'F11') { e.preventDefault(); if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+});
+
+init();
+</script>
+</body>
+</html>
