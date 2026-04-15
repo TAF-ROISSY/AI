@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TAF Coffre-Fort v2.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06090F;--bg2:#0B1019;--bg3:#101828;--card:#131D2F;--card2:#182438;--card3:#1E2D44;
+  --bdr:rgba(255,255,255,0.06);--bdr2:rgba(255,255,255,0.12);--bdr3:rgba(255,255,255,0.18);
+  --text:#E8EDF5;--text2:#C8D5E8;--muted:rgba(180,200,230,0.45);
+  --blue:#3B82F6;--blue2:#60A5FA;--blue3:#2563EB;--green:#10B981;--green2:#34D399;
+  --red:#EF4444;--red2:#F87171;--gold:#F59E0B;--gold2:#FBBF24;--purple:#8B5CF6;--purple2:#A78BFA;
+  --cyan:#06B6D4;--pink:#EC4899;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:14px;--radius2:18px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;user-select:none;-webkit-user-select:none}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(59,130,246,.06),transparent 70%)}
+input,select,textarea,button{font-family:var(--font)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:4px}
+
+/* ── ANIMATIONS ── */
+@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(59,130,246,.2)}50%{box-shadow:0 0 40px rgba(59,130,246,.4)}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.scr{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.scr.off{display:none}
+
+/* ── PARTICLES ── */
+#particles{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.particle{position:absolute;border-radius:50%;background:rgba(59,130,246,.4);animation:float var(--d,8s) ease-in-out var(--dl,0s) infinite alternate}
+@keyframes float{0%{transform:translate(0,0) scale(1);opacity:.15}100%{transform:translate(var(--dx,20px),var(--dy,-30px)) scale(var(--sc,.6));opacity:.05}}
+
+/* ── SCREEN LOGIN ── */
+#sLogin{background:var(--bg);z-index:10}
+.login-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:28px;padding:24px;width:100%;max-width:420px}
+.login-logo{width:80px;height:80px;border-radius:22px;background:linear-gradient(135deg,#1D4ED8,#3B82F6,#60A5FA);display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 0 60px rgba(59,130,246,.3),0 12px 40px rgba(0,0,0,.5);animation:glow 3s ease infinite}
+.login-brand{text-align:center}
+.login-tag{font-size:10px;font-weight:700;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.login-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--text),var(--blue2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-sub{font-size:13px;color:var(--muted);margin-top:6px}
+.login-card{width:100%;background:var(--card);border:1px solid var(--bdr2);border-radius:var(--radius2);padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.login-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;box-shadow:0 6px 24px rgba(59,130,246,.35)}
+.login-name{font-size:18px;font-weight:700}
+.login-role{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.login-btn{width:100%;margin-top:6px;background:linear-gradient(135deg,var(--blue3),var(--blue));border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;transition:all .2s;box-shadow:0 6px 20px rgba(59,130,246,.35)}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(59,130,246,.45)}
+.login-btn:active{transform:scale(.97)}
+.login-secure{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.login-secure span{color:var(--green)}
+
+/* ── SCREEN PIN ── */
+#sPin{background:rgba(6,9,15,.97);backdrop-filter:blur(24px);z-index:20}
+.pin-box{background:var(--card);border:1px solid var(--bdr2);border-radius:24px;padding:36px 28px;display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;max-width:340px;box-shadow:0 32px 80px rgba(0,0,0,.7);animation:up .4s cubic-bezier(.34,1.3,.64,1)}
+.pin-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;box-shadow:0 6px 24px rgba(59,130,246,.3)}
+.pin-name{font-size:20px;font-weight:700}
+.pin-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.dots{display:flex;gap:14px}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--bdr2);background:transparent;transition:all .2s cubic-bezier(.34,1.3,.64,1)}
+.dot.on{border-color:var(--blue);background:var(--blue);box-shadow:0 0 12px rgba(59,130,246,.5);transform:scale(1.15)}
+.dot.err{border-color:var(--red);background:var(--red);box-shadow:0 0 12px rgba(239,68,68,.5)}
+.pin-err{font-size:12px;color:var(--red);font-weight:600;min-height:18px;text-align:center}
+.pin-attempts{font-size:11px;color:var(--gold);text-align:center;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:6px 12px}
+.pin-attempts.off{display:none}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.pb{background:var(--bg3);border:1px solid var(--bdr);border-radius:var(--radius);padding:16px 8px;font-family:var(--font);font-size:20px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;transition:all .12s}
+.pb:hover{background:var(--card2);border-color:var(--bdr2)}.pb:active{transform:scale(.9)}
+.pb.fn{font-size:14px;color:var(--muted)}.pb.ok{font-size:14px;color:var(--blue);font-weight:700}
+
+/* ── SCREEN VAULT ── */
+#sVault{background:var(--bg);z-index:30;flex-direction:column;align-items:stretch;overflow:hidden}
+
+/* Header */
+.vault-header{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:5}
+.vh-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+.vh-info{flex:1;min-width:0}.vh-title{font-size:14px;font-weight:700}.vh-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vh-stat{display:flex;align-items:center;gap:3px}
+.vh-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.vh-dot.green{background:var(--green)}.vh-dot.gold{background:var(--gold);animation:pulse 1.5s infinite}.vh-dot.red{background:var(--red)}
+.auto-lock-badge{font-size:10px;color:var(--muted);background:var(--bg3);border:1px solid var(--bdr);border-radius:6px;padding:2px 7px;font-family:var(--mono)}
+.hdr-btn{background:transparent;border:1px solid var(--bdr);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.hdr-btn:hover{border-color:var(--bdr2);color:var(--text)}
+
+/* Stats Banner */
+.stats-bar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:10px 16px;display:flex;gap:6px;flex-shrink:0;overflow-x:auto}
+.stats-bar.off{display:none}
+.stat-pill{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.stat-pill .num{font-weight:700;font-family:var(--mono)}
+.stat-pill .ico{font-size:14px}
+
+/* Toolbar */
+.toolbar{padding:12px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.search-box{flex:1;min-width:140px;position:relative}
+.search-input{width:100%;background:var(--card);border:1px solid var(--bdr);border-radius:var(--radius);padding:10px 12px 10px 36px;font-size:14px;color:var(--text);outline:none;transition:border-color .2s}
+.search-input::placeholder{color:var(--muted)}.search-input:focus{border-color:var(--blue)}
+.search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+.filter-select{background:var(--card);border:1px solid var(--bdr);border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--text);outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(180,200,230,0.45)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.filter-select:focus{border-color:var(--blue)}
+.tb-btn{background:var(--card);border:1px solid var(--bdr);border-radius:var(--radius);padding:10px;font-size:16px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;min-width:40px;color:var(--muted)}
+.tb-btn:hover{border-color:var(--bdr2);background:var(--card2);color:var(--text)}
+.tb-btn.active{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.1);color:var(--blue)}
+.btn-add{background:linear-gradient(135deg,var(--blue3),var(--blue));border:none;border-radius:var(--radius);padding:10px 16px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:all .15s;box-shadow:0 4px 14px rgba(59,130,246,.3);display:flex;align-items:center;gap:6px}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(59,130,246,.4)}.btn-add:active{transform:scale(.97)}
+
+/* Entry List */
+.vault-list{flex:1;overflow-y:auto;padding:4px 16px 100px;display:flex;flex-direction:column;gap:8px}
+.vault-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);padding:40px;text-align:center}
+.empty-ico{font-size:48px;opacity:.25}.empty-txt{font-size:14px;line-height:1.7}
+
+/* Entry Card - List */
+.entry-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px;transition:all .2s;animation:fin .25s ease;cursor:default}
+.entry-card:hover{border-color:var(--bdr2);background:var(--card2)}
+.entry-card.fav{border-left:3px solid var(--gold)}
+.entry-icon{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 12px rgba(0,0,0,.3)}
+.entry-body{flex:1;min-width:0}
+.entry-top{display:flex;align-items:center;gap:6px}
+.entry-app{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-fav{font-size:12px;cursor:pointer;transition:transform .2s}.entry-fav:hover{transform:scale(1.3)}
+.entry-cat{font-size:9px;font-weight:600;padding:2px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.entry-login{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-url{font-size:11px;color:var(--blue2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-decoration:none}
+.entry-url:hover{text-decoration:underline}
+.entry-pwd{display:flex;align-items:center;gap:4px;margin-top:4px}
+.entry-pwd-text{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--bg3);border-radius:6px;padding:3px 8px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-note{font-size:11px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:4px}
+.entry-age{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}
+.entry-age.fresh{color:var(--green);background:rgba(16,185,129,.1)}.entry-age.aging{color:var(--gold);background:rgba(245,158,11,.1)}.entry-age.old{color:var(--red);background:rgba(239,68,68,.1)}
+.entry-actions{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.act-btn{width:32px;height:32px;border-radius:9px;border:1px solid var(--bdr);background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .12s;color:var(--muted)}
+.act-btn:hover{border-color:var(--bdr2);color:var(--text);background:var(--card2)}
+.act-btn.copied{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.4);color:var(--green)}
+.act-btn.del:hover{border-color:rgba(239,68,68,.4);color:var(--red);background:rgba(239,68,68,.06)}
+
+/* Entry Card - Grid */
+.entry-card.grid-mode{flex-direction:column;align-items:stretch;padding:16px;gap:10px}
+.entry-card.grid-mode .entry-icon{width:48px;height:48px;border-radius:14px;font-size:20px}
+.entry-card.grid-mode .entry-actions{justify-content:center;margin-top:4px}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(6,9,15,.88);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadein .15s}
+.modal-overlay.off{display:none}
+.modal{background:var(--card);border:1px solid var(--bdr2);border-radius:22px;padding:28px;width:100%;max-width:440px;box-shadow:0 32px 80px rgba(0,0,0,.7);animation:up .3s cubic-bezier(.34,1.3,.64,1);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.fg{margin-bottom:14px}
+.flbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;display:block}
+.fi{width:100%;background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:10px 13px;font-size:14px;color:var(--text);outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--muted)}
+.fi-select{width:100%;background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:10px 13px;font-size:14px;color:var(--text);outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(180,200,230,0.45)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px}
+.fi-select:focus{border-color:var(--blue)}
+.pw-row{position:relative;display:flex;gap:6px}
+.pw-row .fi{flex:1;font-family:var(--mono);letter-spacing:.05em;padding-right:38px}
+.pw-toggle{position:absolute;right:82px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:15px;transition:color .15s;background:none;border:none}.pw-toggle:hover{color:var(--text)}
+.pw-gen-btn{background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:10px 12px;font-size:14px;cursor:pointer;color:var(--muted);transition:all .15s;white-space:nowrap}
+.pw-gen-btn:hover{border-color:var(--bdr2);color:var(--text);background:var(--card2)}
+
+/* Password Strength */
+.pwd-strength{display:flex;gap:3px;margin-top:6px;align-items:center}
+.pwd-bar{flex:1;height:4px;border-radius:2px;background:var(--bg3);overflow:hidden}
+.pwd-bar-fill{height:100%;border-radius:2px;transition:width .3s,background .3s}
+.pwd-str-label{font-size:10px;font-weight:600;margin-left:6px;min-width:50px;text-align:right}
+
+/* Favorite toggle */
+.fav-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0}
+.fav-toggle input{display:none}
+.fav-star{font-size:22px;transition:transform .2s}.fav-toggle input:checked+.fav-star{transform:scale(1.2)}
+.fav-label{font-size:13px;color:var(--text2)}
+
+/* Modal actions */
+.modal-actions{display:flex;gap:8px;margin-top:20px}
+.btn-cancel{flex:1;background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:11px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s}
+.btn-cancel:hover{color:var(--text);border-color:var(--bdr2)}
+.btn-save{flex:2;background:linear-gradient(135deg,var(--blue3),var(--blue));border:none;border-radius:11px;padding:11px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;box-shadow:0 4px 14px rgba(59,130,246,.3)}
+.btn-save:hover{transform:translateY(-1px)}
+
+/* ── PASSWORD GENERATOR PANEL ── */
+.gen-panel{background:var(--bg3);border:1px solid var(--bdr);border-radius:var(--radius);padding:14px;margin-top:8px;animation:fin .2s ease}
+.gen-panel.off{display:none}
+.gen-result{display:flex;gap:6px;margin-bottom:12px}
+.gen-output{flex:1;font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:9px 11px;color:var(--green2);word-break:break-all;min-height:38px}
+.gen-copy{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:14px;transition:all .15s}
+.gen-copy:hover{background:var(--card2);border-color:var(--bdr2)}
+.gen-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.gen-label{font-size:12px;color:var(--text2);min-width:70px}
+.gen-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--bdr);outline:none}
+.gen-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,.4)}
+.gen-val{font-family:var(--mono);font-size:13px;font-weight:600;min-width:24px;text-align:center}
+.gen-checks{display:flex;flex-wrap:wrap;gap:6px}
+.gen-check{display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:var(--text2);transition:all .15s}
+.gen-check:hover{border-color:var(--bdr2)}
+.gen-check.active{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.08);color:var(--blue2)}
+.gen-check input{display:none}
+.gen-go{width:100%;margin-top:10px;background:var(--card);border:1px solid var(--bdr2);border-radius:10px;padding:9px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s}
+.gen-go:hover{background:var(--card2);border-color:var(--bdr3)}
+.gen-use{width:100%;margin-top:6px;background:linear-gradient(135deg,var(--green),#059669);border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s}
+.gen-use:hover{transform:translateY(-1px)}
+
+/* ── EXPORT MODAL ── */
+.export-info{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.export-btn{width:100%;background:var(--card);border:1px solid var(--bdr2);border-radius:var(--radius);padding:14px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
+.export-btn:hover{background:var(--card2);border-color:var(--bdr3);transform:translateY(-1px)}
+.export-btn .ico{font-size:18px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--card2);border:1px solid var(--bdr2);border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;color:var(--text);z-index:500;opacity:0;transition:all .25s;white-space:nowrap;pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(16,185,129,.4);color:var(--green)}.toast.ko{border-color:rgba(239,68,68,.4);color:var(--red)}
+
+/* ── VERSION BADGE ── */
+.ver{position:fixed;bottom:8px;right:10px;z-index:2;font-size:9px;color:rgba(255,255,255,.15);font-family:var(--mono);pointer-events:none}
+
+/* ── CONFIG OVERLAY ── */
+#cfgOverlay{position:fixed;inset:0;z-index:200;background:rgba(6,9,15,.95);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;padding:20px}
+#cfgOverlay.off{display:none}
+
+@media(max-width:480px){
+  .pin-box{padding:28px 18px;border-radius:20px}
+  .modal{padding:22px;border-radius:18px;max-height:85vh}
+  .toolbar{gap:6px}
+  .entry-actions{gap:3px}
+  .act-btn{width:28px;height:28px;font-size:12px;border-radius:7px}
+  .stats-bar{padding:8px 12px}
+  .vault-list{padding:4px 12px 100px}
+}
+</style>
+</head>
+<body>
+<div class="ver">TAF COFFRE-FORT v2.0</div>
+<div class="toast" id="toast"></div>
+<div id="particles"></div>
+
+<!-- CONFIG OVERLAY -->
+<div id="cfgOverlay" class="off">
+  <div class="modal">
+    <div class="modal-title">⚙️ Configuration Drive</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:20px">
+      Collez l'<strong style="color:var(--gold)">ID du dossier Drive</strong> pour la sauvegarde chiffrée de vos coffres.
+    </div>
+    <div class="fg">
+      <label class="flbl">ID Dossier Drive</label>
+      <input type="text" class="fi" id="cfgFolder" placeholder="1AbCdEfGhIjKlMnOp…" autocomplete="off">
+    </div>
+    <button class="btn-save" style="width:100%;margin-top:8px" onclick="saveConfig()">✓ Valider</button>
+  </div>
+</div>
+
+<!-- SCREEN LOGIN -->
+<div class="scr" id="sLogin">
+  <div class="login-wrap">
+    <div class="login-logo">🔐</div>
+    <div class="login-brand">
+      <div class="login-tag">Trans Air Freight · Roissy CDG</div>
+      <div class="login-title">TAF Coffre-Fort</div>
+      <div class="login-sub">Gestionnaire de mots de passe sécurisé</div>
+    </div>
+    <div class="login-card">
+      <div class="login-avatar">CH</div>
+      <div class="login-name">Christophe</div>
+      <div class="login-role">Directeur Import</div>
+      <button class="login-btn" onclick="goPin()">🔓 Ouvrir mon coffre</button>
+    </div>
+    <div class="login-secure"><span>🛡</span> Chiffrement AES-256 · Données chiffrées sur Drive</div>
+  </div>
+</div>
+
+<!-- SCREEN PIN -->
+<div class="scr off" id="sPin">
+  <div class="pin-box" id="pinBox">
+    <div class="pin-avatar">CH</div>
+    <div class="pin-name">Christophe</div>
+    <div class="pin-label" id="pinLabel">Entrez votre code PIN</div>
+    <div class="dots">
+      <div class="dot" id="d0"></div><div class="dot" id="d1"></div>
+      <div class="dot" id="d2"></div><div class="dot" id="d3"></div>
+    </div>
+    <div class="pin-err" id="pinErr"></div>
+    <div class="pin-attempts off" id="pinAttempts"></div>
+    <div class="pad">
+      <button class="pb" onclick="pinInput('1')">1</button><button class="pb" onclick="pinInput('2')">2</button><button class="pb" onclick="pinInput('3')">3</button>
+      <button class="pb" onclick="pinInput('4')">4</button><button class="pb" onclick="pinInput('5')">5</button><button class="pb" onclick="pinInput('6')">6</button>
+      <button class="pb" onclick="pinInput('7')">7</button><button class="pb" onclick="pinInput('8')">8</button><button class="pb" onclick="pinInput('9')">9</button>
+      <button class="pb fn" onclick="pinClear()">⌫</button><button class="pb" onclick="pinInput('0')">0</button><button class="pb ok" onclick="pinSubmit()">✓</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="goLogin()">← Retour</div>
+  </div>
+</div>
+
+<!-- SCREEN VAULT -->
+<div class="scr off" id="sVault">
+  <!-- Header -->
+  <div class="vault-header">
+    <div class="vh-avatar">CH</div>
+    <div class="vh-info">
+      <div class="vh-title">Mon Coffre-Fort</div>
+      <div class="vh-meta">
+        <span class="vh-stat"><span class="vh-dot green" id="driveDot"></span><span id="driveLabel">Drive ✓</span></span>
+        <span class="auto-lock-badge" id="lockTimer">🔒 5:00</span>
+      </div>
+    </div>
+    <button class="hdr-btn" onclick="openStats()" title="Statistiques">📊</button>
+    <button class="hdr-btn" onclick="openExport()" title="Exporter">💾</button>
+    <button class="hdr-btn" onclick="lockVault()" title="Verrouiller">🔒</button>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar off" id="statsBar">
+    <div class="stat-pill"><span class="ico">📦</span><span class="num" id="statTotal">0</span> entrées</div>
+    <div class="stat-pill"><span class="ico">⭐</span><span class="num" id="statFav">0</span> favoris</div>
+    <div class="stat-pill"><span class="ico">💪</span>Force moy. <span class="num" id="statStrength">-</span></div>
+    <div class="stat-pill"><span class="ico">⚠️</span><span class="num" id="statOld">0</span> anciens</div>
+    <div class="stat-pill"><span class="ico">🏷</span><span class="num" id="statCats">0</span> catégories</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="search-ico">🔍</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Rechercher…" oninput="renderEntries()">
+    </div>
+    <select class="filter-select" id="filterCat" onchange="renderEntries()">
+      <option value="">Toutes</option>
+      <option value="douane">🛃 Douane</option>
+      <option value="compagnies">✈️ Compagnies</option>
+      <option value="outils">🔧 Outils</option>
+      <option value="email">📧 Email</option>
+      <option value="banque">🏦 Banque</option>
+      <option value="perso">👤 Perso</option>
+      <option value="autre">📁 Autre</option>
+    </select>
+    <select class="filter-select" id="sortBy" onchange="renderEntries()" style="min-width:90px">
+      <option value="name">A → Z</option>
+      <option value="date">Récent</option>
+      <option value="cat">Catégorie</option>
+      <option value="fav">Favoris</option>
+    </select>
+    <button class="tb-btn" id="viewToggle" onclick="toggleView()" title="Vue grille/liste">☰</button>
+    <button class="btn-add" onclick="openAddModal()"><span>+</span> Ajouter</button>
+  </div>
+
+  <!-- Entry List -->
+  <div class="vault-list" id="vaultList"></div>
+</div>
+
+<!-- MODAL ADD/EDIT -->
+<div class="modal-overlay off" id="entryModal" onclick="if(event.target===this)closeEntryModal()">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">✨ Nouvelle entrée</div>
+
+    <div class="fg">
+      <label class="flbl">Application / Site *</label>
+      <input type="text" class="fi" id="fApp" placeholder="ex : Airtable, WFS, Gmail…" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label class="flbl">URL (optionnel)</label>
+      <input type="url" class="fi" id="fUrl" placeholder="https://app.example.com" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label class="flbl">Login / Email *</label>
+      <input type="text" class="fi" id="fLogin" placeholder="prenom@taf-cdg.fr" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label class="flbl">Mot de passe *</label>
+      <div class="pw-row">
+        <input type="password" class="fi" id="fPwd" placeholder="••••••••" autocomplete="off" oninput="updateStrength()">
+        <button class="pw-toggle" onclick="togglePwdVis()">👁</button>
+        <button class="pw-gen-btn" onclick="toggleGenPanel()">🎲 Générer</button>
+      </div>
+      <div class="pwd-strength" id="pwdStrength">
+        <div class="pwd-bar"><div class="pwd-bar-fill" id="strBar1"></div></div>
+        <div class="pwd-bar"><div class="pwd-bar-fill" id="strBar2"></div></div>
+        <div class="pwd-bar"><div class="pwd-bar-fill" id="strBar3"></div></div>
+        <div class="pwd-bar"><div class="pwd-bar-fill" id="strBar4"></div></div>
+        <span class="pwd-str-label" id="strLabel"></span>
+      </div>
+
+      <!-- Generator Panel -->
+      <div class="gen-panel off" id="genPanel">
+        <div class="gen-result">
+          <div class="gen-output" id="genOutput">—</div>
+          <button class="gen-copy" onclick="copyGenerated()" title="Copier">📋</button>
+        </div>
+        <div class="gen-row">
+          <span class="gen-label">Longueur</span>
+          <input type="range" class="gen-slider" id="genLength" min="8" max="40" value="16" oninput="updateGenLength()">
+          <span class="gen-val" id="genLenVal">16</span>
+        </div>
+        <div class="gen-checks">
+          <label class="gen-check active" onclick="toggleGenOpt(this)"><input type="checkbox" checked>ABC</label>
+          <label class="gen-check active" onclick="toggleGenOpt(this)"><input type="checkbox" checked>abc</label>
+          <label class="gen-check active" onclick="toggleGenOpt(this)"><input type="checkbox" checked>123</label>
+          <label class="gen-check active" onclick="toggleGenOpt(this)"><input type="checkbox" checked>!@#</label>
+        </div>
+        <button class="gen-go" onclick="generatePwd()">🔄 Régénérer</button>
+        <button class="gen-use" onclick="useGenerated()">✓ Utiliser ce mot de passe</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="flbl">Catégorie</label>
+      <select class="fi-select" id="fCat">
+        <option value="autre">📁 Autre</option>
+        <option value="douane">🛃 Douane</option>
+        <option value="compagnies">✈️ Compagnies</option>
+        <option value="outils">🔧 Outils internes</option>
+        <option value="email">📧 Email</option>
+        <option value="banque">🏦 Banque</option>
+        <option value="perso">👤 Perso</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="flbl">Notes (optionnel)</label>
+      <input type="text" class="fi" id="fNotes" placeholder="compte admin, expire en juin…" autocomplete="off">
+    </div>
+    <label class="fav-toggle">
+      <input type="checkbox" id="fFav">
+      <span class="fav-star" id="favStar">☆</span>
+      <span class="fav-label">Marquer comme favori</span>
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEntryModal()">Annuler</button>
+      <button class="btn-save" onclick="saveEntry()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXPORT -->
+<div class="modal-overlay off" id="exportModal" onclick="if(event.target===this)closeExport()">
+  <div class="modal">
+    <div class="modal-title">💾 Export & Sauvegarde</div>
+    <div class="export-info">
+      Exportez une copie chiffrée de votre coffre. Le fichier est protégé par votre PIN et ne peut être lu qu'avec cette application.
+    </div>
+    <button class="export-btn" onclick="exportVault()"><span class="ico">📥</span> Télécharger le coffre chiffré (.json)</button>
+    <button class="export-btn" onclick="importVault()"><span class="ico">📤</span> Importer un coffre</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    <div style="margin-top:16px">
+      <button class="btn-cancel" style="width:100%" onclick="closeExport()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STATS -->
+<div class="modal-overlay off" id="statsModal" onclick="if(event.target===this)closeStats()">
+  <div class="modal">
+    <div class="modal-title">📊 Statistiques du coffre</div>
+    <div id="statsContent"></div>
+    <div style="margin-top:16px">
+      <button class="btn-cancel" style="width:100%" onclick="closeStats()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// TAF COFFRE-FORT v2.0
+// Chiffrement AES-256 · Auto-lock · Catégories
+// ═══════════════════════════════════════════
+
+const PROXY='https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec';
+let FOLDER=localStorage.getItem('taf_cf_folder')||'143DZMp79_EfrVAjyOMquBU0L-JXlKdnF';
+const VAULT_FILE='coffre_christophe_v2.json';
+const AUTO_LOCK_MS=5*60*1000; // 5 minutes
+const MAX_PIN_ATTEMPTS=5;
+const LOCKOUT_MS=30000; // 30s lockout
+
+const CATEGORIES={
+  douane:{label:'Douane',icon:'🛃',color:'#3B82F6',bg:'rgba(59,130,246,.15)'},
+  compagnies:{label:'Compagnies',icon:'✈️',color:'#8B5CF6',bg:'rgba(139,92,246,.15)'},
+  outils:{label:'Outils',icon:'🔧',color:'#06B6D4',bg:'rgba(6,182,212,.15)'},
+  email:{label:'Email',icon:'📧',color:'#EC4899',bg:'rgba(236,72,153,.15)'},
+  banque:{label:'Banque',icon:'🏦',color:'#F59E0B',bg:'rgba(245,158,11,.15)'},
+  perso:{label:'Perso',icon:'👤',color:'#10B981',bg:'rgba(16,185,129,.15)'},
+  autre:{label:'Autre',icon:'📁',color:'#6B7280',bg:'rgba(107,114,128,.15)'}
+};
+
+// ── STATE ──
+let vault={entries:[]};
+let pinBuffer='';
+let pinAttempts=0;
+let lockedUntil=0;
+let editId=null;
+let pwdVisible=false;
+let viewMode='list'; // list | grid
+let autoLockTimer=null;
+let autoLockRemaining=AUTO_LOCK_MS;
+let autoLockInterval=null;
+let visiblePwds={};
+let cryptoKey=null; // derived from PIN
+
+// ── UTILS ──
+const $=id=>document.getElementById(id);
+const show=id=>$(id)?.classList.remove('off');
+const hide=id=>$(id)?.classList.add('off');
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function toast(msg,type=''){const t=$('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600)}
+
+// ── PARTICLES ──
+(()=>{const c=$('particles');for(let i=0;i<40;i++){const p=document.createElement('div');p.className='particle';const sz=Math.random()*3+1;p.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${Math.random()*10+5}s;--dl:-${Math.random()*8}s;--dx:${(Math.random()-.5)*60}px;--dy:${(Math.random()-.5)*60}px;--sc:${Math.random()*.5+.3}`;c.appendChild(p)}})();
+
+// ── AES-256 ENCRYPTION ──
+async function deriveKey(pin,salt){
+  const enc=new TextEncoder();
+  const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(pin),{name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},keyMaterial,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptData(data,pin){
+  const salt='TAF_COFFRE_FORT_2026';
+  const key=await deriveKey(pin,salt);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=new TextEncoder();
+  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(data)));
+  return {salt,iv:Array.from(iv),data:Array.from(new Uint8Array(encrypted)),v:2};
+}
+async function decryptData(envelope,pin){
+  try{
+    const key=await deriveKey(pin,envelope.salt||'TAF_COFFRE_FORT_2026');
+    const iv=new Uint8Array(envelope.iv);
+    const data=new Uint8Array(envelope.data);
+    const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data);
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  }catch(e){return null}
+}
+
+// ── CONFIG ──
+function saveConfig(){
+  const v=$('cfgFolder').value.trim();
+  if(!v){toast('ID requis','ko');return}
+  FOLDER=v;localStorage.setItem('taf_cf_folder',v);
+  hide('cfgOverlay');toast('Configuration sauvegardée ✅','ok');
+}
+
+// ── NAVIGATION ──
+function goLogin(){hide('sPin');show('sLogin')}
+function goPin(){
+  if(!FOLDER){show('cfgOverlay');return}
+  pinBuffer='';updateDots();$('pinErr').textContent='';
+  hide('sLogin');show('sPin');
+  if(Date.now()<lockedUntil){showLockout();return}
+  hide('pinAttempts');
+}
+
+// ── PIN ──
+function updateDots(err=false){
+  for(let i=0;i<4;i++){
+    const d=$('d'+i);d.className='dot';
+    if(err)d.classList.add('err');
+    else if(i<pinBuffer.length)d.classList.add('on');
+  }
+}
+function pinInput(d){
+  if(Date.now()<lockedUntil)return;
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=d;updateDots();$('pinErr').textContent='';
+  if(pinBuffer.length===4)setTimeout(pinSubmit,180);
+}
+function pinClear(){if(pinBuffer.length>0){pinBuffer=pinBuffer.slice(0,-1);updateDots()}}
+
+function showLockout(){
+  const remain=Math.ceil((lockedUntil-Date.now())/1000);
+  if(remain<=0){hide('pinAttempts');return}
+  $('pinAttempts').textContent=`⏳ Trop de tentatives — réessayez dans ${remain}s`;
+  show('pinAttempts');
+  setTimeout(()=>{if(Date.now()>=lockedUntil){hide('pinAttempts');pinAttempts=0}else showLockout()},1000);
+}
+
+async function pinSubmit(){
+  if(pinBuffer.length===0)return;
+  if(Date.now()<lockedUntil){showLockout();pinBuffer='';updateDots();return}
+
+  const pin=pinBuffer;pinBuffer='';updateDots();
+
+  // Try to load and decrypt from Drive
+  const envelope=await loadDrive();
+  if(envelope&&envelope.v===2){
+    const data=await decryptData(envelope,pin);
+    if(data){
+      vault=data;pinAttempts=0;hide('pinAttempts');
+      cryptoKey=pin;openVault();return;
+    }
+  }else if(!envelope){
+    // First time — create vault with this PIN
+    vault={entries:[]};cryptoKey=pin;
+    await saveDrive();openVault();return;
+  }
+
+  // Wrong PIN
+  pinAttempts++;
+  const remaining=MAX_PIN_ATTEMPTS-pinAttempts;
+  if(pinAttempts>=MAX_PIN_ATTEMPTS){
+    lockedUntil=Date.now()+LOCKOUT_MS;
+    showLockout();
+    doShake();updateDots(true);
+    $('pinErr').textContent='Trop de tentatives !';
+    return;
+  }
+  $('pinErr').textContent=`Code incorrect (${remaining} essai${remaining>1?'s':''} restant${remaining>1?'s':''})`;
+  doShake();updateDots(true);
+}
+
+function doShake(){const b=$('pinBox');b.style.animation='none';void b.offsetWidth;b.style.animation='shake .35s ease'}
+
+// ── DRIVE ──
+function driveStatus(s){
+  const d=$('driveDot'),l=$('driveLabel');d.className='vh-dot';
+  if(s==='saving'){d.classList.add('gold');l.textContent='Sauvegarde…'}
+  else if(s==='ok'){d.classList.add('green');l.textContent='Drive ✓'}
+  else if(s==='err'){d.classList.add('red');l.textContent='Erreur Drive'}
+  else{d.classList.add('green');l.textContent='Local'}
+}
+function b64(s){return btoa(unescape(encodeURIComponent(s)))}
+
+async function saveDrive(){
+  if(!FOLDER||!cryptoKey){driveStatus('local');return}
+  driveStatus('saving');
+  try{
+    const encrypted=await encryptData(vault,cryptoKey);
+    const payload={folderId:FOLDER,fileName:VAULT_FILE,mimeType:'application/json',data:b64(JSON.stringify(encrypted))};
+    const r=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    driveStatus(r.ok?'ok':'err');
+    if(!r.ok)toast('Erreur sauvegarde','ko');
+  }catch(e){driveStatus('err');toast('Drive inaccessible','ko')}
+}
+async function loadDrive(){
+  if(!FOLDER)return null;
+  try{
+    const r=await fetch(`${PROXY}?folderId=${encodeURIComponent(FOLDER)}&fileName=${encodeURIComponent(VAULT_FILE)}`);
+    if(!r.ok)return null;
+    const txt=await r.text();
+    if(!txt||txt.trim()===''||txt.trim()==='null')return null;
+    return JSON.parse(txt);
+  }catch(e){return null}
+}
+
+// ── AUTO-LOCK ──
+function resetAutoLock(){
+  clearTimeout(autoLockTimer);clearInterval(autoLockInterval);
+  autoLockRemaining=AUTO_LOCK_MS;
+  updateLockDisplay();
+  autoLockInterval=setInterval(()=>{
+    autoLockRemaining-=1000;
+    if(autoLockRemaining<=0){lockVault();return}
+    updateLockDisplay();
+  },1000);
+  autoLockTimer=setTimeout(lockVault,AUTO_LOCK_MS);
+}
+function updateLockDisplay(){
+  const s=Math.max(0,Math.ceil(autoLockRemaining/1000));
+  const m=Math.floor(s/60);const sec=s%60;
+  $('lockTimer').textContent=`🔒 ${m}:${String(sec).padStart(2,'0')}`;
+  $('lockTimer').style.color=s<=60?'var(--red)':s<=120?'var(--gold)':'var(--muted)';
+}
+
+// ── VAULT ──
+function openVault(){
+  hide('sPin');hide('sLogin');show('sVault');
+  renderEntries();updateStats();driveStatus('ok');
+  resetAutoLock();
+  document.addEventListener('click',resetAutoLock);
+  document.addEventListener('keydown',resetAutoLock);
+  document.addEventListener('touchstart',resetAutoLock);
+}
+function lockVault(){
+  vault={entries:[]};cryptoKey=null;visiblePwds={};
+  clearTimeout(autoLockTimer);clearInterval(autoLockInterval);
+  document.removeEventListener('click',resetAutoLock);
+  document.removeEventListener('keydown',resetAutoLock);
+  document.removeEventListener('touchstart',resetAutoLock);
+  hide('sVault');show('sLogin');
+  toast('Coffre verrouillé 🔒');
+}
+
+// ── RENDER ENTRIES ──
+function renderEntries(){
+  const list=$('vaultList');
+  const entries=vault.entries||[];
+  const query=($('searchInput').value||'').toLowerCase().trim();
+  const catFilter=$('filterCat').value;
+  const sortBy=$('sortBy').value;
+
+  let filtered=entries.filter(e=>{
+    const matchQ=!query||e.app.toLowerCase().includes(query)||e.login.toLowerCase().includes(query)||(e.notes||'').toLowerCase().includes(query)||(e.url||'').toLowerCase().includes(query);
+    const matchCat=!catFilter||e.category===catFilter;
+    return matchQ&&matchCat;
+  });
+
+  // Sort
+  filtered.sort((a,b)=>{
+    if(sortBy==='fav'){if(a.fav&&!b.fav)return-1;if(!a.fav&&b.fav)return 1}
+    if(sortBy==='name')return(a.app||'').localeCompare(b.app||'');
+    if(sortBy==='date')return(b.createdAt||'').localeCompare(a.createdAt||'');
+    if(sortBy==='cat')return(a.category||'').localeCompare(b.category||'');
+    return 0;
+  });
+
+  if(filtered.length===0){
+    list.innerHTML=`<div class="empty-state"><div class="empty-ico">${entries.length===0?'🔐':'🔍'}</div>
+    <div class="empty-txt">${entries.length===0?'Votre coffre est vide.<br>Cliquez <strong>+ Ajouter</strong> pour commencer.':'Aucun résultat pour «&nbsp;'+esc(query)+'&nbsp;»'}</div></div>`;
+    list.className='vault-list';
+    return;
+  }
+
+  const isGrid=viewMode==='grid';
+  list.className=isGrid?'vault-list vault-grid':'vault-list';
+  list.innerHTML=filtered.map(e=>{
+    const cat=CATEGORIES[e.category]||CATEGORIES.autre;
+    const age=getAge(e.createdAt);
+    return `<div class="entry-card${e.fav?' fav':''}${isGrid?' grid-mode':''}" data-id="${e.id}">
+      <div class="entry-icon" style="background:linear-gradient(135deg,${cat.color},${cat.color}99)">${cat.icon}</div>
+      <div class="entry-body">
+        <div class="entry-top">
+          <span class="entry-app">${esc(e.app)}</span>
+          <span class="entry-fav" onclick="toggleFav('${e.id}')">${e.fav?'⭐':'☆'}</span>
+          <span class="entry-cat" style="color:${cat.color};background:${cat.bg}">${cat.label}</span>
+        </div>
+        <div class="entry-login">👤 ${esc(e.login)}</div>
+        ${e.url?`<a class="entry-url" href="${esc(e.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 ${esc(e.url)}</a>`:''}
+        <div class="entry-pwd">
+          <span class="entry-pwd-text" id="pw_${e.id}">${visiblePwds[e.id]?esc(e.password):'••••••••'}</span>
+          <span class="entry-age ${age.cls}">${age.label}</span>
+        </div>
+        ${e.notes?`<div class="entry-note">📝 ${esc(e.notes)}</div>`:''}
+      </div>
+      <div class="entry-actions">
+        <button class="act-btn" onclick="togglePwd('${e.id}')" title="Voir/masquer">👁</button>
+        <button class="act-btn" id="cp_${e.id}" onclick="copyPwd('${e.id}')" title="Copier MDP">📋</button>
+        <button class="act-btn" onclick="copyLogin('${e.id}')" title="Copier login">🔑</button>
+        <button class="act-btn" onclick="editEntry('${e.id}')" title="Modifier">✏️</button>
+        <button class="act-btn del" onclick="deleteEntry('${e.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`
+  }).join('');
+  updateStats();
+}
+
+function getAge(dateStr){
+  if(!dateStr)return{label:'?',cls:'fresh'};
+  const days=Math.floor((Date.now()-new Date(dateStr).getTime())/(86400000));
+  if(days<90)return{label:`${days}j`,cls:'fresh'};
+  if(days<180)return{label:`${Math.floor(days/30)}m`,cls:'aging'};
+  return{label:`${Math.floor(days/30)}m`,cls:'old'};
+}
+
+function toggleView(){
+  viewMode=viewMode==='list'?'grid':'list';
+  $('viewToggle').textContent=viewMode==='list'?'☰':'⊞';
+  renderEntries();
+}
+
+// ── ENTRY ACTIONS ──
+function togglePwd(id){
+  visiblePwds[id]=!visiblePwds[id];
+  const e=(vault.entries||[]).find(x=>x.id===id);
+  const el=$('pw_'+id);
+  if(e&&el)el.textContent=visiblePwds[id]?e.password:'••••••••';
+}
+function copyPwd(id){
+  const e=(vault.entries||[]).find(x=>x.id===id);if(!e)return;
+  navigator.clipboard.writeText(e.password).then(()=>{
+    const b=$('cp_'+id);if(b){b.classList.add('copied');b.textContent='✓';setTimeout(()=>{b.classList.remove('copied');b.textContent='📋'},1500)}
+    toast('Mot de passe copié ✓','ok');
+  }).catch(()=>toast('Copie impossible','ko'));
+}
+function copyLogin(id){
+  const e=(vault.entries||[]).find(x=>x.id===id);if(!e)return;
+  navigator.clipboard.writeText(e.login).then(()=>toast('Login copié ✓','ok'));
+}
+function toggleFav(id){
+  const e=(vault.entries||[]).find(x=>x.id===id);if(!e)return;
+  e.fav=!e.fav;renderEntries();saveDrive();
+}
+function deleteEntry(id){
+  const e=(vault.entries||[]).find(x=>x.id===id);if(!e)return;
+  if(!confirm(`Supprimer "${e.app}" de votre coffre ?`))return;
+  vault.entries=vault.entries.filter(x=>x.id!==id);
+  renderEntries();saveDrive();toast('Entrée supprimée');
+}
+
+// ── ADD / EDIT MODAL ──
+function openAddModal(){
+  editId=null;$('modalTitle').textContent='✨ Nouvelle entrée';
+  ['fApp','fUrl','fLogin','fPwd','fNotes'].forEach(id=>$(id).value='');
+  $('fCat').value='autre';$('fFav').checked=false;
+  $('favStar').textContent='☆';$('fPwd').type='password';pwdVisible=false;
+  hide('genPanel');clearStrength();
+  show('entryModal');setTimeout(()=>$('fApp').focus(),100);
+}
+function editEntry(id){
+  const e=(vault.entries||[]).find(x=>x.id===id);if(!e)return;
+  editId=id;$('modalTitle').textContent='✏️ Modifier l\'entrée';
+  $('fApp').value=e.app;$('fUrl').value=e.url||'';$('fLogin').value=e.login;
+  $('fPwd').value=e.password;$('fNotes').value=e.notes||'';
+  $('fCat').value=e.category||'autre';$('fFav').checked=!!e.fav;
+  $('favStar').textContent=e.fav?'⭐':'☆';
+  $('fPwd').type='password';pwdVisible=false;
+  hide('genPanel');updateStrength();
+  show('entryModal');
+}
+function closeEntryModal(){hide('entryModal')}
+
+// Favorite toggle visual
+$('fFav').addEventListener('change',function(){$('favStar').textContent=this.checked?'⭐':'☆'});
+
+function togglePwdVis(){pwdVisible=!pwdVisible;$('fPwd').type=pwdVisible?'text':'password'}
+
+async function saveEntry(){
+  const app=$('fApp').value.trim();
+  const url=$('fUrl').value.trim();
+  const login=$('fLogin').value.trim();
+  const pwd=$('fPwd').value;
+  const notes=$('fNotes').value.trim();
+  const cat=$('fCat').value;
+  const fav=$('fFav').checked;
+
+  if(!app||!login||!pwd){toast('Champs obligatoires (*) manquants','ko');return}
+
+  // Duplicate check (only on add)
+  if(!editId){
+    const dup=vault.entries.find(e=>e.app.toLowerCase()===app.toLowerCase()&&e.login.toLowerCase()===login.toLowerCase());
+    if(dup&&!confirm(`"${app}" avec ce login existe déjà. Ajouter quand même ?`))return;
+  }
+
+  if(!vault.entries)vault.entries=[];
+  if(editId){
+    const i=vault.entries.findIndex(x=>x.id===editId);
+    if(i!==-1)vault.entries[i]={...vault.entries[i],app,url,login,password:pwd,notes,category:cat,fav,updatedAt:new Date().toISOString()};
+  }else{
+    vault.entries.push({id:uid(),app,url,login,password:pwd,notes,category:cat,fav,createdAt:new Date().toISOString()});
+  }
+  closeEntryModal();renderEntries();
+  toast(editId?'Entrée modifiée ✓':'Entrée ajoutée ✓','ok');
+  await saveDrive();
+}
+
+// ── PASSWORD GENERATOR ──
+function toggleGenPanel(){
+  const p=$('genPanel');
+  if(p.classList.contains('off')){show('genPanel');generatePwd()}
+  else hide('genPanel');
+}
+function updateGenLength(){$('genLenVal').textContent=$('genLength').value}
+function toggleGenOpt(el){el.classList.toggle('active');el.querySelector('input').checked=el.classList.contains('active')}
+
+function generatePwd(){
+  const len=parseInt($('genLength').value);
+  const checks=$('genPanel').querySelectorAll('.gen-check');
+  let chars='';
+  if(checks[0].classList.contains('active'))chars+='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if(checks[1].classList.contains('active'))chars+='abcdefghijklmnopqrstuvwxyz';
+  if(checks[2].classList.contains('active'))chars+='0123456789';
+  if(checks[3].classList.contains('active'))chars+='!@#$%^&*()-_=+[]{}|;:,.<>?';
+  if(!chars){toast('Cochez au moins une option','ko');return}
+  const arr=new Uint32Array(len);crypto.getRandomValues(arr);
+  let pwd='';for(let i=0;i<len;i++)pwd+=chars[arr[i]%chars.length];
+  $('genOutput').textContent=pwd;
+}
+function copyGenerated(){
+  const pwd=$('genOutput').textContent;
+  if(!pwd||pwd==='—')return;
+  navigator.clipboard.writeText(pwd).then(()=>toast('Copié ✓','ok'));
+}
+function useGenerated(){
+  const pwd=$('genOutput').textContent;
+  if(!pwd||pwd==='—')return;
+  $('fPwd').value=pwd;$('fPwd').type='text';pwdVisible=true;
+  hide('genPanel');updateStrength();
+  toast('Mot de passe appliqué ✓','ok');
+}
+
+// ── PASSWORD STRENGTH ──
+function getStrength(pwd){
+  if(!pwd)return{score:0,label:'',color:'transparent'};
+  let score=0;
+  if(pwd.length>=8)score++;if(pwd.length>=12)score++;if(pwd.length>=16)score++;
+  if(/[A-Z]/.test(pwd)&&/[a-z]/.test(pwd))score++;
+  if(/\d/.test(pwd))score++;
+  if(/[^A-Za-z0-9]/.test(pwd))score++;
+  const lvl=Math.min(4,Math.ceil(score*4/6));
+  const labels=['','Faible','Moyen','Fort','Très fort'];
+  const colors=['transparent','#EF4444','#F59E0B','#10B981','#3B82F6'];
+  return{score:lvl,label:labels[lvl],color:colors[lvl]};
+}
+function updateStrength(){
+  const pwd=$('fPwd').value;
+  const s=getStrength(pwd);
+  for(let i=1;i<=4;i++){
+    const bar=$('strBar'+i);
+    bar.style.width=i<=s.score?'100%':'0%';
+    bar.style.background=s.color;
+  }
+  $('strLabel').textContent=s.label;$('strLabel').style.color=s.color;
+}
+function clearStrength(){for(let i=1;i<=4;i++)$('strBar'+i).style.width='0%';$('strLabel').textContent=''}
+
+// ── STATS ──
+function updateStats(){
+  const entries=vault.entries||[];
+  $('statTotal').textContent=entries.length;
+  $('statFav').textContent=entries.filter(e=>e.fav).length;
+  $('statOld').textContent=entries.filter(e=>{
+    if(!e.createdAt)return false;
+    return(Date.now()-new Date(e.createdAt).getTime())>180*86400000;
+  }).length;
+  const cats=new Set(entries.map(e=>e.category||'autre'));
+  $('statCats').textContent=cats.size;
+  // Average strength
+  if(entries.length>0){
+    const avg=entries.reduce((s,e)=>s+getStrength(e.password).score,0)/entries.length;
+    const labels=['—','Faible','Moyen','Fort','Très fort'];
+    $('statStrength').textContent=labels[Math.round(avg)]||'—';
+  }else{$('statStrength').textContent='—'}
+}
+function openStats(){
+  const entries=vault.entries||[];
+  const catCount={};entries.forEach(e=>{const c=e.category||'autre';catCount[c]=(catCount[c]||0)+1});
+  const weakPwds=entries.filter(e=>getStrength(e.password).score<=1);
+  const oldPwds=entries.filter(e=>e.createdAt&&(Date.now()-new Date(e.createdAt).getTime())>180*86400000);
+
+  let html=`<div style="display:flex;flex-direction:column;gap:16px">`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+  html+=`<div class="stat-pill" style="flex-direction:column;padding:14px;align-items:flex-start"><span style="font-size:24px;font-weight:800;color:var(--blue)">${entries.length}</span><span style="font-size:11px;color:var(--muted)">Total entrées</span></div>`;
+  html+=`<div class="stat-pill" style="flex-direction:column;padding:14px;align-items:flex-start"><span style="font-size:24px;font-weight:800;color:var(--gold)">${entries.filter(e=>e.fav).length}</span><span style="font-size:11px;color:var(--muted)">Favoris</span></div>`;
+  html+=`</div>`;
+
+  // Categories breakdown
+  html+=`<div><div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Par catégorie</div>`;
+  Object.entries(catCount).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
+    const cat=CATEGORIES[k]||CATEGORIES.autre;
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0"><span>${cat.icon}</span><span style="flex:1;font-size:13px">${cat.label}</span><span style="font-family:var(--mono);font-size:13px;font-weight:600">${v}</span></div>`;
+  });
+  html+=`</div>`;
+
+  // Alerts
+  if(weakPwds.length>0){
+    html+=`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px"><div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">⚠️ ${weakPwds.length} mot${weakPwds.length>1?'s':''} de passe faible${weakPwds.length>1?'s':''}</div>`;
+    weakPwds.forEach(e=>html+=`<div style="font-size:12px;color:var(--text2);padding:2px 0">• ${esc(e.app)}</div>`);
+    html+=`</div>`;
+  }
+  if(oldPwds.length>0){
+    html+=`<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:12px"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:6px">🕐 ${oldPwds.length} mot${oldPwds.length>1?'s':''} de passe ancien${oldPwds.length>1?'s':''} (+6 mois)</div>`;
+    oldPwds.forEach(e=>html+=`<div style="font-size:12px;color:var(--text2);padding:2px 0">• ${esc(e.app)}</div>`);
+    html+=`</div>`;
+  }
+
+  html+=`</div>`;
+  $('statsContent').innerHTML=html;
+  show('statsModal');
+}
+function closeStats(){hide('statsModal')}
+function toggleStatsBar(){$('statsBar').classList.toggle('off')}
+
+// ── EXPORT / IMPORT ──
+function openExport(){show('exportModal')}
+function closeExport(){hide('exportModal')}
+async function exportVault(){
+  if(!cryptoKey){toast('Coffre non déverrouillé','ko');return}
+  const encrypted=await encryptData(vault,cryptoKey);
+  const blob=new Blob([JSON.stringify(encrypted,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`TAF_Coffre_Backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(url);
+  toast('Export téléchargé ✓','ok');
+}
+function importVault(){$('importFile').click()}
+async function handleImport(evt){
+  const file=evt.target.files[0];if(!file)return;
+  try{
+    const txt=await file.text();
+    const envelope=JSON.parse(txt);
+    if(!envelope.v||envelope.v!==2){toast('Format invalide','ko');return}
+    const data=await decryptData(envelope,cryptoKey);
+    if(!data){toast('PIN incorrect ou fichier corrompu','ko');return}
+    if(!confirm(`Importer ${(data.entries||[]).length} entrées ? Cela remplacera votre coffre actuel.`))return;
+    vault=data;renderEntries();saveDrive();
+    toast('Import réussi ✓','ok');
+  }catch(e){toast('Erreur import','ko')}
+  evt.target.value='';
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  if(!$('sPin').classList.contains('off')){
+    if(e.key>='0'&&e.key<='9')pinInput(e.key);
+    else if(e.key==='Backspace'){e.preventDefault();pinClear()}
+    else if(e.key==='Enter')pinSubmit();
+    else if(e.key==='Escape')goLogin();
+  }
+  if(!$('entryModal').classList.contains('off')&&e.key==='Escape')closeEntryModal();
+  if(!$('exportModal').classList.contains('off')&&e.key==='Escape')closeExport();
+  if(!$('statsModal').classList.contains('off')&&e.key==='Escape')closeStats();
+});
+
+// ── INIT ──
+window.addEventListener('load',()=>{
+  if(!FOLDER)setTimeout(()=>show('cfgOverlay'),400);
+});
+</script>
+</body>
+</html>
