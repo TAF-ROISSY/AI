@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF TV v3.3 — Hub Média</title>
+<title>TAF TV v3.5 — Hub Média</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.06);--bc:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:3;--rows:2}
@@ -117,7 +117,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
   <div class="grid-area"><div class="tv-grid" id="grid"></div></div>
 </div>
-<div class="ver">TAF TV v3.3</div>
+<div class="ver">TAF TV v3.5</div>
 
 <script>
 /* ═══ FIREBASE ═══ */
@@ -405,76 +405,79 @@ function renderBars(b,w,d){
   b.innerHTML=(bars||'<div class="ml">Aucune donnée</div>')+`<div class="wsrc">${w.srcName}</div>`;
 }
 
-/* ═══ RENDU VOLS — PLEIN ÉCRAN ADAPTATIF (sans scrollbar) ═══ */
+/* ═══ RENDU VOLS — FORMAT TABLEAU AÉROPORT (10+ vols par page) ═══ */
+let volsCarTimer=null;
 function renderVolsCard(b,w,d){
   if(!d.length){b.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%"><div style="text-align:center;color:var(--t3)"><div style="font-size:64px;opacity:.3;margin-bottom:16px">✈️</div><div style="font-size:20px">Aucun vol suivi</div></div></div>';return;}
 
-  /* Taille adaptative : combien de vols on peut afficher ? */
+  /* Hauteur dispo — lignes compactes de 38px pour 10+ vols */
   const wEl=document.getElementById(`w-${w.id}`);
-  const availH=wEl?wEl.offsetHeight-80:500; /* hauteur dispo moins header */
-  const counterH=50;
-  const cardMinH=90;
-  const maxShow=Math.max(1,Math.floor((availH-counterH)/(cardMinH+8)));
-  const showVols=d.slice(0,maxShow);
-  const needCarousel=d.length>maxShow;
+  const availH=wEl?wEl.offsetHeight-80:600;
+  const rowH=38, counterH=44, legendH=30, headerH=24;
+  const maxShow=Math.max(3,Math.floor((availH-counterH-legendH-headerH)/rowH));
+  const totalPages=Math.ceil(d.length/maxShow);
+  if(!w._carPage) w._carPage=0;
+  const page=w._carPage % totalPages;
+  const showVols=d.slice(page*maxShow,(page+1)*maxShow);
 
-  /* Compteurs */
+  /* Compteurs compacts */
   const onTime=d.filter(v=>{const dd=v.lastData;return dd&&!dd.error&&(dd.delayMin||0)<30}).length;
   const delayed=d.filter(v=>{const dd=v.lastData;return dd&&!dd.error&&(dd.delayMin||0)>=30}).length;
   const landed=d.filter(v=>v.lastData&&v.lastData.status==='Atterri').length;
   const alerts=d.filter(v=>v.alerts&&v.alerts.length>0).length;
 
-  const cs=maxShow<=3?'18px':'14px'; /* taille compteurs adaptative */
-  const counters=`<div style="display:flex;gap:8px;margin-bottom:8px;flex-shrink:0">
-    <div style="flex:1;text-align:center;padding:6px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:${cs};color:var(--cyan)">${d.length}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Vols</div></div>
-    <div style="flex:1;text-align:center;padding:6px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:${cs};color:#1a7a3a">${onTime}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">À l'heure</div></div>
-    <div style="flex:1;text-align:center;padding:6px;background:var(--card2);border-radius:8px;border:1px solid ${delayed?'#c06000':'var(--bd)'}"><div style="font-family:var(--mono);font-weight:700;font-size:${cs};color:#c06000">${delayed}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Retard</div></div>
-    <div style="flex:1;text-align:center;padding:6px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:${cs};color:var(--t2)">${landed}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Atterris</div></div>
-    <div style="flex:1;text-align:center;padding:6px;background:var(--card2);border-radius:8px;border:1px solid ${alerts?'#c00020':'var(--bd)'}"><div style="font-family:var(--mono);font-weight:700;font-size:${cs};color:#c00020">${alerts}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Alertes</div></div>
+  const counters=`<div style="display:flex;gap:6px;margin-bottom:6px;flex-shrink:0">
+    <div style="flex:1;text-align:center;padding:4px;background:var(--card2);border-radius:6px;border:1px solid var(--bd)"><span style="font-family:var(--mono);font-weight:700;font-size:16px;color:var(--cyan)">${d.length}</span> <span style="font-size:8px;color:var(--t3)">VOLS</span></div>
+    <div style="flex:1;text-align:center;padding:4px;background:var(--card2);border-radius:6px;border:1px solid var(--bd)"><span style="font-family:var(--mono);font-weight:700;font-size:16px;color:#1a7a3a">${onTime}</span> <span style="font-size:8px;color:var(--t3)">OK</span></div>
+    <div style="flex:1;text-align:center;padding:4px;background:var(--card2);border-radius:6px;border:1px solid ${delayed?'#c06000':'var(--bd)'}"><span style="font-family:var(--mono);font-weight:700;font-size:16px;color:#c06000">${delayed}</span> <span style="font-size:8px;color:var(--t3)">RETARD</span></div>
+    <div style="flex:1;text-align:center;padding:4px;background:var(--card2);border-radius:6px;border:1px solid var(--bd)"><span style="font-family:var(--mono);font-weight:700;font-size:16px;color:var(--t2)">${landed}</span> <span style="font-size:8px;color:var(--t3)">ATTERRIS</span></div>
+    <div style="flex:1;text-align:center;padding:4px;background:var(--card2);border-radius:6px;border:1px solid ${alerts?'#c00020':'var(--bd)'}"><span style="font-family:var(--mono);font-weight:700;font-size:16px;color:#c00020">${alerts}</span> <span style="font-size:8px;color:var(--t3)">ALERTES</span></div>
   </div>`;
 
-  /* Taille de police adaptative */
-  const fs=showVols.length<=2?{num:'20px',badge:'12px',info:'14px',lbl:'9px'}:showVols.length<=4?{num:'16px',badge:'10px',info:'12px',lbl:'8px'}:{num:'14px',badge:'9px',info:'11px',lbl:'7px'};
+  /* En-tête tableau */
+  const header=`<div style="display:grid;grid-template-columns:32px 80px 1fr 80px 80px 80px 100px 90px;gap:2px;padding:2px 6px;border-bottom:1px solid var(--bd);flex-shrink:0">
+    <span></span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">VOL</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">STATUT</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">PRÉVUE</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">RÉELLE</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">RETARD</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">TRAJET</span><span style="font-size:7px;color:var(--t3);letter-spacing:1px">MÀJ</span>
+  </div>`;
 
-  /* Cartes vols — flex:1 pour remplir l'espace */
-  const cards=showVols.map(vol=>{
+  /* Lignes vols compactes */
+  const rows=showVols.map(vol=>{
     const dd=vol.lastData||{};
     const level=dd.delayMin!=null?getDelayLevel(dd.delayMin):null;
     const statusCol=dd.status==='Atterri'?'#00c853':dd.status==='En route'?'#2a9fff':dd.status==='Annulé'?'#ff2020':'#8ab0d0';
     const borderCol=dd.delayMin!=null?(dd.delayMin<0?'#2a7fff':dd.delayMin===0?'#00c853':dd.delayMin<60?'#ff8c00':dd.delayMin<120?'#ff5500':'#ff0030'):'#1a3050';
-
-    const statusBadge=dd.status?`<span style="font-size:${fs.badge};font-weight:800;font-family:var(--mono);color:${statusCol};background:rgba(0,0,0,.3);padding:3px 10px;border-radius:4px;letter-spacing:1px;border:1px solid ${statusCol}40">${dd.status.toUpperCase()}</span>`:'';
-    const delayBadge=level?`<span style="font-size:${fs.badge};font-weight:800;color:${level.color};background:rgba(0,0,0,.3);padding:3px 10px;border-radius:4px;border:1px solid ${level.color}60">${level.emoji} ${level.label}${dd.delayMin!==0?' ('+(dd.delayMin<0?dd.delayMin:'+'+dd.delayMin)+' min)':''}</span>`:'';
-
-    const retardVal=dd.delayMin!=null?(dd.delayMin===0?"À l'heure":dd.delayMin<0?(dd.delayMin+' min ✈'):'+'+dd.delayMin+' min'):'—';
+    const logo=(()=>{const lg=getAirlineLogo(vol.flightNum);return lg?`<img src="${lg}" alt="" style="height:16px;max-width:30px;object-fit:contain">`:'✈';})();
+    const retardVal=dd.delayMin!=null?(dd.delayMin===0?'0':dd.delayMin<0?dd.delayMin+'':'+'+dd.delayMin):'—';
     const retardCol=dd.delayMin!=null?(dd.delayMin<0?'#2a9fff':level?level.color:'#00c853'):'var(--t3)';
-    const logo=(()=>{const lg=getAirlineLogo(vol.flightNum);return lg?`<img src="${lg}" alt="" style="height:24px;max-width:70px;object-fit:contain;border-radius:3px;background:rgba(255,255,255,.08);padding:2px 4px">`:'';})();
+    const stBadge=dd.status?`<span style="font-size:8px;font-weight:700;font-family:var(--mono);color:${statusCol};background:${statusCol}15;padding:1px 5px;border-radius:3px;border:1px solid ${statusCol}35">${dd.status.toUpperCase()}</span>`:'';
+    const dlBadge=level?`<span style="font-size:8px;font-weight:700;color:${level.color};background:${level.color}15;padding:1px 5px;border-radius:3px;border:1px solid ${level.color}40">${level.emoji}${dd.delayMin!==0?' '+(dd.delayMin>0?'+':'')+dd.delayMin+'min':''}</span>`:'';
 
-    const infos=[
-      {lbl:'Arrivée prévue',val:vol.scheduledArr||fmtTimeParis(dd.schArr),col:'#c8d8e8'},
-      {lbl:'Estimée / Réelle',val:fmtTimeParis(dd.actArr||dd.estArr),col:level&&level.code>0?level.color:'#00c853'},
-      {lbl:'Retard',val:retardVal,col:retardCol},
-      {lbl:'Trajet',val:(vol.origin||dd.origin||'?')+' → '+(dd.dest||'CDG'),col:'#8ab0d0'},
-      {lbl:'Màj',val:vol.lastFetch?fmtDateTimeParis(vol.lastFetch):'—',col:'#2a5070'},
-    ];
-
-    return`<div style="flex:1;min-height:0;background:#0a1628;border:1px solid ${borderCol}30;border-left:3px solid ${borderCol};border-radius:10px;padding:8px 14px;display:flex;flex-direction:column;justify-content:center">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="display:flex;align-items:center;gap:10px">${logo}<span style="font-family:var(--mono);font-weight:800;font-size:${fs.num};letter-spacing:2px;color:var(--txt)">${vol.flightNum||'—'}</span></div>
-        <div style="display:flex;gap:6px">${statusBadge}${delayBadge}</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bd);border-radius:6px;overflow:hidden">
-        ${infos.map(i=>`<div style="background:#060d1a;padding:5px 8px"><div style="font-size:${fs.lbl};color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px">${i.lbl}</div><div style="font-family:var(--mono);font-size:${fs.info};font-weight:600;color:${i.col}">${i.val}</div></div>`).join('')}
-      </div>
+    return`<div style="display:grid;grid-template-columns:32px 80px 1fr 80px 80px 80px 100px 90px;gap:2px;padding:3px 6px;border-left:3px solid ${borderCol};border-bottom:1px solid var(--bd);align-items:center">
+      <div style="display:flex;align-items:center;justify-content:center;font-size:12px">${logo}</div>
+      <div style="font-family:var(--mono);font-weight:800;font-size:12px;letter-spacing:1px">${vol.flightNum||'—'}</div>
+      <div style="display:flex;gap:3px;align-items:center">${stBadge}${dlBadge}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:#c8d8e8">${vol.scheduledArr||fmtTimeParis(dd.schArr)}</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:${level&&level.code>0?level.color:'#00c853'}">${fmtTimeParis(dd.actArr||dd.estArr)}</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${retardCol}">${retardVal}</div>
+      <div style="font-size:11px;color:#8ab0d0">${(vol.origin||dd.origin||'?')} → ${dd.dest||'CDG'}</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--t3)">${vol.lastFetch?fmtDateTimeParis(vol.lastFetch):'—'}</div>
     </div>`;
   }).join('');
 
-  /* Légende + indicateur carousel si nécessaire */
-  const legend='<div style="display:flex;gap:8px;margin-top:6px;flex-shrink:0;align-items:center;justify-content:space-between"><div style="display:flex;gap:6px"><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:600;background:rgba(26,122,58,.15);color:#1a7a3a;border:1px solid rgba(26,122,58,.3)">✅ À l\'heure</span><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:600;background:rgba(192,96,0,.15);color:#c06000;border:1px solid rgba(192,96,0,.3)">⚠️ +30 min</span><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:600;background:rgba(176,64,0,.15);color:#b04000;border:1px solid rgba(176,64,0,.3)">🔶 +1 heure</span><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:600;background:rgba(192,0,32,.15);color:#c00020;border:1px solid rgba(192,0,32,.3)">🚨 +2h ou plus</span></div>'
-    +(needCarousel?`<span style="font-size:10px;color:var(--t3);font-style:italic">${showVols.length}/${d.length} vols affichés</span>`:`<span style="font-size:10px;color:var(--t3);font-style:italic">TAF Suivi des Vols</span>`)
-    +'</div>';
+  /* Dots + légende */
+  const dots=totalPages>1?'<div style="display:flex;gap:4px;justify-content:center">'+Array.from({length:totalPages},(_,i)=>`<div style="width:${i===page?'14px':'5px'};height:4px;border-radius:2px;background:${i===page?'var(--cyan)':'var(--t3)'};transition:.3s"></div>`).join('')+'</div>':'';
+  const legend=`<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-top:3px">
+    <div style="display:flex;gap:3px"><span style="padding:1px 4px;border-radius:2px;font-size:7px;font-weight:600;background:#1a7a3a15;color:#1a7a3a;border:1px solid #1a7a3a30">✅ OK</span><span style="padding:1px 4px;border-radius:2px;font-size:7px;font-weight:600;background:#c0600015;color:#c06000;border:1px solid #c0600030">⚠️ +30</span><span style="padding:1px 4px;border-radius:2px;font-size:7px;font-weight:600;background:#b0400015;color:#b04000;border:1px solid #b0400030">🔶 +1h</span><span style="padding:1px 4px;border-radius:2px;font-size:7px;font-weight:600;background:#c0002015;color:#c00020;border:1px solid #c0002030">🚨 +2h</span></div>
+    ${dots}
+    <span style="font-size:8px;color:var(--t3)">${totalPages>1?'p.'+(page+1)+'/'+totalPages+' · ':''}TAF Suivi des Vols</span>
+  </div>`;
 
-  b.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">${counters}<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">${cards}</div>${legend}</div>`;
+  b.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">${counters}${header}<div style="display:flex;flex-direction:column;flex:1;min-height:0">${rows}</div>${legend}</div>`;
+
+  /* Auto-carrousel si plusieurs pages */
+  if(totalPages>1){
+    if(volsCarTimer) clearInterval(volsCarTimer);
+    volsCarTimer=setInterval(()=>{w._carPage=((w._carPage||0)+1)%totalPages;renderVolsCard(b,w,d);},8000);
+  }
 }
 
 function renderPlanning(b,w,d){
