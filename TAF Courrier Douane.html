@@ -951,6 +951,117 @@ function App(){
     setAttachments([]);setSent(false);
   }
 
+  function handleGeneratePDF(){
+    if(!selBur){notify("Sélectionnez un bureau destinataire",false);return;}
+    if(!subject.trim()){notify("Objet requis",false);return;}
+    const bureau=bureaux.find(b=>b.id===selBur);
+    if(!bureau) return;
+    const decl=decls.find(d=>d.id===selDecl);
+    const finalSubject=replacePlaceholders(subject,vars);
+    const finalBody=replacePlaceholders(body,vars);
+    const today=new Date();
+    const dateStr=today.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+    const declLine=decl?decl.prenom+" "+decl.nom+(decl.titre?", "+decl.titre:""):"";
+
+    const html=`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<title>${finalSubject}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap');
+@page{size:A4;margin:20mm 22mm 25mm 22mm;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a1a2e;background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.page{width:210mm;min-height:297mm;margin:0 auto;padding:20mm 22mm 25mm 22mm;position:relative;}
+@media print{.page{padding:0;width:auto;min-height:auto;} .no-print{display:none!important;}}
+/* En-tête */
+.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #c9a84c;margin-bottom:24px;}
+.header-left{}
+.header-logo{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:#1a1a2e;letter-spacing:1px;}
+.header-logo span{color:#c9a84c;}
+.header-sub{font-family:'Inter',sans-serif;font-size:9px;color:#666;margin-top:3px;letter-spacing:0.5px;text-transform:uppercase;}
+.header-right{text-align:right;font-family:'Inter',sans-serif;font-size:9.5px;color:#555;line-height:1.6;}
+/* Date & Réf */
+.meta{display:flex;justify-content:space-between;margin-bottom:20px;font-family:'Inter',sans-serif;font-size:11px;color:#444;}
+.meta-date{font-style:italic;}
+.meta-ref span{font-weight:700;color:#1a1a2e;}
+/* Destinataire */
+.destinataire{background:#f8f7f4;border:1px solid #e8e4d9;border-radius:6px;padding:14px 18px;margin-bottom:22px;font-family:'Inter',sans-serif;}
+.destinataire-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.destinataire-nom{font-size:13px;font-weight:700;color:#1a1a2e;}
+.destinataire-email{font-size:11px;color:#666;margin-top:2px;}
+/* Objet */
+.objet{margin-bottom:20px;padding:10px 16px;background:linear-gradient(135deg,#faf6eb,#f5f0e0);border-left:4px solid #c9a84c;border-radius:0 6px 6px 0;}
+.objet-label{font-family:'Inter',sans-serif;font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;}
+.objet-text{font-size:13px;font-weight:700;color:#1a1a2e;margin-top:2px;}
+/* Corps */
+.corps{margin-bottom:30px;font-size:12.5px;line-height:1.75;text-align:justify;}
+.corps p{margin-bottom:10px;}
+.corps table{width:100%;border-collapse:collapse;margin:14px 0;}
+.corps td{padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;}
+.corps strong{color:#1a1a2e;}
+/* Signature */
+.signature{margin-top:30px;padding-top:16px;border-top:1px solid #ddd;}
+.sig-line{font-family:'Inter',sans-serif;font-size:11px;color:#444;line-height:1.6;}
+.sig-name{font-weight:700;color:#1a1a2e;font-size:12px;}
+/* Pied de page */
+.footer{position:absolute;bottom:20mm;left:22mm;right:22mm;text-align:center;font-family:'Inter',sans-serif;font-size:8px;color:#aaa;border-top:1px solid #e0e0e0;padding-top:8px;}
+@media print{.footer{position:fixed;bottom:10mm;left:15mm;right:15mm;}}
+/* Boutons impression */
+.print-bar{position:fixed;top:0;left:0;right:0;background:#1a1a2e;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.3);}
+.print-bar button{padding:8px 20px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+.print-bar .btn-print{background:#c9a84c;color:#1a1a2e;}
+.print-bar .btn-close{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);}
+.print-bar span{color:#888;font-size:12px;font-family:'Inter',sans-serif;margin-left:auto;}
+</style></head><body>
+<div class="print-bar no-print">
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimer / PDF</button>
+  <button class="btn-close" onclick="window.close()">✕ Fermer</button>
+  <span>TAF — Courrier Douane</span>
+</div>
+<div class="page" style="margin-top:50px;">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">TRANS AIR <span>FREIGHT</span></div>
+      <div class="header-sub">Commissionnaire en Douane Agréé · Aéroport Paris-CDG</div>
+    </div>
+    <div class="header-right">
+      Aéroport de Paris-Charles de Gaulle<br>
+      Bât. 3707 — Zone Fret<br>
+      95700 Roissy-en-France<br>
+      Tél : +33 (0)1 48 64 64 46<br>
+      import@taftrans.fr
+    </div>
+  </div>
+  <div class="meta">
+    <div class="meta-date">Roissy, le ${dateStr}</div>
+    <div class="meta-ref">${vars.ref?"Réf : <span>"+vars.ref+"</span>":""}${vars.lta?" — LTA : <span>"+vars.lta+"</span>":""}</div>
+  </div>
+  <div class="destinataire">
+    <div class="destinataire-label">Destinataire</div>
+    <div class="destinataire-nom">${bureau.nom}</div>
+    <div class="destinataire-email">${bureau.email}</div>
+  </div>
+  <div class="objet">
+    <div class="objet-label">Objet</div>
+    <div class="objet-text">${finalSubject}</div>
+  </div>
+  <div class="corps">${finalBody}</div>
+  ${declLine?'<div class="signature"><div class="sig-name">'+declLine+'</div><div class="sig-line">Trans Air Freight CDG (TAF)<br>Service Import — Commissionnaire en Douane Agréé</div></div>':""}
+  <div class="footer">
+    Trans Air Freight CDG (TAF) · Commissionnaire en Douane Agréé · SARL au capital de XXX € · SIRET XXX · N° TVA XXX<br>
+    Aéroport de Paris-Charles de Gaulle · Bât. 3707 · 95700 Roissy-en-France · Tél : +33 (0)1 48 64 64 46
+  </div>
+</div>
+<script>
+window.onafterprint=function(){};
+</script>
+</body></html>`;
+
+    const w=window.open("","_blank","width=900,height=1100");
+    if(w){w.document.write(html);w.document.close();}
+    else{notify("Popup bloquée — autorisez les popups",false);}
+  }
+
   async function handleDriveBackup(){
     setDriveBacking(true);
     const ok=await driveBackup({app:"taf_courrier_douane",version:VERSION,exportedAt:ts(),templates,bureaux,history},"taf_courrier_backup_"+ts().slice(0,10)+".json");
@@ -1097,6 +1208,9 @@ function App(){
           <div style={{display:"flex",gap:10,marginTop:16,paddingTop:14,borderTop:"1px solid var(--border)",flexWrap:"wrap"}}>
             <Btn variant="gold" onClick={handleSend} disabled={sending}>
               {sending?<><Spinner/> Envoi en cours...</>:"📤 Envoyer via Outlook"}
+            </Btn>
+            <Btn variant="blue" onClick={handleGeneratePDF}>
+              🖨️ Imprimer / PDF
             </Btn>
             <Btn variant="ghost" onClick={resetForm}>Réinitialiser</Btn>
           </div>
