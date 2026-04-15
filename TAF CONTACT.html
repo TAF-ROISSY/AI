@@ -657,7 +657,7 @@
   <div class="header-right">
     <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
     <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Sync Drive</button>
-    <div class="version-badge">v1.0.0</div>
+    <div class="version-badge">v1.1.0</div>
   </div>
 </header>
 
@@ -731,6 +731,9 @@
         <input type="text" placeholder="Rechercher un contact..." oninput="filterCards('douane', this.value)">
       </div>
       <button class="btn-new" onclick="openModal('douane')">+ Nouveau contact Douane</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(79,124,255,0.06);border:1px solid rgba(79,124,255,0.12);border-radius:8px;margin-bottom:12px;font-size:11px;color:rgba(79,124,255,0.8);">
+      📮 Les contacts Douane avec email sont automatiquement disponibles dans <strong style="margin:0 3px;">TAF Courrier Douane</strong> via Firebase
     </div>
     <div class="contacts-grid" id="grid-douane"></div>
   </div>
@@ -1049,6 +1052,9 @@ function saveContact() {
   renderAll();
   closeModal();
   showToast(`Contact enregistré — ${nom}`, 'success');
+  if (editState.tab === 'douane' && contact.email) {
+    setTimeout(() => showToast('📮 Sync → TAF Courrier Douane (via Firebase)', 'success'), 1500);
+  }
   saveToDrive();
 }
 

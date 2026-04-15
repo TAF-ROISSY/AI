@@ -193,7 +193,7 @@ const DRIVE_FOLDER_ID = "1pudOMRgdLQT6IeOP2UzBfrsY61EPK-__";
 const SENDER_PRIMARY  = "christophe@taftrans.fr";
 const SENDER_CC       = "import@taftrans.fr";
 const STORAGE_KEY     = "taf_courrier_v3";
-const VERSION         = "v3.0";
+const VERSION         = "v3.1";
 const PIN_CORRECT     = "1234"; // à changer en Paramètres
 
 /* ═══════════════════════════════════════════════════════════
@@ -814,6 +814,64 @@ function App(){
     window.addEventListener("taf-ops-prefill",()=>{const d2=readOPSBridge();if(d2) setOpsPrefill(d2);});
   },[]);
 
+  // ── Bridge TAF CONTACT → Bureaux : sync contacts douane depuis Firebase ──
+  useEffect(()=>{
+    syncContactsToBureaux();
+    const intv=setInterval(syncContactsToBureaux, 60000); // refresh toutes les 60s
+    return ()=>clearInterval(intv);
+  },[]);
+
+  async function syncContactsToBureaux(){
+    try{
+      const FB="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+      const r=await fetch(FB+"/taf_contact/data.json");
+      if(!r.ok){console.warn("[TAF COURRIER] Firebase fetch failed:",r.status);return;}
+      const contacts=await r.json();
+      if(!contacts){console.log("[TAF COURRIER] Pas de données contacts");return;}
+
+      console.log("[TAF COURRIER] 📇 Données TAF CONTACT reçues:", Object.keys(contacts));
+
+      // Collecter les contacts de TOUTES les catégories et mapper vers bureau
+      const catMap={douane:"douane",handlers:"handler",transporteurs:"handler",autres:"autre"};
+      const imported=[];
+      for(const[catKey,burCat] of Object.entries(catMap)){
+        let list=contacts[catKey];
+        if(!list) continue;
+        // Firebase peut retourner un objet au lieu d'un array — normaliser
+        if(!Array.isArray(list)){
+          list=Object.values(list);
+        }
+        list.forEach(c=>{
+          if(!c||!c.email) return;
+          imported.push({
+            id:"tafcontact_"+(c.id||Math.random().toString(36).slice(2)),
+            cat:burCat,
+            nom:(c.societe?c.societe+" — ":"")+c.nom,
+            email:c.email,
+            code:"",
+            note:(c.poste?c.poste+" · ":"")+(c.tel?c.tel+" · ":"")+(c.notes||""),
+            source:"taf_contact",
+            contact_id:c.id
+          });
+        });
+      }
+
+      console.log("[TAF COURRIER] 📇 "+imported.length+" contacts trouvés avec email");
+      if(!imported.length) return;
+
+      setBureaux(prev=>{
+        // Retirer les anciens contacts importés
+        const manual=prev.filter(b=>b.source!=="taf_contact");
+        // Fusionner : ne pas ajouter si un bureau manuel a le même email
+        const manualEmails=new Set(manual.map(b=>(b.email||"").toLowerCase().trim()));
+        const toAdd=imported.filter(b=>!manualEmails.has(b.email.toLowerCase().trim()));
+        const merged=[...manual,...toAdd];
+        console.log("[TAF COURRIER] 📇 Résultat: "+manual.length+" manuels + "+toAdd.length+" importés = "+merged.length+" bureaux");
+        return merged;
+      });
+    }catch(e){console.warn("[TAF COURRIER] Sync contacts error:",e);}
+  }
+
   function notify(msg,ok=true){setNotif({msg,ok});setTimeout(()=>setNotif(null),3500);}
 
   const triggerBkp=useCallback((action,data)=>{
@@ -956,7 +1014,7 @@ function App(){
                   const cats=bureaux.filter(b=>b.cat===cat.id);
                   if(!cats.length) return null;
                   return <optgroup key={cat.id} label={cat.icon+" "+cat.label}>
-                    {cats.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+                    {cats.map(b=><option key={b.id} value={b.id}>{b.source==="taf_contact"?"📇 ":""}{b.nom}</option>)}
                   </optgroup>;
                 })}
               </select>
@@ -1149,6 +1207,18 @@ function App(){
 
       <div className="alert alert-warn">⚠️ Les adresses email sont indicatives. Vérifiez leur validité auprès des services concernés avant tout envoi officiel.</div>
 
+      {/* Bridge TAF CONTACT */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:bureaux.some(b=>b.source==="taf_contact")?"rgba(79,124,255,0.06)":"rgba(255,255,255,0.03)",border:"1px solid "+(bureaux.some(b=>b.source==="taf_contact")?"rgba(79,124,255,0.15)":"rgba(255,255,255,0.06)"),borderRadius:10,fontSize:12}}>
+        <span style={{fontSize:16}}>📇</span>
+        <div style={{flex:1}}>
+          {bureaux.some(b=>b.source==="taf_contact")
+            ?<><strong style={{color:"#4f7cff"}}>{bureaux.filter(b=>b.source==="taf_contact").length} bureau(x) importés depuis TAF Contact</strong><span style={{color:"var(--textD)",marginLeft:8}}>· Sync auto Firebase</span></>
+            :<span style={{color:"var(--textD)"}}>TAF Contact → aucun contact douane avec email trouvé. Ajoutez des contacts dans TAF Contact (onglet Douane) avec un email.</span>
+          }
+        </div>
+        <button onClick={()=>{syncContactsToBureaux();notify("🔄 Contacts resynchronisés");}} style={{padding:"5px 12px",background:"rgba(79,124,255,0.12)",border:"1px solid rgba(79,124,255,0.25)",borderRadius:6,color:"#4f7cff",fontSize:11,fontWeight:700,cursor:"pointer"}}>🔄 Sync</button>
+      </div>
+
       {/* Filtre catégories */}
       <div className="cat-pills">
         <button className={"cat-pill"+(burCatFilter==="all"?" active":"")} style={{color:"var(--gold)",borderColor:burCatFilter==="all"?"var(--gold)":"transparent"}} onClick={()=>setBurCatFilter("all")}>
@@ -1179,7 +1249,7 @@ function App(){
                   <Btn variant="green" size="sm" onClick={()=>{setEditBurId(null);notify("✅ Sauvegardé");triggerBkp("bureau_updated",b);}}>✓</Btn>
                 </>:<>
                   <div>
-                    <div className="bur-nom">{b.nom}</div>
+                    <div className="bur-nom">{b.nom}{b.source==="taf_contact"&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#4f7cff",background:"rgba(79,124,255,0.12)",border:"1px solid rgba(79,124,255,0.2)",borderRadius:4,padding:"1px 5px",verticalAlign:"middle"}}>📇 Contact</span>}</div>
                     {b.note&&<div style={{fontSize:11,color:"var(--textD)",marginTop:2}}>{b.note}</div>}
                   </div>
                   <div className="bur-email">{b.email}</div>
@@ -1352,7 +1422,7 @@ function App(){
 
     {/* FOOTER */}
     <footer style={{padding:"16px 24px",textAlign:"center",fontSize:11,color:"var(--textD)",borderTop:"1px solid var(--border)"}}>
-      Trans Air Freight CDG — Courrier Douane {VERSION} · {FACTORY_TEMPLATES.length} templates · {FACTORY_BUREAUX.length} bureaux · Bridge TAF OPS · Powered by Make.com
+      Trans Air Freight CDG — Courrier Douane {VERSION} · {FACTORY_TEMPLATES.length} templates · {FACTORY_BUREAUX.length} bureaux · Bridge TAF OPS + TAF Contact · Powered by Make.com
     </footer>
   </div>;
 }
