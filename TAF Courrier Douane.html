@@ -825,34 +825,60 @@ function App(){
   },[]);
 
   // ── Bridge TAF CONTACT → Bureaux : sync contacts douane depuis Firebase ──
+  const [contactSyncStatus,setContactSyncStatus]=useState("pending"); // pending|loading|ok|error|empty
+  const [contactSyncMsg,setContactSyncMsg]=useState("");
+
   useEffect(()=>{
-    syncContactsToBureaux();
-    const intv=setInterval(syncContactsToBureaux, 60000); // refresh toutes les 60s
+    // Premier essai après 1s (laisser le temps à Firebase)
+    setTimeout(()=>syncContactsToBureaux(),1000);
+    // Puis toutes les 60s
+    const intv=setInterval(syncContactsToBureaux, 60000);
     return ()=>clearInterval(intv);
   },[]);
 
   async function syncContactsToBureaux(){
+    setContactSyncStatus("loading");
+    setContactSyncMsg("Connexion Firebase...");
     try{
       const FB="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
       const r=await fetch(FB+"/taf_contact/data.json");
-      if(!r.ok){console.warn("[TAF COURRIER] Firebase fetch failed:",r.status);return;}
+      if(!r.ok){
+        setContactSyncStatus("error");
+        setContactSyncMsg("Firebase erreur HTTP "+r.status);
+        console.warn("[TAF COURRIER] Firebase fetch failed:",r.status);
+        return;
+      }
       const contacts=await r.json();
-      if(!contacts){console.log("[TAF COURRIER] Pas de données contacts");return;}
+      if(!contacts){
+        setContactSyncStatus("empty");
+        setContactSyncMsg("Aucune donnée dans Firebase (taf_contact/data est vide)");
+        console.log("[TAF COURRIER] Pas de données contacts");
+        return;
+      }
 
-      console.log("[TAF COURRIER] 📇 Données TAF CONTACT reçues:", Object.keys(contacts));
+      console.log("[TAF COURRIER] 📇 Données TAF CONTACT reçues:", JSON.stringify(Object.keys(contacts)));
 
-      // Collecter les contacts de TOUTES les catégories et mapper vers bureau
+      // Vérifier la structure
       const catMap={douane:"douane",handlers:"handler",transporteurs:"handler",autres:"autre"};
       const imported=[];
+      let totalContacts=0;
+      let contactsSansEmail=0;
+
       for(const[catKey,burCat] of Object.entries(catMap)){
         let list=contacts[catKey];
         if(!list) continue;
         // Firebase peut retourner un objet au lieu d'un array — normaliser
         if(!Array.isArray(list)){
-          list=Object.values(list);
+          if(typeof list==="object"){
+            list=Object.values(list);
+          }else{
+            continue;
+          }
         }
         list.forEach(c=>{
-          if(!c||!c.email) return;
+          if(!c) return;
+          totalContacts++;
+          if(!c.email){contactsSansEmail++;return;}
           imported.push({
             id:"tafcontact_"+(c.id||Math.random().toString(36).slice(2)),
             cat:burCat,
@@ -866,20 +892,32 @@ function App(){
         });
       }
 
-      console.log("[TAF COURRIER] 📇 "+imported.length+" contacts trouvés avec email");
-      if(!imported.length) return;
+      console.log("[TAF COURRIER] 📇 "+totalContacts+" contacts total, "+imported.length+" avec email, "+contactsSansEmail+" sans email");
+
+      if(!imported.length){
+        setContactSyncStatus("empty");
+        setContactSyncMsg(totalContacts+" contact(s) trouvé(s) mais aucun avec email"+
+          (contactsSansEmail?" ("+contactsSansEmail+" sans email)":""));
+        return;
+      }
 
       setBureaux(prev=>{
-        // Retirer les anciens contacts importés
         const manual=prev.filter(b=>b.source!=="taf_contact");
-        // Fusionner : ne pas ajouter si un bureau manuel a le même email
         const manualEmails=new Set(manual.map(b=>(b.email||"").toLowerCase().trim()));
         const toAdd=imported.filter(b=>!manualEmails.has(b.email.toLowerCase().trim()));
         const merged=[...manual,...toAdd];
         console.log("[TAF COURRIER] 📇 Résultat: "+manual.length+" manuels + "+toAdd.length+" importés = "+merged.length+" bureaux");
         return merged;
       });
-    }catch(e){console.warn("[TAF COURRIER] Sync contacts error:",e);}
+
+      setContactSyncStatus("ok");
+      setContactSyncMsg(imported.length+" contact(s) importé(s) depuis TAF Contact");
+
+    }catch(e){
+      setContactSyncStatus("error");
+      setContactSyncMsg("Erreur: "+e.message);
+      console.warn("[TAF COURRIER] Sync contacts error:",e);
+    }
   }
 
   function notify(msg,ok=true){setNotif({msg,ok});setTimeout(()=>setNotif(null),3500);}
@@ -1434,15 +1472,20 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
       <div className="alert alert-warn">⚠️ Les adresses email sont indicatives. Vérifiez leur validité auprès des services concernés avant tout envoi officiel.</div>
 
       {/* Bridge TAF CONTACT */}
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:bureaux.some(b=>b.source==="taf_contact")?"rgba(79,124,255,0.06)":"rgba(255,255,255,0.03)",border:"1px solid "+(bureaux.some(b=>b.source==="taf_contact")?"rgba(79,124,255,0.15)":"rgba(255,255,255,0.06)"),borderRadius:10,fontSize:12}}>
-        <span style={{fontSize:16}}>📇</span>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
+        background:contactSyncStatus==="ok"?"rgba(79,124,255,0.06)":contactSyncStatus==="error"?"rgba(239,68,68,0.06)":contactSyncStatus==="loading"?"rgba(245,166,35,0.06)":"rgba(255,255,255,0.03)",
+        border:"1px solid "+(contactSyncStatus==="ok"?"rgba(79,124,255,0.15)":contactSyncStatus==="error"?"rgba(239,68,68,0.15)":contactSyncStatus==="loading"?"rgba(245,166,35,0.15)":"rgba(255,255,255,0.06)"),
+        borderRadius:10,fontSize:12}}>
+        <span style={{fontSize:16}}>{contactSyncStatus==="ok"?"📇":contactSyncStatus==="error"?"❌":contactSyncStatus==="loading"?"⏳":"📇"}</span>
         <div style={{flex:1}}>
-          {bureaux.some(b=>b.source==="taf_contact")
-            ?<><strong style={{color:"#4f7cff"}}>{bureaux.filter(b=>b.source==="taf_contact").length} bureau(x) importés depuis TAF Contact</strong><span style={{color:"var(--textD)",marginLeft:8}}>· Sync auto Firebase</span></>
-            :<span style={{color:"var(--textD)"}}>TAF Contact → aucun contact douane avec email trouvé. Ajoutez des contacts dans TAF Contact (onglet Douane) avec un email.</span>
-          }
+          {contactSyncStatus==="ok"&&<><strong style={{color:"#4f7cff"}}>{bureaux.filter(b=>b.source==="taf_contact").length} bureau(x) importés depuis TAF Contact</strong></>}
+          {contactSyncStatus==="error"&&<strong style={{color:"var(--red)"}}>Erreur de synchronisation</strong>}
+          {contactSyncStatus==="loading"&&<strong style={{color:"var(--gold)"}}>Synchronisation en cours...</strong>}
+          {contactSyncStatus==="empty"&&<strong style={{color:"var(--textM)"}}>Aucun contact avec email trouvé</strong>}
+          {contactSyncStatus==="pending"&&<strong style={{color:"var(--textD)"}}>En attente de synchronisation...</strong>}
+          {contactSyncMsg&&<div style={{fontSize:11,color:"var(--textD)",marginTop:2}}>{contactSyncMsg}</div>}
         </div>
-        <button onClick={()=>{syncContactsToBureaux();notify("🔄 Contacts resynchronisés");}} style={{padding:"5px 12px",background:"rgba(79,124,255,0.12)",border:"1px solid rgba(79,124,255,0.25)",borderRadius:6,color:"#4f7cff",fontSize:11,fontWeight:700,cursor:"pointer"}}>🔄 Sync</button>
+        <button onClick={()=>{syncContactsToBureaux().then(()=>notify("🔄 Sync terminée"));}} style={{padding:"5px 12px",background:"rgba(79,124,255,0.12)",border:"1px solid rgba(79,124,255,0.25)",borderRadius:6,color:"#4f7cff",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🔄 Sync maintenant</button>
       </div>
 
       {/* Filtre catégories */}
@@ -1667,6 +1710,41 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
               <span>🔥 Firebase Bridge</span>
               <span style={{color:"var(--green)",fontWeight:700,fontSize:11}}>✓ Actif</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Données */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">🔥</span><span className="card-title">Diagnostic Firebase — TAF Contact</span></div>
+        <div className="card-b">
+          <div style={{fontSize:12,color:"var(--textD)",marginBottom:12}}>
+            Testez la connexion Firebase et vérifiez que les contacts sont bien présents.
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <Btn variant="gold" size="sm" onClick={async()=>{
+              try{
+                const r=await fetch("https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_contact/data.json");
+                if(!r.ok){notify("❌ Firebase erreur HTTP "+r.status,false);return;}
+                const d=await r.json();
+                if(!d){notify("⚠️ Firebase OK mais taf_contact/data est VIDE — pushez depuis TAF Contact",false);return;}
+                const keys=Object.keys(d);
+                let total=0;
+                let detail=[];
+                keys.forEach(k=>{
+                  const list=Array.isArray(d[k])?d[k]:typeof d[k]==="object"?Object.values(d[k]):[];
+                  const withEmail=list.filter(c=>c&&c.email).length;
+                  total+=list.length;
+                  detail.push(k+": "+list.length+" ("+withEmail+" avec email)");
+                });
+                notify("✅ Firebase OK — "+total+" contacts: "+detail.join(", "));
+              }catch(e){notify("❌ Erreur réseau: "+e.message,false);}
+            }}>🔍 Tester Firebase</Btn>
+            <Btn variant="ghost" size="sm" onClick={()=>{syncContactsToBureaux();}}>🔄 Forcer sync bureaux</Btn>
+          </div>
+          <div style={{fontSize:11,color:"var(--textD)"}}>
+            Status sync : <strong style={{color:contactSyncStatus==="ok"?"var(--green)":contactSyncStatus==="error"?"var(--red)":"var(--textM)"}}>{contactSyncStatus}</strong>
+            {contactSyncMsg&&<> — {contactSyncMsg}</>}
           </div>
         </div>
       </div>
