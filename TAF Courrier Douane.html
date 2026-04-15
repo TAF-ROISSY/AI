@@ -1714,36 +1714,49 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
         </div>
       </div>
 
-      {/* Données */}
+      {/* Diagnostic Firebase */}
       <div className="card">
         <div className="card-h"><span className="card-icon">🔥</span><span className="card-title">Diagnostic Firebase — TAF Contact</span></div>
         <div className="card-b">
           <div style={{fontSize:12,color:"var(--textD)",marginBottom:12}}>
-            Testez la connexion Firebase et vérifiez que les contacts sont bien présents.
+            Visualisez exactement ce que Firebase contient et ce que TAF Courrier importe.
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
             <Btn variant="gold" size="sm" onClick={async()=>{
+              const box=document.getElementById("fbDiagResult");
+              box.style.display="block";
+              box.textContent="⏳ Chargement Firebase...";
               try{
                 const r=await fetch("https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_contact/data.json");
-                if(!r.ok){notify("❌ Firebase erreur HTTP "+r.status,false);return;}
+                if(!r.ok){box.textContent="❌ Firebase erreur HTTP "+r.status;return;}
                 const d=await r.json();
-                if(!d){notify("⚠️ Firebase OK mais taf_contact/data est VIDE — pushez depuis TAF Contact",false);return;}
-                const keys=Object.keys(d);
-                let total=0;
-                let detail=[];
-                keys.forEach(k=>{
-                  const list=Array.isArray(d[k])?d[k]:typeof d[k]==="object"?Object.values(d[k]):[];
-                  const withEmail=list.filter(c=>c&&c.email).length;
-                  total+=list.length;
-                  detail.push(k+": "+list.length+" ("+withEmail+" avec email)");
-                });
-                notify("✅ Firebase OK — "+total+" contacts: "+detail.join(", "));
-              }catch(e){notify("❌ Erreur réseau: "+e.message,false);}
-            }}>🔍 Tester Firebase</Btn>
-            <Btn variant="ghost" size="sm" onClick={()=>{syncContactsToBureaux();}}>🔄 Forcer sync bureaux</Btn>
+                if(!d){box.textContent="⚠️ taf_contact/data est VIDE.\n→ Allez dans TAF Contact et cliquez 🔥 Push Firebase";return;}
+                let out="✅ Firebase connecté\n\n";
+                const cats={douane:"douane",handlers:"handler",transporteurs:"handler",autres:"autre"};
+                let totalOk=0;
+                for(const[ck] of Object.entries(cats)){
+                  let li=d[ck];
+                  if(!li){out+="📂 "+ck+" : (vide)\n";continue;}
+                  if(!Array.isArray(li)) li=Object.values(li);
+                  out+="📂 "+ck+" : "+li.length+" contact(s)\n";
+                  li.forEach((c,i)=>{
+                    if(!c){out+="   "+(i+1)+". ⚠️ entrée null\n";return;}
+                    out+="   "+(i+1)+". "+(c.nom||"?")+(c.societe?" ["+c.societe+"]":"")+" → "+(c.email||"❌ PAS D'EMAIL")+(c.email?" ✅":" ⛔")+"\n";
+                    if(c.email) totalOk++;
+                  });
+                }
+                out+="\n── RÉSUMÉ ──\n";
+                out+="Importable (avec email) : "+totalOk+"\n";
+                out+="Bureaux manuels : "+bureaux.filter(b=>b.source!=="taf_contact").length+"\n";
+                out+="Déjà importés : "+bureaux.filter(b=>b.source==="taf_contact").length;
+                box.textContent=out;
+              }catch(e){box.textContent="❌ Erreur: "+e.message;}
+            }}>🔍 Diagnostic complet</Btn>
+            <Btn variant="ghost" size="sm" onClick={()=>{syncContactsToBureaux();}}>🔄 Forcer sync</Btn>
           </div>
-          <div style={{fontSize:11,color:"var(--textD)"}}>
-            Status sync : <strong style={{color:contactSyncStatus==="ok"?"var(--green)":contactSyncStatus==="error"?"var(--red)":"var(--textM)"}}>{contactSyncStatus}</strong>
+          <pre id="fbDiagResult" style={{display:"none",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,padding:14,fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:"var(--textM)",whiteSpace:"pre-wrap",maxHeight:400,overflow:"auto",lineHeight:1.6}}></pre>
+          <div style={{fontSize:11,color:"var(--textD)",marginTop:8}}>
+            Status : <strong style={{color:contactSyncStatus==="ok"?"var(--green)":contactSyncStatus==="error"?"var(--red)":"var(--textM)"}}>{contactSyncStatus}</strong>
             {contactSyncMsg&&<> — {contactSyncMsg}</>}
           </div>
         </div>
