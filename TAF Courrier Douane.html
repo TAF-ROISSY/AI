@@ -193,7 +193,7 @@ const DRIVE_FOLDER_ID = "1pudOMRgdLQT6IeOP2UzBfrsY61EPK-__";
 const SENDER_PRIMARY  = "christophe@taftrans.fr";
 const SENDER_CC       = "import@taftrans.fr";
 const STORAGE_KEY     = "taf_courrier_v3";
-const VERSION         = "v3.1";
+const VERSION         = "v3.2";
 const PIN_CORRECT     = "1234"; // à changer en Paramètres
 
 /* ═══════════════════════════════════════════════════════════
@@ -805,6 +805,16 @@ function App(){
   const [driveBacking,setDriveBacking]=useState(false);
   const bkpTimer=useRef(null);
 
+  /* Options */
+  const [claudeApiKey,setClaudeApiKey]=useState(()=>{try{return localStorage.getItem("taf_courrier_claude_key")||"";}catch(e){return "";}});
+  const [senderName,setSenderName]=useState(()=>{try{return localStorage.getItem("taf_courrier_sender_name")||"Trans Air Freight CDG (TAF)";}catch(e){return "Trans Air Freight CDG (TAF)";}});
+  const [senderTitle,setSenderTitle]=useState(()=>{try{return localStorage.getItem("taf_courrier_sender_title")||"Service Import — Commissionnaire en Douane Agréé";}catch(e){return "Service Import — Commissionnaire en Douane Agréé";}});
+
+  /* AI Assistant */
+  const [aiPrompt,setAiPrompt]=useState("");
+  const [aiGenerating,setAiGenerating]=useState(false);
+  const [aiHistory,setAiHistory]=useState([]);
+
   useEffect(()=>{saveData({bureaux,templates,history,decls});},[bureaux,templates,history,decls]);
 
   // Check TAF OPS bridge on load
@@ -948,7 +958,86 @@ function App(){
   function resetForm(){
     setSelBur("");setSelTpl("");setSubject("");setBody("");
     setVars({ref:"",numDec:"",lta:"",client:"",motif:""});
-    setAttachments([]);setSent(false);
+    setAttachments([]);setSent(false);setAiPrompt("");
+  }
+
+  function saveOption(key,val){
+    try{localStorage.setItem("taf_courrier_"+key,val);}catch(e){}
+  }
+
+  async function handleAiGenerate(){
+    if(!aiPrompt.trim()){notify("Décrivez le courrier souhaité",false);return;}
+    if(!claudeApiKey){notify("⚠️ Clé API Claude requise — onglet Options",false);return;}
+
+    const bureau=bureaux.find(b=>b.id===selBur);
+    const decl=decls.find(d=>d.id===selDecl);
+
+    setAiGenerating(true);
+    try{
+      const systemPrompt=`Tu es un rédacteur expert en courriers douaniers pour Trans Air Freight CDG (TAF), commissionnaire en douane agréé à l'aéroport Paris-Charles de Gaulle.
+
+Tu dois générer un courrier professionnel au format JSON avec deux champs :
+- "subject": l'objet du courrier (une ligne, avec les références si disponibles)
+- "body": le corps du courrier en HTML, style professionnel et formel
+
+Le courrier doit :
+- Commencer par "Madame, Monsieur," 
+- Être rédigé dans un français soutenu et professionnel
+- Inclure un tableau HTML si des données chiffrées sont mentionnées
+- Se terminer par une formule de politesse
+- Inclure la signature : ${senderName} / ${senderTitle} / Aéroport de Paris-Charles de Gaulle / Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr
+
+CONTEXTE DU DOSSIER :
+${vars.ref?"- Référence TAF : "+vars.ref:""}
+${vars.lta?"- N° LTA/AWB : "+vars.lta:""}
+${vars.client?"- Client : "+vars.client:""}
+${vars.numDec?"- N° Déclaration : "+vars.numDec:""}
+${vars.motif?"- Motif : "+vars.motif:""}
+${bureau?"- Bureau destinataire : "+bureau.nom+" ("+bureau.email+")":""}
+${decl?"- Déclarant : "+decl.prenom+" "+decl.nom:""}
+
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks. Format: {"subject":"...","body":"<div>...</div>"}`;
+
+      const resp=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key":claudeApiKey,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true"
+        },
+        body:JSON.stringify({
+          model:"claude-haiku-4-5-20251001",
+          max_tokens:2000,
+          messages:[{role:"user",content:aiPrompt}],
+          system:systemPrompt
+        })
+      });
+
+      if(!resp.ok){
+        const errData=await resp.json().catch(()=>({}));
+        throw new Error(errData.error?.message||"Erreur API ("+resp.status+")");
+      }
+
+      const data=await resp.json();
+      const text=data.content?.[0]?.text||"";
+
+      // Parser le JSON
+      const cleaned=text.replace(/```json\s*/g,"").replace(/```/g,"").trim();
+      const result=JSON.parse(cleaned);
+
+      if(result.subject) setSubject(result.subject);
+      if(result.body) setBody(result.body);
+
+      setAiHistory(prev=>[{prompt:aiPrompt,date:ts()},...prev].slice(0,20));
+      notify("✅ Courrier généré par Claude IA");
+      setAiPrompt("");
+
+    }catch(err){
+      console.error("[AI]",err);
+      notify("❌ "+err.message,false);
+    }
+    setAiGenerating(false);
   }
 
   function handleGeneratePDF(){
@@ -1138,6 +1227,31 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
           {selBur&&(()=>{const b=bureaux.find(x=>x.id===selBur);return b?<div className="alert alert-info">
             📧 Destinataire : <strong>{b.email}</strong>{b.note&&<> · <em>{b.note}</em></>}
           </div>:null;})()}
+        </div>
+      </div>
+
+      {/* Assistant IA */}
+      <div className="card" style={{borderColor:claudeApiKey?"rgba(179,136,255,0.2)":"rgba(255,255,255,0.06)"}}>
+        <div className="card-h">
+          <span className="card-icon">🤖</span><span className="card-title">Assistant IA — Rédaction automatique</span>
+          {!claudeApiKey&&<span style={{fontSize:10,color:"var(--red)",marginLeft:8}}>⚠️ Clé API requise → Options</span>}
+        </div>
+        <div className="card-b">
+          <div style={{fontSize:12,color:"var(--textD)",marginBottom:10}}>
+            Décrivez en français le courrier souhaité. Claude générera automatiquement l'objet et le corps du courrier en utilisant les références du dossier.
+          </div>
+          <FieldGroup label="💬 Votre demande">
+            <textarea value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)} rows={3}
+              placeholder={"Ex: Rédige un courrier de demande de mainlevée pour cette marchandise bloquée en douane depuis 3 jours. Urgence car produits périssables.\n\nOu: Courrier de réclamation pour surfacturation des frais de magasinage."}
+              style={{fontSize:13,lineHeight:1.6}}/>
+          </FieldGroup>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <Btn variant="gold" onClick={handleAiGenerate} disabled={aiGenerating||!claudeApiKey}>
+              {aiGenerating?<><Spinner/> Rédaction en cours...</>:"✨ Générer le courrier"}
+            </Btn>
+            {aiPrompt&&<Btn variant="ghost" size="sm" onClick={()=>setAiPrompt("")}>Effacer</Btn>}
+            {aiHistory.length>0&&<span style={{fontSize:10,color:"var(--textD)",marginLeft:"auto"}}>{aiHistory.length} génération(s)</span>}
+          </div>
         </div>
       </div>
 
@@ -1479,6 +1593,109 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
     </div>;
   }
 
+  /* ──────────────────────── TAB: OPTIONS ─────────────────────────── */
+  function renderOptions(){
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:16}}>
+
+      {/* Clé API Claude */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">🤖</span><span className="card-title">Intelligence Artificielle — Claude API</span>
+          {claudeApiKey?<span style={{fontSize:10,fontWeight:700,color:"var(--green)",background:"rgba(34,197,94,.1)",borderRadius:6,padding:"3px 8px"}}>✓ Configuré</span>
+            :<span style={{fontSize:10,fontWeight:700,color:"var(--red)",background:"rgba(239,68,68,.1)",borderRadius:6,padding:"3px 8px"}}>✕ Non configuré</span>}
+        </div>
+        <div className="card-b">
+          <div style={{fontSize:12,color:"var(--textD)",marginBottom:12}}>
+            Entrez votre clé API Anthropic pour activer l'assistant IA de rédaction de courriers dans l'onglet Courrier. La clé est stockée localement sur votre navigateur uniquement.
+          </div>
+          <FieldGroup label="🔑 Clé API Claude (Anthropic)">
+            <input type="password" value={claudeApiKey} onChange={e=>{setClaudeApiKey(e.target.value);saveOption("claude_key",e.target.value);}}
+              placeholder="sk-ant-api03-..." style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}/>
+          </FieldGroup>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Btn variant="ghost" size="sm" onClick={async()=>{
+              if(!claudeApiKey){notify("Entrez d'abord une clé API",false);return;}
+              try{
+                const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":claudeApiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+                  body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:50,messages:[{role:"user",content:"Réponds uniquement: OK"}]})});
+                if(r.ok) notify("✅ Clé API valide — connexion réussie");
+                else{const e=await r.json().catch(()=>({}));notify("❌ "+(e.error?.message||"Erreur "+r.status),false);}
+              }catch(e){notify("❌ Erreur réseau: "+e.message,false);}
+            }}>🔍 Tester la clé</Btn>
+            {claudeApiKey&&<Btn variant="red" size="sm" onClick={()=>{setClaudeApiKey("");saveOption("claude_key","");notify("Clé supprimée");}}>🗑️ Supprimer</Btn>}
+          </div>
+        </div>
+      </div>
+
+      {/* Identité expéditeur */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">🏢</span><span className="card-title">Identité expéditeur</span></div>
+        <div className="card-b">
+          <div style={{fontSize:12,color:"var(--textD)",marginBottom:12}}>
+            Ces informations sont utilisées dans la signature des courriers générés par l'IA et dans le PDF imprimable.
+          </div>
+          <div className="g2">
+            <FieldGroup label="Nom de la société">
+              <input value={senderName} onChange={e=>{setSenderName(e.target.value);saveOption("sender_name",e.target.value);}}
+                placeholder="Trans Air Freight CDG (TAF)"/>
+            </FieldGroup>
+            <FieldGroup label="Titre / Service">
+              <input value={senderTitle} onChange={e=>{setSenderTitle(e.target.value);saveOption("sender_title",e.target.value);}}
+                placeholder="Service Import — Commissionnaire en Douane Agréé"/>
+            </FieldGroup>
+          </div>
+        </div>
+      </div>
+
+      {/* Webhook & intégrations */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">⚡</span><span className="card-title">Intégrations</span></div>
+        <div className="card-b">
+          <div style={{display:"flex",flexDirection:"column",gap:10,fontSize:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg3)",borderRadius:8}}>
+              <span>📤 Webhook envoi (Make.com)</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"var(--textD)"}}>{WEBHOOK_SEND.slice(0,45)}...</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg3)",borderRadius:8}}>
+              <span>💾 Webhook backup (Make.com)</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"var(--textD)"}}>{WEBHOOK_BACKUP.slice(0,45)}...</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg3)",borderRadius:8}}>
+              <span>☁️ Proxy Google Drive</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"var(--textD)"}}>{DRIVE_PROXY.slice(0,45)}...</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"rgba(34,197,94,.05)",border:"1px solid rgba(34,197,94,.15)",borderRadius:8}}>
+              <span>🔥 Firebase Bridge</span>
+              <span style={{color:"var(--green)",fontWeight:700,fontSize:11}}>✓ Actif</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Données */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">💾</span><span className="card-title">Données & Stockage</span></div>
+        <div className="card-b">
+          <div className="stat-row" style={{marginBottom:12}}>
+            <div className="stat"><div className="stat-val">{templates.length}</div><div className="stat-lbl">Templates</div></div>
+            <div className="stat"><div className="stat-val">{bureaux.length}</div><div className="stat-lbl">Bureaux</div></div>
+            <div className="stat"><div className="stat-val">{decls.length}</div><div className="stat-lbl">Déclarants</div></div>
+            <div className="stat"><div className="stat-val">{history.length}</div><div className="stat-lbl">Historique</div></div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <Btn variant="blue" size="sm" onClick={handleDriveBackup} disabled={driveBacking}>
+              {driveBacking?<Spinner/>:"☁️"} Sauvegarder sur Drive
+            </Btn>
+            <Btn variant="red" size="sm" onClick={()=>{
+              if(!window.confirm("⚠️ Réinitialiser TOUTES les données ?\n\nTemplates, bureaux, déclarants et historique seront remis à zéro.")) return;
+              setBureaux(FACTORY_BUREAUX);setTemplates(FACTORY_TEMPLATES);setHistory([]);setDecls([]);
+              notify("🔄 Données réinitialisées");
+            }}>🔄 Réinitialiser tout</Btn>
+          </div>
+        </div>
+      </div>
+    </div>;
+  }
+
   /* ──────────────────────── TABS DEFINITION ─────────────────────────── */
   const TABS = [
     {id:"compose",   icon:"✉️",  label:"Courrier"},
@@ -1486,6 +1703,7 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
     {id:"bureaux",   icon:"🏛️",  label:"Bureaux",     badge:bureaux.length},
     {id:"decls",     icon:"🖊️",  label:"Déclarants",  badge:decls.length||null},
     {id:"history",   icon:"📜",  label:"Historique",  badge:history.length||null},
+    {id:"options",   icon:"⚙️",  label:"Options"},
   ];
 
   /* ──────────────────────── RENDER ─────────────────────────── */
@@ -1530,6 +1748,7 @@ body{font-family:'Lora',Georgia,serif;font-size:12.5px;line-height:1.7;color:#1a
       {tab==="bureaux"   && renderBureaux()}
       {tab==="decls"     && renderDeclarants()}
       {tab==="history"   && renderHistory()}
+      {tab==="options"   && renderOptions()}
     </main>
 
     {/* FOOTER */}
