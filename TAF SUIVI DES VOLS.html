@@ -47,6 +47,7 @@ const RECAP_TIMES            = [{h:6,m:45},{h:14,m:0}];
 const AT_TOKEN  = localStorage.getItem("taf_at_token") || "";
 const AT_BASE   = "app1jUe90acjaPn6t";
 const AT_PROXY  = "https://script.google.com/macros/s/AKfycbyCiyxw_ydQ5wLxQQJ68XuMpmwRkW8TyJwgCNZ3r-jCUO1VLRXZL-H11XsFiiX-mK-s/exec";
+const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 
 /* ── Niveaux de retard ── */
 const DELAY_LEVELS=[
@@ -200,9 +201,12 @@ function FlightView(){
     });
   },[]);
 
-  /* Persist localStorage */
+  /* Persist localStorage + Firebase (partagé cross-PC pour TAF TV) */
   React.useEffect(function(){
     try{localStorage.setItem("taf_vols2",JSON.stringify(vols));}catch(e){}
+    if(vols.length>0){
+      fetch(FB+"/taf_suivi_vols/vols.json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(vols)}).catch(function(){});
+    }
   },[vols]);
 
   /* ── EmailJS init ── */
@@ -375,15 +379,17 @@ async function fetchFlightViaProxy(flightNum){
     setLoadingIds(function(p){return {...p,[vol.id]:false};});
   }
 
-  /* ── Sauvegarde complète Drive ── */
-  async function saveToDrive(volsData){
+  /* ── Sauvegarde complète Drive (format identique à TAF OPS) ── */
+  async function saveToDrive(){
     var PROXY="https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec";
     var FOLDER="143DZMp79_EfrVAjyOMquBU0L-JXlKdnF";
     var dt=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     try{
-      await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload",folderId:FOLDER,fileName:"TAF_VOLS_"+dt+".json",content:JSON.stringify(volsData,null,2),mimeType:"application/json"})});
-      console.log("✅ Sauvegarde Drive OK");
-    }catch(e){console.error("Drive save error:",e);}
+      var d=localStorage.getItem("taf_vols2");if(!d)return;
+      var b64=btoa(unescape(encodeURIComponent(d)));
+      var resp=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"text/plain"},redirect:"follow",body:JSON.stringify({action:"uploadPDF",filename:"TAF_VOLS_"+dt+".json",mimeType:"application/json",base64:b64,folder:FOLDER})});
+      if(resp.ok){console.log("✅ Drive OK");notify2("💾 Sauvegarde Drive ✓");}
+    }catch(e){console.error("Drive:",e);}
   }
 
   function saveVol(){
@@ -399,10 +405,8 @@ async function fetchFlightViaProxy(flightNum){
       horaire:vol.scheduledArr||"",
     },"Name");
     notify2("Vol enregistré ✓");
-    /* Sauvegarde totale Drive */
-    setTimeout(function(){
-      try{var d=localStorage.getItem("taf_vols2");if(d)saveToDrive(JSON.parse(d));}catch(e){}
-    },1000);
+    /* Sauvegarde Drive auto */
+    setTimeout(saveToDrive,1500);
   }
 
   function deleteVol(id){
