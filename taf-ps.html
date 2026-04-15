@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF PS — Procédure de Secours v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg: #0c0e14;
+  --bg2: #13161f;
+  --bg3: #1a1e2a;
+  --bg4: #232836;
+  --border: #2a3040;
+  --border-focus: #4a7cff;
+  --text: #e8ecf4;
+  --text2: #9ca3b4;
+  --text3: #6b7280;
+  --accent: #4a7cff;
+  --accent2: #3b6de6;
+  --green: #34d399;
+  --green-bg: rgba(52,211,153,0.12);
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.12);
+  --yellow: #fbbf24;
+  --yellow-bg: rgba(251,191,36,0.12);
+  --purple: #a78bfa;
+  --purple-bg: rgba(167,139,250,0.12);
+  --orange: #fb923c;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
+button { font-family:var(--font); cursor:pointer; border:none; }
+input,select,textarea { font-family:var(--font); }
+
+/* ========== HEADER ========== */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-left { display:flex; align-items:center; gap:12px; }
+.logo {
+  width:36px; height:36px; border-radius:var(--radius);
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:14px; color:#fff;
+}
+.header h1 { font-size:18px; font-weight:600; letter-spacing:-0.3px; }
+.header h1 span { color:var(--text3); font-weight:400; font-size:13px; margin-left:8px; }
+.badge-version {
+  font-family:var(--mono); font-size:10px; background:var(--bg4);
+  color:var(--text3); padding:2px 8px; border-radius:10px;
+}
+.header-right { display:flex; align-items:center; gap:8px; }
+
+/* ========== TOOLBAR ========== */
+.toolbar {
+  padding: 12px 24px;
+  display: flex; gap:10px; align-items:center; flex-wrap:wrap;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.toolbar input[type="text"] {
+  background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius);
+  padding:8px 14px; color:var(--text); font-size:13px; width:280px;
+  transition:var(--transition);
+}
+.toolbar input[type="text"]:focus { outline:none; border-color:var(--border-focus); }
+.btn {
+  padding:8px 16px; border-radius:var(--radius); font-size:13px;
+  font-weight:500; transition:var(--transition);
+}
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent2); }
+.btn-secondary { background:var(--bg3); color:var(--text); border:1px solid var(--border); }
+.btn-secondary:hover { background:var(--bg4); }
+.btn-danger { background:var(--red-bg); color:var(--red); }
+.btn-danger:hover { background:rgba(248,113,113,0.2); }
+.btn-icon { width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:var(--radius); }
+.filter-chips { display:flex; gap:6px; }
+.chip {
+  padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500;
+  cursor:pointer; transition:var(--transition); border:1px solid var(--border);
+  background:var(--bg3); color:var(--text2);
+}
+.chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.chip:hover:not(.active) { background:var(--bg4); }
+.stat-pill {
+  font-family:var(--mono); font-size:12px; padding:4px 10px;
+  border-radius:var(--radius); background:var(--bg3); color:var(--text2);
+  margin-left:auto;
+}
+
+/* ========== TABLE ========== */
+.table-container {
+  overflow-x:auto; padding:0 24px 24px;
+}
+table { width:100%; border-collapse:collapse; margin-top:12px; }
+thead th {
+  text-align:left; padding:10px 12px; font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:0.5px; color:var(--text3);
+  border-bottom:1px solid var(--border); background:var(--bg2);
+  position:sticky; top:0; white-space:nowrap;
+}
+tbody tr {
+  border-bottom:1px solid rgba(42,48,64,0.5);
+  transition:var(--transition); cursor:pointer;
+}
+tbody tr:hover { background:rgba(74,124,255,0.04); }
+tbody td { padding:8px 12px; font-size:13px; white-space:nowrap; }
+.cell-id { font-family:var(--mono); font-size:12px; color:var(--text3); }
+.cell-date { font-family:var(--mono); font-size:12px; }
+
+/* Status badges */
+.status-badge {
+  display:inline-block; padding:3px 10px; border-radius:20px;
+  font-size:11px; font-weight:500;
+}
+.status-attente { background:var(--yellow-bg); color:var(--yellow); }
+.status-ok { background:var(--green-bg); color:var(--green); }
+.status-retard { background:var(--red-bg); color:var(--red); }
+.status-impossible { background:var(--purple-bg); color:var(--purple); }
+
+.flux-badge {
+  display:inline-block; padding:2px 8px; border-radius:4px;
+  font-size:11px; font-weight:600; letter-spacing:0.3px;
+}
+.flux-import { background:rgba(74,124,255,0.12); color:var(--accent); }
+.flux-export { background:rgba(251,191,36,0.12); color:var(--yellow); }
+
+.checkbox-cell { width:20px; height:20px; border-radius:4px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; }
+.checkbox-cell.checked { background:var(--green); border-color:var(--green); }
+.checkbox-cell.checked::after { content:'✓'; color:#fff; font-size:12px; font-weight:700; }
+.attach-count {
+  font-family:var(--mono); font-size:11px; background:var(--bg4);
+  padding:2px 8px; border-radius:4px; color:var(--text2);
+}
+
+/* ========== MODAL ========== */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px); z-index:200;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding-top:40px; overflow-y:auto;
+  opacity:0; pointer-events:none; transition:var(--transition);
+}
+.modal-overlay.show { opacity:1; pointer-events:auto; }
+.modal {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-lg);
+  width:min(920px, 95vw); max-height:90vh; overflow-y:auto;
+  box-shadow:var(--shadow);
+  transform:translateY(20px); transition:var(--transition);
+}
+.modal-overlay.show .modal { transform:translateY(0); }
+.modal-header {
+  padding:18px 24px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; background:var(--bg2); z-index:10;
+}
+.modal-header h2 { font-size:16px; font-weight:600; }
+.modal-close {
+  width:30px; height:30px; border-radius:var(--radius);
+  background:var(--bg3); color:var(--text2); display:flex;
+  align-items:center; justify-content:center; font-size:18px;
+}
+.modal-close:hover { background:var(--bg4); color:var(--text); }
+.modal-body { padding:24px; }
+.modal-footer {
+  padding:16px 24px; border-top:1px solid var(--border);
+  display:flex; gap:10px; justify-content:flex-end;
+  position:sticky; bottom:0; background:var(--bg2);
+}
+
+/* Form layout */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-full { grid-column:1/-1; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group label {
+  font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:0.5px; color:var(--text3);
+}
+.form-group input, .form-group select, .form-group textarea {
+  background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius);
+  padding:9px 12px; color:var(--text); font-size:13px;
+  transition:var(--transition);
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline:none; border-color:var(--border-focus);
+}
+.form-group textarea { resize:vertical; min-height:60px; }
+.form-group select { cursor:pointer; }
+.form-group select option { background:var(--bg3); }
+
+.form-section {
+  margin-top:20px; padding-top:16px; border-top:1px solid var(--border);
+}
+.form-section-title {
+  font-size:13px; font-weight:600; color:var(--accent);
+  margin-bottom:14px; display:flex; align-items:center; gap:8px;
+}
+.form-section-title::before {
+  content:''; width:3px; height:14px; background:var(--accent);
+  border-radius:2px;
+}
+
+.form-check { display:flex; align-items:center; gap:10px; padding:8px 0; }
+.form-check input[type="checkbox"] {
+  width:18px; height:18px; accent-color:var(--accent); cursor:pointer;
+}
+.form-check label { font-size:13px; color:var(--text); cursor:pointer; font-weight:400; text-transform:none; letter-spacing:0; }
+
+/* File upload */
+.file-drop {
+  border:2px dashed var(--border); border-radius:var(--radius);
+  padding:16px; text-align:center; cursor:pointer;
+  transition:var(--transition); background:var(--bg3);
+}
+.file-drop:hover { border-color:var(--accent); background:rgba(74,124,255,0.04); }
+.file-drop-label { font-size:12px; color:var(--text3); }
+.file-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.file-tag {
+  display:flex; align-items:center; gap:6px; padding:4px 10px;
+  background:var(--bg4); border-radius:var(--radius); font-size:12px;
+}
+.file-tag .remove { color:var(--red); cursor:pointer; font-weight:700; }
+
+/* ========== CONFIG PANEL ========== */
+.config-panel {
+  position:fixed; right:0; top:0; bottom:0; width:420px;
+  background:var(--bg2); border-left:1px solid var(--border);
+  z-index:300; transform:translateX(100%); transition:0.3s ease;
+  overflow-y:auto;
+}
+.config-panel.open { transform:translateX(0); }
+.config-panel .panel-header {
+  padding:18px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.config-panel .panel-body { padding:20px; }
+.config-panel .form-group { margin-bottom:14px; }
+
+/* ========== TOAST ========== */
+.toast-container { position:fixed; bottom:24px; right:24px; z-index:500; display:flex; flex-direction:column; gap:8px; }
+.toast {
+  padding:12px 20px; border-radius:var(--radius); font-size:13px;
+  box-shadow:var(--shadow); animation:slideIn 0.3s ease;
+  display:flex; align-items:center; gap:10px;
+}
+.toast-success { background:#065f46; color:var(--green); border:1px solid rgba(52,211,153,0.3); }
+.toast-error { background:#7f1d1d; color:var(--red); border:1px solid rgba(248,113,113,0.3); }
+.toast-info { background:#1e3a5f; color:var(--accent); border:1px solid rgba(74,124,255,0.3); }
+@keyframes slideIn { from{transform:translateX(100px);opacity:0;} to{transform:translateX(0);opacity:1;} }
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+  text-align:center; padding:80px 20px;
+}
+.empty-state .icon { font-size:48px; margin-bottom:16px; opacity:0.3; }
+.empty-state h3 { color:var(--text2); margin-bottom:8px; }
+.empty-state p { color:var(--text3); font-size:13px; }
+
+/* ========== LOADING ========== */
+.spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; display:inline-block; }
+@keyframes spin { to{transform:rotate(360deg);} }
+.loading-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:400; display:flex; align-items:center; justify-content:center; }
+.loading-box { background:var(--bg2); border-radius:var(--radius-lg); padding:40px; text-align:center; border:1px solid var(--border); }
+.loading-box .spinner { width:36px; height:36px; border-width:3px; }
+.loading-box p { margin-top:16px; color:var(--text2); font-size:14px; }
+
+/* ========== RESPONSIVE ========== */
+@media(max-width:768px) {
+  .form-grid { grid-template-columns:1fr; }
+  .toolbar { flex-direction:column; align-items:stretch; }
+  .toolbar input[type="text"] { width:100%; }
+  .filter-chips { flex-wrap:wrap; }
+  .stat-pill { margin-left:0; }
+  .header h1 span { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">PS</div>
+    <h1>TAF Procédure de Secours <span>Gestion douanière CDG</span></h1>
+    <span class="badge-version">v1.0</span>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-secondary btn-icon" onclick="exportCSV()" title="Export CSV">⬇</button>
+    <button class="btn btn-secondary btn-icon" onclick="toggleConfig()" title="Configuration">⚙</button>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Rechercher LTA, client, n° PS..." oninput="renderTable()">
+  <div class="filter-chips" id="filterChips">
+    <div class="chip active" data-filter="all" onclick="setFilter('all')">Tous</div>
+    <div class="chip" data-filter="attente" onclick="setFilter('attente')">En attente</div>
+    <div class="chip" data-filter="ok" onclick="setFilter('ok')">OK régul.</div>
+    <div class="chip" data-filter="retard" onclick="setFilter('retard')">En retard</div>
+    <div class="chip" data-filter="impossible" onclick="setFilter('impossible')">Impossible</div>
+  </div>
+  <span class="stat-pill" id="statPill">0 enregistrements</span>
+  <button class="btn btn-primary" onclick="openModal()">+ Nouvelle PS</button>
+</div>
+
+<!-- TABLE -->
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>Date</th>
+        <th>N° PS</th>
+        <th>Statut</th>
+        <th>Client</th>
+        <th>FLUX</th>
+        <th>LTA</th>
+        <th>MALTA</th>
+        <th>Unité Visite</th>
+        <th>Colis</th>
+        <th>Masse Brute</th>
+        <th>Douane</th>
+        <th>Régul.</th>
+        <th>Docs</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="icon">📋</div>
+    <h3>Aucune procédure de secours</h3>
+    <p>Cliquez sur "+ Nouvelle PS" pour créer le premier enregistrement</p>
+  </div>
+</div>
+
+<!-- MODAL CREATE/EDIT -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Nouvelle Procédure de Secours</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Section: Infos principales -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="f_date">
+        </div>
+        <div class="form-group">
+          <label>N° PS</label>
+          <input type="number" id="f_numPS" placeholder="Numéro PS">
+        </div>
+        <div class="form-group">
+          <label>MALTA</label>
+          <input type="number" id="f_malta" placeholder="N° MALTA">
+        </div>
+        <div class="form-group">
+          <label>Alerte</label>
+          <input type="number" id="f_alerte" placeholder="Alerte">
+        </div>
+        <div class="form-group">
+          <label>Statut</label>
+          <select id="f_statut">
+            <option value="">— Choisir —</option>
+            <option value="En attente de régularisation">En attente de régularisation</option>
+            <option value="Ok regularisation">Ok régularisation</option>
+            <option value="Régularisation en retard">Régularisation en retard</option>
+            <option value="Régularisation Impossible erreur système.">Régularisation Impossible (erreur système)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>FLUX</label>
+          <select id="f_flux">
+            <option value="">— Choisir —</option>
+            <option value="IMPORT">IMPORT</option>
+            <option value="EXPORT">EXPORT</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label>LTA</label>
+          <textarea id="f_lta" placeholder="Numéro(s) LTA"></textarea>
+        </div>
+      </div>
+
+      <!-- Section: Client & Fournisseur -->
+      <div class="form-section">
+        <div class="form-section-title">Client & Fournisseur</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom Client</label>
+            <input type="text" id="f_clientNom" placeholder="Nom du client">
+          </div>
+          <div class="form-group">
+            <label>Adresse Client</label>
+            <input type="text" id="f_clientAdresse" placeholder="Adresse">
+          </div>
+          <div class="form-group">
+            <label>CP Client</label>
+            <input type="text" id="f_clientCP" placeholder="Code postal">
+          </div>
+          <div class="form-group">
+            <label>Ville Client</label>
+            <input type="text" id="f_clientVille" placeholder="Ville">
+          </div>
+          <div class="form-group">
+            <label>EORI Client</label>
+            <input type="text" id="f_clientEORI" placeholder="EORI">
+          </div>
+          <div class="form-group">
+            <label>Fournisseur</label>
+            <input type="text" id="f_fournisseurNom" placeholder="Nom fournisseur">
+          </div>
+          <div class="form-group">
+            <label>Adresse Fournisseur</label>
+            <input type="text" id="f_fournisseurAdresse" placeholder="Adresse">
+          </div>
+          <div class="form-group">
+            <label>CP Fournisseur</label>
+            <input type="text" id="f_fournisseurCP" placeholder="Code postal">
+          </div>
+          <div class="form-group">
+            <label>Ville Fournisseur</label>
+            <input type="text" id="f_fournisseurVille" placeholder="Ville">
+          </div>
+          <div class="form-group">
+            <label>Code Pays Fournisseur</label>
+            <input type="text" id="f_fournisseurPays" placeholder="Code Pays">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Douane -->
+      <div class="form-section">
+        <div class="form-section-title">Douane & Prestataire</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Prestataire / Douane</label>
+            <input type="text" id="f_douaneNom" placeholder="Nom prestataire">
+          </div>
+          <div class="form-group">
+            <label>Mail Prestataire</label>
+            <input type="email" id="f_douaneMail" placeholder="email@...">
+          </div>
+          <div class="form-group">
+            <label>Unité de Visite</label>
+            <select id="f_uniteVisite">
+              <option value="">— Choisir —</option>
+              <option value="AIR FRANCE">AIR FRANCE</option>
+              <option value="FRANCE HANDLING">FRANCE HANDLING</option>
+              <option value="SODEXI">SODEXI</option>
+              <option value="SOGARIS">SOGARIS</option>
+              <option value="BANALE">BANALE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Origine</label>
+            <input type="text" id="f_origine" placeholder="Pays d'origine">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Marchandise -->
+      <div class="form-section">
+        <div class="form-section-title">Marchandise</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Colis</label>
+            <input type="number" id="f_colis" placeholder="Nombre de colis">
+          </div>
+          <div class="form-group">
+            <label>Masse Brute (kg)</label>
+            <input type="number" id="f_masseBrute" step="0.01" placeholder="Kg">
+          </div>
+          <div class="form-group">
+            <label>Devise</label>
+            <input type="text" id="f_devise" placeholder="EUR, USD...">
+          </div>
+          <div class="form-group">
+            <label>FRET</label>
+            <input type="number" id="f_fret" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Facture</label>
+            <input type="text" id="f_facture" placeholder="N° facture">
+          </div>
+          <div class="form-group">
+            <label>CHEDP</label>
+            <input type="text" id="f_chedp" placeholder="N° CHEDP">
+          </div>
+          <div class="form-group">
+            <label>REX</label>
+            <input type="text" id="f_rex" placeholder="N° REX">
+          </div>
+          <div class="form-group">
+            <label>CC</label>
+            <input type="text" id="f_cc" placeholder="CC">
+          </div>
+          <div class="form-group">
+            <label>Régime</label>
+            <select id="f_regime">
+              <option value="">— Choisir —</option>
+              <option value="40.00">40.00</option>
+              <option value="42.00">42.00</option>
+              <option value="10.00">10.00</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>N° IMA</label>
+            <input type="text" id="f_numIMA" placeholder="N° IMA">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Articles HS code -->
+      <div class="form-section">
+        <div class="form-section-title">Articles & HS Codes</div>
+        <div id="articlesContainer"></div>
+        <button class="btn btn-secondary" style="margin-top:10px" onclick="addArticleLine()" id="btnAddArticle">+ Ajouter un article</button>
+      </div>
+
+      <!-- Section: Droits & Taxes -->
+      <div class="form-section">
+        <div class="form-section-title">Droits & Taxes</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>DD</label>
+            <input type="number" id="f_dd" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>AT</label>
+            <input type="number" id="f_at" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>TVA</label>
+            <input type="number" id="f_tva" step="0.01">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Erreur système -->
+      <div class="form-section">
+        <div class="form-section-title">Notes & Erreurs</div>
+        <div class="form-group form-full">
+          <label>Erreur système</label>
+          <textarea id="f_erreurSysteme" placeholder="Détail de l'erreur système"></textarea>
+        </div>
+      </div>
+
+      <!-- Section: Checkboxes -->
+      <div class="form-section">
+        <div class="form-section-title">Suivi</div>
+        <div class="form-grid">
+          <div>
+            <div class="form-check"><input type="checkbox" id="f_regulDouane"><label for="f_regulDouane">RÉGUL Douane</label></div>
+            <div class="form-check"><input type="checkbox" id="f_mailTPPS"><label for="f_mailTPPS">MAIL TP PS envoyé</label></div>
+          </div>
+          <div>
+            <div class="form-check"><input type="checkbox" id="f_mailTPRegul"><label for="f_mailTPRegul">Mail TP régul envoyé</label></div>
+            <div class="form-check"><input type="checkbox" id="f_okPS"><label for="f_okPS">Ok PS validé</label></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Documents -->
+      <div class="form-section">
+        <div class="form-section-title">Documents (envoi direct Google Drive)</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Attestation PS</label>
+            <div class="file-drop" onclick="document.getElementById('file_attestation').click()">
+              <div class="file-drop-label">📎 Cliquer ou déposer un fichier</div>
+              <input type="file" id="file_attestation" style="display:none" onchange="handleFile(this,'attestation')">
+            </div>
+            <div class="file-list" id="files_attestation"></div>
+            <div id="driveLink_attestation"></div>
+          </div>
+          <div class="form-group">
+            <label>IMA BAE</label>
+            <div class="file-drop" onclick="document.getElementById('file_ima').click()">
+              <div class="file-drop-label">📎 Cliquer ou déposer un fichier</div>
+              <input type="file" id="file_ima" style="display:none" onchange="handleFile(this,'ima')">
+            </div>
+            <div class="file-list" id="files_ima"></div>
+            <div id="driveLink_ima"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btnDelete" style="margin-right:auto;display:none" onclick="deleteRecord()">Supprimer</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveRecord()" id="btnSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG PANEL -->
+<div class="config-panel" id="configPanel">
+  <div class="panel-header">
+    <h2 style="font-size:16px">⚙ Configuration Firebase</h2>
+    <button class="modal-close" onclick="toggleConfig()">✕</button>
+  </div>
+  <div class="panel-body">
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">
+      Entrez vos identifiants Firebase pour connecter l'application.<br>
+      Créez un projet sur <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent)">console.firebase.google.com</a>
+    </p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="text" id="cfg_apiKey" placeholder="AIzaSy...">
+    </div>
+    <div class="form-group">
+      <label>Auth Domain</label>
+      <input type="text" id="cfg_authDomain" placeholder="monprojet.firebaseapp.com">
+    </div>
+    <div class="form-group">
+      <label>Project ID</label>
+      <input type="text" id="cfg_projectId" placeholder="mon-projet-id">
+    </div>
+    <div class="form-group">
+      <label>Storage Bucket</label>
+      <input type="text" id="cfg_storageBucket" placeholder="monprojet.appspot.com">
+    </div>
+    <div class="form-group">
+      <label>Messaging Sender ID</label>
+      <input type="text" id="cfg_senderId" placeholder="123456789">
+    </div>
+    <div class="form-group">
+      <label>App ID</label>
+      <input type="text" id="cfg_appId" placeholder="1:123:web:abc">
+    </div>
+    <hr style="border-color:var(--border);margin:20px 0">
+    <div class="form-group">
+      <label>Dossier Google Drive ID</label>
+      <input type="text" id="cfg_driveFolderId" value="1aWlFgV4muJ02yKv5_HTv6edxhXNinPIs">
+    </div>
+    <div class="form-group">
+      <label>URL Proxy Drive Upload</label>
+      <input type="text" id="cfg_driveProxy" value="https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="saveConfig()">💾 Sauvegarder & Connecter</button>
+    <div id="configStatus" style="margin-top:12px;font-size:12px"></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Chargement...</p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  TAF PS v1.0 — Firebase + Google Drive
+// ============================================================
+
+const HS_CODE_OPTIONS = [
+  'POISSONS FRAIS OU RÉFRIGÉRÉS',
+  'SOLES',
+  'THONS ENTIER',
+  'FILETS DE SOLES',
+  'PAGRES',
+  'LONGE DE THON',
+  'LONGE ESPADON'
+];
+
+let db = null;
+let records = [];
+let editingId = null;
+let currentFilter = 'all';
+let uploadedFiles = { attestation: null, ima: null };
+let articleCount = 0;
+
+// ============ CONFIG ============
+function loadConfig() {
+  const cfg = localStorage.getItem('tafps_firebase_config');
+  if (cfg) {
+    const c = JSON.parse(cfg);
+    document.getElementById('cfg_apiKey').value = c.apiKey || '';
+    document.getElementById('cfg_authDomain').value = c.authDomain || '';
+    document.getElementById('cfg_projectId').value = c.projectId || '';
+    document.getElementById('cfg_storageBucket').value = c.storageBucket || '';
+    document.getElementById('cfg_senderId').value = c.messagingSenderId || '';
+    document.getElementById('cfg_appId').value = c.appId || '';
+    if (c.driveFolderId) document.getElementById('cfg_driveFolderId').value = c.driveFolderId;
+    if (c.driveProxy) document.getElementById('cfg_driveProxy').value = c.driveProxy;
+    return c;
+  }
+  return null;
+}
+
+function saveConfig() {
+  const cfg = {
+    apiKey: document.getElementById('cfg_apiKey').value.trim(),
+    authDomain: document.getElementById('cfg_authDomain').value.trim(),
+    projectId: document.getElementById('cfg_projectId').value.trim(),
+    storageBucket: document.getElementById('cfg_storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfg_senderId').value.trim(),
+    appId: document.getElementById('cfg_appId').value.trim(),
+    driveFolderId: document.getElementById('cfg_driveFolderId').value.trim(),
+    driveProxy: document.getElementById('cfg_driveProxy').value.trim()
+  };
+  localStorage.setItem('tafps_firebase_config', JSON.stringify(cfg));
+  initFirebase(cfg);
+}
+
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+}
+
+// ============ FIREBASE ============
+function initFirebase(cfg) {
+  if (!cfg || !cfg.apiKey || !cfg.projectId) {
+    document.getElementById('configStatus').innerHTML = '<span style="color:var(--red)">❌ Config incomplète</span>';
+    toast('Configuration Firebase incomplète — ouvrez ⚙', 'error');
+    return;
+  }
+  try {
+    if (firebase.apps.length) firebase.app().delete().then(() => initApp(cfg));
+    else initApp(cfg);
+  } catch(e) { initApp(cfg); }
+}
+
+function initApp(cfg) {
+  try {
+    firebase.initializeApp({
+      apiKey: cfg.apiKey,
+      authDomain: cfg.authDomain,
+      projectId: cfg.projectId,
+      storageBucket: cfg.storageBucket,
+      messagingSenderId: cfg.messagingSenderId,
+      appId: cfg.appId
+    });
+    db = firebase.firestore();
+    document.getElementById('configStatus').innerHTML = '<span style="color:var(--green)">✅ Connecté à Firebase</span>';
+    toast('Firebase connecté !', 'success');
+    toggleConfig();
+    loadRecords();
+  } catch(e) {
+    document.getElementById('configStatus').innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+    toast('Erreur Firebase : ' + e.message, 'error');
+  }
+}
+
+// ============ CRUD ============
+async function loadRecords() {
+  if (!db) return;
+  showLoading('Chargement des procédures...');
+  try {
+    const snap = await db.collection('procedures_secours').orderBy('createdAt', 'desc').get();
+    records = [];
+    snap.forEach(doc => records.push({ id: doc.id, ...doc.data() }));
+    renderTable();
+    toast(`${records.length} enregistrement(s) chargé(s)`, 'success');
+  } catch(e) {
+    toast('Erreur chargement : ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+async function saveRecord() {
+  if (!db) { toast('Firebase non connecté', 'error'); return; }
+
+  const data = collectFormData();
+  showLoading('Sauvegarde en cours...');
+
+  try {
+    // Upload files to Drive if any
+    if (uploadedFiles.attestation) {
+      const link = await uploadToDrive(uploadedFiles.attestation, `PS_${data.numPS || 'X'}_Attestation`);
+      if (link) data.driveAttestation = link;
+    }
+    if (uploadedFiles.ima) {
+      const link = await uploadToDrive(uploadedFiles.ima, `PS_${data.numPS || 'X'}_IMA_BAE`);
+      if (link) data.driveIMA = link;
+    }
+
+    if (editingId) {
+      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('procedures_secours').doc(editingId).update(data);
+      toast('PS mise à jour ✓', 'success');
+    } else {
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('procedures_secours').add(data);
+      toast('Nouvelle PS créée ✓', 'success');
+    }
+    closeModal();
+    await loadRecords();
+  } catch(e) {
+    toast('Erreur sauvegarde : ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+async function deleteRecord() {
+  if (!editingId || !db) return;
+  if (!confirm('Supprimer cette procédure de secours ?')) return;
+  showLoading('Suppression...');
+  try {
+    await db.collection('procedures_secours').doc(editingId).delete();
+    toast('PS supprimée', 'info');
+    closeModal();
+    await loadRecords();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+function collectFormData() {
+  const articles = [];
+  for (let i = 0; i < articleCount; i++) {
+    const hsEl = document.getElementById(`art_hs_${i}`);
+    const valEl = document.getElementById(`art_val_${i}`);
+    if (hsEl && valEl) {
+      articles.push({ hsCode: hsEl.value, valeur: parseFloat(valEl.value) || 0 });
+    }
+  }
+  return {
+    date: document.getElementById('f_date').value,
+    numPS: parseInt(document.getElementById('f_numPS').value) || null,
+    malta: parseInt(document.getElementById('f_malta').value) || null,
+    alerte: parseInt(document.getElementById('f_alerte').value) || null,
+    statut: document.getElementById('f_statut').value,
+    flux: document.getElementById('f_flux').value,
+    lta: document.getElementById('f_lta').value,
+    clientNom: document.getElementById('f_clientNom').value,
+    clientAdresse: document.getElementById('f_clientAdresse').value,
+    clientCP: document.getElementById('f_clientCP').value,
+    clientVille: document.getElementById('f_clientVille').value,
+    clientEORI: document.getElementById('f_clientEORI').value,
+    fournisseurNom: document.getElementById('f_fournisseurNom').value,
+    fournisseurAdresse: document.getElementById('f_fournisseurAdresse').value,
+    fournisseurCP: document.getElementById('f_fournisseurCP').value,
+    fournisseurVille: document.getElementById('f_fournisseurVille').value,
+    fournisseurPays: document.getElementById('f_fournisseurPays').value,
+    douaneNom: document.getElementById('f_douaneNom').value,
+    douaneMail: document.getElementById('f_douaneMail').value,
+    uniteVisite: document.getElementById('f_uniteVisite').value,
+    origine: document.getElementById('f_origine').value,
+    colis: parseInt(document.getElementById('f_colis').value) || null,
+    masseBrute: parseFloat(document.getElementById('f_masseBrute').value) || null,
+    devise: document.getElementById('f_devise').value,
+    fret: parseFloat(document.getElementById('f_fret').value) || null,
+    facture: document.getElementById('f_facture').value,
+    chedp: document.getElementById('f_chedp').value,
+    rex: document.getElementById('f_rex').value,
+    cc: document.getElementById('f_cc').value,
+    regime: document.getElementById('f_regime').value,
+    numIMA: document.getElementById('f_numIMA').value,
+    articles: articles,
+    dd: parseFloat(document.getElementById('f_dd').value) || null,
+    at: parseFloat(document.getElementById('f_at').value) || null,
+    tva: parseFloat(document.getElementById('f_tva').value) || null,
+    erreurSysteme: document.getElementById('f_erreurSysteme').value,
+    regulDouane: document.getElementById('f_regulDouane').checked,
+    mailTPPS: document.getElementById('f_mailTPPS').checked,
+    mailTPRegul: document.getElementById('f_mailTPRegul').checked,
+    okPS: document.getElementById('f_okPS').checked
+  };
+}
+
+// ============ GOOGLE DRIVE UPLOAD ============
+async function uploadToDrive(file, prefix) {
+  const cfg = JSON.parse(localStorage.getItem('tafps_firebase_config') || '{}');
+  const proxyUrl = cfg.driveProxy;
+  const folderId = cfg.driveFolderId;
+  if (!proxyUrl || !folderId) { toast('Config Drive manquante', 'error'); return null; }
+
+  try {
+    const base64 = await fileToBase64(file);
+    const payload = {
+      fileName: `${prefix}_${file.name}`,
+      mimeType: file.type,
+      data: base64,
+      folderId: folderId
+    };
+    const resp = await fetch(proxyUrl, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const result = await resp.json();
+    if (result.url || result.link || result.fileUrl) {
+      toast(`📁 ${file.name} uploadé sur Drive`, 'success');
+      return result.url || result.link || result.fileUrl;
+    }
+    if (result.id) {
+      const link = `https://drive.google.com/file/d/${result.id}/view`;
+      toast(`📁 ${file.name} uploadé sur Drive`, 'success');
+      return link;
+    }
+    toast('Upload Drive : réponse inattendue', 'error');
+    console.log('Drive response:', result);
+    return null;
+  } catch(e) {
+    toast('Erreur upload Drive : ' + e.message, 'error');
+    return null;
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleFile(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  uploadedFiles[type] = file;
+  const container = document.getElementById(`files_${type}`);
+  container.innerHTML = `<div class="file-tag">${file.name} <span class="remove" onclick="removeFile('${type}')">✕</span></div>`;
+}
+
+function removeFile(type) {
+  uploadedFiles[type] = null;
+  document.getElementById(`files_${type}`).innerHTML = '';
+  document.getElementById(`file_${type === 'attestation' ? 'attestation' : 'ima'}`).value = '';
+}
+
+// ============ ARTICLES (HS CODES) ============
+function addArticleLine(hs = '', val = 0) {
+  const idx = articleCount++;
+  const container = document.getElementById('articlesContainer');
+  const div = document.createElement('div');
+  div.className = 'form-grid';
+  div.style.marginBottom = '8px';
+  div.id = `artLine_${idx}`;
+  div.innerHTML = `
+    <div class="form-group">
+      <label>HS Code ${idx+1}</label>
+      <select id="art_hs_${idx}">
+        <option value="">— Choisir —</option>
+        ${HS_CODE_OPTIONS.map(o => `<option value="${o}" ${o===hs?'selected':''}>${o}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group" style="display:flex;flex-direction:row;align-items:flex-end;gap:8px">
+      <div style="flex:1">
+        <label>Valeur ${idx+1}</label>
+        <input type="number" id="art_val_${idx}" step="0.01" value="${val}">
+      </div>
+      <button class="btn btn-danger btn-icon" style="margin-bottom:1px" onclick="removeArticle(${idx})">✕</button>
+    </div>
+  `;
+  container.appendChild(div);
+  if (articleCount >= 5) document.getElementById('btnAddArticle').style.display = 'none';
+}
+
+function removeArticle(idx) {
+  const el = document.getElementById(`artLine_${idx}`);
+  if (el) el.remove();
+  if (articleCount <= 5) document.getElementById('btnAddArticle').style.display = '';
+}
+
+// ============ MODAL ============
+function openModal(id) {
+  editingId = id || null;
+  articleCount = 0;
+  document.getElementById('articlesContainer').innerHTML = '';
+  uploadedFiles = { attestation: null, ima: null };
+  document.getElementById('files_attestation').innerHTML = '';
+  document.getElementById('files_ima').innerHTML = '';
+  document.getElementById('driveLink_attestation').innerHTML = '';
+  document.getElementById('driveLink_ima').innerHTML = '';
+  document.getElementById('btnAddArticle').style.display = '';
+
+  if (id) {
+    const rec = records.find(r => r.id === id);
+    if (!rec) return;
+    document.getElementById('modalTitle').textContent = `PS #${rec.numPS || '—'} — Édition`;
+    document.getElementById('btnDelete').style.display = '';
+    populateForm(rec);
+  } else {
+    document.getElementById('modalTitle').textContent = 'Nouvelle Procédure de Secours';
+    document.getElementById('btnDelete').style.display = 'none';
+    resetForm();
+    document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  }
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  editingId = null;
+}
+
+function resetForm() {
+  const fields = ['f_date','f_numPS','f_malta','f_alerte','f_statut','f_flux','f_lta',
+    'f_clientNom','f_clientAdresse','f_clientCP','f_clientVille','f_clientEORI',
+    'f_fournisseurNom','f_fournisseurAdresse','f_fournisseurCP','f_fournisseurVille','f_fournisseurPays',
+    'f_douaneNom','f_douaneMail','f_uniteVisite','f_origine',
+    'f_colis','f_masseBrute','f_devise','f_fret','f_facture','f_chedp','f_rex','f_cc','f_regime','f_numIMA',
+    'f_dd','f_at','f_tva','f_erreurSysteme'];
+  fields.forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
+  ['f_regulDouane','f_mailTPPS','f_mailTPRegul','f_okPS'].forEach(f => {
+    const el=document.getElementById(f); if(el) el.checked=false;
+  });
+}
+
+function populateForm(rec) {
+  resetForm();
+  const map = {
+    f_date: rec.date, f_numPS: rec.numPS, f_malta: rec.malta, f_alerte: rec.alerte,
+    f_statut: rec.statut, f_flux: rec.flux, f_lta: rec.lta,
+    f_clientNom: rec.clientNom, f_clientAdresse: rec.clientAdresse,
+    f_clientCP: rec.clientCP, f_clientVille: rec.clientVille, f_clientEORI: rec.clientEORI,
+    f_fournisseurNom: rec.fournisseurNom, f_fournisseurAdresse: rec.fournisseurAdresse,
+    f_fournisseurCP: rec.fournisseurCP, f_fournisseurVille: rec.fournisseurVille,
+    f_fournisseurPays: rec.fournisseurPays,
+    f_douaneNom: rec.douaneNom, f_douaneMail: rec.douaneMail,
+    f_uniteVisite: rec.uniteVisite, f_origine: rec.origine,
+    f_colis: rec.colis, f_masseBrute: rec.masseBrute, f_devise: rec.devise,
+    f_fret: rec.fret, f_facture: rec.facture, f_chedp: rec.chedp, f_rex: rec.rex,
+    f_cc: rec.cc, f_regime: rec.regime, f_numIMA: rec.numIMA,
+    f_dd: rec.dd, f_at: rec.at, f_tva: rec.tva, f_erreurSysteme: rec.erreurSysteme
+  };
+  Object.entries(map).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if (el && v != null) el.value = v;
+  });
+  if (rec.regulDouane) document.getElementById('f_regulDouane').checked = true;
+  if (rec.mailTPPS) document.getElementById('f_mailTPPS').checked = true;
+  if (rec.mailTPRegul) document.getElementById('f_mailTPRegul').checked = true;
+  if (rec.okPS) document.getElementById('f_okPS').checked = true;
+
+  // Articles
+  if (rec.articles && rec.articles.length) {
+    rec.articles.forEach(a => addArticleLine(a.hsCode, a.valeur));
+  }
+
+  // Drive links
+  if (rec.driveAttestation) {
+    document.getElementById('driveLink_attestation').innerHTML =
+      `<a href="${rec.driveAttestation}" target="_blank" style="color:var(--accent);font-size:12px">📄 Voir sur Drive</a>`;
+  }
+  if (rec.driveIMA) {
+    document.getElementById('driveLink_ima').innerHTML =
+      `<a href="${rec.driveIMA}" target="_blank" style="color:var(--accent);font-size:12px">📄 Voir sur Drive</a>`;
+  }
+}
+
+// ============ TABLE RENDER ============
+function renderTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = records;
+
+  // Filter by status
+  if (currentFilter !== 'all') {
+    const statusMap = {
+      'attente': 'En attente de régularisation',
+      'ok': 'Ok regularisation',
+      'retard': 'Régularisation en retard',
+      'impossible': 'Régularisation Impossible erreur système.'
+    };
+    filtered = filtered.filter(r => r.statut === statusMap[currentFilter]);
+  }
+
+  // Search
+  if (search) {
+    filtered = filtered.filter(r => {
+      const haystack = [
+        r.lta, r.clientNom, r.numPS, r.malta, r.douaneNom,
+        r.fournisseurNom, r.facture, r.chedp
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(search);
+    });
+  }
+
+  document.getElementById('statPill').textContent = `${filtered.length} enregistrement(s)`;
+
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = filtered.map((r, i) => {
+    const statusClass = getStatusClass(r.statut);
+    const statusLabel = r.statut || '—';
+    const fluxClass = (r.flux||'').toLowerCase() === 'import' ? 'flux-import' : 'flux-export';
+    const docCount = (r.driveAttestation ? 1 : 0) + (r.driveIMA ? 1 : 0);
+
+    return `<tr onclick="openModal('${r.id}')">
+      <td class="cell-id">${i+1}</td>
+      <td class="cell-date">${r.date || '—'}</td>
+      <td><strong>${r.numPS || '—'}</strong></td>
+      <td><span class="status-badge ${statusClass}">${truncate(statusLabel,25)}</span></td>
+      <td>${r.clientNom || '—'}</td>
+      <td>${r.flux ? `<span class="flux-badge ${fluxClass}">${r.flux}</span>` : '—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.lta || '—'}</td>
+      <td class="cell-id">${r.malta || '—'}</td>
+      <td>${r.uniteVisite || '—'}</td>
+      <td>${r.colis || '—'}</td>
+      <td>${r.masseBrute ? r.masseBrute + ' kg' : '—'}</td>
+      <td>${r.douaneNom || '—'}</td>
+      <td><div class="checkbox-cell ${r.regulDouane?'checked':''}"></div></td>
+      <td>${docCount > 0 ? `<span class="attach-count">📎 ${docCount}</span>` : '—'}</td>
+      <td><button class="btn btn-secondary btn-icon" style="width:28px;height:28px;font-size:14px">›</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function getStatusClass(s) {
+  if (!s) return '';
+  if (s.includes('attente')) return 'status-attente';
+  if (s.includes('Ok') || s.includes('ok')) return 'status-ok';
+  if (s.includes('retard')) return 'status-retard';
+  if (s.includes('Impossible')) return 'status-impossible';
+  return '';
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0,n)+'…' : s; }
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
+  renderTable();
+}
+
+// ============ EXPORT CSV ============
+function exportCSV() {
+  if (!records.length) { toast('Aucune donnée à exporter', 'error'); return; }
+  const headers = ['Date','N° PS','MALTA','Statut','Flux','LTA','Client','EORI','Fournisseur','Douane',
+    'Unité Visite','Colis','Masse Brute','Origine','Régime','DD','AT','TVA','Facture','CHEDP','REX','Ok PS','Régul Douane'];
+  const rows = records.map(r => [
+    r.date, r.numPS, r.malta, r.statut, r.flux, `"${(r.lta||'').replace(/"/g,'""')}"`,
+    r.clientNom, r.clientEORI, r.fournisseurNom, r.douaneNom,
+    r.uniteVisite, r.colis, r.masseBrute, r.origine, r.regime,
+    r.dd, r.at, r.tva, r.facture, r.chedp, r.rex, r.okPS?'Oui':'Non', r.regulDouane?'Oui':'Non'
+  ]);
+  const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `TAF_PS_export_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('Export CSV téléchargé ✓', 'success');
+}
+
+// ============ UTILITIES ============
+function toast(msg, type='info') {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg || 'Chargement...';
+  document.getElementById('loadingOverlay').style.display = '';
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', () => {
+  const cfg = loadConfig();
+  if (cfg && cfg.apiKey && cfg.projectId) {
+    initFirebase(cfg);
+  } else {
+    toast('⚙ Configurez Firebase pour commencer (bouton ⚙)', 'info');
+  }
+  renderTable();
+});
+</script>
+</body>
+</html>
