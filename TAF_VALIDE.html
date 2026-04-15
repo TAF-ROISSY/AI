@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF — VALIDE v1.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07111e;--bg2:#0d1b2a;--bg3:#162336;--bg4:#1e2f42;
+  --gold:#c9a84c;--gold2:#e2c97e;--goldG:rgba(201,168,76,.12);
+  --green:#22c55e;--red:#ef4444;--blue:#3b82f6;--purple:#8b5cf6;--orange:#f97316;--teal:#14b8a6;
+  --text:#eee8d8;--textM:#8a9bb8;--textD:#4a5e72;
+  --border:rgba(201,168,76,.12);--borderL:rgba(201,168,76,.2);
+  --radius:12px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+input,select,textarea{font-family:inherit;background:var(--bg3);color:var(--text);border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:13.5px;width:100%;outline:none;transition:border .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--goldG)}
+input::placeholder,textarea::placeholder{color:var(--textD)}
+select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a9bb8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(201,168,76,.3)}50%{box-shadow:0 0 14px rgba(201,168,76,.7)}}
+@keyframes dropGlow{0%{border-color:var(--gold);box-shadow:0 0 20px rgba(201,168,76,.3)}100%{border-color:var(--borderL);box-shadow:none}}
+.fade-in{animation:fadeIn .25s ease}
+.hdr{background:var(--bg2);border-bottom:2px solid var(--gold);padding:0 24px;position:sticky;top:0;z-index:200}
+.hdr-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:13px 0}
+.logo-box{display:flex;align-items:center;gap:14px}
+.logo-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:var(--bg);letter-spacing:.5px;flex-shrink:0;box-shadow:0 4px 14px rgba(201,168,76,.3)}
+.logo-title{font-weight:800;font-size:17px;letter-spacing:.3px}
+.logo-sub{font-size:11px;color:var(--textM);margin-top:1px;font-family:'JetBrains Mono',monospace}
+.hdr-actions{display:flex;align-items:center;gap:8px}
+.ver-badge{font-size:10px;font-weight:700;color:var(--textD);background:var(--bg4);padding:3px 8px;border-radius:6px;border:1px solid var(--border);letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+.content{max-width:900px;margin:0 auto;padding:24px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.25);margin-bottom:16px}
+.card-h{background:var(--bg3);padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.card-icon{font-size:18px}
+.card-title{font-weight:700;font-size:14px;flex:1}
+.card-b{padding:20px}
+.btn{padding:10px 18px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;font-family:inherit}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--bg)}
+.btn-gold:hover{box-shadow:0 4px 16px rgba(201,168,76,.4);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--textM);border:1.5px solid var(--border)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.btn-green:hover{background:rgba(34,197,94,.2)}
+.btn-red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.btn-red:hover{background:rgba(239,68,68,.18)}
+.btn-blue{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
+.btn-blue:hover{background:rgba(59,130,246,.2)}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--textM);margin-bottom:5px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dropzone{border:2px dashed var(--borderL);border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;background:var(--bg3);transition:all .25s}
+.dropzone:hover{border-color:var(--gold);background:var(--goldG)}
+.dropzone.active{border-color:var(--gold);background:rgba(201,168,76,.08);animation:dropGlow .6s ease}
+.dropzone .dz-icon{font-size:32px;margin-bottom:8px}
+.dropzone .dz-text{font-size:12px;color:var(--textM);font-weight:600}
+.dropzone .dz-hint{font-size:10px;color:var(--textD);margin-top:4px}
+.file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg4);border:1px solid var(--borderL);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;margin:4px 4px 0 0}
+.file-chip .remove{cursor:pointer;color:var(--red);font-size:14px;line-height:1}
+.toggle-row{display:flex;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
+.toggle-opt{flex:1;padding:11px 0;text-align:center;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.toggle-opt.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--bg)}
+.toggle-opt:not(.on):hover{background:var(--bg4)}
+.bridge-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.bridge-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9px;font-size:11px;font-weight:700;flex:1;min-width:200px}
+.bridge-chip .bdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.bridge-chip .bcount{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.7}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg4);color:var(--text);padding:12px 18px;font-size:13px;font-weight:600;border-radius:10px;border-left:3px solid var(--gold);box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:9999;max-width:340px}
+.toast.on{transform:translateY(0);opacity:1}
+.toast.err{border-left-color:var(--red)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modal-box{background:var(--bg2);border:1px solid var(--borderL);border-radius:16px;width:100%;max-width:800px;max-height:90vh;overflow:auto;box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.modal-h{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg3);position:sticky;top:0;z-index:1}
+.modal-close{background:var(--bg4);border:none;border-radius:7px;padding:7px 12px;color:var(--textM);cursor:pointer;font-size:16px;transition:all .15s;margin-left:auto}
+.modal-close:hover{color:var(--red);background:rgba(239,68,68,.1)}
+.email-preview{background:#fff;border-radius:10px;padding:30px;color:#222;font-family:'Lora',Georgia,serif;font-size:14px;line-height:1.8;margin:20px}
+.email-preview .ep-header{border-bottom:2px solid #c9a84c;padding-bottom:16px;margin-bottom:20px}
+.email-preview .ep-field{display:flex;gap:8px;font-size:12px;margin-bottom:4px;font-family:'Syne',sans-serif}
+.email-preview .ep-label{color:#888;font-weight:700;min-width:50px;text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+.email-preview .ep-val{color:#333;font-weight:600}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
+.tabbar{background:var(--bg3);border-bottom:1px solid var(--border);padding:0 24px}
+.tabbar-inner{max-width:900px;margin:0 auto;display:flex;gap:2px}
+.tb{padding:11px 16px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--textD);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:inherit}
+.tb.on{color:var(--gold);border-bottom-color:var(--gold)}
+.tb:hover:not(.on){color:var(--textM)}
+.tb-badge{background:var(--goldG);color:var(--gold);border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700}
+.hist-row{display:grid;grid-template-columns:100px 80px 1fr 1.2fr 80px;gap:10px;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:5px;font-size:12px;transition:all .15s}
+.hist-row:hover{border-color:var(--borderL)}
+.decl-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;transition:border-color .15s}
+.decl-item:hover{border-color:var(--borderL)}
+.send-success{text-align:center;padding:50px 24px}
+.send-success .ico{font-size:64px;margin-bottom:16px}
+@media(max-width:720px){.g2{grid-template-columns:1fr}.hist-row{grid-template-columns:1fr}.bridge-bar{flex-direction:column}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo} = React;
+const VERSION="v1.1";
+const STORAGE_KEY="taf_valide_v1";
+const SENDER_FROM="import@taftrans.fr";
+const SENDER_CC="christophe@taftrans.fr";
+const WEBHOOK_SEND="https://hook.eu2.make.com/mgw0elsgsv37t5ct2k8hhwco6kmw6fsg";
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const FACTORY_BUREAUX=[
+  {id:"b01",cat:"douane",nom:"Bureau de Douane CDG — Cargo 1 (Bât. 9420)",email:"cd.cdg-cargo1@douane.finances.gouv.fr",code:"CDG-C1"},
+  {id:"b02",cat:"douane",nom:"Bureau de Douane CDG — Cargo 2 (Bât. 9430)",email:"cd.cdg-cargo2@douane.finances.gouv.fr",code:"CDG-C2"},
+  {id:"b03",cat:"douane",nom:"Bureau de Douane CDG — Fret Express",email:"cd.cdg-express@douane.finances.gouv.fr",code:"CDG-EXP"},
+  {id:"b04",cat:"douane",nom:"DR2D Roissy — Direction Régionale",email:"dr2d.roissy@douane.finances.gouv.fr",code:"DR2D"},
+];
+const genId=()=>Math.random().toString(36).slice(2,10);
+const ts=()=>new Date().toISOString();
+const fmtDate=(d)=>new Date(d).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const fmtSize=(b)=>b<1024?(b+"o"):b<1048576?((b/1024).toFixed(1)+"Ko"):((b/1048576).toFixed(1)+"Mo");
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);})}
+async function fbGet(path){try{const r=await fetch(FB_URL+path);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+async function fbSet(path,data){try{const r=await fetch(FB_URL+path+".json",{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return r.ok;}catch(e){return false;}}
+
+function buildEmailHTML({type,numDecl,declarant}){
+  const tl=type==="import"?"IMPORT":"EXPORT";
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#1a1a2e">'+
+  '<div style="background:linear-gradient(135deg,#0d1b2a,#162336);padding:28px 32px;border-radius:12px 12px 0 0;border-bottom:3px solid #c9a84c">'+
+  '<table width="100%" cellpadding="0" cellspacing="0"><tr>'+
+  '<td><span style="font-size:22px;font-weight:800;color:#c9a84c;letter-spacing:1px">TAF</span><span style="font-size:14px;color:#8a9bb8;margin-left:8px;font-weight:600">Trans Air Freight CDG</span></td>'+
+  '<td align="right"><span style="background:'+(type==="import"?"rgba(59,130,246,.15)":"rgba(139,92,246,.15)")+';color:'+(type==="import"?"#60a5fa":"#a78bfa")+';padding:4px 14px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:1px">'+tl+'</span></td>'+
+  '</tr></table></div>'+
+  '<div style="background:#ffffff;padding:32px;border:1px solid #e5e7eb;border-top:none">'+
+  '<p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px">Bonjour,</p>'+
+  '<p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px">Nous vous remercions de bien vouloir trouver ci-joint l\u2019ensemble de la documentation relative à la déclaration en douane référencée ci-dessous :</p>'+
+  '<table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f8fafc;border-radius:8px;overflow:hidden">'+
+  '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:12px 18px;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:180px">N° de Déclaration</td><td style="padding:12px 18px;font-size:15px;font-weight:800;color:#0d1b2a;font-family:monospace;letter-spacing:1px">'+numDecl+'</td></tr>'+
+  '<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:12px 18px;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Type</td><td style="padding:12px 18px;font-size:14px;font-weight:700;color:#333">'+tl+'</td></tr>'+
+  (declarant?'<tr><td style="padding:12px 18px;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Déclarant</td><td style="padding:12px 18px;font-size:14px;font-weight:600;color:#333">'+declarant+'</td></tr>':'')+
+  '</table>'+
+  '<p style="font-size:15px;line-height:1.8;color:#333;margin:20px 0">Les documents joints comprennent la copie de la déclaration en douane ainsi que l\u2019ensemble des documents commerciaux associés.</p>'+
+  '<p style="font-size:15px;line-height:1.8;color:#333;margin:20px 0 0">Nous restons à votre entière disposition pour tout complément d\u2019information.</p>'+
+  '<p style="font-size:15px;line-height:1.8;color:#333;margin:10px 0 0">Cordialement,</p></div>'+
+  '<div style="background:#f1f5f9;padding:20px 32px;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:none">'+
+  '<table width="100%" cellpadding="0" cellspacing="0"><tr><td>'+
+  '<p style="margin:0;font-size:14px;font-weight:800;color:#0d1b2a">Trans Air Freight CDG</p>'+
+  '<p style="margin:2px 0 0;font-size:12px;color:#64748b">Commissionnaire en Douane Agréé</p>'+
+  '<p style="margin:2px 0 0;font-size:12px;color:#64748b">Aéroport de Paris-Charles de Gaulle</p>'+
+  '<p style="margin:6px 0 0;font-size:12px;color:#64748b">Tél : +33 (0)1 48 64 64 46 · import@taftrans.fr</p>'+
+  '</td><td align="right" style="vertical-align:top"><span style="background:linear-gradient(135deg,#c9a84c,#e2c97e);color:#0d1b2a;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:1px">TAF</span></td></tr></table></div></div>';
+}
+
+function App(){
+  const loadData=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{};}catch(e){return{};}};
+  const stored=loadData();
+  const[tab,setTab]=useState("envoi");
+  const[type,setType]=useState("import");
+  const[numDecl,setNumDecl]=useState("26FRD000");
+  const[selBur,setSelBur]=useState("");
+  const[selDecl,setSelDecl]=useState("");
+  const[bureaux,setBureaux]=useState(stored.bureaux||FACTORY_BUREAUX);
+  const[declarants,setDeclarants]=useState(stored.declarants||[]);
+  const[declFile,setDeclFile]=useState(null);
+  const[docFiles,setDocFiles]=useState([]);
+  const[history,setHistory]=useState(stored.history||[]);
+  const[sending,setSending]=useState(false);
+  const[sent,setSent]=useState(false);
+  const[showPreview,setShowPreview]=useState(false);
+  const[toast,setToast]=useState(null);
+  const[contactSync,setContactSync]=useState({status:"pending",count:0,msg:""});
+  const[teamSync,setTeamSync]=useState({status:"pending",count:0,msg:""});
+  const[fbConnected,setFbConnected]=useState(false);
+  const[newDeclNom,setNewDeclNom]=useState("");
+  const[newDeclPrenom,setNewDeclPrenom]=useState("");
+  const[newDeclTitre,setNewDeclTitre]=useState("");
+  const[dragDecl,setDragDecl]=useState(false);
+  const[dragDoc,setDragDoc]=useState(false);
+
+  useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({bureaux,declarants,history}));}catch(e){}},[bureaux,declarants,history]);
+  useEffect(()=>{const pI="26FRD000",pE="26FR1000";setNumDecl(prev=>{const s=prev.replace(pI,"").replace(pE,"");return(type==="import"?pI:pE)+s;});},[type]);
+
+  // ── TAF CONTACT → Bureaux ──
+  async function syncContacts(){
+    setContactSync(s=>({...s,status:"loading"}));
+    try{
+      const contacts=await fbGet("/taf_contact/data.json");
+      if(!contacts){setContactSync({status:"empty",count:0,msg:"Vide"});return;}
+      setFbConnected(true);
+      const catMap={douane:"douane",handlers:"handler",transporteurs:"handler",autres:"autre"};
+      const imported=[];
+      for(const[ck,bc] of Object.entries(catMap)){
+        let list=contacts[ck];if(!list)continue;
+        if(!Array.isArray(list)){if(typeof list==="object")list=Object.values(list);else continue;}
+        list.forEach(c=>{if(!c||!c.email)return;imported.push({id:"tafcontact_"+(c.id||genId()),cat:bc,nom:(c.societe?c.societe+" — ":"")+c.nom,email:c.email,code:c.code||"",source:"taf_contact"});});
+      }
+      if(imported.length){setBureaux(prev=>{const m=prev.filter(b=>b.source!=="taf_contact");const me=new Set(m.map(b=>(b.email||"").toLowerCase()));return[...m,...imported.filter(b=>!me.has(b.email.toLowerCase()))];});}
+      setContactSync({status:imported.length?"ok":"empty",count:imported.length,msg:imported.length+" contact(s)"});
+    }catch(e){setContactSync({status:"error",count:0,msg:e.message});}
+  }
+
+  // ── TAF TEAM → Déclarants ──
+  async function syncTeam(){
+    setTeamSync(s=>({...s,status:"loading"}));
+    try{
+      const teamData=await fbGet("/team.json");
+      if(!teamData){setTeamSync({status:"empty",count:0,msg:"Vide"});return;}
+      setFbConnected(true);
+      const members=typeof teamData==="object"?Object.entries(teamData):[];
+      const imported=[];
+      members.forEach(([key,m])=>{if(!m||!m.nom)return;imported.push({id:"tafteam_"+key,nom:m.nom,prenom:m.prenom||"",poste:m.poste||"",email:m.email||"",source:"taf_team"});});
+      if(imported.length){setDeclarants(prev=>{const man=prev.filter(d=>d.source!=="taf_team");const names=new Set(man.map(d=>(d.nom||"").toLowerCase()));return[...man,...imported.filter(d=>!names.has(d.nom.toLowerCase()))];});}
+      setTeamSync({status:imported.length?"ok":"empty",count:imported.length,msg:imported.length+" membre(s)"});
+    }catch(e){setTeamSync({status:"error",count:0,msg:e.message});}
+  }
+
+  useEffect(()=>{fbGet("/_bridge_ping.json").then(r=>{if(r!==null)setFbConnected(true);});setTimeout(()=>{syncContacts();syncTeam();},800);const i=setInterval(()=>{syncContacts();syncTeam();},120000);return()=>clearInterval(i);},[]);
+
+  function notify(msg,ok=true){setToast({msg,ok});setTimeout(()=>setToast(null),3500);}
+
+  async function handleDeclDrop(e){e.preventDefault();e.stopPropagation();const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);if(!files.length)return;const f=files[0];if(!f.name.toLowerCase().endsWith(".pdf")){notify("Fichier PDF uniquement",false);return;}const b64=await fileToBase64(f);setDeclFile({name:f.name,size:f.size,b64});if(e.target&&e.target.value)e.target.value="";}
+  async function handleDocDrop(e){e.preventDefault();e.stopPropagation();const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);if(!files.length)return;const nf=await Promise.all(files.map(async f=>({name:f.name,size:f.size,b64:await fileToBase64(f)})));setDocFiles(prev=>[...prev,...nf]);if(e.target&&e.target.value)e.target.value="";}
+
+  function getPreviewData(){
+    const bureau=bureaux.find(b=>b.id===selBur);
+    const decl=declarants.find(d=>d.id===selDecl);
+    const dn=decl?(decl.prenom+" "+decl.nom+(decl.poste?" — "+decl.poste:"")):null;
+    return{type,numDecl,bureau,declarant:dn,declFile,docFiles,subject:"Déclaration en douane "+(type==="import"?"Import":"Export")+" — "+numDecl,bodyHTML:buildEmailHTML({type,numDecl,declarant:dn})};
+  }
+
+  async function handleSend(){
+    if(!selBur){notify("Sélectionnez un bureau destinataire",false);return;}
+    if(!numDecl||numDecl.length<9){notify("N° de déclaration requis",false);return;}
+    if(!declFile){notify("Joignez la déclaration PDF",false);return;}
+    const p=getPreviewData();setSending(true);
+    try{
+      const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
+      const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
+      const resp=await fetch(WEBHOOK_SEND,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(resp.ok){
+        setSent(true);
+        const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
+        setHistory(h=>[entry,...h].slice(0,200));
+        fbSet("/taf_valide/history/"+entry.id,entry);
+        fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
+        notify("✅ Envoyé à "+p.bureau.nom);
+      }else{notify("❌ Erreur envoi ("+resp.status+")",false);}
+    }catch(err){notify("❌ "+err.message,false);}
+    setSending(false);
+  }
+
+  function resetForm(){setSelBur("");setSelDecl("");setDeclFile(null);setDocFiles([]);setSent(false);setNumDecl(type==="import"?"26FRD000":"26FR1000");}
+  function addDeclarant(){if(!newDeclNom.trim()){notify("Nom requis",false);return;}setDeclarants(prev=>[...prev,{id:genId(),nom:newDeclNom.trim().toUpperCase(),prenom:newDeclPrenom.trim(),poste:newDeclTitre.trim(),source:"manual"}]);setNewDeclNom("");setNewDeclPrenom("");setNewDeclTitre("");notify("✅ Déclarant ajouté");}
+
+  function BridgeStatus({icon,label,sync,onRefresh}){
+    const c={pending:"var(--textD)",loading:"var(--orange)",ok:"var(--green)",error:"var(--red)",empty:"var(--textM)"};
+    const bg={pending:"rgba(74,94,114,.08)",loading:"rgba(249,115,22,.06)",ok:"rgba(34,197,94,.06)",error:"rgba(239,68,68,.06)",empty:"rgba(138,155,184,.06)"};
+    const bd={pending:"rgba(74,94,114,.15)",loading:"rgba(249,115,22,.2)",ok:"rgba(34,197,94,.15)",error:"rgba(239,68,68,.2)",empty:"rgba(138,155,184,.15)"};
+    return<div className="bridge-chip" style={{background:bg[sync.status],border:"1px solid "+bd[sync.status]}}>
+      <span className="bdot" style={{background:c[sync.status],boxShadow:sync.status==="ok"?"0 0 6px rgba(34,197,94,.5)":"none"}}/>
+      <span style={{fontSize:15}}>{icon}</span>
+      <span style={{color:c[sync.status],flex:1}}>{label}</span>
+      {sync.status==="ok"&&<span className="bcount">{sync.count}</span>}
+      {sync.status==="loading"&&<span className="spin" style={{width:10,height:10,borderWidth:1.5}}/>}
+      <button onClick={onRefresh} style={{background:"none",border:"none",cursor:"pointer",color:"var(--textD)",fontSize:12,padding:2}} title="Rafraîchir">🔄</button>
+    </div>;
+  }
+
+  return<>
+    <div className="hdr"><div className="hdr-inner">
+      <div className="logo-box">
+        <div className="logo-icon">VALIDE</div>
+        <div><div className="logo-title">TAF VALIDE</div><div className="logo-sub">Envoi déclarations & documents</div></div>
+      </div>
+      <div className="hdr-actions">
+        <div style={{display:"flex",alignItems:"center",gap:6,marginRight:8}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:fbConnected?"var(--green)":"var(--textD)",boxShadow:fbConnected?"0 0 6px rgba(34,197,94,.5)":"none"}}/>
+          <span style={{fontSize:10,color:fbConnected?"var(--green)":"var(--textD)",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{fbConnected?"🔥 Firebase":"Offline"}</span>
+        </div>
+        <span className="ver-badge">{VERSION}</span>
+      </div>
+    </div></div>
+
+    <div className="tabbar"><div className="tabbar-inner">
+      <button className={"tb"+(tab==="envoi"?" on":"")} onClick={()=>setTab("envoi")}>📨 Envoi</button>
+      <button className={"tb"+(tab==="historique"?" on":"")} onClick={()=>setTab("historique")}>📋 Historique <span className="tb-badge">{history.length}</span></button>
+      <button className={"tb"+(tab==="options"?" on":"")} onClick={()=>setTab("options")}>⚙️ Options</button>
+    </div></div>
+
+    <div className="content fade-in">
+
+    {tab==="envoi"&&<div className="bridge-bar">
+      <BridgeStatus icon="📇" label="TAF CONTACT" sync={contactSync} onRefresh={syncContacts}/>
+      <BridgeStatus icon="👥" label="TAF TEAM" sync={teamSync} onRefresh={syncTeam}/>
+    </div>}
+
+    {tab==="envoi"&&!sent&&<>
+      <div className="card"><div className="card-h"><span className="card-icon">📋</span><span className="card-title">Déclaration</span></div>
+      <div className="card-b">
+        <div className="fg"><label>Type de déclaration</label>
+          <div className="toggle-row">
+            <div className={"toggle-opt"+(type==="import"?" on":"")} onClick={()=>setType("import")}>🔽 IMPORT</div>
+            <div className={"toggle-opt"+(type==="export"?" on":"")} onClick={()=>setType("export")}>🔼 EXPORT</div>
+          </div>
+        </div>
+        <div className="g2">
+          <div className="fg"><label>N° de déclaration</label>
+            <input value={numDecl} onChange={e=>setNumDecl(e.target.value)} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:"15px",fontWeight:700,letterSpacing:"1px"}}/>
+          </div>
+          <div className="fg"><label>Déclarant {teamSync.status==="ok"&&<span style={{color:"var(--teal)",fontSize:9,fontWeight:700}}>● TAF TEAM</span>}</label>
+            <select value={selDecl} onChange={e=>setSelDecl(e.target.value)}>
+              <option value="">— Sélectionner —</option>
+              {declarants.filter(d=>d.source==="taf_team").length>0&&<optgroup label="👥 TAF TEAM">
+                {declarants.filter(d=>d.source==="taf_team").map(d=><option key={d.id} value={d.id}>{d.prenom} {d.nom}{d.poste?" — "+d.poste:""}</option>)}
+              </optgroup>}
+              {declarants.filter(d=>d.source!=="taf_team").length>0&&<optgroup label="✏️ Manuels">
+                {declarants.filter(d=>d.source!=="taf_team").map(d=><option key={d.id} value={d.id}>{d.prenom} {d.nom}{d.poste?" — "+d.poste:""}</option>)}
+              </optgroup>}
+            </select>
+          </div>
+        </div>
+      </div></div>
+
+      <div className="card"><div className="card-h"><span className="card-icon">🏛️</span><span className="card-title">Bureau destinataire</span>
+        {contactSync.status==="ok"&&<span style={{fontSize:10,color:"var(--teal)",fontWeight:700}}>● TAF CONTACT · {contactSync.count}</span>}
+      </div>
+      <div className="card-b">
+        <div className="fg">
+          <select value={selBur} onChange={e=>setSelBur(e.target.value)} style={{fontSize:"14px"}}>
+            <option value="">— Choisir le bureau de douane —</option>
+            {bureaux.filter(b=>b.source!=="taf_contact").length>0&&<optgroup label="🏛️ Bureaux par défaut">
+              {bureaux.filter(b=>b.source!=="taf_contact").map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+            </optgroup>}
+            {bureaux.filter(b=>b.source==="taf_contact").length>0&&<optgroup label="📇 TAF CONTACT">
+              {bureaux.filter(b=>b.source==="taf_contact").map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+            </optgroup>}
+          </select>
+        </div>
+        {selBur&&(()=>{const b=bureaux.find(x=>x.id===selBur);return b?<div style={{background:"var(--bg3)",border:"1px solid var(--borderL)",borderRadius:8,padding:"10px 14px",fontSize:12,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{color:"var(--textM)"}}>📧</span>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",color:"var(--gold)",flex:1}}>{b.email}</span>
+          {b.source==="taf_contact"&&<span style={{fontSize:9,color:"var(--teal)",fontWeight:700,background:"rgba(20,184,166,.1)",padding:"2px 6px",borderRadius:4}}>TAF CONTACT</span>}
+        </div>:null;})()}
+      </div></div>
+
+      <div className="card"><div className="card-h"><span className="card-icon">📎</span><span className="card-title">Documents</span></div>
+      <div className="card-b"><div className="g2">
+        <div className="fg"><label>Déclaration (PDF) *</label>
+          <div className={"dropzone"+(dragDecl?" active":"")} onDragOver={e=>{e.preventDefault();setDragDecl(true);}} onDragLeave={()=>setDragDecl(false)} onDrop={e=>{setDragDecl(false);handleDeclDrop(e);}} onClick={()=>document.getElementById("inp-decl").click()}>
+            {declFile?<><div style={{fontSize:28}}>✅</div><div className="file-chip">{declFile.name} <span style={{color:"var(--textD)"}}>{fmtSize(declFile.size)}</span> <span className="remove" onClick={e=>{e.stopPropagation();setDeclFile(null);}}>✕</span></div></>:<><div className="dz-icon">📄</div><div className="dz-text">Glissez le PDF de la déclaration</div><div className="dz-hint">ou cliquez pour sélectionner</div></>}
+          </div>
+          <input type="file" id="inp-decl" accept=".pdf" style={{display:"none"}} onChange={handleDeclDrop}/>
+        </div>
+        <div className="fg"><label>Documentation commerciale</label>
+          <div className={"dropzone"+(dragDoc?" active":"")} onDragOver={e=>{e.preventDefault();setDragDoc(true);}} onDragLeave={()=>setDragDoc(false)} onDrop={e=>{setDragDoc(false);handleDocDrop(e);}} onClick={()=>document.getElementById("inp-doc").click()}>
+            {docFiles.length?<><div style={{fontSize:28}}>📁</div><div style={{display:"flex",flexWrap:"wrap",justifyContent:"center"}}>{docFiles.map((f,i)=><div key={i} className="file-chip">{f.name} <span style={{color:"var(--textD)"}}>{fmtSize(f.size)}</span> <span className="remove" onClick={e=>{e.stopPropagation();setDocFiles(prev=>prev.filter((_,j)=>j!==i));}}>✕</span></div>)}</div></>:<><div className="dz-icon">📑</div><div className="dz-text">Glissez les documents</div><div className="dz-hint">Factures, packing list, certificats…</div></>}
+          </div>
+          <input type="file" id="inp-doc" multiple style={{display:"none"}} onChange={handleDocDrop}/>
+        </div>
+      </div></div></div>
+
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end",flexWrap:"wrap"}}>
+        <button className="btn btn-ghost" onClick={resetForm}>🔄 Réinitialiser</button>
+        <button className="btn btn-blue" onClick={()=>{if(!selBur){notify("Sélectionnez un bureau",false);return;}if(!numDecl||numDecl.length<9){notify("N° requis",false);return;}setShowPreview(true);}}>👁️ Prévisualiser</button>
+        <button className="btn btn-gold" disabled={sending} onClick={handleSend}>{sending?<><span className="spin"/> Envoi...</>:<>📨 Envoyer</>}</button>
+      </div>
+    </>}
+
+    {tab==="envoi"&&sent&&<div className="card"><div className="card-b send-success">
+      <div className="ico">✅</div>
+      <h2 style={{color:"var(--green)",marginBottom:8}}>Déclaration envoyée !</h2>
+      <p style={{color:"var(--textM)",fontSize:13,marginBottom:6}}>N° <strong style={{fontFamily:"'JetBrains Mono',monospace",color:"var(--gold)"}}>{numDecl}</strong></p>
+      <p style={{color:"var(--textM)",fontSize:13,marginBottom:20}}>→ {bureaux.find(b=>b.id===selBur)?.nom}</p>
+      <button className="btn btn-gold" onClick={resetForm}>📨 Nouvel envoi</button>
+    </div></div>}
+
+    {tab==="historique"&&<div className="card"><div className="card-h"><span className="card-icon">📋</span><span className="card-title">Historique des envois</span><span style={{fontSize:11,color:"var(--textD)"}}>{history.length}</span></div>
+    <div className="card-b">
+      {!history.length?<div style={{textAlign:"center",padding:40,color:"var(--textD)"}}><div style={{fontSize:48,marginBottom:12}}>📭</div><p>Aucun envoi</p></div>:
+      history.map(h=><div key={h.id} className="hist-row">
+        <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"var(--textM)"}}>{fmtDate(h.date)}</span>
+        <span style={{fontSize:10,fontWeight:700,color:h.type==="import"?"var(--blue)":"var(--purple)",textTransform:"uppercase"}}>{h.type}</span>
+        <span style={{fontWeight:700,fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}>{h.numDecl}</span>
+        <span style={{fontSize:11,color:"var(--textM)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={h.bureau}>{h.bureau}</span>
+        <span style={{fontSize:10,color:"var(--textD)"}}>{h.nbDocs} doc(s)</span>
+      </div>)}
+    </div></div>}
+
+    {tab==="options"&&<>
+      <div className="card"><div className="card-h"><span className="card-icon">🔗</span><span className="card-title">Connexions TAF</span><span style={{width:8,height:8,borderRadius:"50%",background:fbConnected?"var(--green)":"var(--red)"}}/></div>
+      <div className="card-b">
+        <div className="bridge-bar" style={{marginBottom:0}}>
+          <BridgeStatus icon="📇" label="TAF CONTACT → Bureaux" sync={contactSync} onRefresh={syncContacts}/>
+          <BridgeStatus icon="👥" label="TAF TEAM → Déclarants" sync={teamSync} onRefresh={syncTeam}/>
+        </div>
+        <div style={{marginTop:12,padding:"10px 14px",background:"var(--bg3)",borderRadius:8,fontSize:11,color:"var(--textM)",lineHeight:1.7}}>
+          <strong style={{color:"var(--gold)"}}>🔥 Firebase Realtime Database</strong><br/>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10}}>{FB_URL}</span><br/>
+          📇 <strong>TAF CONTACT</strong> : contacts douane avec email → bureaux destinataires<br/>
+          👥 <strong>TAF TEAM</strong> : membres de l'équipe → déclarants
+        </div>
+      </div></div>
+
+      <div className="card"><div className="card-h"><span className="card-icon">👤</span><span className="card-title">Déclarants ({declarants.length})</span></div>
+      <div className="card-b">
+        {declarants.filter(d=>d.source==="taf_team").length>0&&<>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--teal)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"var(--teal)"}}/>TAF TEAM ({declarants.filter(d=>d.source==="taf_team").length})
+          </div>
+          {declarants.filter(d=>d.source==="taf_team").map(d=><div key={d.id} className="decl-item"><div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13}}>{d.prenom} {d.nom}</div>
+            {d.poste&&<div style={{fontSize:11,color:"var(--textM)"}}>{d.poste}</div>}
+            {d.email&&<div style={{fontSize:10,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace"}}>{d.email}</div>}
+          </div><span style={{fontSize:9,color:"var(--teal)",fontWeight:700,background:"rgba(20,184,166,.1)",padding:"2px 8px",borderRadius:4}}>TAF TEAM</span></div>)}
+        </>}
+        {declarants.filter(d=>d.source!=="taf_team").length>0&&<>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--textM)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8,marginTop:declarants.filter(d=>d.source==="taf_team").length?16:0}}>✏️ Manuels</div>
+          {declarants.filter(d=>d.source!=="taf_team").map(d=><div key={d.id} className="decl-item"><div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13}}>{d.prenom} {d.nom}</div>
+            {d.poste&&<div style={{fontSize:11,color:"var(--textM)"}}>{d.poste}</div>}
+          </div><button className="btn btn-red btn-sm" onClick={()=>setDeclarants(prev=>prev.filter(x=>x.id!==d.id))}>✕</button></div>)}
+        </>}
+        {!declarants.length&&<div style={{textAlign:"center",padding:24,color:"var(--textD)"}}><div style={{fontSize:36,marginBottom:8}}>👥</div><p style={{fontSize:12}}>Connectez TAF TEAM ou ajoutez manuellement</p></div>}
+        <div style={{borderTop:"1px solid var(--border)",paddingTop:14,marginTop:14}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--textM)",marginBottom:8,textTransform:"uppercase",letterSpacing:".8px"}}>+ Ajouter un déclarant manuel</div>
+          <div className="g2" style={{marginBottom:10}}>
+            <input placeholder="Prénom" value={newDeclPrenom} onChange={e=>setNewDeclPrenom(e.target.value)}/>
+            <input placeholder="NOM" value={newDeclNom} onChange={e=>setNewDeclNom(e.target.value)}/>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <input placeholder="Poste (optionnel)" value={newDeclTitre} onChange={e=>setNewDeclTitre(e.target.value)} style={{flex:1}}/>
+            <button className="btn btn-green btn-sm" onClick={addDeclarant}>+ Ajouter</button>
+          </div>
+        </div>
+      </div></div>
+
+      <div className="card"><div className="card-h"><span className="card-icon">🏛️</span><span className="card-title">Bureaux ({bureaux.length})</span></div>
+      <div className="card-b" style={{maxHeight:300,overflow:"auto"}}>
+        {bureaux.map(b=><div key={b.id} className="decl-item"><div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:12}}>{b.nom}</div>
+          <div style={{fontSize:11,color:"var(--textM)",fontFamily:"'JetBrains Mono',monospace"}}>{b.email}</div>
+        </div>{b.source==="taf_contact"?<span style={{fontSize:9,color:"var(--teal)",fontWeight:700,background:"rgba(20,184,166,.1)",padding:"2px 6px",borderRadius:4}}>TAF CONTACT</span>:<span style={{fontSize:9,color:"var(--textD)"}}>DÉFAUT</span>}</div>)}
+      </div></div>
+
+      <div className="card"><div className="card-h"><span className="card-icon">📊</span><span className="card-title">Statistiques</span></div>
+      <div className="card-b">
+        <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+          {[{v:history.length,l:"Envois",c:"var(--gold)"},{v:history.filter(h=>h.type==="import").length,l:"Import",c:"var(--blue)"},{v:history.filter(h=>h.type==="export").length,l:"Export",c:"var(--purple)"},{v:bureaux.length,l:"Bureaux",c:"var(--teal)"},{v:declarants.length,l:"Déclarants",c:"var(--green)"}].map((s,i)=>
+            <div key={i} style={{flex:1,minWidth:80,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div>
+              <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:".8px",color:"var(--textD)",marginTop:4}}>{s.l}</div>
+            </div>)}
+        </div>
+        <div style={{marginTop:16,textAlign:"right"}}><button className="btn btn-red btn-sm" onClick={()=>{if(confirm("Effacer l'historique ?"))setHistory([]);}}>🗑️ Vider</button></div>
+      </div></div>
+    </>}
+
+    </div>
+
+    {showPreview&&(()=>{const p=getPreviewData();return<div className="modal-overlay" onClick={()=>setShowPreview(false)}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="modal-h"><span style={{fontSize:18}}>👁️</span><span style={{fontWeight:700,flex:1}}>Prévisualisation du mail</span><button className="modal-close" onClick={()=>setShowPreview(false)}>✕</button></div>
+        <div className="email-preview">
+          <div className="ep-header">
+            <div className="ep-field"><span className="ep-label">De :</span><span className="ep-val">{SENDER_FROM}</span></div>
+            <div className="ep-field"><span className="ep-label">À :</span><span className="ep-val">{p.bureau?.email||"—"}</span></div>
+            <div className="ep-field"><span className="ep-label">CC :</span><span className="ep-val">{SENDER_CC}</span></div>
+            <div className="ep-field"><span className="ep-label">Objet :</span><span className="ep-val">{p.subject}</span></div>
+          </div>
+          <div dangerouslySetInnerHTML={{__html:p.bodyHTML}}/>
+          <div style={{borderTop:"1px solid #e5e7eb",paddingTop:16,marginTop:20}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:".5px",marginBottom:8}}>📎 Pièces jointes ({(declFile?1:0)+docFiles.length})</div>
+            {declFile&&<div style={{background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:6,padding:"6px 10px",fontSize:12,fontWeight:600,color:"#333",marginBottom:4}}>📄 {declFile.name} <span style={{color:"#999"}}>{fmtSize(declFile.size)}</span></div>}
+            {docFiles.map((f,i)=><div key={i} style={{background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:6,padding:"6px 10px",fontSize:12,fontWeight:600,color:"#333",marginBottom:4}}>📑 {f.name} <span style={{color:"#999"}}>{fmtSize(f.size)}</span></div>)}
+          </div>
+        </div>
+        <div style={{padding:"16px 24px",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"flex-end",gap:10}}>
+          <button className="btn btn-ghost" onClick={()=>setShowPreview(false)}>Fermer</button>
+          <button className="btn btn-gold" disabled={sending} onClick={()=>{setShowPreview(false);handleSend();}}>{sending?<><span className="spin"/> Envoi...</>:<>📨 Confirmer l'envoi</>}</button>
+        </div>
+      </div>
+    </div>;})()}
+
+    <div className={"toast"+(toast?" on":"")+(toast&&!toast.ok?" err":"")}>{toast?.msg}</div>
+  </>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+<!-- TAF BRIDGE v2.0 -->
+<script>
+(function(){'use strict';
+const FB="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={"taf_valide_v1":{p:"taf_valide/data",n:"VALIDE"}};
+const B={url:FB,tok:"",ok:false,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.ok}catch(e){return false}},
+init:function(){try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}this._test();this._hook();console.log('[TAF BRIDGE v2] 🔥 Init — VALIDE');},
+_test:async function(){try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:'VALIDE',v:'2.0'})});this.ok=r.ok;if(r.ok)console.log('[TAF BRIDGE] ✅ Firebase connecté')}catch(e){this.ok=false}},
+_hook:function(){const orig=localStorage.setItem.bind(localStorage);const b=this;localStorage.setItem=function(k,v){orig(k,v);const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},2000)}}},
+_sync:async function(k,v,m){if(!this.ok)return;try{let d;try{d=JSON.parse(v)}catch(e){d=v}const ok=await this.set(m.p,d);if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){}}
+};window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+</body>
+</html>
