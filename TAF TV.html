@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF TV v3.0 — Hub Média</title>
+<title>TAF TV v3.1 — Hub Média</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.06);--bc:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:3;--rows:2}
@@ -116,7 +116,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
   <div class="grid-area"><div class="tv-grid" id="grid"></div></div>
 </div>
-<div class="ver">TAF TV v3.0</div>
+<div class="ver">TAF TV v3.1</div>
 
 <script>
 /* ═══ FIREBASE ═══ */
@@ -230,7 +230,7 @@ function renderCatalog(){
             </div>
             <div class="cfg-row" style="margin-top:8px">
               <div><label>Visualisation</label><select id="viz-${mod.id}">
-                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>
+                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>${s.id==='vols'?'<option value="vols_card" selected>✈️ Carte Vol (identique Suivi Vols)</option>':''}
               </select></div>
               <div><label>Mode</label><select id="mode-${mod.id}">
                 <option value="fixed">Fixe</option><option value="carousel">Carrousel</option>
@@ -307,6 +307,18 @@ async function refreshAll(){
   countdown=+(document.getElementById('rint').value)||30;
 }
 
+/* ═══ HELPERS TEMPS PARIS (identiques à TAF Suivi des Vols) ═══ */
+const TZ_PARIS="Europe/Paris";
+function fmtTimeParis(iso){if(!iso)return"—";try{return new Date(iso).toLocaleTimeString("fr-FR",{timeZone:TZ_PARIS,hour:"2-digit",minute:"2-digit"})}catch{return"—"}}
+function fmtDateTimeParis(iso){if(!iso)return"—";try{return new Date(iso).toLocaleString("fr-FR",{timeZone:TZ_PARIS,day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch{return"—"}}
+const DELAY_LEVELS=[
+  {min:-9999,max:29,label:"À l'heure",color:"#1a7a3a",emoji:"✅",code:0},
+  {min:30,max:59,label:"+30 min",color:"#c06000",emoji:"⚠️",code:1},
+  {min:60,max:119,label:"+1 heure",color:"#b04000",emoji:"🔶",code:2},
+  {min:120,max:9999,label:"+2h ou plus",color:"#c00020",emoji:"🚨",code:3},
+];
+function getDelayLevel(min){if(min===null||min===undefined)return null;return DELAY_LEVELS.find(l=>min>=l.min&&min<=l.max)||DELAY_LEVELS[0]}
+
 /* ═══ RENDER DATA ═══ */
 function tr(s,m){if(!s)return'—';s=String(s);return s.length>m?s.slice(0,m)+'…':s;}
 function fmt(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}catch{return d}}
@@ -322,6 +334,7 @@ function renderData(w){
     case'list':renderList(b,w,d);break;
     case'bars':renderBars(b,w,d);break;
     case'planning':renderPlanning(b,w,d);break;
+    case'vols_card':renderVolsCard(b,w,d);break;
     default:renderTable(b,w,d);
   }
 }
@@ -353,6 +366,59 @@ function renderBars(b,w,d){
     return`<div style="margin-bottom:5px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>${tr(k,20)}</span><span style="font-family:var(--mono);color:var(--${c})">${v}</span></div><div style="height:4px;background:var(--bd);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--${c});border-radius:2px"></div></div></div>`;
   }).join('');
   b.innerHTML=(bars||'<div class="ml">Aucune donnée</div>')+`<div class="wsrc">${w.srcName}</div>`;
+}
+
+/* ═══ RENDU VOLS — identique à TAF Suivi des Vols ═══ */
+function renderVolsCard(b,w,d){
+  if(!d.length){b.innerHTML='<div style="text-align:center;color:var(--t3)"><div style="font-size:36px;opacity:.3;margin-bottom:8px">✈️</div>Aucun vol suivi</div>';return;}
+
+  /* Compteurs */
+  const onTime=d.filter(v=>{const dd=v.lastData;return dd&&!dd.error&&(dd.delayMin||0)<30}).length;
+  const delayed=d.filter(v=>{const dd=v.lastData;return dd&&!dd.error&&(dd.delayMin||0)>=30}).length;
+  const landed=d.filter(v=>v.lastData&&v.lastData.status==='Atterri').length;
+  const alerts=d.filter(v=>v.alerts&&v.alerts.length>0).length;
+
+  const counters=`<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:18px;color:var(--cyan)">${d.length}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Vols</div></div>
+    <div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:18px;color:#1a7a3a">${onTime}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">À l'heure</div></div>
+    <div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;background:var(--card2);border-radius:8px;border:1px solid ${delayed?'#c06000':'var(--bd)'}"><div style="font-family:var(--mono);font-weight:700;font-size:18px;color:#c06000">${delayed}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Retard</div></div>
+    <div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:700;font-size:18px;color:var(--t2)">${landed}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Atterris</div></div>
+    <div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;background:var(--card2);border-radius:8px;border:1px solid ${alerts?'#c00020':'var(--bd)'}"><div style="font-family:var(--mono);font-weight:700;font-size:18px;color:#c00020">${alerts}</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Alertes</div></div>
+  </div>`;
+
+  /* Cartes vols individuelles */
+  const cards=d.slice(0,8).map(vol=>{
+    const dd=vol.lastData||{};
+    const level=dd.delayMin!=null?getDelayLevel(dd.delayMin):null;
+    const statusCol=dd.status==='Atterri'?'#00c853':dd.status==='En route'?'#2a9fff':dd.status==='Annulé'?'#ff2020':'#8ab0d0';
+    const borderCol=dd.delayMin!=null?(dd.delayMin<0?'#2a7fff':dd.delayMin===0?'#00c853':dd.delayMin<60?'#ff8c00':dd.delayMin<120?'#ff5500':'#ff0030'):'#1a3050';
+
+    const statusBadge=dd.status?`<span style="font-size:10px;font-weight:800;font-family:var(--mono);color:${statusCol};background:rgba(0,0,0,.3);padding:3px 8px;border-radius:4px;letter-spacing:1px;border:1px solid ${statusCol}40">${dd.status.toUpperCase()}</span>`:'';
+    const delayBadge=level?`<span style="font-size:10px;font-weight:800;color:${level.color};background:rgba(0,0,0,.3);padding:3px 8px;border-radius:4px;border:1px solid ${level.color}60">${level.emoji} ${level.label}${dd.delayMin!==0?' ('+(dd.delayMin<0?dd.delayMin:'+'+dd.delayMin)+' min)':''}</span>`:'';
+
+    const retardVal=dd.delayMin!=null?(dd.delayMin===0?"À l'heure":dd.delayMin<0?(dd.delayMin+' min ✈'):'+'+dd.delayMin+' min'):'—';
+    const retardCol=dd.delayMin!=null?(dd.delayMin<0?'#2a9fff':level?level.color:'#00c853'):'var(--t3)';
+
+    const infos=[
+      {lbl:'Arrivée prévue',val:vol.scheduledArr||fmtTimeParis(dd.schArr),col:'#c8d8e8'},
+      {lbl:'Estimée / Réelle',val:fmtTimeParis(dd.actArr||dd.estArr),col:level&&level.code>0?level.color:'#00c853'},
+      {lbl:'Retard',val:retardVal,col:retardCol},
+      {lbl:'Trajet',val:(vol.origin||dd.origin||'?')+' → '+(dd.dest||'CDG'),col:'#8ab0d0'},
+      {lbl:'Màj',val:vol.lastFetch?fmtDateTimeParis(vol.lastFetch):'—',col:'#2a5070'},
+    ];
+
+    return`<div style="background:#0a1628;border:1px solid ${borderCol}30;border-left:3px solid ${borderCol};border-radius:10px;padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:var(--mono);font-weight:800;font-size:16px;letter-spacing:2px;color:var(--txt)">${vol.flightNum||'—'}</span>
+        <div style="display:flex;gap:6px">${statusBadge}${delayBadge}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bd);border-radius:6px;overflow:hidden">
+        ${infos.map(i=>`<div style="background:#060d1a;padding:6px 8px"><div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${i.lbl}</div><div style="font-family:var(--mono);font-size:12px;font-weight:600;color:${i.col}">${i.val}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  b.innerHTML=`${counters}<div style="overflow:auto;flex:1">${cards}</div><div class="wsrc">TAF Suivi des Vols • ${d.length} vol(s)</div>`;
 }
 
 function renderPlanning(b,w,d){
@@ -411,12 +477,28 @@ document.addEventListener('keydown',e=>{
   if(e.key==='f'||e.key==='F11'){e.preventDefault();if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
 });
 
+/* ═══ REFRESH QUOTIDIEN 06h30 ═══ */
+let lastDailyRefresh = '';
+function checkDailyRefresh() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const today = now.toDateString();
+  if (h === 6 && m === 30 && lastDailyRefresh !== today) {
+    lastDailyRefresh = today;
+    console.log('🔄 Refresh quotidien 06h30 déclenché');
+    refreshAll();
+    // Recharger la page pour forcer la synchro complète
+    setTimeout(() => location.reload(), 5000);
+  }
+}
+
 /* ═══ INIT ═══ */
 updClock();setInterval(updClock,1000);
 renderCatalog();
 loadCfg();
 renderGrid();
 setInterval(()=>{countdown--;document.getElementById('rtm').textContent=`${countdown}s`;if(countdown<=0)refreshAll()},1000);
+setInterval(checkDailyRefresh, 30000); // Vérifie toutes les 30 secondes
 if(!widgets.length)refreshAll();
 </script>
 </body>

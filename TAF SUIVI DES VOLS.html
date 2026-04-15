@@ -375,6 +375,17 @@ async function fetchFlightViaProxy(flightNum){
     setLoadingIds(function(p){return {...p,[vol.id]:false};});
   }
 
+  /* ── Sauvegarde complète Drive ── */
+  async function saveToDrive(volsData){
+    var PROXY="https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec";
+    var FOLDER="143DZMp79_EfrVAjyOMquBU0L-JXlKdnF";
+    var dt=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+    try{
+      await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload",folderId:FOLDER,fileName:"TAF_VOLS_"+dt+".json",content:JSON.stringify(volsData,null,2),mimeType:"application/json"})});
+      console.log("✅ Sauvegarde Drive OK");
+    }catch(e){console.error("Drive save error:",e);}
+  }
+
   function saveVol(){
     if(!form.flightNum.trim()){notify2("Numéro de vol requis",false);return;}
     var id=editId||("FT"+Date.now());
@@ -388,6 +399,10 @@ async function fetchFlightViaProxy(flightNum){
       horaire:vol.scheduledArr||"",
     },"Name");
     notify2("Vol enregistré ✓");
+    /* Sauvegarde totale Drive */
+    setTimeout(function(){
+      try{var d=localStorage.getItem("taf_vols2");if(d)saveToDrive(JSON.parse(d));}catch(e){}
+    },1000);
   }
 
   function deleteVol(id){
