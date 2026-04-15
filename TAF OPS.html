@@ -13974,7 +13974,7 @@ async function deleteDossier() {
       </div>
     </div>
     <!-- Body viewer -->
-    <div id="pdfViewerBody" style="flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#111118;padding:16px;"></div>
+    <div id="pdfViewerBody" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:flex-start;flex-direction:column;background:#111118;padding:16px;gap:12px;"></div>
   </div>
 </div>
 
@@ -14498,6 +14498,10 @@ function openPdfViewer(docId) {
     }
   }
 
+  // Scroll en haut du document
+  const bodyEl = document.getElementById('pdfViewerBody');
+  if (bodyEl) bodyEl.scrollTop = 0;
+
   document.getElementById('pdfViewerOverlay').style.display = 'flex';
 }
 
@@ -14517,9 +14521,6 @@ function renderDocInViewer(base64, doc, body) {
 
           const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
           body.innerHTML = '';
-          body.style.flexDirection = 'column';
-          body.style.alignItems = 'center';
-          body.style.gap = '12px';
 
           const scale = 3.0; // HAUTE RÉSOLUTION (était 1.5)
           for (let p = 1; p <= pdf.numPages; p++) {
