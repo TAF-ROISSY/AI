@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF TV v3.7 — Hub Média</title>
+<title>TAF TV v4.1 — Hub Média</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.06);--bc:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:2;--rows:2}
@@ -102,6 +102,22 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <div class="side-h">📡 Sources de données</div>
     <div class="cat" id="catalog"></div>
     <div style="padding:12px;border-top:1px solid var(--bd)">
+      <!-- Thèmes / Polices / Taille -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--t2);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px">🎨 Thème</label>
+        <select id="themeSelect" onchange="applyTheme(this.value);saveCfg()" style="width:100%;padding:6px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:12px"></select>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--t2);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px">🔤 Police</label>
+        <select id="fontSelect" onchange="applyFont(this.value);saveCfg()" style="width:100%;padding:6px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-size:12px"></select>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--t2);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px">📐 Taille police</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="range" id="fontSizeRange" min="10" max="20" value="13" step="1" oninput="applyFontSize(this.value);document.getElementById('fontSizeVal').textContent=this.value+'px';saveCfg()" style="flex:1;accent-color:var(--cyan)">
+          <span id="fontSizeVal" style="font-family:var(--mono);font-size:11px;color:var(--cyan);min-width:30px">13px</span>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <label style="font-size:10px;color:var(--t2)">COL</label>
         <input type="number" min="1" max="6" value="2" id="gcols" onchange="updGrid()" style="width:46px;padding:5px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--txt);font-family:var(--mono);font-size:12px">
@@ -117,12 +133,99 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
   <div class="grid-area"><div class="tv-grid" id="grid"></div></div>
 </div>
-<div class="ver">TAF TV v3.7</div>
+<div class="ver">TAF TV v4.1</div>
 
 <script>
 /* ═══ FIREBASE ═══ */
 const FB="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 async function fbGet(p){try{const r=await fetch(`${FB}/${p}.json`);return r.ok?await r.json():null}catch{return null}}
+
+/* ═══ 20 THÈMES ═══ */
+const THEMES={
+  'midnight':     {n:'🌑 Midnight',      bg:'#060a14',panel:'#0c1220',card:'#111827',card2:'#1a2435',accent:'#00d4ff',accent2:'#00ff88',txt:'#e8ecf4',t2:'#8892a4',t3:'#4a5568',bd:'rgba(255,255,255,.06)'},
+  'ocean':        {n:'🌊 Océan',         bg:'#0a1628',panel:'#0f1d35',card:'#132744',card2:'#1a3358',accent:'#00bcd4',accent2:'#26c6da',txt:'#e0f7fa',t2:'#80cbc4',t3:'#4db6ac',bd:'rgba(0,188,212,.1)'},
+  'forest':       {n:'🌲 Forêt',         bg:'#0a1a0a',panel:'#0f250f',card:'#1a331a',card2:'#204020',accent:'#4caf50',accent2:'#81c784',txt:'#e8f5e9',t2:'#a5d6a7',t3:'#66bb6a',bd:'rgba(76,175,80,.1)'},
+  'sunset':       {n:'🌅 Coucher Soleil', bg:'#1a0a0a',panel:'#251010',card:'#331a1a',card2:'#402020',accent:'#ff6b35',accent2:'#ffa726',txt:'#fff3e0',t2:'#ffcc80',t3:'#ff8a65',bd:'rgba(255,107,53,.1)'},
+  'aurora':       {n:'🌌 Aurore',        bg:'#0a0a1a',panel:'#101025',card:'#1a1a33',card2:'#202040',accent:'#a78bfa',accent2:'#818cf8',txt:'#ede9fe',t2:'#c4b5fd',t3:'#8b5cf6',bd:'rgba(167,139,250,.1)'},
+  'arctic':       {n:'❄️ Arctique',      bg:'#f0f4f8',panel:'#e2e8f0',card:'#ffffff',card2:'#f7fafc',accent:'#2563eb',accent2:'#3b82f6',txt:'#1e293b',t2:'#64748b',t3:'#94a3b8',bd:'rgba(0,0,0,.08)'},
+  'sand':         {n:'🏜 Sable',         bg:'#faf5ef',panel:'#f0e6d3',card:'#ffffff',card2:'#faf5ef',accent:'#d97706',accent2:'#f59e0b',txt:'#292524',t2:'#78716c',t3:'#a8a29e',bd:'rgba(0,0,0,.06)'},
+  'slate':        {n:'🪨 Ardoise',       bg:'#1e293b',panel:'#0f172a',card:'#334155',card2:'#3b4963',accent:'#38bdf8',accent2:'#7dd3fc',txt:'#e2e8f0',t2:'#94a3b8',t3:'#64748b',bd:'rgba(255,255,255,.08)'},
+  'rose':         {n:'🌹 Rose',          bg:'#1a0a14',panel:'#250f1c',card:'#331a28',card2:'#402030',accent:'#ec4899',accent2:'#f472b6',txt:'#fce7f3',t2:'#f9a8d4',t3:'#ec4899',bd:'rgba(236,72,153,.1)'},
+  'gold':         {n:'🏆 Or',            bg:'#1a1400',panel:'#252000',card:'#332c00',card2:'#403800',accent:'#eab308',accent2:'#facc15',txt:'#fefce8',t2:'#fde047',t3:'#ca8a04',bd:'rgba(234,179,8,.1)'},
+  'cyber':        {n:'🤖 Cyberpunk',     bg:'#0d0221',panel:'#1a0533',card:'#290a4a',card2:'#350d5e',accent:'#f637ec',accent2:'#00f0ff',txt:'#e8e0ff',t2:'#c084fc',t3:'#7c3aed',bd:'rgba(246,55,236,.1)'},
+  'nordic':       {n:'🧊 Nordic',        bg:'#0b1622',panel:'#101e30',card:'#17293e',card2:'#1e3450',accent:'#6ee7b7',accent2:'#a7f3d0',txt:'#d1fae5',t2:'#86efac',t3:'#4ade80',bd:'rgba(110,231,183,.08)'},
+  'carbon':       {n:'⚫ Carbon',        bg:'#111111',panel:'#1a1a1a',card:'#222222',card2:'#2a2a2a',accent:'#e0e0e0',accent2:'#ffffff',txt:'#e0e0e0',t2:'#888888',t3:'#555555',bd:'rgba(255,255,255,.06)'},
+  'matrix':       {n:'💻 Matrix',        bg:'#000a00',panel:'#001200',card:'#001a00',card2:'#002200',accent:'#00ff41',accent2:'#00cc33',txt:'#00ff41',t2:'#00cc33',t3:'#009922',bd:'rgba(0,255,65,.1)'},
+  'ocean_light':  {n:'🐚 Océan Clair',   bg:'#f0fdfa',panel:'#ccfbf1',card:'#ffffff',card2:'#f0fdfa',accent:'#0d9488',accent2:'#14b8a6',txt:'#134e4a',t2:'#2dd4bf',t3:'#5eead4',bd:'rgba(0,0,0,.06)'},
+  'blood':        {n:'🩸 Sang',          bg:'#1a0000',panel:'#250000',card:'#330000',card2:'#400000',accent:'#dc2626',accent2:'#ef4444',txt:'#fef2f2',t2:'#f87171',t3:'#b91c1c',bd:'rgba(220,38,38,.1)'},
+  'terminal':     {n:'📟 Terminal',      bg:'#1e1e1e',panel:'#252526',card:'#2d2d30',card2:'#363639',accent:'#569cd6',accent2:'#4ec9b0',txt:'#d4d4d4',t2:'#808080',t3:'#666666',bd:'rgba(255,255,255,.06)'},
+  'lavender':     {n:'💜 Lavande',       bg:'#faf5ff',panel:'#f3e8ff',card:'#ffffff',card2:'#faf5ff',accent:'#7c3aed',accent2:'#8b5cf6',txt:'#1e1b4b',t2:'#6d28d9',t3:'#a78bfa',bd:'rgba(0,0,0,.06)'},
+  'taf_blue':     {n:'✈️ TAF Bleu',     bg:'#0a1628',panel:'#0e1f3d',card:'#132744',card2:'#1a3358',accent:'#2a9fff',accent2:'#60b0ff',txt:'#e8f0ff',t2:'#7eb8e0',t3:'#4a7090',bd:'rgba(42,159,255,.1)'},
+  'neon':         {n:'🔮 Néon',          bg:'#0a0012',panel:'#12001f',card:'#1a002e',card2:'#22003d',accent:'#ff00ff',accent2:'#00ffff',txt:'#f0e6ff',t2:'#cc66ff',t3:'#9933ff',bd:'rgba(255,0,255,.1)'},
+};
+
+/* ═══ 20 POLICES (Google Fonts) ═══ */
+const FONTS={
+  'Outfit':        {n:'Outfit',         url:'Outfit:wght@300;400;500;600;700;800'},
+  'Inter':         {n:'Inter',          url:'Inter:wght@300;400;500;600;700'},
+  'Roboto':        {n:'Roboto',         url:'Roboto:wght@300;400;500;700'},
+  'Poppins':       {n:'Poppins',        url:'Poppins:wght@300;400;500;600;700'},
+  'Montserrat':    {n:'Montserrat',     url:'Montserrat:wght@300;400;500;600;700'},
+  'Nunito':        {n:'Nunito',         url:'Nunito:wght@300;400;600;700'},
+  'Raleway':       {n:'Raleway',        url:'Raleway:wght@300;400;500;600;700'},
+  'OpenSans':      {n:'Open Sans',      url:'Open+Sans:wght@300;400;600;700'},
+  'Lato':          {n:'Lato',           url:'Lato:wght@300;400;700'},
+  'SourceSansPro': {n:'Source Sans 3',  url:'Source+Sans+3:wght@300;400;600;700'},
+  'WorkSans':      {n:'Work Sans',      url:'Work+Sans:wght@300;400;500;600;700'},
+  'DM_Sans':       {n:'DM Sans',        url:'DM+Sans:wght@400;500;700'},
+  'Quicksand':     {n:'Quicksand',      url:'Quicksand:wght@300;400;500;600;700'},
+  'Rubik':         {n:'Rubik',          url:'Rubik:wght@300;400;500;600;700'},
+  'Manrope':       {n:'Manrope',        url:'Manrope:wght@300;400;500;600;700;800'},
+  'Exo2':          {n:'Exo 2',          url:'Exo+2:wght@300;400;500;600;700'},
+  'Rajdhani':      {n:'Rajdhani',       url:'Rajdhani:wght@300;400;500;600;700'},
+  'Orbitron':      {n:'Orbitron',       url:'Orbitron:wght@400;500;600;700;800;900'},
+  'ShareTechMono': {n:'Share Tech Mono',url:'Share+Tech+Mono'},
+  'Oxanium':       {n:'Oxanium',        url:'Oxanium:wght@300;400;500;600;700'},
+};
+
+/* ═══ APPLY THEME / FONT / SIZE ═══ */
+let curTheme='midnight', curFont='Outfit', curFontSize=13;
+
+function applyTheme(id){
+  const t=THEMES[id]||THEMES.midnight; curTheme=id;
+  const r=document.documentElement.style;
+  r.setProperty('--bg',t.bg); r.setProperty('--panel',t.panel);
+  r.setProperty('--card',t.card); r.setProperty('--card2',t.card2);
+  r.setProperty('--cyan',t.accent); r.setProperty('--cd',t.accent+'22');
+  r.setProperty('--green',t.accent2); r.setProperty('--gd',t.accent2+'22');
+  r.setProperty('--txt',t.txt); r.setProperty('--t2',t.t2); r.setProperty('--t3',t.t3);
+  r.setProperty('--bd',t.bd); r.setProperty('--bc',t.accent+'33');
+  document.body.style.background=t.bg;
+}
+
+function applyFont(id){
+  const f=FONTS[id]||FONTS.Outfit; curFont=id;
+  /* Charger Google Font si pas encore chargée */
+  if(!document.getElementById('gf-'+id)){
+    const link=document.createElement('link');
+    link.id='gf-'+id; link.rel='stylesheet';
+    link.href='https://fonts.googleapis.com/css2?family='+f.url+'&display=swap';
+    document.head.appendChild(link);
+  }
+  document.documentElement.style.setProperty('--ui',"'"+f.n+"',sans-serif");
+}
+
+function applyFontSize(sz){
+  curFontSize=+sz;
+  document.documentElement.style.fontSize=sz+'px';
+}
+
+function initThemeUI(){
+  const ts=document.getElementById('themeSelect');
+  const fs=document.getElementById('fontSelect');
+  ts.innerHTML=Object.entries(THEMES).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+  fs.innerHTML=Object.entries(FONTS).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+}
 
 /* ═══ SOURCES — Catalogue des données disponibles ═══ */
 const SOURCES = [
@@ -165,10 +268,19 @@ const SOURCES = [
         {k:'statut',n:'Statut',t:'status'},
         {k:'motif',n:'Motif',t:'text'},
       ]},
+      { id:'absences_semaine', name:'🏖 Absences Semaine', viz:'absences_semaine', fields:[
+        {k:'prenom',n:'Prénom',t:'text'},{k:'type',n:'Type',t:'text'},{k:'dateDebut',n:'Début',t:'date'},{k:'dateFin',n:'Fin',t:'date'},
+      ]},
     ],
     load: async (mod)=>{
       if(mod==='collabs'){const r=await fbGet("taf_cprtt/collaborateurs");return r?(Array.isArray(r)?r:Object.values(r)).filter(Boolean):[];}
       if(mod==='demandes_cp'){const r=await fbGet("taf_cprtt/demandes");return r?(Array.isArray(r)?r:Object.values(r)).filter(Boolean):[];}
+      if(mod==='absences_semaine'){
+        const rc=await fbGet("taf_cprtt/collaborateurs");const rd=await fbGet("taf_cprtt/demandes");
+        const collabs=rc?(Array.isArray(rc)?rc:Object.values(rc)).filter(Boolean):[];
+        const demandes=rd?(Array.isArray(rd)?rd:Object.values(rd)).filter(Boolean):[];
+        return{collabs,demandes};
+      }
       return[];
     },
   },
@@ -195,11 +307,18 @@ const SOURCES = [
         {k:'client',n:'Client',t:'text'},{k:'objet',n:'Objet',t:'text'},{k:'type',n:'Type',t:'text'},
         {k:'statut',n:'Statut',t:'status'},{k:'date',n:'Date',t:'date'},{k:'module',n:'Module',t:'text'},
       ]},
+      { id:'export_dashboard', name:'📊 Dashboard Export', viz:'export_dashboard', fields:[
+        {k:'statut',n:'Statut',t:'status'},{k:'client',n:'Client',t:'text'},{k:'created_at',n:'Date création',t:'date'},
+      ]},
     ],
     load: async (mod)=>{
       const path={dossiers_import:'dossiers/import',dossiers_export:'dossiers/export',dossiers_seafood:'dossiers/seafood',demandes_ops:'demandes'}[mod];
-      if(!path)return[];
-      const r=await fbGet(path);return r?(Array.isArray(r)?r:Object.values(r)).filter(Boolean):[];
+      if(path){const r=await fbGet(path);return r?(Array.isArray(r)?r:Object.values(r)).filter(Boolean):[];}
+      if(mod==='export_dashboard'){
+        const re=await fbGet('dossiers/export');
+        return re?(Array.isArray(re)?re:Object.values(re)).filter(Boolean):[];
+      }
+      return[];
     },
   },
 ];
@@ -235,7 +354,7 @@ function renderCatalog(){
             </div>
             <div class="cfg-row" style="margin-top:8px">
               <div><label>Visualisation</label><select id="viz-${mod.id}">
-                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>${s.id==='vols'?'<option value="vols_card" selected>✈️ Carte Vol (identique Suivi Vols)</option>':''}
+                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>${s.id==='vols'?'<option value="vols_card" selected>✈️ Carte Vol</option>':''}${mod.id==='export_dashboard'?'<option value="export_dashboard" selected>📊 Dashboard Export</option>':''}${mod.id==='absences_semaine'?'<option value="absences_semaine" selected>🏖 Absences Semaine</option>':''}
               </select></div>
               <div><label>Mode</label><select id="mode-${mod.id}">
                 <option value="fixed">Fixe</option><option value="carousel">Carrousel</option>
@@ -376,6 +495,8 @@ function renderData(w){
     case'bars':renderBars(b,w,d);break;
     case'planning':renderPlanning(b,w,d);break;
     case'vols_card':renderVolsCard(b,w,d);break;
+    case'export_dashboard':renderExportDashboard(b,w,d);break;
+    case'absences_semaine':renderAbsencesSemaine(b,w,d);break;
     default:renderTable(b,w,d);
   }
 }
@@ -484,6 +605,96 @@ function renderVolsCard(b,w,d){
   }
 }
 
+/* ═══ DASHBOARD EXPORT — Déclarations en attente + temps moyen ═══ */
+function renderExportDashboard(b,w,d){
+  const dossiers=Array.isArray(d)?d:[];
+  if(!dossiers.length){b.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3)">Aucun dossier export</div>';return;}
+
+  const STATUTS_ARCHIVES=['Livré','Livré ✓','livré','À facturer','a_facturer','Terminé','Clôturé'];
+  const actifs=dossiers.filter(x=>x&&!STATUTS_ARCHIVES.includes(x.statut));
+  const enAttente=actifs.filter(x=>x.statut==='En attente'||x.statut==='Demande reçue'||x.statut==='Nouveau');
+  const enCours=actifs.filter(x=>x.statut==='En cours'||x.statut==='Prise en charge'||x.statut==='BM reçu');
+  const okDouane=actifs.filter(x=>x.statut==='OK douane');
+
+  /* Temps moyen de prise en charge (created_at → updated_at pour les dossiers traités) */
+  let tempsMoyenMin=0,nbAvecTemps=0;
+  dossiers.forEach(x=>{
+    if(x.created_at&&x.updated_at&&x.statut!=='En attente'&&x.statut!=='Demande reçue'){
+      const diff=(new Date(x.updated_at)-new Date(x.created_at))/60000;
+      if(diff>0&&diff<10000){tempsMoyenMin+=diff;nbAvecTemps++;}
+    }
+  });
+  const moy=nbAvecTemps>0?Math.round(tempsMoyenMin/nbAvecTemps):0;
+  const moyH=Math.floor(moy/60);const moyM=moy%60;
+  const moyTxt=moyH>0?moyH+'h'+String(moyM).padStart(2,'0'):moyM+'min';
+
+  /* Compteurs par statut */
+  const statCounts={};actifs.forEach(x=>{const s=x.statut||'Autre';statCounts[s]=(statCounts[s]||0)+1;});
+
+  const counters=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+    <div style="text-align:center;padding:12px;background:var(--card2);border-radius:8px;border:1px solid ${enAttente.length?'#ff880040':'var(--bd)'}"><div style="font-family:var(--mono);font-weight:800;font-size:28px;color:#ff8800">${enAttente.length}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">EN ATTENTE</div></div>
+    <div style="text-align:center;padding:12px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:800;font-size:28px;color:var(--cyan)">${enCours.length}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">EN COURS</div></div>
+    <div style="text-align:center;padding:12px;background:var(--card2);border-radius:8px;border:1px solid var(--bd)"><div style="font-family:var(--mono);font-weight:800;font-size:28px;color:var(--green)">${okDouane.length}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">OK DOUANE</div></div>
+  </div>`;
+
+  const tempsWidget=`<div style="text-align:center;padding:10px;background:var(--card2);border-radius:8px;border:1px solid var(--bd);margin-bottom:12px"><div style="font-size:10px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">⏱ Temps moyen de prise en charge</div><div style="font-family:var(--mono);font-weight:800;font-size:24px;color:${moy>120?'#ff3366':moy>60?'#ff8800':'var(--green)'}">${nbAvecTemps?moyTxt:'—'}</div>${nbAvecTemps?'<div style="font-size:9px;color:var(--t3);margin-top:2px">sur '+nbAvecTemps+' dossier(s)</div>':''}</div>`;
+
+  /* Liste des dossiers en attente */
+  const liste=enAttente.slice(0,8).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px"><span style="color:var(--txt)">${tr(x.client||'—',20)}</span><span style="font-family:var(--mono);color:var(--t3)">${x.lta||x.ref||'—'}</span></div>`).join('');
+
+  b.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">${counters}${tempsWidget}<div style="flex:1;overflow:hidden">${enAttente.length?'<div style="font-size:10px;color:var(--t2);margin-bottom:4px;font-weight:600">Dossiers en attente :</div>'+liste:'<div style="text-align:center;color:var(--green);font-size:12px;margin-top:8px">✅ Aucun dossier en attente</div>'}</div><div style="font-size:9px;color:var(--t3);text-align:right;margin-top:4px">TAF OPS • ${dossiers.length} export(s) total</div></div>`;
+}
+
+/* ═══ ABSENCES SEMAINE — Qui est en CP/RTT cette semaine ═══ */
+function renderAbsencesSemaine(b,w,d){
+  const data=d||{};const collabs=data.collabs||[];const demandes=data.demandes||[];
+  if(!collabs.length){b.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3)">Aucun collaborateur</div>';return;}
+
+  const today=new Date();const dow=today.getDay();
+  const monday=new Date(today);monday.setDate(today.getDate()-(dow===0?6:dow-1));monday.setHours(0,0,0,0);
+  const friday=new Date(monday);friday.setDate(monday.getDate()+4);friday.setHours(23,59,59);
+  const jours=['LUN','MAR','MER','JEU','VEN'];
+  const validDemandes=demandes.filter(d=>d&&d.statut==='Validée');
+
+  /* Trouver les absents de la semaine */
+  const absWeek=[];
+  const collabArr=Array.isArray(collabs)?collabs:Object.values(collabs);
+  collabArr.filter(Boolean).forEach(c=>{
+    const jourAbs=[];
+    jours.forEach((_,i)=>{
+      const cellDate=new Date(monday);cellDate.setDate(monday.getDate()+i);
+      const cds=cellDate.toISOString().slice(0,10);
+      const abs=validDemandes.find(d=>d.collaborateurId===c.id&&d.dateDebut<=cds&&d.dateFin>=cds);
+      jourAbs.push(abs||null);
+    });
+    absWeek.push({collab:c,jours:jourAbs,hasAbs:jourAbs.some(j=>j!==null)});
+  });
+
+  const presents=absWeek.filter(a=>!a.hasAbs).length;
+  const absents=absWeek.filter(a=>a.hasAbs);
+
+  /* Header */
+  const header=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><span style="font-family:var(--mono);font-weight:700;font-size:22px;color:var(--green)">${presents}/${collabArr.length}</span><span style="font-size:12px;color:var(--t2)">présents cette semaine</span></div>`;
+
+  /* Grille planning */
+  const gHeader=`<div style="display:grid;grid-template-columns:100px repeat(5,1fr);gap:2px;margin-bottom:2px">${[''].concat(jours.map((j,i)=>{const dd=new Date(monday);dd.setDate(monday.getDate()+i);const isT=dd.toDateString()===today.toDateString();return j+' '+dd.getDate();})).map((t,i)=>`<div style="text-align:${i?'center':'left'};font-size:9px;font-weight:600;padding:3px;border-radius:3px;${i&&t.includes(today.getDate())?'background:var(--cd);color:var(--cyan)':'color:var(--t3)'}">${t}</div>`).join('')}</div>`;
+
+  const cm={CP:'var(--cyan)',RTT:'var(--purple)',Maladie:'var(--red)',Formation:'var(--green)'};
+  const rows=absWeek.map(a=>{
+    const cols=a.jours.map(abs=>{
+      if(!abs) return`<div style="text-align:center;padding:3px;border-radius:3px;background:rgba(0,255,136,.06);color:var(--green);font-size:9px;font-weight:600">✓</div>`;
+      const co=cm[abs.type]||'var(--amber)';
+      return`<div style="text-align:center;padding:3px;border-radius:3px;background:${co}18;border:1px solid ${co}30;color:${co};font-size:9px;font-weight:700">${abs.type||'ABS'}</div>`;
+    }).join('');
+    return`<div style="display:grid;grid-template-columns:100px repeat(5,1fr);gap:2px;margin-bottom:1px"><div style="font-size:11px;font-weight:500;padding:3px 0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${a.hasAbs?'var(--amber)':'var(--txt)'}">${a.hasAbs?'🏖 ':''}${a.collab.prenom||a.collab.nom||'—'}</div>${cols}</div>`;
+  }).join('');
+
+  /* Résumé absents si il y en a */
+  const resume=absents.length?`<div style="margin-top:8px;padding:6px 8px;background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.15);border-radius:6px"><div style="font-size:10px;font-weight:600;color:var(--amber);margin-bottom:4px">🏖 ${absents.length} absence(s) cette semaine :</div>${absents.map(a=>{const types=[...new Set(a.jours.filter(Boolean).map(j=>j.type))].join(', ');return`<div style="font-size:11px;color:var(--txt);padding:1px 0">${a.collab.prenom||''} ${a.collab.nom||''} — <span style="color:var(--amber)">${types}</span></div>`;}).join('')}</div>`:'<div style="margin-top:8px;text-align:center;color:var(--green);font-size:12px">✅ Toute l\'équipe présente cette semaine</div>';
+
+  b.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">${header}${gHeader}<div style="flex:1;overflow:hidden">${rows}</div>${resume}<div style="font-size:9px;color:var(--t3);text-align:right;margin-top:4px">TAF CP-RTT</div></div>`;
+}
+
 function renderPlanning(b,w,d){
   /* Planning semaine — spécifique CP/RTT */
   const today=new Date(),dow=today.getDay();
@@ -516,7 +727,7 @@ function toggleCfg(){document.getElementById('sidebar').classList.toggle('hide')
 function updGrid(){document.documentElement.style.setProperty('--cols',document.getElementById('gcols').value);document.documentElement.style.setProperty('--rows',document.getElementById('grows').value);saveCfg()}
 
 function saveCfg(){
-  const cfg={widgets:widgets.map(w=>({id:w.id,srcId:w.srcId,modId:w.modId,title:w.title,icon:w.icon,fields:w.fields,viz:w.viz,mode:w.mode,colSpan:w.colSpan,rowSpan:w.rowSpan,color:w.color,srcName:w.srcName})),cols:+document.getElementById('gcols').value,rows:+document.getElementById('grows').value,rint:+document.getElementById('rint').value};
+  const cfg={widgets:widgets.map(w=>({id:w.id,srcId:w.srcId,modId:w.modId,title:w.title,icon:w.icon,fields:w.fields,viz:w.viz,mode:w.mode,colSpan:w.colSpan,rowSpan:w.rowSpan,color:w.color,srcName:w.srcName})),cols:+document.getElementById('gcols').value,rows:+document.getElementById('grows').value,rint:+document.getElementById('rint').value,theme:curTheme,font:curFont,fontSize:curFontSize};
   localStorage.setItem('TAF_TV_CFG',JSON.stringify(cfg));
 }
 
@@ -528,6 +739,9 @@ function loadCfg(){
     if(c.cols){document.getElementById('gcols').value=c.cols;document.documentElement.style.setProperty('--cols',c.cols)}
     if(c.rows){document.getElementById('grows').value=c.rows;document.documentElement.style.setProperty('--rows',c.rows)}
     if(c.rint){document.getElementById('rint').value=c.rint;countdown=c.rint}
+    if(c.theme){applyTheme(c.theme);document.getElementById('themeSelect').value=c.theme}
+    if(c.font){applyFont(c.font);document.getElementById('fontSelect').value=c.font}
+    if(c.fontSize){applyFontSize(c.fontSize);document.getElementById('fontSizeRange').value=c.fontSize;document.getElementById('fontSizeVal').textContent=c.fontSize+'px'}
     renderGrid();refreshAll();
   }catch(e){console.error(e)}
 }
@@ -557,6 +771,7 @@ function checkDailyRefresh() {
 
 /* ═══ INIT ═══ */
 updClock();setInterval(updClock,1000);
+initThemeUI();
 renderCatalog();
 loadCfg();
 renderGrid();
