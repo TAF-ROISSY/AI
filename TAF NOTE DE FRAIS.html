@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>EXPENZ PRO · Drive</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,300&family=Space+Grotesk:wght@300;400;600;700&family=Unbounded:wght@300;400;700&family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300&family=JetBrains+Mono:wght@300;400;700&display=swap" crossorigin rel="preconnect preload" as="style">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --f:'Syne',sans-serif;--fm:'DM Mono',monospace;--fs:15px;
+  --bg:#050508;--bg2:#0c0c14;--bg3:#12121e;
+  --s:#16162a;--s2:#1c1c32;--s3:#22223c;
+  --b:#2a2a46;--b2:#38386a;
+  --a:#6366f1;--a2:#818cf8;--a3:#4f46e5;
+  --ag:linear-gradient(135deg,#6366f1,#8b5cf6);
+  --t:#f0efff;--t2:#9d9bc0;--t3:#5c5a80;
+  --ok:#10b981;--warn:#f59e0b;--err:#ef4444;--info:#06b6d4;
+  --drive:#34a853;--drive2:#1a8a3c;
+  --r:14px;--r2:22px;
+}
+/* ── THEMES ── */
+[data-theme="obsidian"]{--bg:#06060a;--bg2:#0d0d15;--bg3:#13131f;--s:#18182c;--s2:#1e1e36;--s3:#252542;--b:#2d2d50;--b2:#424278;--a:#7c3aed;--a2:#a78bfa;--a3:#6d28d9;--ag:linear-gradient(135deg,#7c3aed,#a78bfa);--t:#f5f3ff;--t2:#a78bfa;--t3:#6d5fc0;}
+[data-theme="aurora"]{--bg:#030d08;--bg2:#071510;--bg3:#0c1e18;--s:#102820;--s2:#163428;--s3:#1c4030;--b:#1f5038;--b2:#2d7a52;--a:#10b981;--a2:#6ee7b7;--a3:#059669;--ag:linear-gradient(135deg,#10b981,#059669);--t:#ecfdf5;--t2:#6ee7b7;--t3:#34d399;}
+[data-theme="crimson"]{--bg:#0a0303;--bg2:#140606;--bg3:#1c0a0a;--s:#260e0e;--s2:#301414;--s3:#3c1818;--b:#4a1c1c;--b2:#6e2828;--a:#ef4444;--a2:#fca5a5;--a3:#dc2626;--ag:linear-gradient(135deg,#ef4444,#dc2626);--t:#fff1f2;--t2:#fca5a5;--t3:#f87171;}
+[data-theme="solar"]{--bg:#07050a;--bg2:#100c15;--bg3:#16111e;--s:#1e1528;--s2:#261c34;--s3:#2f2340;--b:#3a2c54;--b2:#574080;--a:#f59e0b;--a2:#fcd34d;--a3:#d97706;--ag:linear-gradient(135deg,#f59e0b,#d97706);--t:#fffbeb;--t2:#fcd34d;--t3:#fbbf24;}
+[data-theme="ocean"]{--bg:#020810;--bg2:#040e1a;--bg3:#071424;--s:#0a1e34;--s2:#0d2640;--s3:#10304e;--b:#143a60;--b2:#1c5490;--a:#06b6d4;--a2:#67e8f9;--a3:#0891b2;--ag:linear-gradient(135deg,#06b6d4,#3b82f6);--t:#ecfeff;--t2:#67e8f9;--t3:#22d3ee;}
+[data-theme="rose"]{--bg:#0a0408;--bg2:#140810;--bg3:#1c0c18;--s:#261020;--s2:#301428;--s3:#3c1a32;--b:#4a2040;--b2:#6e2e5c;--a:#ec4899;--a2:#f9a8d4;--a3:#db2777;--ag:linear-gradient(135deg,#ec4899,#db2777);--t:#fdf2f8;--t2:#f9a8d4;--t3:#f472b6;}
+[data-theme="slate"]{--bg:#080a0c;--bg2:#101418;--bg3:#161c22;--s:#1c252e;--s2:#222e3a;--s3:#2a3846;--b:#324456;--b2:#4a6480;--a:#64748b;--a2:#94a3b8;--a3:#475569;--ag:linear-gradient(135deg,#64748b,#475569);--t:#f8fafc;--t2:#94a3b8;--t3:#64748b;}
+[data-theme="neon"]{--bg:#010408;--bg2:#020810;--bg3:#030c18;--s:#041020;--s2:#051428;--s3:#061a34;--b:#082040;--b2:#0c2e5e;--a:#06b6d4;--a2:#67e8f9;--a3:#0e7490;--ag:linear-gradient(135deg,#06b6d4,#6366f1);--t:#ecfeff;--t2:#67e8f9;--t3:#22d3ee;}
+[data-theme="light"]{--bg:#f8f7f4;--bg2:#f0ede8;--bg3:#e8e4dc;--s:#fff;--s2:#f9f6f2;--s3:#f0ece4;--b:#ddd8ce;--b2:#c8c0b4;--a:#1c1917;--a2:#44403c;--a3:#292524;--ag:linear-gradient(135deg,#1c1917,#44403c);--t:#1c1917;--t2:#57534e;--t3:#a8a29e;}
+[data-theme="paper"]{--bg:#f5f0e8;--bg2:#ede6d8;--bg3:#e4dcc8;--s:#fff8ee;--s2:#fdf2e4;--s3:#f8e8d0;--b:#d4c4a8;--b2:#b8a486;--a:#92400e;--a2:#b45309;--a3:#78350f;--ag:linear-gradient(135deg,#92400e,#b45309);--t:#1c0a00;--t2:#57350e;--t3:#a07850;}
+
+[data-font="syne"]{--f:'Syne',sans-serif}[data-font="outfit"]{--f:'Outfit',sans-serif}
+[data-font="bricolage"]{--f:'Bricolage Grotesque',sans-serif}[data-font="playfair"]{--f:'Playfair Display',serif}
+[data-font="space"]{--f:'Space Grotesk',sans-serif}[data-font="bebas"]{--f:'Bebas Neue',sans-serif;--fs:16px}
+[data-font="cormorant"]{--f:'Cormorant Garamond',serif}[data-font="jetbrains"]{--f:'JetBrains Mono',monospace}
+[data-font="unbounded"]{--f:'Unbounded',sans-serif;--fs:13px}[data-font="mono"]{--f:'DM Mono',monospace}
+
+body{background:var(--bg);color:var(--t);font-family:var(--f);font-size:var(--fs);min-height:100vh;overflow-x:hidden;transition:background .4s,color .3s}
+button{font-family:var(--f)}
+
+/* ══ LOCK ══ */
+#lock{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.lbg{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 30%,rgba(99,102,241,.1),transparent);pointer-events:none}
+.llogo{font-size:clamp(3rem,10vw,6rem);font-weight:800;letter-spacing:-4px;background:var(--ag);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:6px}
+.ltag{font-family:var(--fm);font-size:.62rem;letter-spacing:5px;color:var(--t3);text-transform:uppercase;margin-bottom:52px}
+.pdots{display:flex;gap:18px;margin-bottom:44px}
+.pdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--b);background:transparent;transition:all .25s}
+.pdot.on{background:var(--a);border-color:var(--a);box-shadow:0 0 16px var(--a);transform:scale(1.15)}
+.pdot.err{background:var(--err);border-color:var(--err);animation:jolt .4s}
+@keyframes jolt{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}100%{transform:translateX(0)}}
+.ppad{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+.pk{width:72px;height:72px;border-radius:50%;border:1px solid var(--b);background:var(--s);color:var(--t);font-size:1.3rem;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.pk:hover{border-color:var(--a);background:var(--s2)}
+.pk:active{transform:scale(.92)}
+.pk.del{font-size:.9rem;color:var(--t3)}
+
+/* ══ APP SHELL ══ */
+#app{display:none;flex-direction:column;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:200;height:62px;background:rgba(5,5,8,.9);backdrop-filter:blur(24px);border-bottom:1px solid var(--b);display:flex;align-items:center;padding:0 18px;gap:10px}
+.tb-logo{font-size:1.2rem;font-weight:800;letter-spacing:-1px;background:var(--ag);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tb-pro{font-family:var(--fm);font-size:.55rem;background:var(--a);color:#fff;padding:2px 7px;border-radius:20px;letter-spacing:1px;align-self:flex-start;margin-top:11px}
+.tb-drive{display:flex;align-items:center;gap:5px;font-size:.7rem;padding:5px 10px;border-radius:20px;border:1px solid var(--b);cursor:pointer;transition:all .2s;margin-left:auto}
+.tb-drive.connected{border-color:rgba(52,168,83,.4);background:rgba(52,168,83,.08);color:#34a853}
+.tb-drive.disconnected{color:var(--t3)}
+.tb-drive:hover{border-color:var(--drive);background:rgba(52,168,83,.1)}
+.tb-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid var(--b);background:transparent;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s}
+.ib:hover{background:var(--s);border-color:var(--a);color:var(--a2)}
+.main{flex:1;padding:18px 16px 96px;max-width:980px;margin:0 auto;width:100%}
+
+/* ══ DRIVE STATUS BANNER ══ */
+.drive-banner{border-radius:var(--r2);padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+.drive-banner.ok{background:rgba(52,168,83,.08);border:1px solid rgba(52,168,83,.25)}
+.drive-banner.nok{background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2)}
+.drive-banner.uploading{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2)}
+.drive-ico{font-size:1.8rem;flex-shrink:0}
+.drive-info{flex:1}
+.drive-title{font-weight:700;font-size:.88rem;margin-bottom:2px}
+.drive-sub{font-size:.72rem;color:var(--t3);line-height:1.5}
+.drive-progress{position:absolute;bottom:0;left:0;height:3px;background:var(--ag);border-radius:0 3px 3px 0;transition:width .4s}
+
+/* ══ BOTTOM NAV ══ */
+.nav{position:fixed;bottom:0;inset-x:0;z-index:200;background:rgba(5,5,8,.92);backdrop-filter:blur(24px);border-top:1px solid var(--b);display:flex;padding:6px 0 env(safe-area-inset-bottom,8px)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:8px 0;border:none;background:none;color:var(--t3);font-family:var(--f);font-size:.6rem;letter-spacing:.5px;text-transform:uppercase;transition:color .2s;position:relative}
+.ni.on{color:var(--a2)}
+.ni.on::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--ag);border-radius:0 0 4px 4px}
+.ni .ico{font-size:1.2rem}
+
+/* ══ TABS ══ */
+.tab{display:none}.tab.on{display:block}
+
+/* ══ HERO ══ */
+.hero{background:var(--ag);border-radius:var(--r2);padding:22px;margin-bottom:16px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,.06);border-radius:50%}
+.hero-l{font-family:var(--fm);font-size:.6rem;letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-bottom:5px;color:#fff}
+.hero-a{font-size:clamp(1.8rem,6vw,2.6rem);font-weight:800;letter-spacing:-2px;color:#fff;line-height:1}
+.hero-s{font-size:.75rem;opacity:.7;color:#fff;margin-top:3px;margin-bottom:16px}
+.hero-row{display:flex;gap:10px}
+.hs{flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:9px 12px}
+.hs-l{font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;color:#fff;margin-bottom:2px}
+.hs-v{font-size:.92rem;font-weight:700;color:#fff;font-family:var(--fm)}
+
+/* ══ KPI ══ */
+.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:540px){.kg{grid-template-columns:repeat(4,1fr)}}
+.kc{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:13px;position:relative;overflow:hidden}
+.kc-acc{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--ag)}
+.kc-l{font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.kc-v{font-size:1.2rem;font-weight:700;font-family:var(--fm)}
+
+/* ══ SECTION TITLE ══ */
+.st{display:flex;align-items:center;gap:10px;margin-bottom:12px;margin-top:20px}
+.st span{font-family:var(--fm);font-size:.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--t3);white-space:nowrap}
+.st::after{content:'';flex:1;height:1px;background:var(--b)}
+
+/* ══ EXPENSE CARD ══ */
+.el{display:flex;flex-direction:column;gap:8px}
+.ec{background:var(--s);border:1px solid var(--b);border-radius:var(--r2);padding:13px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.ec::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ag);transition:width .2s}
+.ec:hover{border-color:var(--b2);transform:translateX(2px)}
+.ec:hover::before{width:3px}
+.ec-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.ec-info{flex:1;min-width:0}
+.ec-name{font-weight:600;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ec-meta{font-size:.68rem;color:var(--t3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ec-amt{font-weight:700;font-size:.9rem;white-space:nowrap;font-family:var(--fm)}
+.bx{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:.58rem;letter-spacing:.5px;text-transform:uppercase;font-weight:700}
+.bx-ok{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.2)}
+.bx-wait{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+.bx-rej{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+.bx-ai{background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.2)}
+.bx-drive{background:rgba(52,168,83,.12);color:#34a853;border:1px solid rgba(52,168,83,.2)}
+
+/* ══ CAT COLORS ══ */
+.ci-t{background:rgba(59,130,246,.15);color:#60a5fa}
+.ci-r{background:rgba(16,185,129,.15);color:#34d399}
+.ci-h{background:rgba(168,85,247,.15);color:#c084fc}
+.ci-k{background:rgba(245,158,11,.15);color:#fbbf24}
+.ci-p{background:rgba(6,182,212,.15);color:#22d3ee}
+.ci-c{background:rgba(236,72,153,.15);color:#f472b6}
+.ci-m{background:rgba(239,68,68,.15);color:#f87171}
+.ci-a{background:rgba(100,116,139,.15);color:#94a3b8}
+
+/* ══ FAB ══ */
+.fab{position:fixed;bottom:76px;right:16px;width:54px;height:54px;border-radius:50%;background:var(--ag);border:none;color:#fff;font-size:1.4rem;cursor:pointer;box-shadow:0 8px 28px rgba(99,102,241,.4);z-index:150;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.fab:hover{transform:scale(1.08) translateY(-2px)}
+.fab:active{transform:scale(.94)}
+
+/* ══ OVERLAY + DRAWER ══ */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(6px)}
+.ov.on{opacity:1;pointer-events:all}
+.dr{position:fixed;bottom:0;inset-x:0;background:var(--bg2);border-radius:28px 28px 0 0;border-top:1px solid var(--b);z-index:301;transform:translateY(105%);transition:transform .38s cubic-bezier(.32,.72,0,1);max-height:94vh;overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(32px,env(safe-area-inset-bottom))}
+.dr.on{transform:translateY(0)}
+.dr-h{width:36px;height:4px;background:var(--b2);border-radius:2px;margin:14px auto 0}
+.dr-title{font-size:1.1rem;font-weight:700;padding:18px 20px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:10px}
+.dr-body{padding:20px}
+
+/* ══ FORM ══ */
+.fg{margin-bottom:16px}
+.fl{display:block;font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.fi{width:100%;background:var(--s);border:1px solid var(--b);border-radius:11px;padding:12px 14px;color:var(--t);font-family:var(--f);font-size:.9rem;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+.fi:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.fi::placeholder{color:var(--t3)}
+textarea.fi{resize:vertical;min-height:68px;line-height:1.6}
+select.fi{cursor:pointer}
+select.fi option{background:var(--bg2)}
+.irow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ══ BUTTONS ══ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 20px;border-radius:11px;font-family:var(--f);font-size:.86rem;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.btn-p{background:var(--ag);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.25)}
+.btn-p:hover{opacity:.9;transform:translateY(-1px)}
+.btn-g{background:transparent;border:1px solid var(--b);color:var(--t2)}
+.btn-g:hover{border-color:var(--a);color:var(--a2);background:rgba(99,102,241,.05)}
+.btn-d{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--err)}
+.btn-drive{background:rgba(52,168,83,.1);border:1px solid rgba(52,168,83,.3);color:#34a853}
+.btn-drive:hover{background:rgba(52,168,83,.18)}
+.btn-drive:disabled{opacity:.5;cursor:not-allowed}
+.btn-full{width:100%}
+.btn-sm{padding:7px 12px;font-size:.76rem;border-radius:9px}
+.brow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ══ UPLOAD ══ */
+.upz{border:2px dashed var(--b);border-radius:14px;padding:24px 18px;text-align:center;cursor:pointer;transition:all .25s;position:relative}
+.upz:hover,.upz.drag{border-color:var(--a);background:rgba(99,102,241,.03)}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.up-prev{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--b);border-radius:11px;padding:10px 14px;margin-top:10px}
+
+/* ══ CHART ══ */
+.cc{background:var(--s);border:1px solid var(--b);border-radius:var(--r2);padding:16px;margin-bottom:12px}
+.ch{position:relative;height:180px}
+
+/* ══ DRIVE HISTORY ══ */
+.dh-item{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.dh-item .dh-ico{font-size:1.3rem;flex-shrink:0}
+.dh-info{flex:1;min-width:0}
+.dh-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dh-meta{font-size:.68rem;color:var(--t3);margin-top:2px}
+.dh-link{font-size:.72rem;color:var(--drive);text-decoration:none;flex-shrink:0;border:1px solid rgba(52,168,83,.3);padding:4px 9px;border-radius:20px;transition:all .2s}
+.dh-link:hover{background:rgba(52,168,83,.1)}
+
+/* ══ CONFIG ══ */
+.cfg-sec{margin-bottom:24px}
+.cfg-t{font-family:var(--fm);font-size:.6rem;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:10px}
+.th-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.th-sw{height:42px;border-radius:9px;cursor:pointer;border:2px solid transparent;transition:all .2s;overflow:hidden;position:relative}
+.th-sw.on{border-color:var(--a2);box-shadow:0 0 12px rgba(99,102,241,.25)}
+.th-sw::after{content:attr(data-l);position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;font-size:.45rem;color:rgba(255,255,255,.8);background:linear-gradient(transparent,rgba(0,0,0,.5))}
+.fn-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fn-o{background:var(--s);border:1px solid var(--b);border-radius:9px;padding:9px 12px;cursor:pointer;font-size:.82rem;transition:all .2s;color:var(--t2)}
+.fn-o.on{border-color:var(--a);color:var(--a2);background:rgba(99,102,241,.07)}
+.sz-row{display:flex;gap:7px}
+.sz-b{flex:1;background:var(--s);border:1px solid var(--b);border-radius:9px;padding:8px;font-family:var(--f);color:var(--t2);cursor:pointer;text-align:center;transition:all .2s;font-size:.8rem}
+.sz-b.on{border-color:var(--a);color:var(--a2);background:rgba(99,102,241,.07)}
+
+/* ══ STATS ══ */
+.srow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.scrd{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:13px}
+.scrd .sv{font-size:1.3rem;font-weight:700;margin-bottom:2px;font-family:var(--fm)}
+.scrd .sl{font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+
+/* ══ BUDGET BARS ══ */
+.prog-wrap{height:5px;background:var(--s2);border-radius:3px;overflow:hidden;margin-top:5px}
+.prog{height:100%;background:var(--ag);border-radius:3px;transition:width .5s}
+
+/* ══ TOAST ══ */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-16px);background:var(--s2);border:1px solid var(--b);border-radius:11px;padding:10px 18px;font-size:.8rem;color:var(--t);z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.08);color:#10b981}
+.toast.er{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08);color:#ef4444}
+.toast.ai{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.08);color:#818cf8}
+.toast.dr{border-color:rgba(52,168,83,.4);background:rgba(52,168,83,.08);color:#34a853}
+
+/* ══ SEARCH / FILTER ══ */
+.sb{background:var(--s);border:1px solid var(--b);border-radius:13px;padding:10px 14px;display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.sb input{flex:1;background:none;border:none;color:var(--t);font-family:var(--f);font-size:.86rem;outline:none}
+.sb input::placeholder{color:var(--t3)}
+.frow{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+.frow::-webkit-scrollbar{display:none}
+.ft{padding:5px 12px;border-radius:20px;font-size:.7rem;cursor:pointer;border:1px solid var(--b);color:var(--t3);white-space:nowrap;transition:all .2s;background:none;font-family:var(--f)}
+.ft.on{border-color:var(--a);color:var(--a2);background:rgba(99,102,241,.09)}
+
+/* ══ KM ══ */
+.km-c{background:var(--s);border:1px solid var(--b);border-radius:var(--r2);padding:16px;margin-bottom:16px}
+.km-res{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.18);border-radius:11px;padding:13px;margin-top:12px;text-align:center}
+.km-res .krv{font-size:1.5rem;font-weight:700;color:var(--ok);font-family:var(--fm)}
+.km-res .krl{font-size:.68rem;color:var(--t3);margin-top:2px}
+
+/* ══ AI ══ */
+.ai-wrap{background:var(--s);border:1px solid var(--b);border-radius:var(--r2);margin-bottom:16px;overflow:hidden}
+.ai-hdr{background:rgba(99,102,241,.07);border-bottom:1px solid rgba(99,102,241,.18);padding:12px 16px;display:flex;align-items:center;gap:9px}
+.ai-av{width:30px;height:30px;border-radius:50%;background:var(--ag);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.ai-msgs{height:260px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--b) transparent}
+.msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:.8rem;line-height:1.6}
+.msg-ai{background:var(--s2);border:1px solid var(--b);align-self:flex-start;border-bottom-left-radius:3px}
+.msg-u{background:var(--a);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.msg-typing{display:flex;gap:4px;align-items:center;padding:10px 14px}
+.dt{width:6px;height:6px;border-radius:50%;background:var(--t3);animation:typ 1.2s infinite}
+.dt:nth-child(2){animation-delay:.2s}.dt:nth-child(3){animation-delay:.4s}
+@keyframes typ{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+.ai-ir{display:flex;gap:9px;padding:10px 14px;border-top:1px solid var(--b);background:var(--bg2)}
+.ai-in{flex:1;background:var(--s);border:1px solid var(--b);border-radius:22px;padding:9px 14px;color:var(--t);font-family:var(--f);font-size:.83rem;outline:none}
+.ai-in:focus{border-color:var(--a)}
+.ai-sd{width:36px;height:36px;border-radius:50%;background:var(--ag);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.ai-sd:hover{transform:scale(1.08)}
+
+/* ══ SPINNER ══ */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(99,102,241,.3);border-top-color:var(--a);border-radius:50%;animation:spin .7s linear infinite}
+.ai-load{display:flex;align-items:center;gap:7px;color:var(--a2);font-size:.78rem;padding:10px 0}
+
+/* ══ DETAIL ══ */
+.dl-row{background:var(--s);border-radius:13px;padding:13px;margin-bottom:12px}
+.dl-item{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--b);font-size:.8rem;gap:10px}
+.dl-item:last-child{border:none}
+.dl-item .dk{color:var(--t3);font-size:.72rem;flex-shrink:0}
+.dl-item .dv{color:var(--t);text-align:right;word-break:break-word}
+
+/* ══ EMPTY ══ */
+.empty{text-align:center;padding:44px 18px;color:var(--t3)}
+.empty-ico{font-size:2.6rem;opacity:.3;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<!-- ══ LOCK ══ -->
+<div id="lock">
+  <div class="lbg"></div>
+  <div class="llogo">EXPENZ</div>
+  <div class="ltag">Pro · Google Drive</div>
+  <div class="pdots">
+    <div class="pdot" id="pd0"></div><div class="pdot" id="pd1"></div>
+    <div class="pdot" id="pd2"></div><div class="pdot" id="pd3"></div>
+  </div>
+  <div class="ppad">
+    <button class="pk" onclick="pp('1')">1</button><button class="pk" onclick="pp('2')">2</button><button class="pk" onclick="pp('3')">3</button>
+    <button class="pk" onclick="pp('4')">4</button><button class="pk" onclick="pp('5')">5</button><button class="pk" onclick="pp('6')">6</button>
+    <button class="pk" onclick="pp('7')">7</button><button class="pk" onclick="pp('8')">8</button><button class="pk" onclick="pp('9')">9</button>
+    <button class="pk"></button><button class="pk" onclick="pp('0')">0</button><button class="pk del" onclick="pd()">⌫</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-logo">EXPENZ</div>
+    <div class="tb-pro">PRO</div>
+    <button class="tb-drive disconnected" id="driveBtn" onclick="toggleDrive()">
+      <div class="tb-dot"></div>
+      <span id="driveBtnTxt">Connecter Drive</span>
+    </button>
+    <button class="ib" onclick="exportPDF()" title="Export PDF">📄</button>
+    <button class="ib" onclick="showTab('cfg',document.querySelectorAll('.ni')[5])">⚙️</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="tab on" id="tab-db">
+      <!-- Drive banner -->
+      <div class="drive-banner nok" id="driveBanner">
+        <div class="drive-ico">☁️</div>
+        <div class="drive-info">
+          <div class="drive-title" id="driveBannerTitle">Google Drive non connecté</div>
+          <div class="drive-sub" id="driveBannerSub">Connectez votre Drive pour sauvegarder automatiquement vos PDFs et justificatifs dans un dossier par mois.</div>
+        </div>
+        <button class="btn btn-drive btn-sm" id="driveBannerBtn" onclick="toggleDrive()">Connecter</button>
+        <div class="drive-progress" id="driveProgress" style="width:0%"></div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-l">Total du mois</div>
+        <div class="hero-a" id="hAmt">0,00 €</div>
+        <div class="hero-s" id="hSub">0 note · 0 en attente</div>
+        <div class="hero-row">
+          <div class="hs"><div class="hs-l">Approuvé</div><div class="hs-v" id="hOk">0 €</div></div>
+          <div class="hs"><div class="hs-l">En attente</div><div class="hs-v" id="hWait">0 €</div></div>
+          <div class="hs"><div class="hs-l">TVA récup.</div><div class="hs-v" id="hTva">0 €</div></div>
+        </div>
+      </div>
+      <div class="kg">
+        <div class="kc"><div class="kc-acc"></div><div class="kc-l">Transport</div><div class="kc-v" id="kT">0 €</div></div>
+        <div class="kc"><div class="kc-acc"></div><div class="kc-l">Repas</div><div class="kc-v" id="kR">0 €</div></div>
+        <div class="kc"><div class="kc-acc"></div><div class="kc-l">Hôtel</div><div class="kc-v" id="kH">0 €</div></div>
+        <div class="kc"><div class="kc-acc"></div><div class="kc-l">Km remb.</div><div class="kc-v" id="kKm">0 €</div></div>
+      </div>
+      <div class="cc"><div class="st"><span>Catégories</span></div><div class="ch"><canvas id="cCat"></canvas></div></div>
+      <div class="st"><span>Récentes</span></div>
+      <div class="el" id="recentList"></div>
+    </div>
+
+    <!-- ══ NOTES ══ -->
+    <div class="tab" id="tab-nf">
+      <div class="sb"><span>🔍</span><input placeholder="Rechercher…" id="srch" oninput="renderList()"></div>
+      <div class="frow">
+        <button class="ft on" onclick="setF('all',this)">Tout</button>
+        <button class="ft" onclick="setF('transport',this)">🚗</button>
+        <button class="ft" onclick="setF('repas',this)">🍽</button>
+        <button class="ft" onclick="setF('hotel',this)">🏨</button>
+        <button class="ft" onclick="setF('km',this)">🛣</button>
+        <button class="ft" onclick="setF('telecom',this)">📱</button>
+        <button class="ft" onclick="setF('client',this)">🤝</button>
+        <button class="ft" onclick="setF('materiel',this)">🖥</button>
+        <button class="ft" onclick="setF('autre',this)">•</button>
+      </div>
+      <div class="el" id="mainList"></div>
+    </div>
+
+    <!-- ══ DRIVE ══ -->
+    <div class="tab" id="tab-drive">
+      <div class="drive-banner nok" id="driveTab" style="margin-bottom:20px">
+        <div class="drive-ico">☁️</div>
+        <div class="drive-info">
+          <div class="drive-title" id="driveTabTitle">Google Drive</div>
+          <div class="drive-sub" id="driveTabSub">Connectez votre compte Google pour activer la sauvegarde automatique.</div>
+        </div>
+      </div>
+      <div id="driveConnectBlock">
+        <button class="btn btn-drive btn-full" style="margin-bottom:12px" onclick="connectDrive()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6.28 3L1 12.5 6.28 22h11.44L23 12.5 17.72 3H6.28zm5.72 3.5L15.53 13H8.47L12 6.5zm-8.56 7L6 18H2.69L3.44 13.5zm1.25 0h10.22L12 19.5 4.69 13.5zm12.47 0l.75 4.5H14L17.56 13.5z"/></svg>
+          Connecter Google Drive
+        </button>
+        <div style="font-size:.72rem;color:var(--t3);text-align:center;line-height:1.6">
+          Autorisation OAuth sécurisée · Vos données restent privées<br>
+          Accès limité à un dossier EXPENZ uniquement
+        </div>
+      </div>
+      <div id="driveConnectedBlock" style="display:none">
+        <div style="margin-bottom:16px">
+          <button class="btn btn-p btn-full" onclick="savePDFtoDrive()">
+            📄 Sauvegarder rapport PDF ce mois → Drive
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+          <button class="btn btn-drive" onclick="syncAllJustifs()">📎 Sync justificatifs</button>
+          <button class="btn btn-g" onclick="openDriveFolder()">📂 Ouvrir Drive</button>
+        </div>
+        <div class="st"><span>Dossier actuel</span></div>
+        <div style="background:var(--s);border:1px solid rgba(52,168,83,.2);border-radius:var(--r);padding:14px;margin-bottom:20px">
+          <div style="font-size:.72rem;color:var(--t3);margin-bottom:4px;font-family:var(--fm)">CHEMIN DRIVE</div>
+          <div style="font-size:.88rem;font-weight:600;color:var(--drive)" id="drivePath">📁 EXPENZ Notes de Frais / <span id="driveMonthFolder">—</span></div>
+        </div>
+        <div class="st"><span>Historique uploads</span></div>
+        <div id="driveHistory"></div>
+        <div style="margin-top:16px">
+          <button class="btn btn-d btn-full btn-sm" onclick="disconnectDrive()">Déconnecter Google Drive</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATS ══ -->
+    <div class="tab" id="tab-st">
+      <div class="srow">
+        <div class="scrd"><div class="sv" id="stTot">0 €</div><div class="sl">Total annuel</div></div>
+        <div class="scrd"><div class="sv" id="stMoy">0 €</div><div class="sl">Moy/note</div></div>
+        <div class="scrd"><div class="sv" id="stMax">0 €</div><div class="sl">Plus haute</div></div>
+        <div class="scrd"><div class="sv" id="stN">0</div><div class="sl">Nb notes</div></div>
+      </div>
+      <div class="cc"><div class="st"><span>Évolution mensuelle</span></div><div class="ch"><canvas id="cMonth"></canvas></div></div>
+      <div class="cc"><div class="st"><span>Répartition</span></div><div class="ch" style="height:210px"><canvas id="cDo"></canvas></div></div>
+      <div class="cc">
+        <div class="st"><span>Budget vs Réel</span></div>
+        <div id="budgetBars"></div>
+      </div>
+    </div>
+
+    <!-- ══ IA ══ -->
+    <div class="tab" id="tab-ai">
+      <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:var(--r2);padding:14px;margin-bottom:16px">
+        <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;color:var(--a2);margin-bottom:6px">✨ CLAUDE AI · OCR + ASSISTANT</div>
+        <div style="font-size:.78rem;color:var(--t3);line-height:1.6">Scannez vos justificatifs · Analysez vos dépenses · Optimisation fiscale</div>
+      </div>
+      <div class="ai-wrap">
+        <div class="ai-hdr">
+          <div class="ai-av">🤖</div>
+          <div><div style="font-weight:600;font-size:.86rem">Assistant EXPENZ</div><div style="font-size:.68rem;color:var(--t3)">Propulsé par Claude AI</div></div>
+          <button class="btn btn-sm btn-g" style="margin-left:auto" onclick="clearChat()">Reset</button>
+        </div>
+        <div class="ai-msgs" id="aiMsgs"></div>
+        <div class="ai-ir">
+          <input class="ai-in" id="aiInput" placeholder="Posez une question…" onkeydown="if(event.key==='Enter')sendAI()">
+          <button class="ai-sd" onclick="sendAI()">➤</button>
+        </div>
+      </div>
+      <div class="st"><span>OCR Scan justificatif</span></div>
+      <div class="fg">
+        <div class="upz" id="ocrZone">
+          <input type="file" accept="image/*,.pdf" id="ocrFile" onchange="handleOCR(this)">
+          <div id="ocrTxt"><div style="font-size:2rem;margin-bottom:8px;opacity:.35">📸</div><div style="font-size:.82rem;color:var(--t2);font-weight:600">Photo ou PDF du justificatif</div><div style="font-size:.7rem;color:var(--t3);margin-top:4px">Claude extrait montant · date · TVA · catégorie</div></div>
+          <div id="ocrLoad" style="display:none" class="ai-load"><div class="spin"></div> Analyse IA…</div>
+        </div>
+        <div id="ocrResult"></div>
+      </div>
+      <div class="st"><span>Analyse intelligente</span></div>
+      <div id="aiSugg"><div style="text-align:center;padding:18px;color:var(--t3);font-size:.8rem">Cliquez Analyser pour obtenir des insights</div></div>
+      <button class="btn btn-p btn-full" onclick="getAISugg()" style="margin-top:8px">🧠 Analyser avec Claude</button>
+    </div>
+
+    <!-- ══ CONFIG ══ -->
+    <div class="tab" id="tab-cfg">
+      <div class="cfg-sec">
+        <div class="cfg-t">🎨 Thème (10)</div>
+        <div class="th-grid" id="thGrid"></div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">✍️ Police (10)</div>
+        <div class="fn-grid" id="fnGrid"></div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">📐 Taille</div>
+        <div class="sz-row">
+          <button class="sz-b" data-s="13px" onclick="setSz(this)">XS</button>
+          <button class="sz-b on" data-s="15px" onclick="setSz(this)">N</button>
+          <button class="sz-b" data-s="17px" onclick="setSz(this)">L</button>
+          <button class="sz-b" data-s="19px" onclick="setSz(this)">XL</button>
+        </div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">🔑 API Key Claude (OCR + IA)</div>
+        <div class="fg"><input class="fi" type="password" id="apiKeyIn" placeholder="sk-ant-api03-…" oninput="saveApiKey()"></div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">🔑 Google OAuth Client ID</div>
+        <div class="fg"><input class="fi" type="text" id="gClientId" placeholder="xxxx.apps.googleusercontent.com" oninput="saveGClientId()"></div>
+        <div style="font-size:.7rem;color:var(--t3);line-height:1.6;margin-top:-10px">
+          Créez un projet Google Cloud Console → API Drive → OAuth 2.0 → JavaScript origins : l'URL de cette page. <a href="https://console.cloud.google.com" target="_blank" style="color:var(--a2)">console.cloud.google.com</a>
+        </div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">🎯 Budgets mensuels (€)</div>
+        <div class="irow" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="fg"><label class="fl">Transport</label><input class="fi" type="number" id="bT" placeholder="500" oninput="saveBudgets()"></div>
+          <div class="fg"><label class="fl">Repas</label><input class="fi" type="number" id="bR" placeholder="300" oninput="saveBudgets()"></div>
+          <div class="fg"><label class="fl">Hôtel</label><input class="fi" type="number" id="bH" placeholder="800" oninput="saveBudgets()"></div>
+        </div>
+      </div>
+      <div class="cfg-sec">
+        <div class="cfg-t">📤 Export</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-g btn-full" onclick="exportPDF()">📄 Rapport PDF</button>
+          <button class="btn btn-g btn-full" onclick="exportJSON()">⬇ Export JSON</button>
+          <button class="btn btn-d btn-full" onclick="clearAll()">🗑 Réinitialiser</button>
+        </div>
+      </div>
+      <div style="background:var(--s);border-radius:13px;padding:14px;font-size:.76rem;color:var(--t3);line-height:1.8">
+        <strong style="color:var(--t)">EXPENZ PRO v4.0</strong> · Google Drive intégré<br>
+        OCR Claude AI · Frais km URSSAF · Dossier/mois auto<br>
+        <span style="color:var(--a2)">Christophe Hermann · TAF CDG</span>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <button class="ni on" onclick="showTab('db',this)"><span class="ico">◼</span>Board</button>
+    <button class="ni" onclick="showTab('nf',this)"><span class="ico">📋</span>Notes</button>
+    <button class="ni" onclick="showTab('drive',this)"><span class="ico">☁️</span>Drive</button>
+    <button class="ni" onclick="showTab('st',this)"><span class="ico">📊</span>Stats</button>
+    <button class="ni" onclick="showTab('ai',this)"><span class="ico">🤖</span>IA</button>
+    <button class="ni" onclick="showTab('cfg',this)"><span class="ico">⚙</span>Config</button>
+  </nav>
+
+  <button class="fab" onclick="openAdd()">+</button>
+</div>
+
+<div class="ov" id="ov" onclick="closeDr()"></div>
+
+<!-- DRAWER ADD/EDIT -->
+<div class="dr" id="drAdd">
+  <div class="dr-h"></div>
+  <div class="dr-title" id="drAddT">🆕 Nouvelle note</div>
+  <div class="dr-body">
+    <div class="irow">
+      <div class="fg"><label class="fl">Montant TTC (€)</label><input class="fi" type="number" id="fAmt" placeholder="0.00" step="0.01"></div>
+      <div class="fg"><label class="fl">TVA %</label>
+        <select class="fi" id="fTva"><option value="0">0%</option><option value="5.5">5,5%</option><option value="10">10%</option><option value="20" selected>20%</option></select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Description</label><input class="fi" type="text" id="fDesc" placeholder="Ex: Déjeuner client CAPMARIN"></div>
+    <div class="irow">
+      <div class="fg"><label class="fl">Date</label><input class="fi" type="date" id="fDate"></div>
+      <div class="fg"><label class="fl">Catégorie</label>
+        <select class="fi" id="fCat">
+          <option value="transport">🚗 Transport</option><option value="repas">🍽 Repas</option>
+          <option value="hotel">🏨 Hôtel</option><option value="km">🛣 Kilométrique</option>
+          <option value="telecom">📱 Télécom</option><option value="client">🤝 Client</option>
+          <option value="materiel">🖥 Matériel</option><option value="autre">• Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="irow">
+      <div class="fg"><label class="fl">Statut</label>
+        <select class="fi" id="fStatus"><option value="wait">⏳ Attente</option><option value="ok">✅ Approuvé</option><option value="rej">❌ Rejeté</option></select>
+      </div>
+      <div class="fg"><label class="fl">Paiement</label>
+        <select class="fi" id="fPay"><option value="carte">💳 Carte pro</option><option value="perso">💰 Perso</option><option value="virement">🏦 Virement</option><option value="especes">💵 Espèces</option></select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">Projet / Client</label><input class="fi" type="text" id="fProj" placeholder="Ex: CAPMARIN, TAF…"></div>
+    <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="fNotes" placeholder="Contexte, participants…"></textarea></div>
+    <div class="fg">
+      <label class="fl">Justificatif (photo/PDF)</label>
+      <div class="upz" id="upZone">
+        <input type="file" id="fFile" accept="image/*,.pdf" onchange="handleFile(this)">
+        <div id="upTxt"><div style="font-size:1.6rem;opacity:.35;margin-bottom:6px">📎</div><div style="font-size:.8rem;color:var(--t2)">Glisser ou cliquer · JPG PNG PDF</div></div>
+      </div>
+      <div class="up-prev" id="upPrev" style="display:none">
+        <div id="upIco" style="font-size:1.3rem">📄</div>
+        <div><div id="upName" style="font-size:.8rem;font-weight:600"></div><div id="upSize" style="font-size:.68rem;color:var(--t3)"></div></div>
+        <button onclick="clrFile()" style="margin-left:auto;background:none;border:none;color:var(--t3);cursor:pointer">✕</button>
+      </div>
+    </div>
+    <div class="brow">
+      <button class="btn btn-g" onclick="closeDr()">Annuler</button>
+      <button class="btn btn-p" onclick="saveExp()">💾 Enregistrer</button>
+    </div>
+    <div id="editActs" style="display:none;margin-top:10px">
+      <button class="btn btn-d btn-full" onclick="delExp()">🗑 Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER DETAIL -->
+<div class="dr" id="drDetail">
+  <div class="dr-h"></div>
+  <div class="dr-body" id="detBody"></div>
+</div>
+
+<script>
+/* ════════════════════════════════════
+   DATA & STATE
+════════════════════════════════════ */
+let EXP = JSON.parse(localStorage.getItem('ex4_data')||'[]');
+let CFG = JSON.parse(localStorage.getItem('ex4_cfg')||'{"theme":"","font":"syne","size":"15px"}');
+let BUDGETS = JSON.parse(localStorage.getItem('ex4_budgets')||'{"T":500,"R":300,"H":800}');
+let DRIVE_HISTORY = JSON.parse(localStorage.getItem('ex4_drive_history')||'[]');
+let driveToken = localStorage.getItem('ex4_drive_token')||null;
+let driveFolderId = localStorage.getItem('ex4_drive_folder')||null;
+let chatHistory = [];
+let editId=null, fileData=null, curFilter='all';
+
+/* ════════════════════════════════════
+   GOOGLE DRIVE CONFIG
+   → Tu peux mettre ton Client ID ici
+     ou le saisir dans Config
+════════════════════════════════════ */
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_ROOT_NAME = 'EXPENZ Notes de Frais';
+
+function getClientId(){ return localStorage.getItem('ex4_gclientid')||document.getElementById('gClientId')?.value||''; }
+function saveGClientId(){ localStorage.setItem('ex4_gclientid', document.getElementById('gClientId').value.trim()); }
+
+/* ════════════════════════════════════
+   PIN
+════════════════════════════════════ */
+let pin='';
+function pp(n){if(!n||pin.length>=4)return;pin+=n;updPin();if(pin.length===4){if(pin==='2709'){setTimeout(unlock,250)}else{[0,1,2,3].forEach(i=>document.getElementById('pd'+i).classList.add('err'));setTimeout(()=>{pin='';[0,1,2,3].forEach(i=>{const d=document.getElementById('pd'+i);d.classList.remove('on','err')})},600)}}}
+function pd(){pin=pin.slice(0,-1);updPin()}
+function updPin(){[0,1,2,3].forEach(i=>{const d=document.getElementById('pd'+i);d.classList.toggle('on',i<pin.length);d.classList.remove('err')})}
+function unlock(){
+  const l=document.getElementById('lock');
+  l.style.transition='opacity .5s';l.style.opacity='0';
+  setTimeout(()=>{
+    l.style.display='none';
+    document.getElementById('app').style.display='flex';
+    applyTheme();buildCfgUI();setTodayDate();loadApiKey();loadBudgets();loadGClientId();
+    renderAll();buildCharts();initChat();updateDriveUI();
+    // Check if Drive token in URL (OAuth callback)
+    handleOAuthCallback();
+  },480);
+}
+
+/* ════════════════════════════════════
+   GOOGLE DRIVE OAUTH (Implicit / Token flow)
+   → Fonctionne sans backend
+   → Utilise window.open pour l'autorisation
+════════════════════════════════════ */
+function connectDrive(){
+  const clientId = getClientId();
+  if(!clientId){
+    toast('⚠ Entrez votre Client ID Google dans Config → Paramètres','er');
+    showTab('cfg', document.querySelectorAll('.ni')[5]);
+    return;
+  }
+  const redirectUri = window.location.href.split('?')[0].split('#')[0];
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'token',
+    scope: DRIVE_SCOPES,
+    prompt: 'consent',
+    include_granted_scopes: 'true'
+  });
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  // Open in same window for token in hash
+  window.location.href = authUrl;
+}
+
+function handleOAuthCallback(){
+  const hash = window.location.hash;
+  if(hash && hash.includes('access_token')){
+    const params = new URLSearchParams(hash.substring(1));
+    const token = params.get('access_token');
+    const expiresIn = params.get('expires_in');
+    if(token){
+      driveToken = token;
+      const expiry = Date.now() + (parseInt(expiresIn)||3600)*1000;
+      localStorage.setItem('ex4_drive_token', token);
+      localStorage.setItem('ex4_drive_expiry', expiry);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      toast('✅ Google Drive connecté !','dr');
+      updateDriveUI();
+      ensureDriveFolders();
+    }
+  }
+}
+
+function isDriveConnected(){
+  if(!driveToken) return false;
+  const expiry = parseInt(localStorage.getItem('ex4_drive_expiry')||'0');
+  if(Date.now() > expiry){ disconnectDrive(true); return false; }
+  return true;
+}
+
+function toggleDrive(){
+  if(isDriveConnected()) showTab('drive', document.querySelectorAll('.ni')[2]);
+  else connectDrive();
+}
+
+function disconnectDrive(silent=false){
+  driveToken=null; driveFolderId=null;
+  localStorage.removeItem('ex4_drive_token');
+  localStorage.removeItem('ex4_drive_expiry');
+  localStorage.removeItem('ex4_drive_folder');
+  updateDriveUI();
+  if(!silent) toast('Drive déconnecté','ok');
+}
+
+function updateDriveUI(){
+  const connected = isDriveConnected();
+  const btn = document.getElementById('driveBtn');
+  const txt = document.getElementById('driveBtnTxt');
+  const banner = document.getElementById('driveBanner');
+  const bannerTitle = document.getElementById('driveBannerTitle');
+  const bannerSub = document.getElementById('driveBannerSub');
+  const bannerBtn = document.getElementById('driveBannerBtn');
+  const driveTab = document.getElementById('driveTab');
+  const driveTabTitle = document.getElementById('driveTabTitle');
+  const driveTabSub = document.getElementById('driveTabSub');
+  const connBlock = document.getElementById('driveConnectedBlock');
+  const disconnBlock = document.getElementById('driveConnectBlock');
+  const monthFolder = document.getElementById('driveMonthFolder');
+
+  const monthLabel = new Date().toLocaleDateString('fr-FR',{year:'numeric',month:'long'});
+  const monthKey = new Date().toISOString().slice(0,7);
+
+  if(connected){
+    btn.className='tb-drive connected';
+    txt.textContent='Drive ✓';
+    banner.className='drive-banner ok';
+    bannerTitle.textContent='☁️ Google Drive connecté';
+    bannerSub.textContent='Vos PDFs et justificatifs sont sauvegardés automatiquement.';
+    bannerBtn.textContent='Voir Drive';
+    bannerBtn.onclick=()=>showTab('drive',document.querySelectorAll('.ni')[2]);
+    driveTab.className='drive-banner ok';
+    driveTabTitle.textContent='Drive connecté ✓';
+    driveTabSub.textContent='Prêt à sauvegarder vos notes de frais.';
+    connBlock.style.display='block';
+    disconnBlock.style.display='none';
+    if(monthFolder) monthFolder.textContent=`📅 ${monthKey} — Notes de Frais`;
+    renderDriveHistory();
+  } else {
+    btn.className='tb-drive disconnected';
+    txt.textContent='Connecter Drive';
+    banner.className='drive-banner nok';
+    bannerTitle.textContent='Google Drive non connecté';
+    bannerSub.textContent='Connectez votre Drive pour sauvegarder automatiquement vos PDFs.';
+    bannerBtn.textContent='Connecter';
+    bannerBtn.onclick=toggleDrive;
+    driveTab.className='drive-banner nok';
+    driveTabTitle.textContent='Google Drive';
+    driveTabSub.textContent='Connectez votre compte Google pour activer la sauvegarde.';
+    connBlock.style.display='none';
+    disconnBlock.style.display='block';
+  }
+}
+
+/* ════════════════════════════════════
+   GOOGLE DRIVE API CALLS
+════════════════════════════════════ */
+async function driveRequest(url, options={}){
+  if(!isDriveConnected()) throw new Error('Drive non connecté');
+  const resp = await fetch(url, {
+    ...options,
+    headers: { 'Authorization': 'Bearer '+driveToken, 'Content-Type':'application/json', ...(options.headers||{}) }
+  });
+  if(resp.status===401){ disconnectDrive(true); throw new Error('Token expiré, reconnectez Drive'); }
+  if(!resp.ok) throw new Error('Drive API error: '+resp.status);
+  return resp.json();
+}
+
+async function ensureDriveFolders(){
+  try{
+    // 1. Find or create root folder EXPENZ Notes de Frais
+    let rootId = await findOrCreateFolder(DRIVE_ROOT_NAME, 'root');
+    // 2. Find or create month subfolder
+    const monthKey = new Date().toISOString().slice(0,7);
+    const monthName = `${monthKey} — Notes de Frais TAF`;
+    let monthId = await findOrCreateFolder(monthName, rootId);
+    driveFolderId = monthId;
+    localStorage.setItem('ex4_drive_folder', monthId);
+    return { rootId, monthId, monthName };
+  }catch(e){ toast('Drive: '+e.message,'er'); return null; }
+}
+
+async function findOrCreateFolder(name, parentId){
+  // Search
+  const q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
+  const search = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`);
+  if(search.files && search.files.length > 0) return search.files[0].id;
+  // Create
+  const created = await driveRequest('https://www.googleapis.com/drive/v3/files', {
+    method:'POST',
+    body: JSON.stringify({ name, mimeType:'application/vnd.google-apps.folder', parents:[parentId] })
+  });
+  return created.id;
+}
+
+async function uploadFileToDrive(fileName, fileContent, mimeType, folderId){
+  // Multipart upload
+  const boundary = 'expenz_boundary_' + Date.now();
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+
+  let body;
+  if(typeof fileContent === 'string' && fileContent.startsWith('data:')){
+    // base64 data URL
+    const base64 = fileContent.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+
+    const metaPart = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`;
+    const filePart = `--${boundary}\r\nContent-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${base64}\r\n--${boundary}--`;
+    body = metaPart + filePart;
+  } else {
+    // Blob/Buffer
+    body = fileContent;
+  }
+
+  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,createdTime', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer '+driveToken,
+      'Content-Type': `multipart/related; boundary=${boundary}`
+    },
+    body
+  });
+  if(!resp.ok) throw new Error('Upload failed: '+resp.status);
+  return resp.json();
+}
+
+async function savePDFtoDrive(){
+  if(!isDriveConnected()){ toast('Connectez Drive d\'abord','er'); return; }
+  setDriveProgress(10, 'uploading');
+  toast('⏳ Génération PDF…','ai');
+  try{
+    // Ensure folders
+    const folders = await ensureDriveFolders();
+    if(!folders){ setDriveProgress(0); return; }
+    setDriveProgress(30, 'uploading');
+
+    // Generate PDF as base64
+    const pdfBase64 = generatePDFBase64();
+    setDriveProgress(60, 'uploading');
+
+    // Upload
+    const now = new Date();
+    const monthKey = now.toISOString().slice(0,7);
+    const fileName = `EXPENZ_Rapport_${monthKey}_${now.toLocaleDateString('fr-FR').replace(/\//g,'-')}.pdf`;
+    const result = await uploadFileToDrive(fileName, 'data:application/pdf;base64,'+pdfBase64, 'application/pdf', folders.monthId);
+    setDriveProgress(100, 'ok');
+    setTimeout(()=>setDriveProgress(0,'ok'),2000);
+
+    // Save to history
+    addDriveHistory({ name: fileName, id: result.id, url: result.webViewLink, date: now.toISOString(), type:'pdf', month: monthKey });
+    toast('☁️ PDF sauvegardé sur Drive ✓','dr');
+    renderDriveHistory();
+  }catch(e){
+    setDriveProgress(0);
+    toast('Erreur Drive: '+e.message,'er');
+  }
+}
+
+async function syncAllJustifs(){
+  if(!isDriveConnected()){ toast('Connectez Drive d\'abord','er'); return; }
+  const withFiles = EXP.filter(e=>e.file);
+  if(!withFiles.length){ toast('Aucun justificatif à synchroniser','er'); return; }
+  const folders = await ensureDriveFolders();
+  if(!folders) return;
+  let ok=0, total=withFiles.length;
+  setDriveProgress(5,'uploading');
+  toast(`📎 Sync ${total} justificatifs…`,'ai');
+  for(let i=0;i<withFiles.length;i++){
+    const e=withFiles[i];
+    try{
+      const ext = e.ftype==='pdf'?'pdf':'jpg';
+      const mime = e.ftype==='pdf'?'application/pdf':'image/jpeg';
+      const fname = `${e.date}_${e.desc.replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}.${ext}`;
+      await uploadFileToDrive(fname, e.file, mime, folders.monthId);
+      ok++;
+      setDriveProgress(Math.round((i+1)/total*90),'uploading');
+    }catch(err){ console.warn(err); }
+  }
+  setDriveProgress(100,'ok');
+  setTimeout(()=>setDriveProgress(0,'ok'),2000);
+  toast(`☁️ ${ok}/${total} justificatifs synchronisés ✓`,'dr');
+  addDriveHistory({ name:`Sync justificatifs (${ok} fichiers)`, date: new Date().toISOString(), type:'sync', month: new Date().toISOString().slice(0,7) });
+  renderDriveHistory();
+}
+
+function setDriveProgress(pct, state='uploading'){
+  const p = document.getElementById('driveProgress');
+  const b = document.getElementById('driveBanner');
+  if(p) p.style.width = pct+'%';
+  if(pct>0 && pct<100) b.className='drive-banner uploading';
+  else if(state==='ok') b.className='drive-banner ok';
+}
+
+function openDriveFolder(){
+  window.open('https://drive.google.com','_blank');
+}
+
+function addDriveHistory(item){
+  DRIVE_HISTORY.unshift(item);
+  if(DRIVE_HISTORY.length>50) DRIVE_HISTORY.pop();
+  localStorage.setItem('ex4_drive_history', JSON.stringify(DRIVE_HISTORY));
+}
+
+function renderDriveHistory(){
+  const el = document.getElementById('driveHistory');
+  if(!el) return;
+  if(!DRIVE_HISTORY.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📂</div><p>Aucun fichier encore uploadé</p></div>';
+    return;
+  }
+  el.innerHTML = DRIVE_HISTORY.slice(0,15).map(h=>`
+    <div class="dh-item">
+      <div class="dh-ico">${h.type==='pdf'?'📄':h.type==='sync'?'📎':'📁'}</div>
+      <div class="dh-info">
+        <div class="dh-name">${h.name}</div>
+        <div class="dh-meta">${fmtDate(h.date)} · ${h.month}</div>
+      </div>
+      ${h.url?`<a class="dh-link" href="${h.url}" target="_blank">Ouvrir</a>`:'<span class="bx bx-drive" style="flex-shrink:0">✓ Drive</span>'}
+    </div>
+  `).join('');
+}
+
+/* ════════════════════════════════════
+   PDF GENERATION → base64
+════════════════════════════════════ */
+function generatePDFBase64(){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  const now = new Date();
+  const monthM = now.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  const thisM = EXP.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
+  const tot = thisM.reduce((s,e)=>s+e.amt,0);
+  const okAmt = thisM.filter(e=>e.status==='ok').reduce((s,e)=>s+e.amt,0);
+  const waitAmt = thisM.filter(e=>e.status==='wait').reduce((s,e)=>s+e.amt,0);
+  const tva = thisM.reduce((s,e)=>s+(e.tva>0?(e.amt/(1+e.tva/100))*(e.tva/100):0),0);
+
+  doc.setFillColor(5,5,8); doc.rect(0,0,210,297,'F');
+  doc.setFillColor(99,102,241); doc.rect(0,0,210,16,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('EXPENZ PRO — NOTES DE FRAIS — '+monthM.toUpperCase(), 105,10,{align:'center'});
+  doc.setFontSize(24); doc.text('EXPENZ',14,30);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(160,156,192);
+  doc.text('Christophe Hermann · TAF CDG',14,37);
+  doc.text('Rapport généré le '+now.toLocaleDateString('fr-FR'),14,43);
+
+  // KPIs
+  [[14,50,44,14,fmt(tot),'Total TTC'],[60,50,44,14,fmt(okAmt),'Approuvé'],[106,50,44,14,fmt(waitAmt),'En attente'],[152,50,44,14,fmt(tva),'TVA récup.']].forEach(([x,y,w,h,v,l])=>{
+    doc.setFillColor(22,22,42); doc.roundedRect(x,y,w,h,2,2,'F');
+    doc.setTextColor(120,120,170); doc.setFontSize(5.5); doc.text(l.toUpperCase(),x+w/2,y+5,{align:'center'});
+    doc.setTextColor(240,239,255); doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.text(v,x+w/2,y+11,{align:'center'});
+  });
+
+  // Table
+  let y=72;
+  doc.setFillColor(99,102,241); doc.rect(14,y,182,7,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+  ['DATE','DESCRIPTION','CAT.','HT','TVA','TTC','STATUT'].forEach((h,i)=>{
+    const xs=[15,37,95,120,138,155,172];
+    doc.text(h,xs[i],y+5);
+  });
+  y+=9;
+  const CATS={transport:'Transport',repas:'Repas',hotel:'Hôtel',km:'Km',telecom:'Télécom',client:'Client',materiel:'Matériel',autre:'Autre'};
+  EXP.forEach((e,i)=>{
+    if(y>275){doc.addPage();doc.setFillColor(5,5,8);doc.rect(0,0,210,297,'F');y=14;}
+    if(i%2===0){doc.setFillColor(18,18,36);doc.rect(14,y-3,182,8,'F');}
+    const ht=(e.amt/(1+(e.tva||0)/100)).toFixed(2);
+    const tv=(e.amt-parseFloat(ht)).toFixed(2);
+    doc.setTextColor(200,200,220); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+    doc.text(fmtDate(e.date)||'—',15,y+2);
+    doc.text((e.desc||'').substring(0,36),37,y+2);
+    doc.text(CATS[e.cat]||e.cat||'—',95,y+2);
+    doc.text(ht+'€',120,y+2);
+    doc.text(tv+'€',138,y+2);
+    doc.setFont('helvetica','bold'); doc.setTextColor(240,239,255);
+    doc.text(e.amt.toFixed(2)+'€',155,y+2);
+    const sc={ok:[16,185,129],wait:[245,158,11],rej:[239,68,68]};
+    doc.setTextColor(...(sc[e.status]||[157,155,192]));
+    doc.setFont('helvetica','normal');
+    doc.text({ok:'Approuvé',wait:'Attente',rej:'Rejeté'}[e.status]||'—',172,y+2);
+    y+=8;
+  });
+  // Total
+  doc.setFillColor(99,102,241); doc.rect(14,y+3,182,9,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('TOTAL : '+fmt(EXP.reduce((s,e)=>s+e.amt,0)),190,y+9,{align:'right'});
+  // Footer
+  doc.setTextColor(42,42,70); doc.setFontSize(5.5); doc.setFont('helvetica','normal');
+  doc.text('EXPENZ PRO · TAF CDG · Sauvegardé sur Google Drive',105,290,{align:'center'});
+
+  return doc.output('datauristring').split(',')[1];
+}
+
+function exportPDF(){
+  const b64 = generatePDFBase64();
+  const link = document.createElement('a');
+  link.href = 'data:application/pdf;base64,'+b64;
+  link.download = 'expenz-'+new Date().toISOString().slice(0,7)+'.pdf';
+  link.click();
+  // Auto-save to Drive if connected
+  if(isDriveConnected()) savePDFtoDrive();
+  else toast('PDF téléchargé (Drive non connecté)','ok');
+}
+
+/* ════════════════════════════════════
+   CONFIG
+════════════════════════════════════ */
+const THEMES=[
+  {id:'',l:'Indigo',c:['#050508','#6366f1','#818cf8']},
+  {id:'obsidian',l:'Obsidian',c:['#06060a','#7c3aed','#a78bfa']},
+  {id:'aurora',l:'Aurora',c:['#030d08','#10b981','#6ee7b7']},
+  {id:'crimson',l:'Crimson',c:['#0a0303','#ef4444','#fca5a5']},
+  {id:'solar',l:'Solar',c:['#07050a','#f59e0b','#fcd34d']},
+  {id:'ocean',l:'Ocean',c:['#020810','#06b6d4','#67e8f9']},
+  {id:'rose',l:'Rose',c:['#0a0408','#ec4899','#f9a8d4']},
+  {id:'slate',l:'Slate',c:['#080a0c','#64748b','#94a3b8']},
+  {id:'neon',l:'Neon',c:['#010408','#06b6d4','#6366f1']},
+  {id:'light',l:'Light',c:['#f8f7f4','#1c1917','#44403c']},
+  {id:'paper',l:'Paper',c:['#f5f0e8','#92400e','#b45309']},
+];
+const FONTS=[{id:'syne',l:'Syne'},{id:'outfit',l:'Outfit'},{id:'bricolage',l:'Bricolage'},{id:'playfair',l:'Playfair'},{id:'space',l:'Space Grotesk'},{id:'bebas',l:'Bebas Neue'},{id:'cormorant',l:'Cormorant'},{id:'jetbrains',l:'JetBrains'},{id:'unbounded',l:'Unbounded'},{id:'mono',l:'DM Mono'}];
+const CAT_ICO={transport:'🚗',repas:'🍽',hotel:'🏨',km:'🛣',telecom:'📱',client:'🤝',materiel:'🖥',autre:'📌'};
+const CAT_CLS={transport:'ci-t',repas:'ci-r',hotel:'ci-h',km:'ci-k',telecom:'ci-p',client:'ci-c',materiel:'ci-m',autre:'ci-a'};
+const CAT_NM={transport:'Transport',repas:'Repas',hotel:'Hôtel',km:'Kilométrique',telecom:'Télécom',client:'Client',materiel:'Matériel',autre:'Autre'};
+
+function applyTheme(){document.body.setAttribute('data-theme',CFG.theme||'');document.body.setAttribute('data-font',CFG.font||'syne');document.documentElement.style.setProperty('--fs',CFG.size||'15px');localStorage.setItem('ex4_cfg',JSON.stringify(CFG));}
+function buildCfgUI(){
+  document.getElementById('thGrid').innerHTML=THEMES.map(t=>`<div class="th-sw ${t.id===CFG.theme?'on':''}" data-l="${t.l}" style="background:linear-gradient(135deg,${t.c[0]} 30%,${t.c[1]})" onclick="setTh('${t.id}',this)"></div>`).join('');
+  document.getElementById('fnGrid').innerHTML=FONTS.map(f=>`<div class="fn-o ${f.id===CFG.font?'on':''}" style="font-family:'${f.l}',sans-serif" onclick="setFn('${f.id}',this)">${f.l}</div>`).join('');
+  document.querySelectorAll('.sz-b').forEach(b=>b.classList.toggle('on',b.dataset.s===CFG.size));
+}
+function setTh(t,el){CFG.theme=t;document.querySelectorAll('.th-sw').forEach(x=>x.classList.remove('on'));el.classList.add('on');applyTheme();}
+function setFn(f,el){CFG.font=f;document.querySelectorAll('.fn-o').forEach(x=>x.classList.remove('on'));el.classList.add('on');applyTheme();}
+function setSz(el){CFG.size=el.dataset.s;document.querySelectorAll('.sz-b').forEach(x=>x.classList.remove('on'));el.classList.add('on');applyTheme();}
+function saveApiKey(){localStorage.setItem('ex4_apikey',document.getElementById('apiKeyIn').value.trim());}
+function loadApiKey(){document.getElementById('apiKeyIn').value=localStorage.getItem('ex4_apikey')||'';}
+function loadGClientId(){const el=document.getElementById('gClientId');if(el)el.value=localStorage.getItem('ex4_gclientid')||'';}
+function getApiKey(){return localStorage.getItem('ex4_apikey')||'';}
+function saveBudgets(){BUDGETS={T:+document.getElementById('bT').value||500,R:+document.getElementById('bR').value||300,H:+document.getElementById('bH').value||800};localStorage.setItem('ex4_budgets',JSON.stringify(BUDGETS));}
+function loadBudgets(){document.getElementById('bT').value=BUDGETS.T;document.getElementById('bR').value=BUDGETS.R;document.getElementById('bH').value=BUDGETS.H;}
+
+/* ════════════════════════════════════
+   TABS / DRAWERS
+════════════════════════════════════ */
+function showTab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  if(btn)btn.classList.add('on');
+  if(id==='st')buildCharts();
+  if(id==='drive'){updateDriveUI();renderDriveHistory();}
+}
+function openAdd(){editId=null;fileData=null;clrFile();document.getElementById('drAddT').textContent='🆕 Nouvelle note';document.getElementById('editActs').style.display='none';['fAmt','fDesc','fProj','fNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('fCat').value='transport';document.getElementById('fStatus').value='wait';document.getElementById('fPay').value='carte';document.getElementById('fTva').value='20';setTodayDate();openDrw('drAdd');}
+function openEdit(id){
+  const e=EXP.find(x=>x.id===id);if(!e)return;
+  editId=id;fileData=null;
+  document.getElementById('drDetail').classList.remove('on');
+  document.getElementById('drAddT').textContent='✏️ Modifier';
+  document.getElementById('editActs').style.display='block';
+  ['fAmt','fDesc','fProj','fNotes'].forEach(k=>{const el=document.getElementById('f'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.value=e[k.toLowerCase().replace('f','')]||'';});
+  document.getElementById('fAmt').value=e.amt;
+  document.getElementById('fDesc').value=e.desc;
+  document.getElementById('fCat').value=e.cat;
+  document.getElementById('fStatus').value=e.status;
+  document.getElementById('fDate').value=e.date;
+  document.getElementById('fProj').value=e.proj||'';
+  document.getElementById('fNotes').value=e.notes||'';
+  document.getElementById('fPay').value=e.pay||'carte';
+  document.getElementById('fTva').value=e.tva||'20';
+  if(e.file){document.getElementById('upTxt').style.display='none';document.getElementById('upPrev').style.display='flex';document.getElementById('upName').textContent=e.fname||'Justificatif';document.getElementById('upSize').textContent=e.fsize||'';document.getElementById('upIco').textContent=e.ftype==='pdf'?'📄':'🖼';}else clrFile();
+  openDrw('drAdd');
+}
+function openDetail(id){
+  const e=EXP.find(x=>x.id===id);if(!e)return;
+  const sL={ok:'✅ Approuvé',wait:'⏳ Attente',rej:'❌ Rejeté'};const sC={ok:'bx-ok',wait:'bx-wait',rej:'bx-rej'};
+  const ht=e.tva>0?(e.amt/(1+e.tva/100)).toFixed(2):e.amt.toFixed(2);
+  const tv=e.tva>0?(e.amt-parseFloat(ht)).toFixed(2):'0.00';
+  document.getElementById('detBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <div class="ec-ico ${CAT_CLS[e.cat]}" style="width:48px;height:48px;border-radius:14px;font-size:1.4rem">${CAT_ICO[e.cat]}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:.98rem;font-weight:700">${e.desc}</div><div style="font-size:.72rem;color:var(--t3);margin-top:2px">${CAT_NM[e.cat]} · ${fmtDate(e.date)}</div></div>
+      <div style="text-align:right"><div style="font-size:1.3rem;font-weight:800;font-family:var(--fm)">${fmt(e.amt)}</div><div class="bx ${sC[e.status]}" style="margin-top:3px">${sL[e.status]}</div></div>
+    </div>
+    <div class="dl-row">
+      ${e.proj?`<div class="dl-item"><span class="dk">Projet</span><span class="dv">${e.proj}</span></div>`:''}
+      <div class="dl-item"><span class="dk">Paiement</span><span class="dv">${e.pay||'Carte'}</span></div>
+      <div class="dl-item"><span class="dk">Montant HT</span><span class="dv">${ht} €</span></div>
+      <div class="dl-item"><span class="dk">TVA ${e.tva||0}%</span><span class="dv">${tv} €</span></div>
+      ${e.notes?`<div class="dl-item"><span class="dk">Notes</span><span class="dv" style="color:var(--t2)">${e.notes}</span></div>`:''}
+      ${e.aiScan?`<div class="dl-item"><span class="dk">OCR</span><span class="dv"><span class="bx bx-ai">✨ IA</span></span></div>`:''}
+      ${e.driveUrl?`<div class="dl-item"><span class="dk">Drive</span><span class="dv"><a href="${e.driveUrl}" target="_blank" style="color:var(--drive)">Voir sur Drive ↗</a></span></div>`:''}
+    </div>
+    ${e.file?`<div style="margin-bottom:14px"><div class="st"><span>Justificatif</span></div>
+      <div class="up-prev"><div style="font-size:1.3rem">${e.ftype==='pdf'?'📄':'🖼'}</div>
+      <div><div style="font-size:.8rem;font-weight:600">${e.fname}</div><div style="font-size:.68rem;color:var(--t3)">${e.fsize||''}</div></div>
+      <button class="btn btn-sm btn-g" style="margin-left:auto" onclick="dlFile(${e.id})">⬇</button>
+      ${isDriveConnected()?`<button class="btn btn-sm btn-drive" onclick="uploadJustifToDrive(${e.id})">☁️</button>`:''}
+      </div></div>`:''}
+    <div class="brow" style="margin-top:14px">
+      <button class="btn btn-g" onclick="closeDr()">Fermer</button>
+      <button class="btn btn-p" onclick="openEdit(${e.id})">✏️ Modifier</button>
+    </div>`;
+  openDrw('drDetail');
+}
+async function uploadJustifToDrive(id){
+  const e=EXP.find(x=>x.id===id);if(!e?.file)return;
+  try{
+    const folders = await ensureDriveFolders();
+    if(!folders) return;
+    const ext=e.ftype==='pdf'?'pdf':'jpg';
+    const mime=e.ftype==='pdf'?'application/pdf':'image/jpeg';
+    const fname=`${e.date}_${e.desc.replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}.${ext}`;
+    const result = await uploadFileToDrive(fname, e.file, mime, folders.monthId);
+    // Save Drive URL on expense
+    const idx=EXP.findIndex(x=>x.id===id);
+    if(idx>=0){EXP[idx].driveUrl=result.webViewLink;saveData();}
+    addDriveHistory({name:fname,id:result.id,url:result.webViewLink,date:new Date().toISOString(),type:'justif',month:new Date().toISOString().slice(0,7)});
+    toast('☁️ Justificatif uploadé ✓','dr');
+    openDetail(id);
+  }catch(err){toast('Erreur: '+err.message,'er');}
+}
+function openDrw(id){document.getElementById('ov').classList.add('on');document.getElementById(id).classList.add('on');}
+function closeDr(){document.getElementById('ov').classList.remove('on');['drAdd','drDetail'].forEach(id=>document.getElementById(id).classList.remove('on'));}
+
+/* ════════════════════════════════════
+   FILE
+════════════════════════════════════ */
+function handleFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{fileData={data:e.target.result,type:f.type==='application/pdf'?'pdf':'image',name:f.name,size:fmtBytes(f.size)};document.getElementById('upTxt').style.display='none';document.getElementById('upPrev').style.display='flex';document.getElementById('upName').textContent=f.name;document.getElementById('upSize').textContent=fmtBytes(f.size);document.getElementById('upIco').textContent=f.type==='application/pdf'?'📄':'🖼';};r.readAsDataURL(f);}
+function clrFile(){fileData=null;document.getElementById('fFile').value='';document.getElementById('upTxt').style.display='block';document.getElementById('upPrev').style.display='none';}
+function dlFile(id){const e=EXP.find(x=>x.id===id);if(!e?.file)return;const a=document.createElement('a');a.href=e.file;a.download=e.fname||'justif';a.click();}
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+
+/* ════════════════════════════════════
+   CRUD
+════════════════════════════════════ */
+function saveExp(){
+  const amt=parseFloat(document.getElementById('fAmt').value);
+  const desc=document.getElementById('fDesc').value.trim();
+  if(!amt||!desc){toast('Montant et description requis','er');return;}
+  const obj={id:editId||Date.now(),amt,desc,cat:document.getElementById('fCat').value,status:document.getElementById('fStatus').value,date:document.getElementById('fDate').value,proj:document.getElementById('fProj').value,notes:document.getElementById('fNotes').value,pay:document.getElementById('fPay').value,tva:parseFloat(document.getElementById('fTva').value)||0,file:fileData?fileData.data:(editId?EXP.find(x=>x.id===editId)?.file:null),fname:fileData?fileData.name:(editId?EXP.find(x=>x.id===editId)?.fname:null),fsize:fileData?fileData.size:(editId?EXP.find(x=>x.id===editId)?.fsize:null),ftype:fileData?fileData.type:(editId?EXP.find(x=>x.id===editId)?.ftype:null),aiScan:editId?EXP.find(x=>x.id===editId)?.aiScan:false,driveUrl:editId?EXP.find(x=>x.id===editId)?.driveUrl:null};
+  if(editId){const idx=EXP.findIndex(x=>x.id===editId);EXP[idx]=obj;toast('Modifié ✓','ok');}
+  else{EXP.unshift(obj);toast('Note ajoutée ✓','ok');}
+  saveData();closeDr();renderAll();
+}
+function delExp(){if(!editId||!confirm('Supprimer ?'))return;EXP=EXP.filter(x=>x.id!==editId);saveData();closeDr();renderAll();toast('Supprimé','ok');}
+function saveData(){localStorage.setItem('ex4_data',JSON.stringify(EXP));}
+function setF(f,el){curFilter=f;document.querySelectorAll('.ft').forEach(x=>x.classList.remove('on'));el.classList.add('on');renderList();}
+function setTodayDate(){const t=new Date().toISOString().split('T')[0];const el=document.getElementById('fDate');if(el)el.value=t;}
+
+/* ════════════════════════════════════
+   RENDER
+════════════════════════════════════ */
+function renderAll(){renderDash();renderList();renderStats();}
+function renderDash(){
+  const now=new Date();
+  const thisM=EXP.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const tot=thisM.reduce((s,e)=>s+e.amt,0);
+  document.getElementById('hAmt').textContent=fmt(tot);
+  document.getElementById('hSub').textContent=`${thisM.length} note${thisM.length>1?'s':''} · ${thisM.filter(e=>e.status==='wait').length} en attente`;
+  document.getElementById('hOk').textContent=fmt(thisM.filter(e=>e.status==='ok').reduce((s,e)=>s+e.amt,0));
+  document.getElementById('hWait').textContent=fmt(thisM.filter(e=>e.status==='wait').reduce((s,e)=>s+e.amt,0));
+  document.getElementById('hTva').textContent=fmt(thisM.reduce((s,e)=>s+(e.tva>0?(e.amt/(1+e.tva/100))*(e.tva/100):0),0));
+  document.getElementById('kT').textContent=fmt(thisM.filter(e=>e.cat==='transport').reduce((s,e)=>s+e.amt,0));
+  document.getElementById('kR').textContent=fmt(thisM.filter(e=>e.cat==='repas').reduce((s,e)=>s+e.amt,0));
+  document.getElementById('kH').textContent=fmt(thisM.filter(e=>e.cat==='hotel').reduce((s,e)=>s+e.amt,0));
+  document.getElementById('kKm').textContent=fmt(thisM.filter(e=>e.cat==='km').reduce((s,e)=>s+e.amt,0));
+  const rl=document.getElementById('recentList');
+  const recent=EXP.slice(0,5);
+  rl.innerHTML=recent.length?recent.map(eCard).join(''):`<div class="empty"><div class="empty-ico">📋</div><p>Cliquez + pour commencer</p></div>`;
+}
+function renderList(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  let list=EXP.filter(e=>(curFilter==='all'||e.cat===curFilter)&&(!q||e.desc.toLowerCase().includes(q)||(e.proj||'').toLowerCase().includes(q)));
+  document.getElementById('mainList').innerHTML=list.length?list.map(eCard).join(''):`<div class="empty"><div class="empty-ico">🔍</div><p>Aucun résultat</p></div>`;
+}
+function eCard(e){
+  const sC={ok:'bx-ok',wait:'bx-wait',rej:'bx-rej'};const sL={ok:'OK',wait:'⏳',rej:'✗'};
+  return`<div class="ec" onclick="openDetail(${e.id})">
+    <div class="ec-ico ${CAT_CLS[e.cat]}">${CAT_ICO[e.cat]}</div>
+    <div class="ec-info">
+      <div class="ec-name">${e.desc}</div>
+      <div class="ec-meta">${fmtDate(e.date)}${e.proj?' · '+e.proj:''} <span class="bx ${sC[e.status]}">${sL[e.status]}</span>${e.file?' 📎':''}${e.aiScan?' <span class="bx bx-ai">✨</span>':''}${e.driveUrl?' <span class="bx bx-drive">☁️</span>':''}</div>
+    </div>
+    <div class="ec-amt">${fmt(e.amt)}</div>
+  </div>`;
+}
+function renderStats(){
+  const tot=EXP.reduce((s,e)=>s+e.amt,0);
+  const moy=EXP.length?tot/EXP.length:0;
+  const mx=EXP.length?Math.max(...EXP.map(e=>e.amt)):0;
+  document.getElementById('stTot').textContent=fmt(tot);
+  document.getElementById('stMoy').textContent=fmt(moy);
+  document.getElementById('stMax').textContent=fmt(mx);
+  document.getElementById('stN').textContent=EXP.length;
+  const now=new Date();
+  const thisM=EXP.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const cats=[{k:'transport',b:'T',l:'Transport'},{k:'repas',b:'R',l:'Repas'},{k:'hotel',b:'H',l:'Hôtel'}];
+  document.getElementById('budgetBars').innerHTML=cats.map(c=>{
+    const spent=thisM.filter(e=>e.cat===c.k).reduce((s,e)=>s+e.amt,0);
+    const budget=BUDGETS[c.b]||100;
+    const pct=Math.min(100,(spent/budget)*100);
+    const color=pct>90?'var(--err)':pct>70?'var(--warn)':'var(--ok)';
+    return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.73rem;margin-bottom:3px"><span style="color:var(--t2)">${c.l}</span><span style="font-family:var(--fm)">${fmt(spent)} / ${budget}€</span></div><div class="prog-wrap"><div class="prog" style="width:${pct}%;background:${color}"></div></div></div>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════
+   CHARTS
+════════════════════════════════════ */
+let cCat=null,cMonth=null,cDo=null;
+function buildCharts(){
+  const cats=['transport','repas','hotel','km','telecom','client','materiel','autre'];
+  const clrs=['#60a5fa','#34d399','#c084fc','#fbbf24','#22d3ee','#f472b6','#f87171','#94a3b8'];
+  const ct=cats.map(c=>EXP.reduce((s,e)=>e.cat===c?s+e.amt:s,0));
+  const months=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const mt=months.map((_,i)=>EXP.filter(e=>new Date(e.date).getMonth()===i).reduce((s,e)=>s+e.amt,0));
+  const gc='rgba(255,255,255,.05)',tc='rgba(255,255,255,.35)';
+  const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:9}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:9},callback:v=>v+'€'}}}};
+  if(cCat)cCat.destroy();
+  cCat=new Chart(document.getElementById('cCat'),{type:'bar',data:{labels:['Transp.','Repas','Hôtel','Km','Tél.','Client','Mater.','Autre'],datasets:[{data:ct,backgroundColor:clrs.map(c=>c+'28'),borderColor:clrs,borderWidth:2,borderRadius:8,borderSkipped:false}]},options:{...base,plugins:{legend:{display:false}}}});
+  if(cMonth)cMonth.destroy();
+  cMonth=new Chart(document.getElementById('cMonth'),{type:'line',data:{labels:months,datasets:[{data:mt,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.08)',fill:true,tension:.4,pointBackgroundColor:'#6366f1',pointRadius:3}]},options:base});
+  if(cDo)cDo.destroy();
+  const nz=cats.map((c,i)=>({l:CAT_NM[c],v:ct[i],cl:clrs[i]})).filter(x=>x.v>0);
+  cDo=new Chart(document.getElementById('cDo'),{type:'doughnut',data:{labels:nz.map(x=>x.l),datasets:[{data:nz.map(x=>x.v),backgroundColor:nz.map(x=>x.cl+'45'),borderColor:nz.map(x=>x.cl),borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:'rgba(255,255,255,.4)',font:{size:10},boxWidth:10,padding:10}}}}});
+}
+
+/* ════════════════════════════════════
+   OCR + AI CHAT
+════════════════════════════════════ */
+async function handleOCR(inp){
+  const f=inp.files[0];if(!f)return;
+  const key=getApiKey();if(!key){toast('Clé API Claude manquante → Config','er');return;}
+  document.getElementById('ocrTxt').style.display='none';
+  document.getElementById('ocrLoad').style.display='flex';
+  document.getElementById('ocrResult').innerHTML='';
+  try{
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});
+    const isPdf=f.type==='application/pdf';
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content:[{type:isPdf?'document':'image',source:{type:'base64',media_type:f.type,data:b64}},{type:'text',text:'Analyse ce justificatif et retourne UNIQUEMENT du JSON valide (pas de markdown): {"montant_ttc":0.00,"montant_ht":0.00,"tva_pct":20,"tva_montant":0.00,"date":"YYYY-MM-DD","fournisseur":"","description":"","categorie":"transport|repas|hotel|telecom|client|materiel|autre","moyen_paiement":"carte|especes|virement","devise":"EUR","confiance":"haute|moyenne|faible","remarques":""}'}]}]})});
+    const data=await resp.json();
+    if(data.error)throw new Error(data.error.message);
+    let txt=data.content[0].text.replace(/```json?|```/g,'').trim();
+    const r=JSON.parse(txt);
+    document.getElementById('ocrLoad').style.display='none';
+    document.getElementById('ocrTxt').style.display='block';
+    const cc={haute:'var(--ok)',moyenne:'var(--warn)',faible:'var(--err)'}[r.confiance]||'var(--t3)';
+    document.getElementById('ocrResult').innerHTML=`<div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:14px;margin-top:10px">
+      <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;color:var(--a2);margin-bottom:10px">✨ OCR IA · Confiance <span style="color:${cc}">${r.confiance||'—'}</span></div>
+      ${[['Montant TTC',r.montant_ttc+' €'],['Montant HT',r.montant_ht+' €'],['TVA',r.tva_pct+'% ('+r.tva_montant+' €)'],['Date',r.date],['Fournisseur',r.fournisseur],['Catégorie',CAT_NM[r.categorie]||r.categorie],['Remarques',r.remarques]].filter(([,v])=>v&&v!=='undefined').map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(99,102,241,.08);font-size:.8rem"><span style="color:var(--t3)">${k}</span><strong>${v}</strong></div>`).join('')}
+      <button class="btn btn-p btn-full" style="margin-top:12px" onclick='prefillOCR(${JSON.stringify(r).replace(/'/g,"\\'")},"${b64}","${isPdf}","${f.name}","${fmtBytes(f.size)}")'>➕ Créer la note</button>
+    </div>`;
+    toast('✨ OCR réussi !','ai');
+  }catch(err){document.getElementById('ocrLoad').style.display='none';document.getElementById('ocrTxt').style.display='block';toast('Erreur OCR: '+err.message,'er');}
+}
+function prefillOCR(r,b64,isPdf,fname,fsize){
+  openAdd();
+  setTimeout(()=>{
+    document.getElementById('fAmt').value=r.montant_ttc||0;
+    document.getElementById('fDesc').value=r.description||r.fournisseur||'';
+    if(r.date?.match(/\d{4}-\d{2}-\d{2}/))document.getElementById('fDate').value=r.date;
+    if(r.categorie&&document.getElementById('fCat').querySelector(`option[value="${r.categorie}"]`))document.getElementById('fCat').value=r.categorie;
+    if(r.tva_pct){const tv=document.getElementById('fTva');const op=[...tv.options].find(o=>parseFloat(o.value)===r.tva_pct);if(op)tv.value=op.value;}
+    fileData={data:'data:'+(isPdf==='true'?'application/pdf':'image/jpeg')+';base64,'+b64,type:isPdf==='true'?'pdf':'image',name:fname,size:fsize};
+    document.getElementById('upTxt').style.display='none';document.getElementById('upPrev').style.display='flex';
+    document.getElementById('upName').textContent=fname;document.getElementById('upSize').textContent=fsize;
+    document.getElementById('upIco').textContent=isPdf==='true'?'📄':'🖼';
+  },100);
+}
+function initChat(){chatHistory=[];addMsg('ai','👋 Bonjour Christophe !\n\nJe suis votre assistant EXPENZ connecté à Google Drive.\n\nDites-moi ce que vous cherchez : analyse de dépenses, TVA récupérable, optimisation fiscale…');}
+function addMsg(role,txt){const el=document.getElementById('aiMsgs');const div=document.createElement('div');div.className='msg msg-'+role;div.style.whiteSpace='pre-wrap';div.textContent=txt;el.appendChild(div);el.scrollTop=el.scrollHeight;}
+function showTyping(){const el=document.getElementById('aiMsgs');const d=document.createElement('div');d.id='typing';d.className='msg msg-ai msg-typing';d.innerHTML='<div class="dt"></div><div class="dt"></div><div class="dt"></div>';el.appendChild(d);el.scrollTop=el.scrollHeight;}
+function hideTyping(){const t=document.getElementById('typing');if(t)t.remove();}
+async function sendAI(){
+  const inp=document.getElementById('aiInput');const msg=inp.value.trim();if(!msg)return;
+  const key=getApiKey();if(!key){toast('Clé API Claude → Config','er');return;}
+  inp.value='';addMsg('u',msg);chatHistory.push({role:'user',content:msg});showTyping();
+  const now=new Date();
+  const thisM=EXP.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const ctx=`Assistant EXPENZ de Christophe Hermann (TAF CDG, fret aérien CDG). Drive: ${isDriveConnected()?'connecté':'non connecté'}. Notes mois: ${thisM.length}, total: ${fmt(thisM.reduce((s,e)=>s+e.amt,0))}. Total annuel: ${fmt(EXP.reduce((s,e)=>s+e.amt,0))} sur ${EXP.length} notes. TVA récupérable: ${fmt(thisM.reduce((s,e)=>s+(e.tva>0?(e.amt/(1+e.tva/100))*(e.tva/100):0),0))}. Réponds en français, concis et professionnel.`;
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:ctx,messages:chatHistory})});
+    const data=await resp.json();hideTyping();
+    if(data.error)throw new Error(data.error.message);
+    const reply=data.content[0].text;chatHistory.push({role:'assistant',content:reply});addMsg('ai',reply);
+  }catch(err){hideTyping();addMsg('ai','⚠️ '+err.message);}
+}
+function clearChat(){chatHistory=[];document.getElementById('aiMsgs').innerHTML='';initChat();}
+async function getAISugg(){
+  const key=getApiKey();if(!key){toast('Clé API Claude → Config','er');return;}
+  const el=document.getElementById('aiSugg');el.innerHTML='<div class="ai-load"><div class="spin"></div> Analyse…</div>';
+  const now=new Date();
+  const thisM=EXP.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:`Analyse ces notes de frais TAF CDG et donne 4 recommandations JSON: [{"titre":"","conseil":"","impact":"positif|attention|alerte","economie":""}]. Données: ${JSON.stringify(thisM.map(e=>({cat:e.cat,amt:e.amt,tva:e.tva,status:e.status})))}`}]})});
+    const data=await resp.json();if(data.error)throw new Error(data.error.message);
+    let txt=data.content[0].text.replace(/```json?|```/g,'').trim();
+    const suggs=JSON.parse(txt);
+    const ic={positif:'✅',attention:'⚠️',alerte:'🚨'};const cl={positif:'var(--ok)',attention:'var(--warn)',alerte:'var(--err)'};
+    el.innerHTML=suggs.map(s=>`<div style="background:var(--s);border:1px solid var(--b);border-radius:13px;padding:13px;margin-bottom:9px;border-left:3px solid ${cl[s.impact]||'var(--b)'}"><div style="font-weight:600;font-size:.86rem;margin-bottom:5px">${ic[s.impact]||'•'} ${s.titre}</div><div style="font-size:.78rem;color:var(--t2);line-height:1.6">${s.conseil}</div>${s.economie?`<div style="font-size:.7rem;color:${cl[s.impact]};margin-top:5px;font-family:var(--fm)">${s.economie}</div>`:''}</div>`).join('');
+  }catch(err){el.innerHTML=`<div class="empty"><div class="empty-ico">⚠️</div><p>${err.message}</p></div>`;}
+}
+
+/* ════════════════════════════════════
+   UTILS
+════════════════════════════════════ */
+function fmt(n){return(+n||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' €';}
+function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
+function exportJSON(){const b=new Blob([JSON.stringify(EXP,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='expenz-'+new Date().toISOString().slice(0,7)+'.json';a.click();toast('Export JSON ✓','ok');}
+function clearAll(){if(!confirm('Réinitialiser TOUTES les données ?'))return;EXP=[];saveData();renderAll();toast('Réinitialisé','ok');}
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast on'+(type?' '+type:'');clearTimeout(t._to);t._to=setTimeout(()=>t.classList.remove('on'),3500);}
+
+/* ════════════════════════════════════
+   KEYBOARD / DRAG&DROP
+════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  const l=document.getElementById('lock');
+  if(l.style.display!=='none'&&l.style.opacity!=='0'){if(e.key>='0'&&e.key<='9')pp(e.key);if(e.key==='Backspace')pd();}
+  if(e.key==='Escape')closeDr();
+});
+document.getElementById('aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI();}});
+['upZone','ocrZone'].forEach(zid=>{
+  const z=document.getElementById(zid);if(!z)return;
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag');});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag');const f=e.dataTransfer.files[0];if(f){const inp=z.querySelector('input[type=file]');const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;zid==='upZone'?handleFile(inp):handleOCR(inp);}});
+});
+</script>
+</body>
+</html>

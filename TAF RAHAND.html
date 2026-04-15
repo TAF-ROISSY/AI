@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BON MAGASINIER — RAHAND</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Montserrat:wght@300;400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Source+Code+Pro:wght@300;400;600&family=Raleway:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Josefin+Sans:wght@300;400;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ══ VARIABLES THÈME ══ */
+:root {
+  --bg:#2a2520;          /* fond app : brun foncé, pas noir total */
+  --paper:#faf7f2;       /* fond carte : blanc cassé */
+  --cream:#f2ede4;       /* fond header/footer carte */
+  --ink:#1c1a17;         /* texte principal */
+  --primary:#c8a84b;     /* or */
+  --primary2:#e8d08a;    /* or clair */
+  --accent:#8b3a2a;      /* rouille */
+  --muted:#7a7268;       /* texte secondaire - plus clair */
+  --border:#cfc3ae;      /* bordures */
+  --app-txt:#e8e0d4;     /* texte sur fond app */
+  --body-font:'DM Mono',monospace; --title-font:'Playfair Display',serif;
+  --font-size:13px;
+}
+[data-theme="navy"]      { --bg:#1a2d3f;--paper:#f0f4f8;--cream:#e0eaf4;--ink:#0d1b2a;--primary:#d4a843;--primary2:#f0cb75;--accent:#1a5276;--muted:#4a6a80;--border:#b0c8d8;--app-txt:#c8dce8; }
+[data-theme="forest"]    { --bg:#162410;--paper:#f2f7f0;--cream:#e0eed8;--ink:#0a1a0f;--primary:#4a9e5c;--primary2:#7dc98d;--accent:#2d6a3f;--muted:#4a7055;--border:#a8ccb0;--app-txt:#c0dcc8; }
+[data-theme="bordeaux"]  { --bg:#2a1018;--paper:#fdf5f0;--cream:#f2e4dc;--ink:#1a0810;--primary:#c0405a;--primary2:#e07088;--accent:#8a2030;--muted:#8a5060;--border:#d0a8b0;--app-txt:#e0c0c8; }
+[data-theme="slate"]     { --bg:#182430;--paper:#f0f4f7;--cream:#dce8f0;--ink:#0f1923;--primary:#29a0b1;--primary2:#5ec8d8;--accent:#1a6e7a;--muted:#406878;--border:#90bcc8;--app-txt:#b8d8e4; }
+[data-theme="white"]     { --bg:#cccccc;--paper:#ffffff;--cream:#f5f5f5;--ink:#1a1a1a;--primary:#444;--primary2:#777;--accent:#666;--muted:#777;--border:#ddd;--app-txt:#222222; }
+[data-theme="violet"]    { --bg:#1a1228;--paper:#f5f0ff;--cream:#e8e0ff;--ink:#0e0a1a;--primary:#9060e0;--primary2:#b890f0;--accent:#6040a8;--muted:#5a4878;--border:#b8a0d8;--app-txt:#d0c0f0; }
+[data-theme="terra"]     { --bg:#261810;--paper:#fdf5ee;--cream:#f0e0d0;--ink:#1a0f08;--primary:#c4622d;--primary2:#e0895a;--accent:#8a3a18;--muted:#7a5038;--border:#cca080;--app-txt:#e0c0a0; }
+[data-theme="glacier"]   { --bg:#101e2c;--paper:#f0f8ff;--cream:#d8eeff;--ink:#08151f;--primary:#3a7fbf;--primary2:#6aaad8;--accent:#1a4a7a;--muted:#386080;--border:#88bcd8;--app-txt:#b0d4ec; }
+[data-theme="rosegold"]  { --bg:#28181c;--paper:#fff5f7;--cream:#ffe0e8;--ink:#1a0f12;--primary:#c8788a;--primary2:#e0a0b0;--accent:#8a3a50;--muted:#805060;--border:#d0a0b0;--app-txt:#e8c0cc; }
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);min-height:100vh;font-family:var(--body-font);font-size:var(--font-size);
+  display:flex;flex-direction:column;align-items:center;padding:28px 16px 60px;
+  transition:background .3s,color .3s;
+  color:var(--app-txt);
+}
+
+/* ── APP HEADER ── */
+.app-header{width:100%;max-width:820px;display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.15);}
+.app-brand{display:flex;flex-direction:column;gap:2px;}
+.app-brand-lbl{font-size:8px;letter-spacing:4px;color:var(--primary);text-transform:uppercase;opacity:.8;}
+.app-brand-title{font-family:var(--title-font);font-size:19px;font-weight:700;color:var(--app-txt);letter-spacing:1px;}
+.app-brand-sub{font-size:8px;color:var(--app-txt);opacity:.6;letter-spacing:2px;text-transform:uppercase;}
+.taf-badge{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.taf-badge-name{font-family:var(--title-font);font-size:15px;font-weight:900;color:var(--primary);letter-spacing:3px;}
+.taf-badge-full{font-size:7.5px;color:var(--app-txt);opacity:.6;letter-spacing:1.5px;text-align:right;}
+
+/* ── TABS ── */
+.tabs{width:100%;max-width:820px;display:flex;gap:2px;margin-bottom:0;}
+.tab-btn{
+  flex:1;padding:10px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-bottom:none;
+  color:var(--app-txt);opacity:.7;font-family:var(--body-font);font-size:8.5px;letter-spacing:2.5px;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;border-radius:3px 3px 0 0;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab-btn:hover{background:rgba(255,255,255,.09);color:var(--primary2);}
+.tab-btn.active{background:rgba(200,168,75,.15);border-color:var(--primary);color:var(--primary);opacity:1 !important;}
+
+/* ── PANELS ── */
+.panel{display:none;width:100%;max-width:820px;}
+.panel.active{display:block;}
+
+/* ── FORM CARD ── */
+.form-card{background:var(--paper);border-radius:0 0 4px 4px;overflow:hidden;box-shadow:0 0 0 1px rgba(200,168,75,.2),0 28px 60px rgba(0,0,0,.5);position:relative;transition:background .3s;}
+.form-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--primary),var(--accent));}
+
+.form-hdr{background:var(--cream);padding:28px 42px 22px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;border-bottom:2px solid var(--ink);transition:background .3s;}
+.hdr-l{display:flex;flex-direction:column;gap:4px;}
+.hdr-c{display:flex;flex-direction:column;align-items:center;}
+.logo-box{width:84px;height:44px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.logo-box-in{font-family:var(--title-font);font-size:13px;font-weight:900;color:var(--ink);letter-spacing:3px;}
+.logo-box-sub{font-size:5.5px;letter-spacing:1.5px;color:var(--accent);font-family:var(--body-font);}
+.hdr-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+
+.title-band{background:var(--ink);padding:13px 42px;display:flex;align-items:center;justify-content:space-between;transition:background .3s;}
+.title-main{font-family:var(--title-font);font-size:23px;font-weight:700;color:var(--primary);letter-spacing:5px;}
+.title-ref{font-size:8.5px;color:var(--muted);letter-spacing:2px;}
+
+.form-body{padding:28px 42px 22px;background:var(--paper);display:grid;grid-template-columns:1fr 1fr;gap:16px 34px;transition:background .3s;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg.full{grid-column:1/-1;}
+.flbl{font-size:7.5px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;font-weight:500;}
+.finp{
+  background:transparent;border:none;border-bottom:1.5px solid var(--border);
+  padding:7px 0 5px;font-family:var(--body-font);font-size:var(--font-size);
+  color:var(--ink);width:100%;outline:none;transition:border-color .2s,font-size .2s,font-family .2s;
+}
+.finp:focus{border-bottom-color:var(--primary);}
+.finp::placeholder{color:var(--border);font-size:10px;}
+
+.divrow{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:3px 0;}
+.divline{flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);}
+.divicon{font-size:9px;color:var(--primary);}
+.slbl{grid-column:1/-1;font-size:7px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;padding:3px 0 0;border-top:1px solid var(--border);margin-top:3px;}
+.sigzone{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:5px;}
+.sigblk{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+
+.form-ftr{background:var(--cream);padding:14px 42px;display:flex;align-items:center;justify-content:space-between;border-top:1.5px solid var(--ink);transition:background .3s;}
+.ftr-txt{font-size:7.5px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.ftr-mark{width:26px;height:26px;border:1.5px solid var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--primary);font-family:var(--title-font);font-style:italic;}
+
+/* ── PARAMS CARD ── */
+.params-card{background:var(--paper);border-radius:0 0 4px 4px;padding:32px 42px 36px;box-shadow:0 0 0 1px rgba(200,168,75,.2),0 28px 60px rgba(0,0,0,.5);transition:background .3s;}
+.psec-title{font-size:8px;letter-spacing:4px;color:var(--accent);text-transform:uppercase;margin-bottom:14px;margin-top:26px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.psec-title:first-child{margin-top:0;}
+.pico{font-size:13px;}
+
+/* Grille thèmes */
+.themes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;}
+.tc{cursor:pointer;border-radius:4px;overflow:hidden;border:2px solid transparent;transition:all .2s;position:relative;}
+.tc:hover{transform:translateY(-2px);border-color:var(--primary);}
+.tc.sel{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary);}
+.tsw{height:42px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.tsw-bar{position:absolute;top:0;left:0;right:0;height:4px;}
+.tsw-lbl{font-size:10px;font-weight:700;letter-spacing:2px;z-index:1;}
+.tc-name{font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;padding:5px 5px 6px;text-align:center;font-weight:500;}
+.tc-chk{position:absolute;top:3px;right:4px;width:13px;height:13px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:7px;}
+.tc.sel .tc-chk{display:flex;}
+
+/* Grille polices */
+.fonts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
+.fc{cursor:pointer;border-radius:4px;padding:11px 13px;border:1.5px solid var(--border);transition:all .2s;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--cream);}
+.fc:hover{border-color:var(--primary);}
+.fc.sel{border-color:var(--primary);background:rgba(200,168,75,.07);}
+.fp{font-size:15px;color:var(--ink);flex:1;transition:font-family .2s;}
+.fmeta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.fname{font-size:7px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;font-family:'DM Mono',monospace;}
+.fchk{width:12px;height:12px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:7px;}
+.fc.sel .fchk{display:flex;}
+
+/* Slider taille */
+.size-wrap{background:var(--cream);border-radius:4px;padding:14px 18px;border:1.5px solid var(--border);}
+.size-row{display:flex;align-items:center;gap:14px;}
+.sz-a{font-family:var(--body-font);color:var(--muted);}
+.size-slider{flex:1;-webkit-appearance:none;height:3px;background:linear-gradient(90deg,var(--primary) var(--pct,50%),var(--border) var(--pct,50%));border-radius:2px;outline:none;cursor:pointer;}
+.size-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--primary);cursor:pointer;border:2px solid var(--paper);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.size-disp{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--primary);min-width:36px;text-align:right;letter-spacing:1px;}
+.size-hints{display:flex;justify-content:space-between;margin-top:5px;}
+.size-hint{font-size:7.5px;color:var(--muted);letter-spacing:.5px;}
+
+.preset-row{display:flex;gap:6px;margin-top:10px;}
+.preset-btn{flex:1;padding:7px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1.5px;cursor:pointer;border-radius:2px;transition:all .2s;}
+.preset-btn:hover{border-color:var(--primary);color:var(--primary);}
+.preset-btn.active-pre{border-color:var(--primary);color:var(--primary);background:rgba(200,168,75,.08);}
+
+.params-rst{margin-top:22px;padding:10px 20px;background:transparent;border:1px solid rgba(107,101,96,.3);color:var(--muted);font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;}
+.params-rst:hover{border-color:var(--muted);color:var(--ink);}
+
+/* ── ACTIONS ── */
+.actions{width:100%;max-width:820px;display:flex;justify-content:flex-end;gap:9px;margin-top:18px;}
+.btn{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:13px 28px;border:none;cursor:pointer;transition:all .2s;border-radius:3px;}
+.btn-rst{background:rgba(255,255,255,0.06);color:var(--app-txt);border:1px solid rgba(255,255,255,0.2);}
+.btn-rst:hover{border-color:var(--primary);color:var(--primary);background:rgba(255,255,255,0.1);}
+.btn-prv{background:rgba(255,255,255,0.1);color:var(--app-txt);border:1px solid rgba(255,255,255,0.25);}
+.btn-prv:hover{background:rgba(255,255,255,0.18);border-color:var(--primary);color:var(--primary);}
+.btn-pdf{background:var(--primary);color:#111;font-weight:700;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(200,168,75,0.4);}
+.btn-pdf::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.15) 50%,transparent 60%);transform:translateX(-100%);transition:transform .4s;}
+.btn-pdf:hover::before{transform:translateX(100%);}
+.btn-pdf:hover{filter:brightness(1.1);}
+
+/* ── MODAL ── */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center;padding:36px;backdrop-filter:blur(4px);}
+.modal-ov.open{display:flex;}
+.modal-box{background:#fff;padding:52px;max-width:660px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 40px 100px rgba(0,0,0,.6);}
+.modal-x{position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;}
+.prv-doc{font-family:'Times New Roman',serif;color:#000;}
+.prv-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+.prv-city{font-size:11px;}
+.prv-logo{text-align:center;border:1px solid #000;padding:4px 11px;}
+.prv-logo-n{font-size:15px;font-weight:bold;letter-spacing:3px;}
+.prv-logo-s{font-size:7px;letter-spacing:2px;}
+.prv-title{text-align:center;font-size:19px;font-weight:bold;letter-spacing:4px;border-top:2px solid #000;border-bottom:2px solid #000;padding:8px;margin:16px 0;}
+.prv-sub{text-align:center;font-size:12px;font-weight:bold;margin-bottom:16px;}
+.prv-row{display:flex;margin-bottom:8px;font-size:11px;}
+.prv-lbl{width:165px;font-weight:bold;}
+.prv-val{flex:1;border-bottom:1px solid #444;padding-bottom:1px;min-height:17px;}
+.prv-sig{text-align:right;margin-top:26px;font-size:11px;}
+.prv-ftr{margin-top:26px;text-align:center;font-size:8px;color:#777;border-top:1px solid #ddd;padding-top:8px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);border:1px solid var(--primary);color:var(--primary);font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:2px;padding:11px 18px;border-radius:2px;opacity:0;transform:translateY(8px);transition:all .3s;z-index:999;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<!-- APP HEADER -->
+<div class="app-header">
+  <div class="app-brand">
+    <span class="app-brand-lbl">Générateur de document</span>
+    <span class="app-brand-title">Bon Magasinier</span>
+    <span class="app-brand-sub">Magasin Rahand · CDG</span>
+  </div>
+  <div class="taf-badge">
+    <span class="taf-badge-name">TAF</span>
+    <span class="taf-badge-full">Trans Air Freight CDG<br>Fret Aérien · Douane · Périssables</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('form',this)">📋 &nbsp;Formulaire</button>
+  <button class="tab-btn" onclick="switchTab('params',this)">🎨 &nbsp;Paramètres</button>
+</div>
+
+<!-- ══════════ PANEL FORMULAIRE ══════════ -->
+<div class="panel active" id="panel-form">
+<div class="form-card">
+  <div class="form-hdr">
+    <div class="hdr-l">
+      <span style="font-size:7.5px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Localisation</span>
+      <input class="finp" id="city" value="ROISSY" style="max-width:145px;font-size:14px;font-weight:500;letter-spacing:2px;">
+    </div>
+    <div class="hdr-c">
+      <div class="logo-box">
+        <span class="logo-box-in">TAF</span>
+        <span class="logo-box-sub">CDG · FRET</span>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <span style="font-size:7.5px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Date du bon</span>
+      <input class="finp" id="docDate" type="date" style="max-width:170px;font-size:12px;text-align:right;">
+    </div>
+  </div>
+
+  <div class="title-band">
+    <span class="title-main">Bon Magasinier</span>
+    <span class="title-ref">RAHAND</span>
+  </div>
+
+  <div class="form-body">
+    <div class="slbl">◆ Identification du Dossier</div>
+    <div class="fg"><label class="flbl">Magasin</label><input class="finp" id="magasin" value="RAHAND"></div>
+    <div class="fg"><label class="flbl">PLT</label><input class="finp" id="plt" placeholder="Code PLT"></div>
+    <div class="fg"><label class="flbl">Notre Référence</label><input class="finp" id="ref" placeholder="Ex : 24/01234"></div>
+    <div class="fg"><label class="flbl">Dossier Douane</label><input class="finp" id="dossierDouane" placeholder="N° dossier douane"></div>
+
+    <div class="divrow"><div class="divline"></div><span class="divicon">✦</span><div class="divline"></div></div>
+    <div class="slbl">◆ Transport & Marchandise</div>
+    <div class="fg full"><label class="flbl">LTA — Lettre de Transport Aérien</label><input class="finp" id="lta" placeholder="Ex : 235/6242-2544"></div>
+    <div class="fg full"><label class="flbl">Nature de la Marchandise</label><input class="finp" id="nature" placeholder="EFFETS PERSONNELS / POISSON FRAIS / ANIMAUX VIVANTS…"></div>
+    <div class="fg"><label class="flbl">Poids (KG)</label><input class="finp" id="poids" type="number" placeholder="0"></div>
+    <div class="fg"><label class="flbl">Nombre de Colis</label><input class="finp" id="nbColis" placeholder="Ex : 11 COLIS"></div>
+
+    <div class="divrow"><div class="divline"></div><span class="divicon">✦</span><div class="divline"></div></div>
+    <div class="slbl">◆ Informations Douanières</div>
+    <div class="fg"><label class="flbl">Sortie le</label><input class="finp" id="sortieDate" type="date"></div>
+    <div class="fg"><label class="flbl">Magasinage à compter du</label><input class="finp" id="magasinageDate" type="date"></div>
+    <div class="fg"><label class="flbl">Document Douane N°</label><input class="finp" id="docDouaneNum" placeholder="Ex : 2406098366"></div>
+    <div class="fg"><label class="flbl">Du (date document)</label><input class="finp" id="docDouaneDate" type="date"></div>
+
+    <div class="divrow"><div class="divline"></div><span class="divicon">✦</span><div class="divline"></div></div>
+    <div class="slbl">◆ Observations</div>
+    <div class="fg full"><label class="flbl">Observations / Remarques</label><input class="finp" id="observations" placeholder="Observations éventuelles…"></div>
+
+    <div class="sigzone">
+      <div class="sigblk">
+        <span class="flbl" style="text-align:right;">Agent Déclarant</span>
+        <input class="finp" id="declarant" value="MERCIER AURELIEN" style="text-align:right;max-width:200px;font-weight:500;letter-spacing:1px;">
+      </div>
+    </div>
+  </div>
+  <div class="form-ftr">
+    <span class="ftr-txt">Trans Air Freight · CDG · Document Interne</span>
+    <div class="ftr-mark">TAF</div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ PANEL PARAMÈTRES ══════════ -->
+<div class="panel" id="panel-params">
+<div class="params-card">
+
+  <!-- THÈMES -->
+  <div class="psec-title"><span class="pico">🎨</span> Thème de couleurs <span style="margin-left:auto;font-size:7px;letter-spacing:1px;opacity:.5;">Cliquer pour appliquer</span></div>
+  <div class="themes-grid" id="themesGrid"></div>
+
+  <!-- POLICES -->
+  <div class="psec-title"><span class="pico">🔤</span> Police de caractères</div>
+  <div class="fonts-grid" id="fontsGrid"></div>
+
+  <!-- TAILLE -->
+  <div class="psec-title"><span class="pico">⚙️</span> Taille du texte</div>
+  <div class="size-wrap">
+    <div class="size-row">
+      <span class="sz-a" style="font-size:10px;">A</span>
+      <input type="range" class="size-slider" id="szSlider" min="10" max="16" step="0.5" value="13">
+      <span class="sz-a" style="font-size:16px;">A</span>
+      <span class="size-disp" id="szDisp">13px</span>
+    </div>
+    <div class="size-hints">
+      <span class="size-hint">Compact · 10px</span>
+      <span class="size-hint">Confort · 13px</span>
+      <span class="size-hint">Large · 16px</span>
+    </div>
+    <div class="preset-row">
+      <button class="preset-btn" onclick="setSize(10)">XS · 10px</button>
+      <button class="preset-btn" onclick="setSize(11.5)">SM · 11.5px</button>
+      <button class="preset-btn active-pre" onclick="setSize(13)">MD · 13px</button>
+      <button class="preset-btn" onclick="setSize(14.5)">LG · 14.5px</button>
+      <button class="preset-btn" onclick="setSize(16)">XL · 16px</button>
+    </div>
+  </div>
+
+  <button class="params-rst" onclick="resetParams()">↺ &nbsp;Réinitialiser les paramètres</button>
+</div>
+</div>
+
+<!-- ACTIONS -->
+<div class="actions">
+  <button class="btn btn-rst" onclick="resetForm()">↺ &nbsp;Réinitialiser</button>
+  <button class="btn btn-prv" onclick="showPreview()">◈ &nbsp;Aperçu</button>
+  <button class="btn btn-pdf" onclick="generatePDF()">⬇ &nbsp;Générer PDF</button>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov" id="modal">
+  <div class="modal-box">
+    <button class="modal-x" onclick="closeModal()">✕</button>
+    <div id="prvContent"></div>
+    <div style="text-align:center;margin-top:24px;">
+      <button class="btn btn-pdf" onclick="generatePDF()" style="font-size:8.5px;padding:10px 22px;">⬇ &nbsp;Télécharger PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ DATA ══ */
+const THEMES=[
+  {id:'default', name:'Gold & Ink',   bg:'#0f0e0d',paper:'#faf7f2',pr:'#c8a84b',ac:'#8b3a2a',txt:'#c8a84b',tp:'#0f0e0d'},
+  {id:'navy',    name:'Navy & Or',    bg:'#0d1b2a',paper:'#f0f4f8',pr:'#d4a843',ac:'#1a5276',txt:'#d4a843',tp:'#0d1b2a'},
+  {id:'forest',  name:'Forest',       bg:'#0a1a0f',paper:'#f2f7f0',pr:'#4a9e5c',ac:'#2d6a3f',txt:'#4a9e5c',tp:'#0a1a0f'},
+  {id:'bordeaux',name:'Bordeaux',     bg:'#1a0810',paper:'#fdf5f0',pr:'#8b1a2c',ac:'#5c1020',txt:'#c04a5e',tp:'#1a0810'},
+  {id:'slate',   name:'Slate & Cyan', bg:'#0f1923',paper:'#f0f4f7',pr:'#29a0b1',ac:'#1a6e7a',txt:'#29a0b1',tp:'#0f1923'},
+  {id:'white',   name:'Minimaliste',  bg:'#e0e0e0',paper:'#ffffff',pr:'#333333',ac:'#888888',txt:'#333333',tp:'#1a1a1a'},
+  {id:'violet',  name:'Violet Nuit',  bg:'#0e0a1a',paper:'#f5f0ff',pr:'#7c4dca',ac:'#4a2a8a',txt:'#a87de0',tp:'#0e0a1a'},
+  {id:'terra',   name:'Terracotta',   bg:'#1a0f08',paper:'#fdf5ee',pr:'#c4622d',ac:'#8a3a18',txt:'#e0895a',tp:'#1a0f08'},
+  {id:'glacier', name:'Bleu Glacier', bg:'#08151f',paper:'#f0f8ff',pr:'#3a7fbf',ac:'#1a4a7a',txt:'#6aaad8',tp:'#08151f'},
+  {id:'rosegold',name:'Rose Gold',    bg:'#1a0f12',paper:'#fff5f7',pr:'#c8788a',ac:'#8a3a50',txt:'#e0a0b0',tp:'#1a0f12'},
+];
+
+const FONTS=[
+  {id:'dm',    name:'DM Mono',         fam:"'DM Mono',monospace",         prv:'BON MAG'},
+  {id:'play',  name:'Playfair Display',fam:"'Playfair Display',serif",    prv:'Bon Mag'},
+  {id:'corm',  name:'Cormorant',       fam:"'Cormorant Garamond',serif",  prv:'Bon Mag'},
+  {id:'mont',  name:'Montserrat',      fam:"'Montserrat',sans-serif",     prv:'Bon Mag'},
+  {id:'lora',  name:'Lora',            fam:"'Lora',serif",                prv:'Bon Mag'},
+  {id:'src',   name:'Source Code Pro', fam:"'Source Code Pro',monospace", prv:'BON MAG'},
+  {id:'ral',   name:'Raleway',         fam:"'Raleway',sans-serif",        prv:'Bon Mag'},
+  {id:'merri', name:'Merriweather',    fam:"'Merriweather',serif",        prv:'Bon Mag'},
+  {id:'jos',   name:'Josefin Sans',    fam:"'Josefin Sans',sans-serif",   prv:'BON MAG'},
+  {id:'ibm',   name:'IBM Plex Mono',   fam:"'IBM Plex Mono',monospace",   prv:'BON MAG'},
+];
+
+let cTheme='default', cFont='dm', cSize=13;
+
+/* ══ INIT ══ */
+document.getElementById('docDate').value=new Date().toISOString().split('T')[0];
+buildThemes(); buildFonts(); initSlider();
+
+/* ══ TABS ══ */
+function switchTab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ══ THÈMES ══ */
+function buildThemes(){
+  const g=document.getElementById('themesGrid'); g.innerHTML='';
+  THEMES.forEach(t=>{
+    const c=document.createElement('div');
+    c.className='tc'+(t.id===cTheme?' sel':'');
+    c.onclick=()=>applyTheme(t.id);
+    c.innerHTML=`
+      <div class="tsw" style="background:${t.bg}">
+        <div class="tsw-bar" style="background:linear-gradient(90deg,${t.ac},${t.pr},${t.ac})"></div>
+        <span class="tsw-lbl" style="color:${t.txt}">${t.pr.replace('#','').slice(0,3).toUpperCase()}</span>
+        <div class="tc-chk" style="background:${t.pr};color:${t.tp}">✓</div>
+      </div>
+      <div class="tc-name" style="background:${t.paper};color:${t.tp}">${t.name}</div>`;
+    g.appendChild(c);
+  });
+}
+
+function applyTheme(id){
+  cTheme=id;
+  document.body.setAttribute('data-theme',id==='default'?'':id);
+  document.querySelectorAll('.tc').forEach((c,i)=>c.classList.toggle('sel',THEMES[i].id===id));
+  toast('Thème appliqué ✓');
+}
+
+/* ══ POLICES ══ */
+function buildFonts(){
+  const g=document.getElementById('fontsGrid'); g.innerHTML='';
+  FONTS.forEach(f=>{
+    const c=document.createElement('div');
+    c.className='fc'+(f.id===cFont?' sel':'');
+    c.onclick=()=>applyFont(f.id);
+    c.innerHTML=`
+      <span class="fp" style="font-family:${f.fam}">${f.prv}</span>
+      <div class="fmeta">
+        <span class="fname">${f.name}</span>
+        <div class="fchk" style="background:var(--primary);color:var(--ink)">✓</div>
+      </div>`;
+    g.appendChild(c);
+  });
+}
+
+function applyFont(id){
+  cFont=id;
+  const f=FONTS.find(x=>x.id===id);
+  document.documentElement.style.setProperty('--body-font',f.fam);
+  document.querySelectorAll('.fc').forEach((c,i)=>c.classList.toggle('sel',FONTS[i].id===id));
+  toast('Police appliquée ✓');
+}
+
+/* ══ TAILLE ══ */
+function initSlider(){
+  const sl=document.getElementById('szSlider');
+  sl.addEventListener('input',()=>applySize(parseFloat(sl.value)));
+  applySize(13);
+}
+function applySize(v){
+  cSize=v;
+  document.getElementById('szSlider').value=v;
+  document.getElementById('szDisp').textContent=v+'px';
+  document.documentElement.style.setProperty('--font-size',v+'px');
+  const pct=((v-10)/(16-10))*100;
+  document.getElementById('szSlider').style.setProperty('--pct',pct+'%');
+  document.querySelectorAll('.preset-btn').forEach(b=>{
+    b.classList.toggle('active-pre',parseFloat(b.textContent.match(/[\d.]+/)[0])===v);
+  });
+}
+function setSize(v){applySize(v); toast('Taille : '+v+'px');}
+
+/* ══ RESET PARAMS ══ */
+function resetParams(){applyTheme('default');applyFont('dm');applySize(13);toast('Paramètres réinitialisés');}
+
+/* ══ FORM ══ */
+const gv=id=>(document.getElementById(id)?.value?.trim()||'');
+const fd=d=>d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):'—';
+function getData(){return{city:gv('city')||'ROISSY',docDate:gv('docDate'),magasin:gv('magasin')||'RAHAND',plt:gv('plt'),ref:gv('ref'),dossierDouane:gv('dossierDouane'),lta:gv('lta'),nature:gv('nature'),poids:gv('poids'),nbColis:gv('nbColis'),sortieDate:gv('sortieDate'),magasinageDate:gv('magasinageDate'),docDouaneNum:gv('docDouaneNum'),docDouaneDate:gv('docDouaneDate'),observations:gv('observations'),declarant:gv('declarant')};}
+function resetForm(){
+  ['plt','ref','dossierDouane','lta','nature','poids','nbColis','sortieDate','magasinageDate','docDouaneNum','docDouaneDate','observations'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('city').value='ROISSY';
+  document.getElementById('magasin').value='RAHAND';
+  document.getElementById('declarant').value='MERCIER AURELIEN';
+  document.getElementById('docDate').value=new Date().toISOString().split('T')[0];
+  toast('Formulaire réinitialisé');
+}
+
+/* ══ APERÇU ══ */
+function showPreview(){
+  const d=getData();
+  document.getElementById('prvContent').innerHTML=`<div class="prv-doc">
+    <div class="prv-hdr">
+      <div class="prv-city">${d.city}, le ${fd(d.docDate)}</div>
+      <div class="prv-logo"><div class="prv-logo-n">TAF</div><div class="prv-logo-s">TRANS AIR FREIGHT CDG</div></div>
+      <div style="width:105px"></div>
+    </div>
+    <div class="prv-title">BON MAGASINIER</div>
+    <div class="prv-sub">Magasin : ${d.magasin}</div>
+    <div class="prv-row"><span class="prv-lbl">PLT :</span><span class="prv-val">${d.plt||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Notre référence :</span><span class="prv-val">${d.ref||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Dossier douane :</span><span class="prv-val">${d.dossierDouane||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">LTA :</span><span class="prv-val">${d.lta||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Nature :</span><span class="prv-val">${d.nature||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Poids :</span><span class="prv-val">${d.poids?d.poids+' KG':'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Nombre de colis :</span><span class="prv-val">${d.nbColis||'—'}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Sortie le :</span><span class="prv-val">${fd(d.sortieDate)}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Document douane :</span><span class="prv-val">${d.docDouaneNum||'—'}${d.docDouaneDate?' du '+fd(d.docDouaneDate):''}</span></div>
+    <div class="prv-row"><span class="prv-lbl">Magasinage à compter du :</span><span class="prv-val">${fd(d.magasinageDate)}</span></div>
+    ${d.observations?`<div class="prv-row"><span class="prv-lbl">Observations :</span><span class="prv-val">${d.observations}</span></div>`:''}
+    <div class="prv-sig"><strong>${d.declarant||'—'}</strong></div>
+    <div class="prv-ftr">TRANS AIR FREIGHT CDG · Document Interne</div>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+
+/* ══ PDF ══ */
+const LOGO_IMG = "data:image/jpeg;base64,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";
+
+function hexToRgb(hex){hex=hex.trim();const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return[r,g,b];}
+function getCssHex(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+function generatePDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const d=getData();
+  const W=210,H=297,lm=20,rm=20; let y=18;
+
+  const ink    = hexToRgb(getCssHex('--ink'));
+  const gold   = hexToRgb(getCssHex('--primary'));
+  const rust   = hexToRgb(getCssHex('--accent'));
+  const muted  = hexToRgb(getCssHex('--muted'));
+  const paper  = hexToRgb(getCssHex('--paper'));
+  const cream  = hexToRgb(getCssHex('--cream'));
+
+  // ── Fond ──
+  doc.setFillColor(...paper); doc.rect(0,0,W,H,'F');
+
+  // ── Bande top couleur ──
+  doc.setFillColor(...gold); doc.rect(0,0,W,2.5,'F');
+
+  // ── HEADER : Logo TAF (gauche) + ville/date (droite) ──
+  try {
+    doc.addImage(LOGO_IMG,'JPEG',lm,y+1,38,17);
+  } catch(e) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...rust);
+    doc.text('TAF',lm,y+12);
+  }
+
+  // Ville + date (droite)
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted);
+  doc.text(`${d.city}, le ${fd(d.docDate)}`, W-rm, y+8, {align:'right'});
+  doc.setFontSize(8);
+  doc.text('Magasin : '+d.magasin, W-rm, y+14, {align:'right'});
+
+  y += 24;
+
+  // ── Filet double ──
+  doc.setDrawColor(...ink); doc.setLineWidth(1.0); doc.line(lm,y,W-rm,y);
+  doc.setDrawColor(...gold); doc.setLineWidth(0.4); doc.line(lm,y+1.8,W-rm,y+1.8);
+  y += 5;
+
+  // ── Bandeau titre ──
+  doc.setFillColor(...ink); doc.rect(lm,y,W-lm-rm,15,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...gold);
+  doc.text('BON MAGASINIER',W/2,y+10,{align:'center'});
+  doc.setFontSize(8.5); doc.setTextColor(...muted);
+  doc.text('RAHAND', W-rm-4, y+10, {align:'right'});
+  y += 20;
+
+  // ── Helpers ──
+  const cw=(W-lm-rm)/2-6, c2=lm+cw+12;
+
+  const sec = t => {
+    doc.setDrawColor(...gold); doc.setLineWidth(0.3); doc.line(lm,y,W-rm,y);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...rust);
+    doc.text(('- '+t).toUpperCase(), lm, y+4.5); y+=9;
+  };
+
+  const r1 = (l,v) => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(l.toUpperCase(),lm,y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(...ink); doc.text(v||'—',lm,y+6);
+    doc.setDrawColor(...muted); doc.setLineWidth(0.25); doc.line(lm,y+8,W-rm,y+8); y+=15;
+  };
+
+  const r2 = (l1,v1,l2,v2) => {
+    const sy=y;
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(l1.toUpperCase(),lm,y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(...ink); doc.text(v1||'—',lm,y+6);
+    doc.setDrawColor(...muted); doc.setLineWidth(0.25); doc.line(lm,y+8,lm+cw,y+8);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted); doc.text(l2.toUpperCase(),c2,sy);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(...ink); doc.text(v2||'—',c2,sy+6);
+    doc.setDrawColor(...muted); doc.setLineWidth(0.25); doc.line(c2,sy+8,c2+cw,sy+8); y=sy+15;
+  };
+
+  const dg = () => { doc.setDrawColor(...gold); doc.setLineWidth(0.15); doc.line(lm+22,y,W-rm-22,y); y+=7; };
+
+  // ── Sections ──
+  sec('Identification du Dossier');
+  r2('PLT',d.plt,'Notre Reference',d.ref);
+  r2('Dossier Douane',d.dossierDouane,'Magasin',d.magasin); dg();
+
+  sec('Transport & Marchandise');
+  r1('LTA - Lettre de Transport Aerien',d.lta);
+  r1('Nature de la Marchandise',d.nature);
+  r2('Poids',d.poids?d.poids+' KG':'','Nombre de Colis',d.nbColis); dg();
+
+  sec('Informations Douanieres');
+  r2('Sortie le',fd(d.sortieDate),'Magasinage a compter du',fd(d.magasinageDate));
+  r2('Document Douane N',d.docDouaneNum,'Du (date)',fd(d.docDouaneDate));
+  if(d.observations){dg();sec('Observations');r1('Remarques',d.observations);}
+
+  // ── Signature ──
+  y = Math.max(y, 210);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
+  doc.text('Agent declarant :', W-rm-70, y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...ink);
+  doc.text(d.declarant||'—', W-rm-70, y+7);
+  doc.setDrawColor(...ink); doc.setLineWidth(0.5); doc.line(W-rm-70, y+9, W-rm, y+9);
+
+  // ── FOOTER PRO ──
+  const footerH = 22;
+  const footerY = H - footerH;
+
+  // Bande footer foncée
+  doc.setFillColor(...ink); doc.rect(0, footerY, W, footerH,'F');
+  // Filet doré en haut du footer
+  doc.setFillColor(...gold); doc.rect(0, footerY, W, 1,'F');
+
+  // Logo mini dans footer
+  try {
+    doc.addImage(LOGO_IMG,'JPEG', lm, footerY+5, 18, 8);
+  } catch(e) {}
+
+  // Adresse TAF
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...gold);
+  doc.text('TRANS AIR FREIGHT CDG', W/2, footerY+7, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...muted);
+  doc.text('Zone Fret 5 - Bat. 5462 BP 10945 - 95731 Roissy CDG Cedex | Tel : +33 (0)1 48 62 XX XX | contact@taf-cdg.fr', W/2, footerY+12, {align:'center'});
+  doc.setFontSize(6); doc.setTextColor(150,140,130);
+  doc.text('Pour toute question ou doute concernant ce document, merci de nous contacter au plus vite.', W/2, footerY+17.5, {align:'center'});
+
+  const ref=d.ref?d.ref.replace(/\//g,'-'):'BON';
+  doc.save(`BON_MAG_RAHAND_${ref}_${d.docDate||'DATE'}.pdf`);
+  toast('PDF genere !'); closeModal();
+}
+
+/* ══ TOAST ══ */
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+</script>
+</body>
+</html>

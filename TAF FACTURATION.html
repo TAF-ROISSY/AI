@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.6 (14 avril)</title>
+  <title>TAF — Facturation Pro AI v10.7 (14 avril)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -420,6 +420,55 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ══ BASE DE DONNÉES LOCALE (remplace Google Sheets) ══════════════════════ */
 const TAF_DB_KEY = "taf_factpro_database_v1";
+
+/* ══ LOGOS COMPAGNIES AÉRIENNES ══════════════════════════════════════════════ */
+const AIRLINE_LOGOS = {
+  // Compagnies principales
+  "AF": "https://www.airfranceklm.com/sites/default/files/styles/image_fullpage/public/airfrance_logo.png",
+  "KL": "https://www.airfranceklm.com/sites/default/files/styles/image_fullpage/public/klm_logo.png",
+  "QR": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Qatar_Airways_logo.svg/320px-Qatar_Airways_logo.svg.png",
+  "EK": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Emirates_logo.svg/320px-Emirates_logo.svg.png",
+  "TK": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Turkish_Airlines_logo_2019_compact.svg/320px-Turkish_Airlines_logo_2019_compact.svg.png",
+  "ET": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Ethiopian_Airlines_Logo.svg/320px-Ethiopian_Airlines_Logo.svg.png",
+  "SQ": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6b/Singapore_Airlines_Logo_2.svg/320px-Singapore_Airlines_Logo_2.svg.png",
+  "CX": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Cathay_Pacific_logo.svg/320px-Cathay_Pacific_logo.svg.png",
+  "EY": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Etihad_Airways_logo.svg/320px-Etihad_Airways_logo.svg.png",
+  "LH": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Lufthansa_Logo_2018.svg/200px-Lufthansa_Logo_2018.svg.png",
+  "BA": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/British_Airways_Logo.svg/320px-British_Airways_Logo.svg.png",
+  "GF": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Gulf_Air_logo.svg/320px-Gulf_Air_logo.svg.png",
+  "RJ": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Royal_Jordanian_logo.svg/320px-Royal_Jordanian_logo.svg.png",
+  "MS": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Egyptair_logo.svg/320px-Egyptair_logo.svg.png",
+  "KE": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Korean_Air_logo.svg/320px-Korean_Air_logo.svg.png",
+  "OZ": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Asiana_Airlines_logo.svg/320px-Asiana_Airlines_logo.svg.png",
+  "SV": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Saudia_logo_2016.svg/320px-Saudia_logo_2016.svg.png",
+  "WY": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Oman_Air_logo.svg/320px-Oman_Air_logo.svg.png",
+  "AI": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Air_India_Logo.svg/200px-Air_India_Logo.svg.png",
+  "KC": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Air_Astana_logo.svg/320px-Air_Astana_logo.svg.png",
+  // Handlers (fallback vers logo TAF)
+  "WFS": "",
+  "SFS": "",
+  "DNATA": "",
+  "SWISSPORT": ""
+};
+
+/* Fonction pour récupérer le logo d'une compagnie */
+function getAirlineLogo(code) {
+  if (!code) return null;
+  var upperCode = (code || "").toUpperCase().trim();
+  // Tenter de trouver le code IATA (2 premières lettres)
+  var iataCode = upperCode.slice(0, 2);
+  return AIRLINE_LOGOS[iataCode] || AIRLINE_LOGOS[upperCode] || null;
+}
+
+/* Fonction pour générer le HTML du logo */
+function getAirlineLogoHtml(code, companyName) {
+  var logoUrl = getAirlineLogo(code);
+  if (logoUrl) {
+    return '<img src="' + logoUrl + '" alt="' + (companyName || code) + '" style="max-height:40px;max-width:120px;object-fit:contain;"/>';
+  }
+  // Fallback: afficher le nom de la compagnie en texte stylé
+  return '<span style="font-weight:700;font-size:14px;color:#1e3a5f;">' + (companyName || code || '') + '</span>';
+}
 
 /* Structure de la base de données locale */
 function getEmptyDB() {
@@ -3989,7 +4038,7 @@ async function fullDriveSave(collectFn, label){
       id: ts.getTime(),
       date: dateLabel,
       label: label || "Auto-save",
-      version: "v172",
+      version: "v173",
       data: allData
     };
     var uploadResult = await driveUpload(backupFilename, snapshot);
@@ -4069,7 +4118,7 @@ async function directDriveSave(label){
     var ts=new Date();
     var tsStr=ts.toISOString().replace(/[:.]/g,"-").slice(0,19);
     var dateLabel=ts.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
-    var snapshot={id:ts.getTime(),date:dateLabel,label:label||"Direct save",version:"v172",data:allData};
+    var snapshot={id:ts.getTime(),date:dateLabel,label:label||"Direct save",version:"v173",data:allData};
     
     var uploadResult=await driveUpload("taf_backup_"+tsStr+".json",snapshot);
     if(!uploadResult.ok){window._driveSaving=false; return {ok:false,error:uploadResult.error||"Échec upload"};}
@@ -6205,22 +6254,32 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
 
   /* Envoi Make.com → Outlook + passage en Validé */
   var WEBHOOK_ATTENTE = "https://hook.eu2.make.com/4th5kwceaitf63o1dt5xfac85vkceiwq";
-  async function handleSendMail() {
-    /* ═══ VÉRIFICATION SCORING OBLIGATOIRE ═══ */
-    if(!scorePerf) {
+  const [testMode, setTestMode] = useState(false);
+  
+  async function handleSendMail(isTest = false) {
+    /* ═══ VÉRIFICATION SCORING OBLIGATOIRE (sauf test) ═══ */
+    if(!isTest && !scorePerf) {
       alert("⚠️ Veuillez d'abord mesurer la performance de cette facturation (Vert / Orange / Rouge)");
       return;
     }
 
     var webhook = makeWebhook || WEBHOOK_ATTENTE;
     setSending(true); setSendStatus(null);
+    if(isTest) setTestMode(true);
     try {
+      var compagnieCode = dossier.compagnie || "";
+      var compagnieLogoHtml = getAirlineLogoHtml(compagnieCode, compagnieCode);
+      var compagnieLogoUrl = getAirlineLogo(compagnieCode) || "";
+      
+      /* ═══ MODE TEST : forcer l'email à import@taftrans.fr ═══ */
+      var destinataire = isTest ? "import@taftrans.fr" : [emailClient||dossier.email_client||dossier.email||"",emailCC2||"",emailCC3||""].map(function(e){return (e||"").replace(/\s/g,"");}).filter(function(e){return e&&e.includes("@");}).join(",");
+      
       var payload = {
         action     : 'send_douane_mail',
         client     : dossier.client   || "",
-        email      : [emailClient||dossier.email_client||dossier.email||"",emailCC2||"",emailCC3||""].map(function(e){return (e||"").replace(/\s/g,"");}).filter(function(e){return e&&e.includes("@");}).join(","),
-        email_cc2  : (emailCC2||"").replace(/\s/g,""),
-        email_cc3  : (emailCC3||"").replace(/\s/g,""),
+        email      : destinataire,
+        email_cc2  : isTest ? "" : (emailCC2||"").replace(/\s/g,""),
+        email_cc3  : isTest ? "" : (emailCC3||"").replace(/\s/g,""),
         type       : dossier.type     || "",
         lta        : dossier.lta      || "",
         num_dec    : dossier.num_dec  || "",
@@ -6228,13 +6287,16 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
         droits     : dossier.droits   || 0,
         total      : dossier.total    || "",
         poids      : dossier.poids    || "",
-        compagnie  : dossier.compagnie|| "",
+        compagnie  : compagnieCode,
+        compagnieLogo: compagnieLogoUrl,
+        compagnieLogoHtml: compagnieLogoHtml,
         driveUrl   : dossier.driveUrl || "",
         date       : new Date(dossier.date).toLocaleDateString('fr-FR'),
         lang       : emailLang || "fr",
+        isTest     : isTest,  /* Flag pour Make.com */
         /* ═══ SCORE FACTURATION ═══ */
-        scorePerf  : scorePerf || "",
-        scoreComment: scoreComment || ""
+        scorePerf  : isTest ? "test" : (scorePerf || ""),
+        scoreComment: isTest ? "Email de test" : (scoreComment || "")
       };
 
       /* ── Signature poli + en-tête courtois ── */
@@ -6251,9 +6313,10 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
         "<em>Merci de votre confiance.</em>";
 
       payload.emailGreeting = 
-        "Madame, Monsieur,<br><br>" +
-        "Veuillez trouver ci-joint la facturation relative à la déclaration en douane.<br>" +
-        "Nous restons à votre entière disposition pour tout complément d'information.<br><br>";
+        "Bonjour,<br><br>" +
+        "Nous avons le plaisir de vous transmettre les documents relatifs à votre dossier.<br>" +
+        "Vous trouverez ci-joint la facturation relative à la déclaration en douane.<br><br>" +
+        "Pour toute question ou information complémentaire, notre équipe reste à votre entière disposition.<br><br>";
 
       /* ── Charger les PDFs depuis IndexedDB ── */
       var maltaEntry = null, declEntry = null;
@@ -6349,28 +6412,37 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify(payload)
       });
-      console.log("[TAF] 📧 Réponse webhook:", resp.status, resp.ok?"✅":"❌");
+      console.log("[TAF] 📧 Réponse webhook:", resp.status, resp.ok?"✅":"❌", isTest?"(TEST)":"");
       if(resp.ok){
         setSendStatus('ok');
-        /* Passer le statut à "Validé" */
-        var updated = Object.assign({}, dossier, {numMalta:numMalta, email_client:emailClient, emails2:emailCC2, emails3:emailCC3, statut:"Validé", dateSend:new Date().toISOString()});
-        var list = loadPending();
-        var idx = list.findIndex(function(p){return p.id===dossier.id;});
-        if(idx>=0) list[idx]=updated;
-        savePending(list);
-        onSave && onSave(updated);
-        /* BRIDGE: Publier le dossier vers Recouvrement */
-        bridgePublishDossier(updated).then(function(){
-          console.log("[BRIDGE] Dossier publié vers Recouvrement:", updated.client);
-        });
+        
+        /* ═══ MODE TEST : juste notifier, ne pas valider le dossier ═══ */
+        if(isTest){
+          alert("✅ Test envoyé à import@taftrans.fr !\n\nVérifiez votre boîte mail pour voir le résultat.\n\n📧 Destinataire test: import@taftrans.fr\n📋 Client affiché: " + dossier.client + "\n✈️ Compagnie: " + (compagnieCode || "non renseignée"));
+        } else {
+          /* Passer le statut à "Validé" */
+          var updated = Object.assign({}, dossier, {numMalta:numMalta, email_client:emailClient, emails2:emailCC2, emails3:emailCC3, statut:"Validé", dateSend:new Date().toISOString()});
+          var list = loadPending();
+          var idx = list.findIndex(function(p){return p.id===dossier.id;});
+          if(idx>=0) list[idx]=updated;
+          savePending(list);
+          onSave && onSave(updated);
+          /* BRIDGE: Publier le dossier vers Recouvrement */
+          bridgePublishDossier(updated).then(function(){
+            console.log("[BRIDGE] Dossier publié vers Recouvrement:", updated.client);
+          });
+        }
       } else {
         setSendStatus('error');
+        if(isTest) alert("❌ Erreur lors de l'envoi du test. Vérifiez la console.");
       }
     } catch(e) {
       console.error('PopupDossier sendMail:', e);
       setSendStatus('error');
+      if(isTest) alert("❌ Erreur: " + e.message);
     }
     setSending(false);
+    setTestMode(false);
   }
 
   var c = meta.color;
@@ -6836,8 +6908,27 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
               color:emailLang==="en"?"#fff":"#8899aa"
             }}>🇬🇧 EN</button>
           </div>
+          
+          {/* ═══ BOUTON TEST EMAIL ═══ */}
           <button
-            onClick={handleSendMail}
+            onClick={function(){handleSendMail(true);}}
+            disabled={sending}
+            title="Envoyer un test à import@taftrans.fr"
+            style={{
+              display:"flex",alignItems:"center",gap:"6px",
+              background: sending ? "rgba(245,158,11,.05)" : "rgba(245,158,11,.12)",
+              border:"1px solid rgba(245,158,11,.35)",
+              color: sending ? "#667788" : "#f59e0b",
+              borderRadius:"8px",padding:"8px 14px",
+              fontWeight:"700",fontSize:"12px",cursor: sending ? "not-allowed" : "pointer",
+              transition:"all .2s",opacity: sending ? 0.5 : 1
+            }}
+          >
+            {(sending && testMode) ? <><FP_Spinner /> Test…</> : <>🧪 Test</>}
+          </button>
+          
+          <button
+            onClick={function(){handleSendMail(false);}}
             disabled={sending || !scorePerf}
             title={!scorePerf ? "Veuillez mesurer la performance d'abord" : ""}
             style={{
@@ -13039,7 +13130,7 @@ function App(){
         <span style={{color:T.grayD,fontSize:"11px"}}>© Trans Air Freight — Roissy CDG · </span>
         <a href="https://taftrans.fr" style={{color:T.orange,fontSize:"11px",textDecoration:"none"}}>taftrans.fr</a>
         <span style={{color:T.grayD,fontSize:"11px"}}> · Google Sheets</span>
-        <span style={{position:"absolute",left:"20px",color:T.grayD,fontSize:"10px",fontFamily:"monospace",opacity:0.7}}>v172</span>
+        <span style={{position:"absolute",left:"20px",color:T.grayD,fontSize:"10px",fontFamily:"monospace",opacity:0.7}}>v173</span>
       </div>
 
       {/* Backup/Restore Panel */}
@@ -13221,5 +13312,98 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
   }
 })();
 </script>
+
+<!-- ═══ TAF FIREBASE BRIDGE v1.0 — Auto-sync localStorage → Firebase ═══ -->
+<script>
+(function(){
+'use strict';
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={
+"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
+"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
+"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
+"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
+"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
+"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
+"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
+"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
+"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
+"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
+"taf_analyse_v3":{p:"taf_stat",n:"STAT"}
+};
+const B={
+url:FB_URL,tok:"",ok:false,last:null,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
+init:function(){
+  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
+  this._test();this._hook();this._ci();
+  console.log('[TAF BRIDGE] 🔥 Firebase Bridge initialisé —',this._app());
+},
+_test:async function(){
+  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'1.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline');console.warn('[TAF BRIDGE] ❌ Firebase offline')}
+},
+_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';return'TAF'},
+_hook:function(){
+  const orig=localStorage.setItem.bind(localStorage);const b=this;
+  localStorage.setItem=function(k,v){
+    orig(k,v);
+    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  }
+},
+_sync:async function(k,v,m){
+  if(!this.ok)return;
+  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
+  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
+  this._si('syncing');const ok=await this.set(m.p,d);
+  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){console.warn('[TAF BRIDGE] sync err:',e.message)}
+},
+_isync:async function(){
+  if(!this.ok)return;
+  for(const[k,m]of Object.entries(MAP)){
+    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  }
+},
+readApp:async function(p){return await this.get(p)},
+forceSyncAll:async function(){
+  if(!this.ok){await this._test();if(!this.ok)return false}
+  this._si('syncing');let n=0;
+  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}}
+  this._si('synced');console.log('[TAF BRIDGE] ✅ Force sync:',n,'collections');return true
+},
+pullAll:async function(){
+  if(!this.ok)return false;this._si('syncing');let n=0;
+  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
+  for(const[k,m]of Object.entries(MAP)){
+    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
+  }
+  this._si('synced');console.log('[TAF BRIDGE] ⬇️ Pull:',n,'collections');return true
+},
+_ci:function(){
+  if(document.getElementById('taf-bridge-ind'))return;
+  const e=document.createElement('div');e.id='taf-bridge-ind';
+  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
+  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
+  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
+  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
+},
+_si:function(s){
+  const e=document.getElementById('taf-bridge-ind');if(!e)return;
+  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
+  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
+  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
+  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
+  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
+  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
+}
+};
+window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
 </body>
 </html>

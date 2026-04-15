@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF EUR.1 — Saisie & Impression Overlay</title>
+<style>
+/* ============================================================
+   STYLES ÉCRAN — formulaire de saisie
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0d2240;
+  --blue: #1a3a6b;
+  --accent: #2e7dd1;
+  --green: #16a34a;
+  --border: #cbd5e1;
+  --font-overlay: 'Arial', sans-serif;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #f0f4f8;
+  color: #1e293b;
+}
+
+/* ---- HEADER ---- */
+.app-header {
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  color: white;
+  padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+  width: 34px; height: 34px; background: var(--accent);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 12px;
+}
+.header-actions { display: flex; gap: 8px; }
+.btn {
+  padding: 7px 14px; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 5px; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #1d6abf; }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover { background: #15803d; }
+.btn-gray { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+.btn-gray:hover { background: rgba(255,255,255,0.25); }
+
+/* ---- TABS ---- */
+.tabs-bar {
+  background: white; border-bottom: 2px solid var(--border);
+  display: flex; padding: 0 20px;
+}
+.tab {
+  padding: 10px 18px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border-bottom: 3px solid transparent;
+  color: #64748b; transition: all 0.15s; margin-bottom: -2px;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---- BODY ---- */
+.app-body { padding: 18px 20px; max-width: 1300px; margin: 0 auto; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ---- FORM GRID ---- */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-card {
+  background: white; border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+}
+.form-card.full { grid-column: 1 / -1; }
+.card-header {
+  background: var(--navy); color: white;
+  padding: 8px 14px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.badge { background: var(--accent); border-radius: 3px; padding: 1px 6px; font-size: 10px; }
+.card-body { padding: 12px 14px; }
+.frow { margin-bottom: 9px; }
+.frow label { display: block; font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+.frow input, .frow textarea, .frow select {
+  width: 100%; border: 1px solid var(--border); border-radius: 5px;
+  padding: 6px 9px; font-size: 13px; color: #1e293b;
+  transition: border-color 0.15s; font-family: inherit;
+}
+.frow input:focus, .frow textarea:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(46,125,209,0.1);
+}
+.frow textarea { resize: vertical; min-height: 56px; }
+.f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.f3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+/* Tableau marchandises */
+.mt { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mt th { background: var(--navy); color: white; padding: 7px 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+.mt td { padding: 3px; border-bottom: 1px solid #e2e8f0; }
+.mt input { width: 100%; border: 1px solid transparent; border-radius: 3px; padding: 5px 6px; font-size: 12px; background: transparent; }
+.mt input:focus { background: white; border-color: var(--accent); outline: none; }
+.mt tr:hover td { background: #f8fafc; }
+.add-btn {
+  margin-top: 7px; width: 100%; padding: 6px;
+  border: 2px dashed var(--border); background: none; border-radius: 5px;
+  font-size: 12px; cursor: pointer; color: #64748b; transition: all 0.15s;
+}
+.add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.del-btn { width: 26px; height: 26px; border: none; background: #fee2e2; color: #dc2626; border-radius: 3px; cursor: pointer; font-size: 13px; }
+
+/* Alerte calibration */
+.calibration-note {
+  background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 14px;
+  font-size: 12px; color: #92400e;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+
+/* ============================================================
+   OVERLAY — ce qui s'imprime sur le cerfa physique
+   Toutes les positions sont en mm sur A4 (210×297mm)
+   ============================================================ */
+.preview-wrap {
+  display: flex; justify-content: center; padding: 20px 0;
+}
+
+/* Le conteneur A4 — affiché avec le scan en fond sur l'écran
+   En impression : fond blanc transparent, seulement le texte */
+.a4-overlay {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+  /* Fond = scan du cerfa, pour la calibration visuelle */
+  background-image: url('data:image/png;base64,SCAN_BASE64');
+  background-size: 210mm 297mm;
+  background-repeat: no-repeat;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  font-family: var(--font-overlay);
+  overflow: hidden;
+}
+
+/* Chaque champ overlay est positionné en mm absolu */
+.ov {
+  position: absolute;
+  font-size: 8.5pt;
+  color: #000;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Case 1 — Exportateur */
+.ov-case1   { left: 7mm;   top: 14mm; width: 90mm; max-height: 42mm; font-size: 8.5pt; }
+/* Numéro EUR.1 */
+.ov-certnum { left: 150mm; top: 9mm;  width: 55mm; font-size: 13pt; font-weight: bold; letter-spacing: 0.5mm; }
+/* Case 2 — Échanges préférentiels pays 1 & 2 */
+.ov-pref1   { left: 101mm; top: 25mm; width: 106mm; font-size: 8pt; }
+.ov-pref2   { left: 101mm; top: 33mm; width: 106mm; font-size: 8pt; }
+/* Case 3 — Destinataire */
+.ov-case3   { left: 7mm;   top: 62mm; width: 90mm; max-height: 16mm; font-size: 8pt; }
+/* Case 4 — Pays origine */
+.ov-case4   { left: 101mm; top: 65mm; width: 41mm; max-height: 12mm; font-size: 8pt; }
+/* Case 5 — Pays destination */
+.ov-case5   { left: 146mm; top: 65mm; width: 61mm; max-height: 12mm; font-size: 8pt; }
+/* Case 6 — Transport */
+.ov-case6   { left: 7mm;   top: 85mm; width: 90mm; max-height: 23mm; font-size: 8pt; }
+/* Case 7 — Observations */
+.ov-case7   { left: 101mm; top: 85mm; width: 106mm; max-height: 23mm; font-size: 8pt; }
+/* Case 8 — Marchandises (lignes dynamiques) */
+.ov-merch-wrap { left: 7mm; top: 120mm; width: 158mm; }
+.ov-merch-line { display: grid; grid-template-columns: 158mm 0 0; width: 158mm; min-height: 7mm; font-size: 8pt; line-height: 1.2; }
+/* Case 9 — Masse */
+.ov-masse   { text-align: right; }
+/* Case 10 — Factures */
+.ov-facture { }
+/* Case 11 — Douane : Modèle */
+.ov-modele  { left: 34mm;  top: 250mm; width: 18mm; font-size: 8pt; }
+/* Case 11 — Douane : n° */
+.ov-d-num   { left: 75mm;  top: 250mm; width: 22mm; font-size: 8pt; }
+/* Case 11 — Douane : du */
+.ov-d-du    { left: 16mm;  top: 257mm; width: 30mm; font-size: 8pt; }
+/* Case 11 — Bureau douane */
+.ov-d-bureau{ left: 47mm;  top: 263mm; width: 48mm; font-size: 8pt; }
+/* Case 11 — Pays délivrance */
+.ov-d-pays  { left: 60mm;  top: 269mm; width: 36mm; font-size: 8pt; }
+/* Case 11 — À */
+.ov-d-a     { left: 12mm;  top: 277mm; width: 28mm; font-size: 8pt; }
+/* Case 11 — Le */
+.ov-d-le    { left: 58mm;  top: 277mm; width: 28mm; font-size: 8pt; }
+/* Case 12 — À */
+.ov-e-a     { left: 110mm; top: 277mm; width: 30mm; font-size: 8pt; }
+/* Case 12 — Le */
+.ov-e-le    { left: 156mm; top: 277mm; width: 30mm; font-size: 8pt; }
+
+/* Lignes de marchandises (positionnées relativement à .ov-merch-wrap) */
+.ov-ml {
+  display: grid;
+  grid-template-columns: 1fr 21mm 17mm;
+  min-height: 7.5mm;
+  font-size: 8pt;
+  align-items: start;
+  padding-top: 1mm;
+}
+.ov-ml .ov-masse  { padding-right: 2mm; text-align: right; }
+.ov-ml .ov-facture { padding-left: 2mm; }
+
+/* ============================================================
+   IMPRESSION — ne montrer QUE l'overlay, fond blanc
+   ============================================================ */
+@media print {
+  body > * { display: none !important; }
+  .a4-overlay { display: block !important; }
+  .a4-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 210mm; height: 297mm;
+    background-image: none !important;  /* PAS de fond à l'impression */
+    background: transparent !important;
+    box-shadow: none;
+    margin: 0; padding: 0;
+  }
+  @page { size: A4 portrait; margin: 0; }
+}
+
+/* Mode calibration : montrer/cacher le fond scan */
+.a4-overlay.no-bg { background-image: none; background: white; }
+
+/* Toggle calibration mode */
+.calib-bar {
+  background: #1e3a5f; color: white;
+  padding: 8px 16px;
+  display: flex; align-items: center; gap: 12px; font-size: 12px;
+}
+.calib-bar label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.calib-bar input[type=range] { width: 120px; }
+
+@media (max-width: 800px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .a4-overlay { width: 100%; height: auto; font-size: 7pt; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-logo">TAF</div>
+    <div>
+      <div style="font-size:16px;font-weight:700">TAF EUR.1 — Overlay Impression</div>
+      <div style="font-size:11px;opacity:0.7">Texte seul sur A4 vierge → à imprimer sur cerfa physique</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-gray" onclick="resetForm()">↺ Effacer</button>
+    <button class="btn btn-primary" onclick="showTab('apercu')">👁️ Aperçu</button>
+    <button class="btn btn-green" onclick="showTab('apercu'); setTimeout(()=>window.print(),400)">🖨️ Imprimer</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <div class="tab active" id="tab-btn-saisie" onclick="showTab('saisie')">📝 Saisie</div>
+  <div class="tab" id="tab-btn-apercu" onclick="showTab('apercu')">📄 Aperçu + Calibration</div>
+</div>
+
+<div class="app-body">
+
+  <!-- ======================================================
+       ONGLET SAISIE
+       ====================================================== -->
+  <div class="tab-content active" id="tab-saisie">
+
+    <div class="calibration-note">
+      ⚠️ <span>Cette app génère une <strong>feuille de texte seul</strong> à superposer physiquement sur le cerfa EUR.1 pré-imprimé. Vérifiez l'alignement en onglet <strong>Aperçu</strong> avant d'imprimer.</span>
+    </div>
+
+    <div class="form-grid">
+
+      <!-- Case 1 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">1</span> Exportateur</div>
+        <div class="card-body">
+          <div class="frow"><label>Nom</label><input type="text" id="exp_nom" placeholder="Nom société" oninput="sync()"></div>
+          <div class="frow"><label>Adresse</label><textarea id="exp_adr" rows="2" placeholder="Rue, ville, pays" oninput="sync()"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Numéro + Case 2 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">N°</span> Numéro &amp; Échanges préférentiels</div>
+        <div class="card-body">
+          <div class="frow"><label>Numéro du certificat</label><input type="text" id="cert_num" placeholder="ex: 5183295" oninput="sync()"></div>
+          <div class="frow"><label>Case 2 — Entre (pays/groupe 1)</label><input type="text" id="pref1" placeholder="Union Européenne" oninput="sync()"></div>
+          <div class="frow"><label>Et (pays/groupe 2)</label><input type="text" id="pref2" placeholder="Maroc" oninput="sync()"></div>
+        </div>
+      </div>
+
+      <!-- Case 3 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">3</span> Destinataire <span style="opacity:0.6;font-weight:400">(facultatif)</span></div>
+        <div class="card-body">
+          <div class="frow"><label>Nom &amp; Adresse</label><textarea id="dest" rows="3" placeholder="Nom, adresse, pays" oninput="sync()"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Cases 4 & 5 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">4+5</span> Pays d'origine &amp; Destination</div>
+        <div class="card-body">
+          <div class="frow"><label>Case 4 — Pays/groupe d'origine</label><input type="text" id="origine" placeholder="France / UE" oninput="sync()"></div>
+          <div class="frow"><label>Case 5 — Pays/groupe de destination</label><input type="text" id="destination" placeholder="Maroc" oninput="sync()"></div>
+        </div>
+      </div>
+
+      <!-- Case 6 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">6</span> Transport <span style="opacity:0.6;font-weight:400">(facultatif)</span></div>
+        <div class="card-body">
+          <div class="frow"><textarea id="transport" rows="3" placeholder="Vol, AWB, compagnie…" oninput="sync()"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Case 7 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">7</span> Observations</div>
+        <div class="card-body">
+          <div class="frow"><textarea id="obs" rows="3" placeholder="Observations diverses…" oninput="sync()"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Case 8/9/10 — Marchandises -->
+      <div class="form-card full">
+        <div class="card-header"><span class="badge">8/9/10</span> Marchandises — Colis, Désignation, Masse, Factures</div>
+        <div class="card-body">
+          <table class="mt">
+            <thead>
+              <tr>
+                <th style="width:32px">#</th>
+                <th style="width:60px">Marques/N°</th>
+                <th style="width:65px">Colis/Nature</th>
+                <th>Désignation des marchandises</th>
+                <th style="width:80px">Masse kg</th>
+                <th style="width:70px">Facture N°</th>
+                <th style="width:30px"></th>
+              </tr>
+            </thead>
+            <tbody id="merch-tbody"></tbody>
+          </table>
+          <button class="add-btn" onclick="addLine()">+ Ajouter une ligne</button>
+        </div>
+      </div>
+
+      <!-- Case 11 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">11</span> Visa de la Douane</div>
+        <div class="card-body">
+          <div class="f2">
+            <div class="frow"><label>Modèle</label><input type="text" id="d_modele" placeholder="" oninput="sync()"></div>
+            <div class="frow"><label>N°</label><input type="text" id="d_num" placeholder="" oninput="sync()"></div>
+          </div>
+          <div class="frow"><label>Du</label><input type="date" id="d_du" oninput="sync()"></div>
+          <div class="frow"><label>Bureau de douane</label><input type="text" id="d_bureau" placeholder="CDG / Roissy" oninput="sync()"></div>
+          <div class="frow"><label>Pays de délivrance</label><input type="text" id="d_pays" placeholder="France" oninput="sync()"></div>
+          <div class="f2">
+            <div class="frow"><label>À</label><input type="text" id="d_a" placeholder="Ville" oninput="sync()"></div>
+            <div class="frow"><label>Le</label><input type="date" id="d_le" oninput="sync()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case 12 -->
+      <div class="form-card">
+        <div class="card-header"><span class="badge">12</span> Déclaration Exportateur</div>
+        <div class="card-body">
+          <div class="f2">
+            <div class="frow"><label>À</label><input type="text" id="e_a" placeholder="Ville" oninput="sync()"></div>
+            <div class="frow"><label>Le</label><input type="date" id="e_le" oninput="sync()"></div>
+          </div>
+          <div style="margin-top:10px;border:1px dashed #cbd5e1;border-radius:5px;padding:10px;text-align:center;color:#94a3b8;font-size:12px;min-height:44px;display:flex;align-items:center;justify-content:center;">
+            Signature apposée sur l'original papier
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /saisie -->
+
+
+  <!-- ======================================================
+       ONGLET APERÇU + CALIBRATION
+       ====================================================== -->
+  <div class="tab-content" id="tab-apercu">
+
+    <!-- Barre de calibration -->
+    <div class="calib-bar" id="calib-bar">
+      <strong>🔧 Calibration</strong>
+      <label>
+        <input type="checkbox" id="toggle-bg" checked onchange="toggleBg()"> Fond cerfa visible
+      </label>
+      <span style="opacity:0.7;">|</span>
+      <span style="opacity:0.8">Vérifiez que chaque valeur tombe dans sa case avant d'imprimer</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-green" onclick="window.print()" style="padding:5px 12px;font-size:12px;">🖨️ Imprimer sur cerfa</button>
+    </div>
+
+    <div class="preview-wrap">
+      <div class="a4-overlay" id="a4">
+
+        <!-- Case 1 : Exportateur -->
+        <div class="ov ov-case1" id="p-exp"></div>
+
+        <!-- Numéro certificat -->
+        <div class="ov ov-certnum" id="p-num"></div>
+
+        <!-- Case 2 : échanges préf -->
+        <div class="ov ov-pref1" id="p-pref1"></div>
+        <div class="ov ov-pref2" id="p-pref2"></div>
+
+        <!-- Case 3 : Destinataire -->
+        <div class="ov ov-case3" id="p-dest"></div>
+
+        <!-- Cases 4 & 5 -->
+        <div class="ov ov-case4" id="p-orig"></div>
+        <div class="ov ov-case5" id="p-dest2"></div>
+
+        <!-- Cases 6 & 7 -->
+        <div class="ov ov-case6" id="p-trans"></div>
+        <div class="ov ov-case7" id="p-obs"></div>
+
+        <!-- Cases 8/9/10 : Marchandises -->
+        <div class="ov ov-merch-wrap" id="p-merch"></div>
+
+        <!-- Case 11 : Douane -->
+        <div class="ov ov-modele" id="p-modele"></div>
+        <div class="ov ov-d-num"  id="p-d-num"></div>
+        <div class="ov ov-d-du"   id="p-d-du"></div>
+        <div class="ov ov-d-bureau" id="p-d-bureau"></div>
+        <div class="ov ov-d-pays" id="p-d-pays"></div>
+        <div class="ov ov-d-a"    id="p-d-a"></div>
+        <div class="ov ov-d-le"   id="p-d-le"></div>
+
+        <!-- Case 12 : Exportateur déclaration -->
+        <div class="ov ov-e-a"    id="p-e-a"></div>
+        <div class="ov ov-e-le"   id="p-e-le"></div>
+
+      </div><!-- /a4 -->
+    </div>
+  </div><!-- /apercu -->
+
+</div><!-- /app-body -->
+
+<script>
+// ============================================================
+//  ÉTAT
+// ============================================================
+let lines = [{id:1},{id:2},{id:3},{id:4}];
+
+function g(id) { const el=document.getElementById(id); return el?el.value.trim():''; }
+
+function fmtDate(d) {
+  if(!d) return '';
+  const [y,m,j] = d.split('-');
+  return j+'/'+m+'/'+y;
+}
+
+// ============================================================
+//  INITIALISATION TABLE MARCHANDISES
+// ============================================================
+function renderTable() {
+  const tbody = document.getElementById('merch-tbody');
+  tbody.innerHTML = '';
+  lines.forEach((ln, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${esc(ln.num||'')}" placeholder="${i+1}"
+        oninput="lines[${i}].num=this.value;syncMerch()" style="width:30px;text-align:center"></td>
+      <td><input type="text" value="${esc(ln.marq||'')}" placeholder=""
+        oninput="lines[${i}].marq=this.value;syncMerch()"></td>
+      <td><input type="text" value="${esc(ln.coli||'')}" placeholder=""
+        oninput="lines[${i}].coli=this.value;syncMerch()"></td>
+      <td><input type="text" value="${esc(ln.desc||'')}" placeholder="Désignation"
+        oninput="lines[${i}].desc=this.value;syncMerch()"></td>
+      <td><input type="text" value="${esc(ln.mass||'')}" placeholder="0"
+        oninput="lines[${i}].mass=this.value;syncMerch()" style="text-align:right"></td>
+      <td><input type="text" value="${esc(ln.fact||'')}" placeholder=""
+        oninput="lines[${i}].fact=this.value;syncMerch()"></td>
+      <td><button class="del-btn" onclick="delLine(${ln.id})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function addLine() {
+  const maxId = lines.reduce((m,l)=>Math.max(m,l.id),0);
+  lines.push({id:maxId+1});
+  renderTable(); syncMerch();
+}
+
+function delLine(id) {
+  if(lines.length<=1) return;
+  lines = lines.filter(l=>l.id!==id);
+  renderTable(); syncMerch();
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function txt(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+// ============================================================
+//  SYNCHRONISATION OVERLAY
+// ============================================================
+function set(id, val) {
+  const el = document.getElementById(id);
+  if(el) el.textContent = val;
+}
+
+function sync() {
+  // Case 1
+  const exp = [g('exp_nom'), g('exp_adr')].filter(Boolean).join('\n');
+  set('p-exp', exp);
+
+  // Numéro
+  set('p-num', g('cert_num'));
+
+  // Case 2
+  set('p-pref1', g('pref1'));
+  set('p-pref2', g('pref2'));
+
+  // Case 3
+  set('p-dest', g('dest'));
+
+  // Cases 4 & 5
+  set('p-orig', g('origine'));
+  set('p-dest2', g('destination'));
+
+  // Cases 6 & 7
+  set('p-trans', g('transport'));
+  set('p-obs', g('obs'));
+
+  // Case 11
+  set('p-modele', g('d_modele'));
+  set('p-d-num', g('d_num'));
+  set('p-d-du', fmtDate(g('d_du')));
+  set('p-d-bureau', g('d_bureau'));
+  set('p-d-pays', g('d_pays'));
+  set('p-d-a', g('d_a'));
+  set('p-d-le', fmtDate(g('d_le')));
+
+  // Case 12
+  set('p-e-a', g('e_a'));
+  set('p-e-le', fmtDate(g('e_le')));
+
+  syncMerch();
+}
+
+function syncMerch() {
+  const wrap = document.getElementById('p-merch');
+  wrap.innerHTML = '';
+  lines.forEach(ln => {
+    if(!ln.desc && !ln.marq && !ln.mass) return;
+    const row = document.createElement('div');
+    row.className = 'ov-ml';
+    const desc = [ln.marq, ln.coli, ln.desc].filter(Boolean).join(' – ');
+    row.innerHTML = `
+      <div>${txt(desc||'')}</div>
+      <div class="ov-masse">${txt(ln.mass||'')}</div>
+      <div class="ov-facture">${txt(ln.fact||'')}</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+// ============================================================
+//  CALIBRATION
+// ============================================================
+function toggleBg() {
+  const a4 = document.getElementById('a4');
+  const show = document.getElementById('toggle-bg').checked;
+  if(show) {
+    a4.style.backgroundImage = '';
+  } else {
+    a4.style.backgroundImage = 'none';
+    a4.style.background = 'white';
+  }
+}
+
+// ============================================================
+//  NAVIGATION ONGLETS
+// ============================================================
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('tab-btn-'+name).classList.add('active');
+  if(name==='apercu') { sync(); loadBg(); }
+}
+
+// ============================================================
+//  CHARGEMENT DU FOND (scan cerfa) EN BASE64 POUR CALIBRATION
+// ============================================================
+let bgLoaded = false;
+function loadBg() {
+  if(bgLoaded) return;
+  // On charge le scan depuis le même dossier (si disponible)
+  // Sinon on indique une grille de repère
+  const a4 = document.getElementById('a4');
+  // Tentative de chargement du fichier de scan local
+  // Si l'app est hébergée, le scan doit être dans le même dossier
+  const scanUrl = 'eur1_scan.png';
+  const img = new Image();
+  img.onload = () => {
+    a4.style.backgroundImage = `url('${scanUrl}')`;
+    a4.style.backgroundSize = '210mm 297mm';
+    bgLoaded = true;
+  };
+  img.onerror = () => {
+    // Pas de scan disponible : fond blanc avec grille de repère
+    a4.style.background = 'white';
+    bgLoaded = true;
+  };
+  img.src = scanUrl;
+}
+
+// ============================================================
+//  RESET
+// ============================================================
+function resetForm() {
+  if(!confirm('Effacer tous les champs ?')) return;
+  document.querySelectorAll('input[type=text],input[type=date],textarea')
+    .forEach(el => el.value='');
+  lines = [{id:1},{id:2},{id:3},{id:4}];
+  renderTable(); sync();
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+renderTable();
+sync();
+</script>
+</body>
+</html>

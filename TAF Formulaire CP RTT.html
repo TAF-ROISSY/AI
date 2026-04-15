@@ -824,5 +824,136 @@ document.getElementById('date-debut').min = today;
 document.getElementById('date-fin').min = today;
 </script>
 
+
+<!-- ═══ TAF CP-RTT → taf-ops RTDB Cross-Sync Bridge ═══ -->
+<!-- Miroir Firestore (rtt-cp) → RTDB (taf-ops) pour communication TAF TEAM -->
+<script>
+(function(){
+'use strict';
+const RTDB_URL = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+
+const CrossSync = {
+  // Sync collaborateurs vers taf-ops RTDB
+  syncCollabs: async function(collabs) {
+    try {
+      const clean = (collabs || []).map(function(c) {
+        return { id: c.id, nom: c.nom, prenom: c.prenom, poste: c.poste || '',
+          soldeCP: c.soldeCP || 0, soldeRTT: c.soldeRTT || 0,
+          email: c.email || '', actif: c.actif !== false };
+      });
+      await fetch(RTDB_URL + '/taf_cprtt/collaborateurs.json', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(clean)
+      });
+      console.log('[CROSS-SYNC] ⬆️ Collaborateurs →', clean.length);
+    } catch(e) { console.warn('[CROSS-SYNC] collab error:', e.message); }
+  },
+
+  // Sync demandes CP/RTT vers taf-ops RTDB
+  syncDemandes: async function(demandes) {
+    try {
+      const clean = (demandes || []).map(function(d) {
+        return { id: d.id, collaborateur: d.collaborateur || d.prenom || '',
+          type: d.type || '', dateDebut: d.dateDebut || '', dateFin: d.dateFin || '',
+          nbJours: d.nbJours || 0, statut: d.statut || 'en_attente',
+          dateDemande: d.dateDemande || '', motif: d.motif || '',
+          validePar: d.validePar || '' };
+      });
+      await fetch(RTDB_URL + '/taf_cprtt/demandes.json', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(clean)
+      });
+      console.log('[CROSS-SYNC] ⬆️ Demandes CP/RTT →', clean.length);
+    } catch(e) { console.warn('[CROSS-SYNC] demandes error:', e.message); }
+  },
+
+  // Sync état global (résumé pour TAF TEAM)
+  syncResume: async function(collabs, demandes) {
+    try {
+      const pending = (demandes || []).filter(function(d) { return d.statut === 'en_attente'; });
+      const approved = (demandes || []).filter(function(d) { return d.statut === 'validee' || d.statut === 'approuvee'; });
+      const today = new Date().toISOString().slice(0,10);
+      const absentsToday = approved.filter(function(d) { return d.dateDebut <= today && d.dateFin >= today; });
+      
+      const resume = {
+        lastSync: new Date().toISOString(),
+        totalCollabs: (collabs || []).length,
+        demandesEnAttente: pending.length,
+        demandesApprouvees: approved.length,
+        absentsAujourdhui: absentsToday.map(function(d) { return d.collaborateur || d.prenom || '?'; }),
+        nbAbsents: absentsToday.length,
+        prochaines: approved.filter(function(d) { return d.dateDebut > today; })
+          .sort(function(a,b) { return (a.dateDebut||'').localeCompare(b.dateDebut||''); })
+          .slice(0, 5)
+          .map(function(d) { return { qui: d.collaborateur, type: d.type, du: d.dateDebut, au: d.dateFin, jours: d.nbJours }; })
+      };
+
+      await fetch(RTDB_URL + '/taf_cprtt/resume.json', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(resume)
+      });
+      console.log('[CROSS-SYNC] ⬆️ Résumé CP/RTT → absents:', resume.nbAbsents, ', en attente:', resume.demandesEnAttente);
+    } catch(e) { console.warn('[CROSS-SYNC] resume error:', e.message); }
+  },
+
+  // Ping
+  ping: async function() {
+    try {
+      const r = await fetch(RTDB_URL + '/_bridge_ping.json', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ts: Date.now(), app: 'TAF_CP_RTT', v: '1.0' })
+      });
+      return r.ok;
+    } catch(e) { return false; }
+  }
+};
+
+window.TAF_CrossSync = CrossSync;
+
+// Auto-hook sur les snapshots Firestore existants
+// On surcharge subscribeToData pour ajouter la sync
+const origSubscribe = window.subscribeToData;
+if (typeof origSubscribe === 'function') {
+  // Si la fonction existe déjà, on la patche après l'init
+  console.log('[CROSS-SYNC] Hook sur subscribeToData');
+}
+
+// Alternative : observer les changements de COLLABS et DEMANDES
+let _lastCollabsHash = '';
+let _lastDemandesHash = '';
+
+setInterval(function() {
+  try {
+    if (typeof COLLABS !== 'undefined' && COLLABS && COLLABS.length > 0) {
+      const h = JSON.stringify(COLLABS).length + '_' + COLLABS.length;
+      if (h !== _lastCollabsHash) {
+        _lastCollabsHash = h;
+        CrossSync.syncCollabs(COLLABS);
+        if (typeof DEMANDES !== 'undefined') CrossSync.syncResume(COLLABS, DEMANDES);
+      }
+    }
+    if (typeof DEMANDES !== 'undefined' && DEMANDES && DEMANDES.length > 0) {
+      const h = JSON.stringify(DEMANDES).length + '_' + DEMANDES.length;
+      if (h !== _lastDemandesHash) {
+        _lastDemandesHash = h;
+        CrossSync.syncDemandes(DEMANDES);
+        if (typeof COLLABS !== 'undefined') CrossSync.syncResume(COLLABS, DEMANDES);
+      }
+    }
+  } catch(e) {}
+}, 3000); // Check toutes les 3s
+
+// Ping initial
+setTimeout(function() {
+  CrossSync.ping().then(function(ok) {
+    if (ok) console.log('[CROSS-SYNC] ✅ taf-ops RTDB accessible');
+    else console.warn('[CROSS-SYNC] ❌ taf-ops RTDB inaccessible');
+  });
+}, 1000);
+
+console.log('[CROSS-SYNC] 🔗 Bridge CP-RTT → taf-ops initialisé');
+})();
+</script>
+
 </body>
 </html>

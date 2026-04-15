@@ -14352,5 +14352,281 @@ document.getElementById('pdfViewerOverlay')?.addEventListener('click', function(
 });
 </script>
 
+
+<!-- ═══ TAF FIREBASE BRIDGE v1.0 — Auto-sync localStorage → Firebase ═══ -->
+<script>
+(function(){
+'use strict';
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={
+"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
+"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
+"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
+"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
+"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
+"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
+"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
+"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
+"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
+"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
+"taf_analyse_v3":{p:"taf_stat",n:"STAT"}
+};
+const B={
+url:FB_URL,tok:"",ok:false,last:null,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
+init:function(){
+  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
+  this._test();this._hook();this._ci();
+  console.log('[TAF BRIDGE] 🔥 Firebase Bridge initialisé —',this._app());
+},
+_test:async function(){
+  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'1.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline');console.warn('[TAF BRIDGE] ❌ Firebase offline')}
+},
+_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';return'TAF'},
+_hook:function(){
+  const orig=localStorage.setItem.bind(localStorage);const b=this;
+  localStorage.setItem=function(k,v){
+    orig(k,v);
+    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  }
+},
+_sync:async function(k,v,m){
+  if(!this.ok)return;
+  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
+  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
+  this._si('syncing');const ok=await this.set(m.p,d);
+  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){console.warn('[TAF BRIDGE] sync err:',e.message)}
+},
+_isync:async function(){
+  if(!this.ok)return;
+  for(const[k,m]of Object.entries(MAP)){
+    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  }
+},
+readApp:async function(p){return await this.get(p)},
+forceSyncAll:async function(){
+  if(!this.ok){await this._test();if(!this.ok)return false}
+  this._si('syncing');let n=0;
+  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}}
+  this._si('synced');console.log('[TAF BRIDGE] ✅ Force sync:',n,'collections');return true
+},
+pullAll:async function(){
+  if(!this.ok)return false;this._si('syncing');let n=0;
+  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
+  for(const[k,m]of Object.entries(MAP)){
+    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
+  }
+  this._si('synced');console.log('[TAF BRIDGE] ⬇️ Pull:',n,'collections');return true
+},
+_ci:function(){
+  if(document.getElementById('taf-bridge-ind'))return;
+  const e=document.createElement('div');e.id='taf-bridge-ind';
+  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
+  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
+  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
+  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
+},
+_si:function(s){
+  const e=document.getElementById('taf-bridge-ind');if(!e)return;
+  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
+  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
+  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
+  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
+  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
+  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
+}
+};
+window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
+
+
+<!-- ═══ TAF OPS — Helpers communication Contact/Team/Courrier ═══ -->
+<script>
+(function(){
+  // Fonctions de lecture inter-apps via Firebase REST
+  const FB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
+
+  window.TAF_OPS_BRIDGE = {
+    // Lire les contacts TAF CONTACT
+    getContacts: async function() {
+      try { const r = await fetch(FB+'/taf_contact/data.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Lire l'équipe TAF TEAM
+    getTeam: async function() {
+      try { const r = await fetch(FB+'/team.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Lire les courriers TAF COURRIER
+    getCourriers: async function() {
+      try { const r = await fetch(FB+'/taf_courrier/data.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Envoyer un dossier vers COURRIER (bridge Firebase)
+    sendToCourrier: async function(data) {
+      try {
+        const r = await fetch(FB+'/bridge/ops_to_courrier.json', {
+          method: "PUT", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({...data, ts: Date.now(), from: "TAF_OPS"})
+        });
+        // Aussi écrire en localStorage pour le bridge classique
+        try { localStorage.setItem("taf_ops_to_courrier", JSON.stringify(data)); } catch(e) {}
+        return r.ok;
+      } catch(e) { return false; }
+    },
+    // Lire réponse depuis COURRIER
+    readFromCourrier: async function() {
+      try { const r = await fetch(FB+'/bridge/courrier_to_ops.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Lire données recouvrement
+    getRecouvrement: async function() {
+      try { const r = await fetch(FB+'/taf_recouvrement/gl.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Lire données facturation
+    getFacturation: async function() {
+      try { const r = await fetch(FB+'/taf_facturation/database.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Lire données commercial (CRM)
+    getCommercial: async function() {
+      try { const r = await fetch(FB+'/taf_commercial.json'); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    },
+    // Status de toutes les apps
+    getEcosystemStatus: async function() {
+      const apps = [
+        {name:"OPS",path:"demandes",icon:"📬"},
+        {name:"Contact",path:"taf_contact/data",icon:"📇"},
+        {name:"Team",path:"team",icon:"👥"},
+        {name:"Courrier",path:"taf_courrier/data",icon:"📨"},
+        {name:"Facturation",path:"taf_facturation/database",icon:"💰"},
+        {name:"Recouvrement",path:"taf_recouvrement/gl",icon:"⚠️"},
+        {name:"Commercial",path:"taf_commercial",icon:"🎯"},
+        {name:"Stat",path:"taf_stat",icon:"📊"}
+      ];
+      const results = [];
+      for (const app of apps) {
+        const d = await this._check(app.path);
+        results.push({...app, connected: !!d, dataSize: d ? JSON.stringify(d).length : 0});
+      }
+      return results;
+    },
+    _check: async function(p) {
+      try { const r = await fetch(FB+"/"+p+".json"); return r.ok ? await r.json() : null; } catch(e) { return null; }
+    }
+  };
+
+  console.log("[TAF OPS] 🔗 Bridge inter-apps chargé (Contact, Team, Courrier, Facturation, Recouvrement, Commercial, Stat)");
+})();
+</script>
+
+<!-- ═══ TAF FIREBASE BRIDGE v2.0 — Sync universel toutes apps TAF ═══ -->
+<script>
+(function(){
+'use strict';
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={
+"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
+"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
+"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
+"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
+"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
+"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
+"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
+"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
+"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
+"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
+"taf_analyse_v3":{p:"taf_stat",n:"STAT"},
+"taf_contacts_data":{p:"taf_contact/data",n:"CONTACT"},
+"taf_contacts_config":{p:"taf_contact/config",n:"CONTACT"},
+"taf_courrier_v3":{p:"taf_courrier/data",n:"COURRIER"},
+"taf_ops_to_courrier":{p:"bridge/ops_to_courrier",n:"BRIDGE OPS→COURRIER"},
+"taf_courrier_to_ops":{p:"bridge/courrier_to_ops",n:"BRIDGE COURRIER→OPS"}
+};
+const B={
+url:FB_URL,tok:"",ok:false,last:null,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
+init:function(){
+  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
+  this._test();this._hook();this._ci();
+  console.log('[TAF BRIDGE v2] 🔥 Init —',this._app());
+},
+_test:async function(){
+  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'2.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline')}
+},
+_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';if(t.includes('TEAM'))return'TEAM';if(t.includes('Contact')||t.includes('CONTACT'))return'CONTACT';if(t.includes('Courrier')||t.includes('COURRIER'))return'COURRIER';return'TAF'},
+_hook:function(){
+  const orig=localStorage.setItem.bind(localStorage);const b=this;
+  localStorage.setItem=function(k,v){
+    orig(k,v);
+    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  }
+},
+_sync:async function(k,v,m){
+  if(!this.ok)return;
+  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
+  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
+  this._si('syncing');const ok=await this.set(m.p,d);
+  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){}
+},
+_isync:async function(){
+  if(!this.ok)return;
+  for(const[k,m]of Object.entries(MAP)){
+    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  }
+},
+readApp:async function(p){return await this.get(p)},
+forceSyncAll:async function(){
+  if(!this.ok){await this._test();if(!this.ok)return false}
+  this._si('syncing');let n=0;
+  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){try{const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}catch(e){}}}
+  this._si('synced');console.log('[TAF BRIDGE] ✅',n,'collections sync');return true
+},
+pullAll:async function(){
+  if(!this.ok)return false;this._si('syncing');let n=0;
+  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
+  for(const[k,m]of Object.entries(MAP)){
+    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
+  }
+  this._si('synced');return n
+},
+// Bridge OPS ↔ Courrier via Firebase (remplace localStorage)
+sendToOPS:async function(data){return await this.set('bridge/courrier_to_ops',data)},
+sendToCourrier:async function(data){return await this.set('bridge/ops_to_courrier',data)},
+readFromOPS:async function(){return await this.get('bridge/ops_to_courrier')},
+readFromCourrier:async function(){return await this.get('bridge/courrier_to_ops')},
+// Bridge TAF Contact → OPS (partager contacts)
+getContacts:async function(){return await this.get('taf_contact/data')},
+// Bridge TAF Team → OPS (partager équipe)
+getTeam:async function(){return await this.get('team')},
+_ci:function(){
+  if(document.getElementById('taf-bridge-ind'))return;
+  const e=document.createElement('div');e.id='taf-bridge-ind';
+  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
+  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
+  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
+  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
+},
+_si:function(s){
+  const e=document.getElementById('taf-bridge-ind');if(!e)return;
+  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
+  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
+  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
+  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
+  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
+  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
+}
+};
+window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
 </body>
 </html>

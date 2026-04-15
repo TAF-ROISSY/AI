@@ -1,1053 +1,585 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TAF — Congés & RTT</title>
-<meta name="theme-color" content="#0A1628">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TAF Congés">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-<style>
-:root {
-  --bg:#0A1628;--s1:#0f1f38;--s2:#162848;
-  --acc:#E8A020;--acc2:#F5C05A;
-  --ok:#27C97A;--err:#F04A4A;--warn:#F5A623;
-  --tx:#E2EAF5;--mu:#6B90B5;
-  --bd:rgba(255,255,255,.07);--cd:rgba(255,255,255,.05);
-  --vac:#C97AE8;--fer:#60AFFF;
-  --gdrive:#4285F4;--firebase:#FFA000;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{font-size:14px}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:
-  radial-gradient(ellipse 80% 60% at 85% 5%,rgba(232,160,32,.09) 0%,transparent 55%),
-  radial-gradient(ellipse 60% 70% at 5% 90%,rgba(39,201,122,.06) 0%,transparent 55%),
-  radial-gradient(ellipse 40% 40% at 50% 50%,rgba(96,175,255,.03) 0%,transparent 50%);
-  pointer-events:none;z-index:0}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(232,160,32,.25);border-radius:10px}
-
-.wrap{position:relative;z-index:1}
-
-/* HEADER */
-.hdr{display:flex;align-items:center;gap:14px;padding:12px 22px;
-  border-bottom:1px solid rgba(232,160,32,.12);background:rgba(10,22,40,.88);
-  backdrop-filter:blur(20px);position:sticky;top:0;z-index:200;flex-wrap:wrap;
-  box-shadow:0 4px 30px rgba(0,0,0,.3)}
-.brand{display:flex;align-items:center;gap:9px;flex-shrink:0}
-.brand-box{width:36px;height:36px;background:linear-gradient(135deg,var(--acc),#F5C05A);border-radius:9px;
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:#0A1628;
-  box-shadow:0 2px 12px rgba(232,160,32,.35)}
-.brand-txt{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;line-height:1.1;
-  background:linear-gradient(135deg,var(--tx),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand-sub{font-size:10px;color:var(--mu);letter-spacing:.5px}
-.nav{display:flex;gap:2px;background:rgba(255,255,255,.03);border-radius:10px;padding:3px;flex-wrap:wrap;
-  border:1px solid rgba(255,255,255,.05)}
-.ntab{padding:7px 14px;border-radius:7px;border:none;background:transparent;
-  color:var(--mu);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
-  cursor:pointer;transition:all .25s;white-space:nowrap;position:relative}
-.ntab.on{background:linear-gradient(135deg,rgba(232,160,32,.15),rgba(232,160,32,.08));color:var(--tx);
-  box-shadow:0 0 12px rgba(232,160,32,.15);border:1px solid rgba(232,160,32,.2)}
-.ntab:hover:not(.on){color:var(--tx);background:rgba(255,255,255,.04)}
-.badge-notif{position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--err);
-  border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  color:#fff;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-
-.status-badges{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
-.status-badge{display:flex;align-items:center;gap:6px;padding:6px 12px;
-  border-radius:20px;font-size:11px;font-weight:500}
-.status-badge .dot{width:8px;height:8px;border-radius:50%;animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-.firebase-badge{background:rgba(255,160,0,.1);border:1px solid rgba(255,160,0,.2);color:#FFA000}
-.firebase-badge .dot{background:#FFA000}
-.firebase-badge.online{background:rgba(39,201,122,.1);border-color:rgba(39,201,122,.2);color:#27C97A}
-.firebase-badge.online .dot{background:#27C97A}
-.gdrive-badge{background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.2);color:#4285F4}
-.gdrive-badge .dot{background:#4285F4;animation:none}
-.gdrive-badge.connected .dot{animation:blink 2s infinite}
-
-/* LAYOUT */
-.main{max-width:1100px;margin:0 auto;padding:22px 18px}
-.pg{display:none}.pg.on{display:block}
-.ptitle{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;
-  margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  background:linear-gradient(135deg,var(--tx),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.badge{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.6px}
-.badge-firebase{background:rgba(255,160,0,.15);border:1px solid rgba(255,160,0,.3);color:#FFA000;-webkit-text-fill-color:#FFA000}
-.badge-gdrive{background:rgba(66,133,244,.15);border:1px solid rgba(66,133,244,.3);color:#4285F4;-webkit-text-fill-color:#4285F4}
-
-/* CARDS */
-.card{background:linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
-  border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;
-  backdrop-filter:blur(10px);margin-bottom:16px;
-  box-shadow:0 4px 24px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.05)}
-.card-t{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
-  color:var(--acc);text-transform:uppercase;letter-spacing:1.2px;
-  margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(232,160,32,.12);
-  display:flex;align-items:center;gap:6px}
-
-/* FORM */
-.fg{margin-bottom:12px}
-.fg label{display:block;font-size:10px;font-weight:600;color:var(--mu);
-  text-transform:uppercase;letter-spacing:.9px;margin-bottom:5px}
-.fg select,.fg input[type=date],.fg textarea,.fg input[type=text],.fg input[type=password],.fg input[type=email]{
-  width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-  border-radius:9px;padding:9px 12px;color:var(--tx);
-  font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:all .25s}
-.fg select:focus,.fg input:focus,.fg textarea:focus{border-color:var(--acc);
-  box-shadow:0 0 0 3px rgba(232,160,32,.12);background:rgba(255,255,255,.06)}
-.fg select option{background:var(--s1)}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
-.btn-acc{width:100%;padding:12px;background:linear-gradient(135deg,var(--acc),#F5C05A);color:#0A1628;border:none;
-  border-radius:9px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
-  cursor:pointer;transition:all .25s;margin-top:5px;
-  box-shadow:0 2px 12px rgba(232,160,32,.3)}
-.btn-acc:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(232,160,32,.45)}
-.btn-acc:disabled{opacity:.3;cursor:not-allowed;transform:none}
-.btn-sec{padding:8px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--tx);
-  border-radius:8px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;
-  cursor:pointer;transition:all .25s;display:inline-flex;align-items:center;gap:6px}
-.btn-sec:hover{border-color:var(--acc);color:var(--acc)}
-.btn-gdrive{background:rgba(66,133,244,.1);border-color:rgba(66,133,244,.3);color:#4285F4}
-.btn-gdrive:hover{background:rgba(66,133,244,.2);border-color:#4285F4}
-
-/* SOLDES */
-.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.si{background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center}
-.si-l{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mu);margin-bottom:4px;font-weight:600}
-.si-v{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--ok);line-height:1}
-.si-v.low{color:var(--warn)}
-.si-v.nope{color:var(--err)}
-.si-u{font-size:9px;color:var(--mu);margin-top:2px}
-.av-wrap{text-align:center;padding:4px 0 10px}
-.av{width:50px;height:50px;background:linear-gradient(135deg,var(--s2),rgba(22,40,72,.8));border-radius:50%;
-  margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
-  font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:var(--acc);
-  border:2px solid rgba(232,160,32,.35)}
-.av-n{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
-.av-s{font-size:11px;color:var(--mu);margin-top:2px}
-.ph{text-align:center;padding:28px 12px;color:var(--mu);font-size:13px;font-style:italic}
-
-.col2{display:grid;grid-template-columns:1fr 290px;gap:16px}
-@media(max-width:720px){.col2{grid-template-columns:1fr}.row3{grid-template-columns:1fr}}
-
-/* DEMANDES LIST */
-.dlist{display:flex;flex-direction:column;gap:7px}
-.dc{background:linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
-  border:1px solid rgba(255,255,255,.07);border-radius:11px;
-  padding:12px 14px;display:grid;grid-template-columns:36px 1fr auto;
-  gap:11px;align-items:center;transition:all .25s}
-.dc:hover{background:rgba(255,255,255,.06);border-color:rgba(232,160,32,.12)}
-.dtag{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;
-  justify-content:center;font-family:'Syne',sans-serif;font-size:9px;font-weight:800}
-.dtag.cp{background:rgba(232,160,32,.12);color:var(--acc2);border:1px solid rgba(232,160,32,.2)}
-.dtag.rtt{background:rgba(39,201,122,.1);color:#6ee8a8;border:1px solid rgba(39,201,122,.15)}
-.dtag.demi{background:rgba(245,166,35,.1);color:#f8ca7c;border:1px solid rgba(245,166,35,.15)}
-.dinfo{min-width:0}
-.dinfo-n{font-weight:600;font-size:13px}
-.dinfo-d{font-size:11px;color:var(--mu);margin-top:2px}
-.dstat{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase}
-.dstat.att{background:rgba(96,175,255,.12);color:#60AFFF;border:1px solid rgba(96,175,255,.2)}
-.dstat.ok{background:rgba(39,201,122,.12);color:var(--ok);border:1px solid rgba(39,201,122,.2)}
-.dstat.no{background:rgba(240,74,74,.12);color:var(--err);border:1px solid rgba(240,74,74,.2)}
-
-/* CALENDRIER */
-.cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
-.cal-nav{display:flex;gap:6px}
-.cal-btn{width:34px;height:34px;border:none;border-radius:8px;background:rgba(255,255,255,.05);
-  color:var(--tx);cursor:pointer;font-size:14px;transition:all .2s;display:flex;align-items:center;justify-content:center}
-.cal-btn:hover{background:rgba(232,160,32,.15);color:var(--acc)}
-.cal-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-dh{text-align:center;font-size:10px;font-weight:600;color:var(--mu);padding:6px 0;text-transform:uppercase}
-.cal-d{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:12px;background:rgba(255,255,255,.03);border:1px solid transparent;cursor:pointer}
-.cal-d:hover{border-color:rgba(232,160,32,.2);background:rgba(255,255,255,.06)}
-.cal-d.today{border-color:var(--acc);box-shadow:0 0 12px rgba(232,160,32,.2)}
-.cal-d.off{opacity:.3;pointer-events:none}
-.cal-d.fer{background:rgba(96,175,255,.08);border-color:rgba(96,175,255,.15)}
-.cal-d.vac{background:rgba(201,122,232,.06);border-color:rgba(201,122,232,.12)}
-.cal-dots{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center}
-.cal-dot{width:6px;height:6px;border-radius:50%}
-
-/* STATS */
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-@media(max-width:720px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
-.stat-card{background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;text-align:center}
-.stat-card .value{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--acc)}
-.stat-card .label{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
-.chart-container{position:relative;height:280px}
-
-/* VALIDATION TABLE */
-.vtable{width:100%;border-collapse:collapse;font-size:12px}
-.vtable th{text-align:left;padding:10px 8px;font-weight:600;color:var(--mu);text-transform:uppercase;
-  font-size:9px;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.08)}
-.vtable td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
-.vtable tr:hover td{background:rgba(255,255,255,.02)}
-.vbtn{padding:5px 10px;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;
-  font-family:'Syne',sans-serif;transition:all .2s}
-.vbtn.ok{background:rgba(39,201,122,.15);color:var(--ok);border:1px solid rgba(39,201,122,.25)}
-.vbtn.ok:hover{background:rgba(39,201,122,.25)}
-.vbtn.no{background:rgba(240,74,74,.12);color:var(--err);border:1px solid rgba(240,74,74,.2)}
-.vbtn.no:hover{background:rgba(240,74,74,.2)}
-
-/* TABS */
-.tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
-.tab{padding:8px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-  border-radius:8px;font-size:12px;cursor:pointer;transition:all .2s}
-.tab.on{background:rgba(232,160,32,.15);border-color:rgba(232,160,32,.3);color:var(--acc)}
-.tab:hover:not(.on){background:rgba(255,255,255,.08)}
-
-/* BACKUP */
-.backup-info{background:linear-gradient(135deg,rgba(66,133,244,.1),rgba(66,133,244,.05));
-  border:1px solid rgba(66,133,244,.2);border-radius:10px;padding:14px;margin-top:12px}
-.backup-info p{font-size:12px;color:var(--mu);margin-bottom:4px}
-.backup-info strong{color:#4285F4}
-
-/* TOAST */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
-  background:linear-gradient(135deg,var(--s2),var(--s1));border:1px solid rgba(232,160,32,.2);
-  padding:12px 20px;border-radius:12px;display:flex;align-items:center;gap:10px;
-  font-size:13px;z-index:9999;opacity:0;transition:all .3s;
-  box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
-</style>
-</head>
-<body>
-
-<div class="wrap">
-  <!-- HEADER -->
-  <header class="hdr">
-    <div class="brand">
-      <div class="brand-box">TAF</div>
-      <div><div class="brand-txt">Conges et RTT</div><div class="brand-sub">Firebase + Google Drive</div></div>
-    </div>
-    <nav class="nav">
-      <button class="ntab on" data-pg="mespace">Mon espace</button>
-      <button class="ntab" data-pg="demande">Demande</button>
-      <button class="ntab" data-pg="calendrier">Calendrier</button>
-      <button class="ntab" data-pg="stats">Stats</button>
-      <button class="ntab" data-pg="validation">Validation <span id="badge-attente" class="badge-notif" style="display:none">0</span></button>
-      <button class="ntab" data-pg="config">Config</button>
-    </nav>
-    <div class="status-badges">
-      <div class="status-badge firebase-badge" id="fb-badge">
-        <span class="dot"></span>
-        <span id="fb-status">Firebase</span>
-      </div>
-      <div class="status-badge gdrive-badge" id="gdrive-badge">
-        <span class="dot"></span>
-        <span id="gdrive-status">Drive</span>
-      </div>
-    </div>
-  </header>
-
-  <main class="main">
-    <!-- PAGE: MON ESPACE -->
-    <section class="pg on" id="pg-mespace">
-      <h2 class="ptitle">Mon espace <span class="badge badge-firebase">Firebase</span></h2>
-      
-      <div class="card">
-        <div class="card-t">Connexion</div>
-        <div class="fg">
-          <label>Selectionnez votre nom</label>
-          <select id="me-who" onchange="meLogin()">
-            <option value="">-- Choisir --</option>
-          </select>
-        </div>
-        <div class="fg">
-          <label>Code PIN</label>
-          <input type="password" id="me-pin" placeholder="Votre code" maxlength="4" onkeyup="if(event.key==='Enter')meLogin()">
-        </div>
-        <button class="btn-acc" onclick="meLogin()">Se connecter</button>
-      </div>
-
-      <div id="me-dashboard" style="display:none">
-        <div class="col2">
-          <div class="card">
-            <div class="card-t">Mes soldes</div>
-            <div id="me-soldes"></div>
-          </div>
-          <div class="card">
-            <div class="card-t">Mes demandes recentes</div>
-            <div id="me-demandes" class="dlist"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-t">Export calendrier</div>
-          <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Exportez vos absences vers votre calendrier</p>
-          <button class="btn-sec" onclick="exportMyIcal()">Telecharger .ics</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- PAGE: NOUVELLE DEMANDE -->
-    <section class="pg" id="pg-demande">
-      <h2 class="ptitle">Nouvelle demande</h2>
-      <div class="col2">
-        <div class="card">
-          <div class="card-t">Formulaire</div>
-          <div class="fg">
-            <label>Collaborateur</label>
-            <select id="d-who" onchange="whoChange()">
-              <option value="">-- Selectionner --</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label>Type d'absence</label>
-            <select id="d-type">
-              <option value="">-- Type --</option>
-              <option value="Conge">Conge paye</option>
-              <option value="RTT">RTT (journee)</option>
-              <option value="1/2 RTT">1/2 RTT</option>
-              <option value="Maladie">Maladie</option>
-              <option value="Famille">Evenement familial</option>
-            </select>
-          </div>
-          <div class="row2">
-            <div class="fg">
-              <label>Date debut</label>
-              <input type="date" id="d-deb">
-            </div>
-            <div class="fg">
-              <label>Date fin</label>
-              <input type="date" id="d-fin">
-            </div>
-          </div>
-          <div class="fg">
-            <label>Commentaire</label>
-            <textarea id="d-com" rows="2" placeholder="Optionnel..."></textarea>
-          </div>
-          <button class="btn-acc" id="d-submit" disabled onclick="submitDem()">Envoyer</button>
-        </div>
-        <div class="card">
-          <div class="card-t">Soldes</div>
-          <div id="d-soldes"><div class="ph">Selectionnez votre nom</div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PAGE: CALENDRIER -->
-    <section class="pg" id="pg-calendrier">
-      <h2 class="ptitle">Calendrier</h2>
-      <div class="card">
-        <div class="cal-hdr">
-          <div class="cal-nav">
-            <button class="cal-btn" onclick="CAL.prev()">&lt;</button>
-            <button class="cal-btn" onclick="CAL.today()">o</button>
-            <button class="cal-btn" onclick="CAL.next()">&gt;</button>
-          </div>
-          <div class="cal-title" id="cal-title"></div>
-          <div style="display:flex;gap:8px">
-            <select id="cal-filter" onchange="CAL.render()" style="padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--tx);font-size:12px">
-              <option value="">Tous</option>
-            </select>
-            <button class="btn-sec" onclick="exportAllIcal()">iCal</button>
-          </div>
-        </div>
-        <div class="cal-grid" id="cal-grid"></div>
-      </div>
-    </section>
-
-    <!-- PAGE: STATS -->
-    <section class="pg" id="pg-stats">
-      <h2 class="ptitle">Statistiques</h2>
-      <div class="stat-grid" id="stat-cards"></div>
-      <div class="row2">
-        <div class="card">
-          <div class="card-t">Par type</div>
-          <div class="chart-container"><canvas id="chart-types"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="card-t">Par collaborateur</div>
-          <div class="chart-container"><canvas id="chart-collabs"></canvas></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-t">Evolution mensuelle</div>
-        <div class="chart-container"><canvas id="chart-monthly"></canvas></div>
-      </div>
-    </section>
-
-    <!-- PAGE: VALIDATION -->
-    <section class="pg" id="pg-validation">
-      <h2 class="ptitle">Validation</h2>
-      <div class="card" id="v-auth">
-        <div class="card-t">Acces manager</div>
-        <div class="fg">
-          <label>Code PIN Directeur</label>
-          <input type="password" id="v-pin" placeholder="****" maxlength="4" onkeyup="if(event.key==='Enter')vAuth()">
-        </div>
-        <button class="btn-acc" onclick="vAuth()">Acceder</button>
-      </div>
-      <div id="v-panel" style="display:none">
-        <div class="card">
-          <div class="card-t">En attente</div>
-          <table class="vtable">
-            <thead><tr><th>Nom</th><th>Type</th><th>Dates</th><th>Com.</th><th>Actions</th></tr></thead>
-            <tbody id="v-tbody-attente"></tbody>
-          </table>
-        </div>
-        <div class="card">
-          <div class="card-t">Historique</div>
-          <table class="vtable">
-            <thead><tr><th>Nom</th><th>Type</th><th>Dates</th><th>Statut</th></tr></thead>
-            <tbody id="v-tbody-hist"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- PAGE: CONFIG -->
-    <section class="pg" id="pg-config">
-      <h2 class="ptitle">Configuration</h2>
-      
-      <div class="tabs">
-        <div class="tab on" onclick="showConfigTab('firebase')">Firebase</div>
-        <div class="tab" onclick="showConfigTab('gdrive')">Google Drive</div>
-        <div class="tab" onclick="showConfigTab('data')">Donnees</div>
-      </div>
-
-      <!-- Tab Firebase -->
-      <div id="cfg-tab-firebase">
-        <div class="card" style="border-color:rgba(255,160,0,.2)">
-          <div class="card-t" style="color:#FFA000">Firebase (Base de donnees)</div>
-          <p style="font-size:12px;color:var(--ok);margin-bottom:12px;padding:8px;background:rgba(39,201,122,.1);border-radius:6px">
-            Configure pour le projet <strong>rtt-cp</strong>
-          </p>
-          <div class="fg">
-            <label>Project ID</label>
-            <input type="text" id="cfg-projectId" value="rtt-cp" readonly style="opacity:.7">
-          </div>
-          <p style="font-size:11px;color:var(--mu);margin-top:12px">
-            Toutes les donnees sont stockees dans Firebase Firestore.<br>
-            Console : <a href="https://console.firebase.google.com/project/rtt-cp" target="_blank" style="color:var(--acc)">console.firebase.google.com/project/rtt-cp</a>
-          </p>
-        </div>
-      </div>
-
-      <!-- Tab Google Drive -->
-      <div id="cfg-tab-gdrive" style="display:none">
-        <div class="card" style="border-color:rgba(66,133,244,.2)">
-          <div class="card-t" style="color:#4285F4">Sauvegarde Google Drive</div>
-          
-          <p style="font-size:12px;color:var(--mu);margin-bottom:16px">
-            Sauvegardez toutes vos donnees sur Google Drive.
-          </p>
-          
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-sec btn-gdrive" onclick="backupToGDrive()" style="flex:1">
-              Sauvegarder maintenant
-            </button>
-            <button class="btn-sec" onclick="document.getElementById('import-file').click()" style="flex:1">
-              Restaurer
-            </button>
-            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-          </div>
-          
-          <div class="backup-info" style="margin-top:16px">
-            <p><strong>Comment ca marche :</strong></p>
-            <p>1. Cliquez "Sauvegarder" pour telecharger un fichier JSON</p>
-            <p>2. Uploadez ce fichier dans votre Google Drive</p>
-            <p>3. Pour restaurer, cliquez "Restaurer" et selectionnez le fichier</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab Data -->
-      <div id="cfg-tab-data" style="display:none">
-        <div class="card">
-          <div class="card-t">Initialiser les donnees</div>
-          <p style="font-size:12px;color:var(--mu);margin-bottom:12px">
-            Premiere utilisation ? Creez les donnees de demo.
-          </p>
-          <button class="btn-sec" onclick="seedDatabase()" style="width:100%">Initialiser la base</button>
-        </div>
-        
-        <div class="card">
-          <div class="card-t">Collaborateurs</div>
-          <div id="cfg-collabs"></div>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
-
-<div class="toast" id="toast"><span id="t-i"></span> <span id="t-m"></span></div>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   TAF CONGES & RTT - 100% FIREBASE + GOOGLE DRIVE
-   ZERO AIRTABLE - STOCKAGE UNIQUEMENT FIREBASE
-   ═══════════════════════════════════════════════════════════════ */
-
-const MFR = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
-const DFR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-const FERIES = {
-  '2025-01-01':"Jour de l'An",'2025-04-21':'Lundi de Paques',
-  '2025-05-01':'Fete du Travail','2025-05-08':'Victoire 1945',
-  '2025-05-29':'Ascension','2025-06-09':'Pentecote',
-  '2025-07-14':'Fete Nationale','2025-08-15':'Assomption',
-  '2025-11-01':'Toussaint','2025-11-11':'Armistice','2025-12-25':'Noel',
-  '2026-01-01':"Jour de l'An",'2026-04-06':'Lundi de Paques',
-  '2026-05-01':'Fete du Travail','2026-05-08':'Victoire 1945',
-  '2026-05-14':'Ascension','2026-05-25':'Pentecote',
-  '2026-07-14':'Fete Nationale','2026-08-15':'Assomption',
-  '2026-11-01':'Toussaint','2026-11-11':'Armistice','2026-12-25':'Noel',
-};
-const COLORS = {
-  'CHARLY':'#E8A020','AURELIEN':'#27C97A','INGY':'#60AFFF','ROMAIN':'#C97AE8','CHRISTOPHE':'#F04A4A'
-};
-const ADMIN_PIN = '2709';
-
-// Firebase Config - SEULE SOURCE DE DONNEES
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDKb1kxz0mmWDdFRhh0tdll3mq23mQpcPU",
-  authDomain: "rtt-cp.firebaseapp.com",
-  projectId: "rtt-cp",
-  storageBucket: "rtt-cp.firebasestorage.app",
-  messagingSenderId: "44948556666",
-  appId: "1:44948556666:web:d739e366beb4bde852a4c3"
-};
-
-// State
-let COLLABS = [];
-let DEMANDES = [];
-let meUser = null;
-let db = null;
-
-/* ═══════════ FIREBASE - SEULE SOURCE DE DONNEES ═══════════ */
-function initFirebase() {
-  try {
-    if (firebase.apps.length === 0) {
-      firebase.initializeApp(FIREBASE_CONFIG);
-    }
-    db = firebase.firestore();
-    subscribeToData();
-    setFirebaseStatus(true);
-    showToast('OK', 'Firebase connecte');
-    return true;
-  } catch (err) {
-    console.error('Firebase error:', err);
-    setFirebaseStatus(false);
-    return false;
-  }
-}
-
-function setFirebaseStatus(online) {
-  const badge = document.getElementById('fb-badge');
-  const status = document.getElementById('fb-status');
-  badge.classList.toggle('online', online);
-  status.textContent = online ? 'Connecte' : 'Hors ligne';
-}
-
-function subscribeToData() {
-  // Collaborateurs - FIREBASE UNIQUEMENT
-  db.collection('collaborateurs').onSnapshot(snap => {
-    COLLABS = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    populateSelects();
-    renderConfigCollabs();
-    if (meUser) {
-      const updated = COLLABS.find(c => c.id === meUser.id);
-      if (updated) meUser = updated;
-    }
-  });
-
-  // Demandes - FIREBASE UNIQUEMENT
-  db.collection('demandes').orderBy('dateDemande', 'desc').onSnapshot(snap => {
-    DEMANDES = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    updateBadge();
-    if (meUser) renderMeDashboard();
-    if (document.getElementById('v-panel').style.display !== 'none') renderValidation();
-    if (document.getElementById('pg-calendrier').classList.contains('on')) CAL.render();
-    if (document.getElementById('pg-stats').classList.contains('on')) renderStats();
-  });
-}
-
-/* ═══════════ GOOGLE DRIVE BACKUP ═══════════ */
-function backupToGDrive() {
-  const data = {
-    version: '1.0',
-    exportDate: new Date().toISOString(),
-    source: 'TAF-Firebase-Only',
-    collaborateurs: COLLABS,
-    demandes: DEMANDES
-  };
-  
-  const filename = 'TAF_Backup_' + new Date().toISOString().split('T')[0] + '.json';
-  const content = JSON.stringify(data, null, 2);
-  
-  // Telecharger le fichier pour upload manuel sur Google Drive
-  downloadJSON(content, filename);
-  
-  localStorage.setItem('last_backup', new Date().toISOString());
-  document.getElementById('gdrive-badge').classList.add('connected');
-  document.getElementById('gdrive-status').textContent = 'Sauvegarde OK';
-  
-  showToast('OK', 'Fichier telecharge - Uploadez-le sur Google Drive');
-}
-
-async function restoreFromBackup(backup) {
-  if (!backup.collaborateurs || !backup.demandes) {
-    showToast('ERREUR', 'Fichier de sauvegarde invalide');
-    return;
-  }
-  
-  if (!confirm('Restaurer ' + backup.collaborateurs.length + ' collaborateurs et ' + backup.demandes.length + ' demandes ?')) {
-    return;
-  }
-  
-  showToast('...', 'Restauration en cours...');
-  
-  try {
-    // Restaurer collaborateurs dans FIREBASE
-    for (const c of backup.collaborateurs) {
-      const { id, ...data } = c;
-      await db.collection('collaborateurs').doc(id).set(data);
-    }
-    
-    // Restaurer demandes dans FIREBASE
-    for (const d of backup.demandes) {
-      const { id, ...data } = d;
-      await db.collection('demandes').doc(id).set(data);
-    }
-    
-    showToast('OK', 'Restauration terminee !');
-  } catch (e) {
-    console.error('Restore error:', e);
-    showToast('ERREUR', e.message);
-  }
-}
-
-function downloadJSON(content, filename) {
-  const blob = new Blob([content], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const backup = JSON.parse(e.target.result);
-      await restoreFromBackup(backup);
-    } catch (err) {
-      showToast('ERREUR', 'Fichier invalide');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
-}
-
-/* ═══════════ UTILS ═══════════ */
-function fd(d) {
-  if (!d) return '';
-  const p = d.split('-');
-  return p[2] + '/' + p[1];
-}
-
-function showToast(i, m) {
-  document.getElementById('t-i').textContent = i;
-  document.getElementById('t-m').textContent = m;
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => t.classList.remove('show'), 3200);
-}
-
-function updateBadge() {
-  const att = DEMANDES.filter(d => d.st === 'En attente').length;
-  const badge = document.getElementById('badge-attente');
-  badge.textContent = att;
-  badge.style.display = att > 0 ? 'flex' : 'none';
-}
-
-function populateSelects() {
-  ['me-who', 'd-who', 'cal-filter'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const val = sel.value;
-    sel.innerHTML = '<option value="">-- ' + (id === 'cal-filter' ? 'Tous' : 'Selectionner') + ' --</option>';
-    COLLABS.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nom;
-      sel.appendChild(opt);
-    });
-    sel.value = val;
-  });
-}
-
-function renderConfigCollabs() {
-  const el = document.getElementById('cfg-collabs');
-  if (!el || COLLABS.length === 0) {
-    if (el) el.innerHTML = '<div class="ph">Aucun collaborateur</div>';
-    return;
-  }
-  el.innerHTML = COLLABS.map(c => 
-    '<div style="display:flex;align-items:center;gap:10px;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px">' +
-      '<div style="width:32px;height:32px;border-radius:50%;background:' + (COLORS[c.nom] || '#888') + '33;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:' + (COLORS[c.nom] || '#888') + '">' + c.nom.slice(0,2) + '</div>' +
-      '<div style="flex:1">' +
-        '<div style="font-weight:600;font-size:13px">' + c.nom + '</div>' +
-        '<div style="font-size:10px;color:var(--mu)">' + (c.role || 'collab') + ' - ' + (c.svc || '') + '</div>' +
-      '</div>' +
-      '<div style="text-align:right;font-size:10px;color:var(--mu)">' +
-        '<div>CP: ' + c.cpS + '/' + c.cpT + '</div>' +
-        '<div>RTT: ' + c.rttS + '/' + c.rttD + '</div>' +
-      '</div>' +
-    '</div>'
-  ).join('');
-}
-
-/* ═══════════ MON ESPACE ═══════════ */
-function meLogin() {
-  const cid = document.getElementById('me-who').value;
-  const pin = document.getElementById('me-pin').value;
-  if (!cid) { showToast('!', 'Selectionnez votre nom'); return; }
-  
-  const c = COLLABS.find(x => x.id === cid);
-  if (!c) { showToast('X', 'Introuvable'); return; }
-  if (c.pin && c.pin !== pin) { showToast('X', 'PIN incorrect'); return; }
-  
-  meUser = c;
-  document.getElementById('me-dashboard').style.display = 'block';
-  renderMeDashboard();
-  showToast('OK', 'Bienvenue ' + c.nom);
-}
-
-function renderMeDashboard() {
-  if (!meUser) return;
-  renderSoldes('me-soldes', meUser);
-  renderMeDemandes();
-}
-
-function renderSoldes(elId, c) {
-  const cpC = c.cpS < 2 ? 'nope' : c.cpS < 5 ? 'low' : '';
-  const rttC = c.rttS < 1 ? 'nope' : c.rttS < 3 ? 'low' : '';
-  document.getElementById(elId).innerHTML = 
-    '<div class="av-wrap">' +
-      '<div class="av" style="background:' + (COLORS[c.nom] || 'var(--s2)') + '33;color:' + (COLORS[c.nom] || 'var(--acc)') + '">' + c.nom.slice(0,2) + '</div>' +
-      '<div class="av-n">' + c.nom + '</div>' +
-      '<div class="av-s">' + (c.svc || '') + '</div>' +
-    '</div>' +
-    '<div class="sg">' +
-      '<div class="si"><div class="si-l">CP</div><div class="si-v ' + cpC + '">' + c.cpS + '</div><div class="si-u">/ ' + c.cpT + 'j</div></div>' +
-      '<div class="si"><div class="si-l">RTT</div><div class="si-v ' + rttC + '">' + c.rttS + '</div><div class="si-u">/ ' + c.rttD + 'j</div></div>' +
-    '</div>';
-}
-
-function renderMeDemandes() {
-  const el = document.getElementById('me-demandes');
-  const myDem = DEMANDES.filter(d => d.cid === meUser.id).slice(0, 5);
-  if (myDem.length === 0) {
-    el.innerHTML = '<div class="ph">Aucune demande</div>';
-    return;
-  }
-  el.innerHTML = myDem.map(d => {
-    const tagClass = d.type === 'Conge' ? 'cp' : d.type.includes('RTT') ? (d.type.includes('1/2') ? 'demi' : 'rtt') : 'cp';
-    const stClass = d.st === 'Validee' ? 'ok' : d.st === 'Refusee' ? 'no' : 'att';
-    return '<div class="dc">' +
-        '<div class="dtag ' + tagClass + '">' + d.type.slice(0,3).toUpperCase() + '</div>' +
-        '<div class="dinfo">' +
-          '<div class="dinfo-n">' + d.type + '</div>' +
-          '<div class="dinfo-d">' + fd(d.deb) + ' - ' + fd(d.fin) + '</div>' +
-        '</div>' +
-        '<div class="dstat ' + stClass + '">' + d.st + '</div>' +
-      '</div>';
-  }).join('');
-}
-
-/* ═══════════ DEMANDE ═══════════ */
-function whoChange() {
-  const cid = document.getElementById('d-who').value;
-  document.getElementById('d-submit').disabled = !cid;
-  if (!cid) {
-    document.getElementById('d-soldes').innerHTML = '<div class="ph">Selectionnez votre nom</div>';
-    return;
-  }
-  const c = COLLABS.find(x => x.id === cid);
-  if (c) renderSoldes('d-soldes', c);
-}
-
-async function submitDem() {
-  if (!db) { showToast('X', 'Firebase non connecte'); return; }
-  
-  const cid = document.getElementById('d-who').value;
-  const type = document.getElementById('d-type').value;
-  const deb = document.getElementById('d-deb').value;
-  const fin = document.getElementById('d-fin').value;
-  const com = document.getElementById('d-com').value;
-
-  if (!cid || !type || !deb || !fin) { showToast('!', 'Champs requis manquants'); return; }
-  if (fin < deb) { showToast('!', 'Date de fin incorrecte'); return; }
-  
-  const col = COLLABS.find(c => c.id === cid);
-  if (!col) return;
-
-  try {
-    // SAUVEGARDE UNIQUEMENT DANS FIREBASE
-    await db.collection('demandes').add({
-      cid, nom: col.nom, svc: col.svc || '', type, deb, fin,
-      st: 'En attente', com, dateDemande: new Date().toISOString()
-    });
-    showToast('OK', 'Demande envoyee !');
-    ['d-type', 'd-deb', 'd-fin', 'd-com'].forEach(id => document.getElementById(id).value = '');
-  } catch (e) {
-    showToast('X', 'Erreur: ' + e.message);
-  }
-}
-
-/* ═══════════ VALIDATION ═══════════ */
-function vAuth() {
-  if (document.getElementById('v-pin').value !== ADMIN_PIN) { showToast('X', 'Code incorrect'); return; }
-  document.getElementById('v-auth').style.display = 'none';
-  document.getElementById('v-panel').style.display = 'block';
-  renderValidation();
-}
-
-function renderValidation() {
-  const attente = DEMANDES.filter(d => d.st === 'En attente');
-  const hist = DEMANDES.filter(d => d.st !== 'En attente').slice(0, 10);
-
-  document.getElementById('v-tbody-attente').innerHTML = attente.length === 0 
-    ? '<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:20px">Aucune demande</td></tr>'
-    : attente.map(d => 
-        '<tr>' +
-          '<td><strong>' + d.nom + '</strong></td>' +
-          '<td>' + d.type + '</td>' +
-          '<td>' + fd(d.deb) + ' - ' + fd(d.fin) + '</td>' +
-          '<td style="color:var(--mu);font-size:11px">' + (d.com || '--') + '</td>' +
-          '<td>' +
-            '<button class="vbtn ok" onclick="valider(\'' + d.id + '\')">OK</button> ' +
-            '<button class="vbtn no" onclick="refuser(\'' + d.id + '\')">X</button>' +
-          '</td>' +
-        '</tr>'
-      ).join('');
-
-  document.getElementById('v-tbody-hist').innerHTML = hist.length === 0
-    ? '<tr><td colspan="4" style="text-align:center;color:var(--mu)">Aucun historique</td></tr>'
-    : hist.map(d => 
-        '<tr>' +
-          '<td>' + d.nom + '</td>' +
-          '<td>' + d.type + '</td>' +
-          '<td>' + fd(d.deb) + ' - ' + fd(d.fin) + '</td>' +
-          '<td><span class="dstat ' + (d.st === 'Validee' ? 'ok' : 'no') + '">' + d.st + '</span></td>' +
-        '</tr>'
-      ).join('');
-}
-
-async function valider(id) {
-  // MISE A JOUR UNIQUEMENT DANS FIREBASE
-  await db.collection('demandes').doc(id).update({ st: 'Validee', dateValidation: new Date().toISOString() });
-  showToast('OK', 'Validee');
-}
-
-async function refuser(id) {
-  // MISE A JOUR UNIQUEMENT DANS FIREBASE
-  await db.collection('demandes').doc(id).update({ st: 'Refusee', dateValidation: new Date().toISOString() });
-  showToast('X', 'Refusee');
-}
-
-/* ═══════════ CALENDRIER ═══════════ */
-const CAL = {
-  date: new Date(),
-  prev() { this.date.setMonth(this.date.getMonth() - 1); this.render(); },
-  next() { this.date.setMonth(this.date.getMonth() + 1); this.render(); },
-  today() { this.date = new Date(); this.render(); },
-  render() {
-    const y = this.date.getFullYear(), m = this.date.getMonth();
-    document.getElementById('cal-title').textContent = MFR[m] + ' ' + y;
-    
-    const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
-    const startDay = (first.getDay() + 6) % 7;
-    const filter = document.getElementById('cal-filter').value;
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    let html = DFR.map(d => '<div class="cal-dh">' + d + '</div>').join('');
-    for (let i = 0; i < startDay; i++) html += '<div class="cal-d off"></div>';
-    
-    for (let d = 1; d <= last.getDate(); d++) {
-      const ds = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-      const isToday = ds === todayStr;
-      const isFerie = FERIES[ds];
-      const abs = DEMANDES.filter(dem => dem.st !== 'Refusee' && dem.deb <= ds && dem.fin >= ds && (!filter || dem.cid === filter));
-      
-      let cls = ['cal-d'];
-      if (isToday) cls.push('today');
-      if (isFerie) cls.push('fer');
-      
-      const dots = abs.slice(0, 4).map(a => '<div class="cal-dot" style="background:' + (COLORS[a.nom] || '#888') + '"></div>').join('');
-      html += '<div class="' + cls.join(' ') + '" title="' + (isFerie || '') + '"><span>' + d + '</span><div class="cal-dots">' + dots + '</div></div>';
-    }
-    document.getElementById('cal-grid').innerHTML = html;
-  }
-};
-
-/* ═══════════ STATS ═══════════ */
-let chartTypes, chartCollabs, chartMonthly;
-
-function renderStats() {
-  const validated = DEMANDES.filter(d => d.st === 'Validee');
-  const pending = DEMANDES.filter(d => d.st === 'En attente');
-  const thisYear = validated.filter(d => d.deb && d.deb.startsWith(new Date().getFullYear()));
-  
-  document.getElementById('stat-cards').innerHTML = 
-    '<div class="stat-card"><div class="value">' + validated.length + '</div><div class="label">Validees</div></div>' +
-    '<div class="stat-card"><div class="value" style="color:var(--fer)">' + pending.length + '</div><div class="label">En attente</div></div>' +
-    '<div class="stat-card"><div class="value" style="color:var(--ok)">' + thisYear.length + '</div><div class="label">Cette annee</div></div>' +
-    '<div class="stat-card"><div class="value" style="color:var(--vac)">' + COLLABS.length + '</div><div class="label">Collaborateurs</div></div>';
-
-  const typeCount = {};
-  validated.forEach(d => { typeCount[d.type] = (typeCount[d.type] || 0) + 1; });
-  
-  if (chartTypes) chartTypes.destroy();
-  chartTypes = new Chart(document.getElementById('chart-types'), {
-    type: 'doughnut',
-    data: { labels: Object.keys(typeCount), datasets: [{ data: Object.values(typeCount), backgroundColor: ['#E8A020', '#27C97A', '#F5A623', '#60AFFF', '#C97AE8'] }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#6B90B5' } } } }
-  });
-
-  const collabCount = {};
-  validated.forEach(d => { collabCount[d.nom] = (collabCount[d.nom] || 0) + 1; });
-  
-  if (chartCollabs) chartCollabs.destroy();
-  chartCollabs = new Chart(document.getElementById('chart-collabs'), {
-    type: 'bar',
-    data: { labels: Object.keys(collabCount), datasets: [{ label: 'Absences', data: Object.values(collabCount), backgroundColor: Object.keys(collabCount).map(n => COLORS[n] || '#888') }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6B90B5' } }, y: { ticks: { color: '#6B90B5' } } } }
-  });
-
-  const monthlyData = {};
-  const now = new Date();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthlyData[d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')] = 0;
-  }
-  validated.forEach(d => { if (d.deb) { const k = d.deb.slice(0, 7); if (monthlyData.hasOwnProperty(k)) monthlyData[k]++; } });
-  
-  if (chartMonthly) chartMonthly.destroy();
-  chartMonthly = new Chart(document.getElementById('chart-monthly'), {
-    type: 'line',
-    data: { labels: Object.keys(monthlyData).map(k => MFR[parseInt(k.split('-')[1])-1].slice(0,3)), datasets: [{ data: Object.values(monthlyData), borderColor: '#E8A020', backgroundColor: 'rgba(232,160,32,.1)', fill: true, tension: 0.4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6B90B5' } }, y: { beginAtZero: true, ticks: { color: '#6B90B5' } } } }
-  });
-}
-
-/* ═══════════ EXPORT iCAL ═══════════ */
-function generateIcal(events, filename) {
-  let ical = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//TAF//Conges//FR\nCALSCALE:GREGORIAN\n';
-  events.forEach((e, i) => {
-    const dtstart = e.deb.replace(/-/g, '');
-    const dtend = new Date(new Date(e.fin).getTime() + 86400000).toISOString().split('T')[0].replace(/-/g, '');
-    ical += 'BEGIN:VEVENT\nUID:' + (e.id || i) + '@taf\nDTSTART;VALUE=DATE:' + dtstart + '\nDTEND;VALUE=DATE:' + dtend + '\nSUMMARY:' + e.nom + ' - ' + e.type + '\nEND:VEVENT\n';
-  });
-  ical += 'END:VCALENDAR';
-  
-  const blob = new Blob([ical], { type: 'text/calendar' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  showToast('OK', 'Calendrier exporte');
-}
-
-function exportMyIcal() {
-  if (!meUser) { showToast('!', 'Connectez-vous'); return; }
-  const my = DEMANDES.filter(d => d.cid === meUser.id && d.st === 'Validee');
-  if (!my.length) { showToast('!', 'Aucune absence'); return; }
-  generateIcal(my, 'absences_' + meUser.nom.toLowerCase() + '.ics');
-}
-
-function exportAllIcal() {
-  const all = DEMANDES.filter(d => d.st === 'Validee');
-  if (!all.length) { showToast('!', 'Aucune absence'); return; }
-  generateIcal(all, 'absences_equipe.ics');
-}
-
-/* ═══════════ CONFIG ═══════════ */
-function showConfigTab(tab) {
-  document.querySelectorAll('[id^="cfg-tab-"]').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.tabs .tab').forEach(el => el.classList.remove('on'));
-  document.getElementById('cfg-tab-' + tab).style.display = 'block';
-  event.target.classList.add('on');
-}
-
-async function seedDatabase() {
-  if (!db) { showToast('X', 'Connectez Firebase'); return; }
-  if (!confirm('Creer les donnees de demo ?')) return;
-  
-  showToast('...', 'Initialisation...');
-  
-  try {
-    // CREATION UNIQUEMENT DANS FIREBASE
-    const collabs = [
-      {nom:'CHARLY',    svc:'import', role:'collab',    pin:'0000', email:'charleshadrien@taftrans.fr', rttD:12, rttS:7, cpT:17, cpS:8},
-      {nom:'AURELIEN',  svc:'import', role:'chef',      pin:'0000', email:'aurelien@taftrans.fr',       rttD:13, rttS:7, cpT:25, cpS:13},
-      {nom:'INGY',      svc:'import', role:'collab',    pin:'0000', email:'ingie@taftrans.fr',          rttD:14, rttS:8, cpT:21.5, cpS:9.5},
-      {nom:'ROMAIN',    svc:'import', role:'collab',    pin:'0000', email:'romain@taftrans.fr',         rttD:14, rttS:8, cpT:27.5, cpS:17.5},
-      {nom:'CHRISTOPHE',svc:'import', role:'directeur', pin:'2709', email:'christophe@taftrans.fr',     rttD:12.5, rttS:9.5, cpT:30.5, cpS:20.5},
-    ];
-    
-    const refs = {};
-    for (const c of collabs) {
-      const ref = await db.collection('collaborateurs').add(c);
-      refs[c.nom] = ref.id;
-    }
-    
-    const demandes = [
-      {nom:'INGY',      type:'Conge',   deb:'2026-04-20', fin:'2026-04-25', st:'Validee'},
-      {nom:'ROMAIN',    type:'1/2 RTT', deb:'2026-04-16', fin:'2026-04-16', st:'Validee'},
-      {nom:'CHRISTOPHE',type:'Conge',   deb:'2026-04-13', fin:'2026-04-18', st:'Validee'},
-      {nom:'AURELIEN',  type:'RTT',     deb:'2026-04-01', fin:'2026-04-01', st:'En attente'},
-      {nom:'CHARLY',    type:'Conge',   deb:'2026-04-28', fin:'2026-05-02', st:'En attente'},
-    ];
-    
-    for (const d of demandes) {
-      await db.collection('demandes').add({ cid: refs[d.nom], nom: d.nom, svc: 'import', type: d.type, deb: d.deb, fin: d.fin, st: d.st, com: '', dateDemande: new Date().toISOString() });
-    }
-    
-    showToast('OK', 'Base initialisee !');
-  } catch (e) {
-    showToast('X', 'Erreur: ' + e.message);
-  }
-}
-
-/* ═══════════ NAVIGATION ═══════════ */
-document.querySelectorAll('.ntab').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
-    document.querySelectorAll('.ntab').forEach(b => b.classList.remove('on'));
-    document.getElementById('pg-' + this.dataset.pg).classList.add('on');
-    this.classList.add('on');
-    if (this.dataset.pg === 'calendrier') CAL.render();
-    if (this.dataset.pg === 'stats') renderStats();
-  });
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const VER = "4.0.0";
+const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const COLORS = ["#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#ec4899","#06b6d4","#f97316","#6366f1","#84cc16"];
+
+const fbGet = async (p) => { try { const r = await fetch(`${FB}/${p}.json`); return r.ok ? await r.json() : null; } catch { return null; } };
+const fbSet = async (p, d) => { try { const r = await fetch(`${FB}/${p}.json`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); return r.ok; } catch { return false; } };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const today = () => new Date().toISOString().slice(0, 10);
+const fmt = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+const fmtS = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : "—";
+const diffDays = (a, b) => Math.max(1, Math.ceil((new Date(b) - new Date(a)) / 86400000) + 1);
+
+const defaultCfg = () => ({
+  supervisorPin: "2709",
+  webhookMake: "",
+  webhookSlack: "",
+  emailAdmin: "christophe@taftrans.fr",
+  emailCC: "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr",
+  driveProxy: "",
+  driveFolder: ""
 });
 
-/* ═══════════ INIT ═══════════ */
-initFirebase();
-</script>
-</body>
-</html>
+// ═══ PROFESSIONAL EMAIL TEMPLATES ═══
+const EMAILS = {
+  demandeReçue: (collab, dem) => ({
+    subject: `Demande de ${dem.type} — ${collab.prenom} ${collab.nom}`,
+    body: `Bonjour,\n\nUne nouvelle demande de congé a été soumise et nécessite votre validation.\n\nCollaborateur : ${collab.prenom} ${collab.nom}\nType : ${dem.type}\nDu : ${fmt(dem.dateDebut)}\nAu : ${fmt(dem.dateFin)}\nDurée : ${dem.nbJours} jour(s)\nMotif : ${dem.motif || "Non précisé"}\n\nMerci de traiter cette demande dans les meilleurs délais.\n\nCordialement,\nSystème TAF CP/RTT`
+  }),
+  validee: (collab, dem) => ({
+    subject: `Congé validé — ${collab.prenom} ${collab.nom} — ${fmt(dem.dateDebut)} au ${fmt(dem.dateFin)}`,
+    body: `Bonjour ${collab.prenom},\n\nNous avons le plaisir de vous informer que votre demande de ${dem.type} a été acceptée.\n\nDétails :\n— Type : ${dem.type}\n— Du : ${fmt(dem.dateDebut)}\n— Au : ${fmt(dem.dateFin)}\n— Durée : ${dem.nbJours} jour(s)\n\nVotre solde mis à jour est disponible dans votre espace personnel.\n\nBon repos !\n\nCordialement,\nChristophe Hermann\nTrans Air Freight CDG`
+  }),
+  refusee: (collab, dem) => ({
+    subject: `Demande de congé non retenue — ${collab.prenom} ${collab.nom}`,
+    body: `Bonjour ${collab.prenom},\n\nAprès examen, nous ne sommes malheureusement pas en mesure d'accepter votre demande de ${dem.type} du ${fmt(dem.dateDebut)} au ${fmt(dem.dateFin)}.\n\nN'hésitez pas à proposer d'autres dates ou à en discuter directement.\n\nCordialement,\nChristophe Hermann\nTrans Air Freight CDG`
+  }),
+  modification: (collab, dem) => ({
+    subject: `Modification de congé — ${collab.prenom} ${collab.nom}`,
+    body: `Bonjour,\n\nUne modification de congé a été effectuée.\n\nCollaborateur : ${collab.prenom} ${collab.nom}\nType : ${dem.type}\nNouvelles dates : ${fmt(dem.dateDebut)} au ${fmt(dem.dateFin)}\nDurée : ${dem.nbJours} jour(s)\n\nCordialement,\nSystème TAF CP/RTT`
+  }),
+  confirmationRH: (collab, dem) => ({
+    subject: `[CONFIRMATION] Congé validé — ${collab.prenom} ${collab.nom} — ${fmt(dem.dateDebut)}/${fmt(dem.dateFin)}`,
+    body: `Bonjour,\n\nPour information, le congé suivant a été validé :\n\nCollaborateur : ${collab.prenom} ${collab.nom}\nPoste : ${collab.poste || "—"}\nType : ${dem.type}\nDu : ${fmt(dem.dateDebut)}\nAu : ${fmt(dem.dateFin)}\nDurée : ${dem.nbJours} jour(s)\nSolde restant CP : ${collab.soldeCP} j / RTT : ${collab.soldeRTT} j\n\nCordialement,\nChristophe Hermann\nTrans Air Freight CDG`
+  })
+};
+
+export default function App() {
+  const [collabs, setCollabs] = useState([]);
+  const [demandes, setDemandes] = useState([]);
+  const [cfg, setCfg] = useState(defaultCfg());
+  const [screen, setScreen] = useState("home");
+  const [user, setUser] = useState(null);
+  const [pin, setPin] = useState("");
+  const [pinTarget, setPinTarget] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [formData, setFormData] = useState({ type: "CP", dateDebut: "", dateFin: "", motif: "" });
+  const [editCollab, setEditCollab] = useState(null);
+
+  const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
+
+  // ═══ LOAD FROM FIREBASE ═══
+  useEffect(() => {
+    (async () => {
+      const [c, d, cf] = await Promise.all([
+        fbGet("taf_cprtt/collaborateurs"),
+        fbGet("taf_cprtt/demandes"),
+        fbGet("taf_cprtt/config")
+      ]);
+      if (c) setCollabs(Array.isArray(c) ? c : Object.values(c));
+      if (d) setDemandes(Array.isArray(d) ? d : Object.values(d));
+      if (cf) setCfg(prev => ({ ...prev, ...cf }));
+      // Import from TAF TEAM if no collabs exist
+      if (!c || (Array.isArray(c) && c.length === 0)) {
+        const team = await fbGet("team");
+        if (team) {
+          const imported = Object.entries(team).map(([id, m], i) => ({
+            id, nom: m.nom || m.name || "", prenom: m.prenom || m.firstName || "",
+            poste: m.poste || m.role || "", email: m.email || "",
+            pin: "", color: COLORS[i % COLORS.length],
+            soldeCP: 25, soldeRTT: 10, actif: true
+          }));
+          if (imported.length > 0) {
+            setCollabs(imported);
+            await fbSet("taf_cprtt/collaborateurs", imported);
+            show(`${imported.length} profils importés depuis TAF TEAM`);
+          }
+        }
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  // ═══ SAVE ═══
+  const saveCollabs = async (newC) => { setCollabs(newC); await fbSet("taf_cprtt/collaborateurs", newC); syncResume(newC, demandes); };
+  const saveDemandes = async (newD) => { setDemandes(newD); await fbSet("taf_cprtt/demandes", newD); syncResume(collabs, newD); };
+  const saveCfg = async (newCfg) => { setCfg(newCfg); await fbSet("taf_cprtt/config", newCfg); show("Config sauvegardée"); };
+
+  // ═══ CROSS-SYNC RESUME FOR TAF TEAM ═══
+  const syncResume = async (c, d) => {
+    const approved = (d || []).filter(x => x.statut === "validee");
+    const td = today();
+    const absents = approved.filter(x => x.dateDebut <= td && x.dateFin >= td);
+    await fbSet("taf_cprtt/resume", {
+      lastSync: new Date().toISOString(), totalCollabs: (c || []).length,
+      demandesEnAttente: (d || []).filter(x => x.statut === "en_attente").length,
+      demandesApprouvees: approved.length, nbAbsents: absents.length,
+      absentsAujourdhui: absents.map(x => { const col = (c || []).find(cc => cc.id === x.collaborateurId); return col ? `${col.prenom} ${col.nom}` : "?"; }),
+      prochaines: approved.filter(x => x.dateDebut > td).sort((a, b) => a.dateDebut.localeCompare(b.dateDebut)).slice(0, 5).map(x => { const col = (c || []).find(cc => cc.id === x.collaborateurId); return { qui: col ? `${col.prenom}` : "?", type: x.type, du: x.dateDebut, au: x.dateFin, jours: x.nbJours }; })
+    });
+  };
+
+  // ═══ WEBHOOK NOTIFICATIONS ═══
+  const notify = async (type, collab, demande) => {
+    const tpl = EMAILS[type]?.(collab, demande);
+    if (!tpl) return;
+    // Email via Make
+    if (cfg.webhookMake) {
+      const payload = { from: cfg.emailAdmin, to: type === "demandeReçue" || type === "modification" ? cfg.emailAdmin : collab.email, cc: type === "validee" ? cfg.emailCC : "", subject: tpl.subject, body: tpl.body, type: "cp_rtt_" + type };
+      try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch {}
+      // Confirmation RH on validation
+      if (type === "validee") {
+        const rh = EMAILS.confirmationRH(collab, demande);
+        try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: cfg.emailAdmin, to: cfg.emailCC, subject: rh.subject, body: rh.body, type: "cp_rtt_confirmation_rh" }) }); } catch {}
+      }
+    }
+    // Slack
+    if (cfg.webhookSlack) {
+      const icon = type === "validee" ? "✅" : type === "refusee" ? "❌" : "📋";
+      try { await fetch(cfg.webhookSlack, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: `${icon} *${tpl.subject}*\n${collab.prenom} ${collab.nom} — ${demande.type} du ${fmtS(demande.dateDebut)} au ${fmtS(demande.dateFin)} (${demande.nbJours}j)` }) }); } catch {}
+    }
+  };
+
+  // ═══ CHECK AVAILABILITY ═══
+  const isSlotAvailable = (dateDebut, dateFin, excludeId = null) => {
+    const approved = demandes.filter(d => d.statut === "validee" && d.id !== excludeId);
+    const conflicts = approved.filter(d => d.dateDebut <= dateFin && d.dateFin >= dateDebut);
+    // Max 2 absents simultanés (sur 5 personnes)
+    if (conflicts.length >= 2) return { ok: false, msg: `Créneau complet — ${conflicts.length} personne(s) déjà absente(s)`, conflicts };
+    return { ok: true, conflicts };
+  };
+
+  // ═══ SUBMIT REQUEST ═══
+  const submitRequest = async () => {
+    if (!formData.dateDebut || !formData.dateFin) { show("Dates requises", "err"); return; }
+    if (formData.dateDebut > formData.dateFin) { show("Date début > date fin", "err"); return; }
+    const avail = isSlotAvailable(formData.dateDebut, formData.dateFin);
+    if (!avail.ok) { show(avail.msg, "err"); return; }
+    const nbJours = diffDays(formData.dateDebut, formData.dateFin);
+    const dem = { id: uid(), collaborateurId: user.id, type: formData.type, dateDebut: formData.dateDebut, dateFin: formData.dateFin, nbJours, motif: formData.motif, statut: "en_attente", dateDemande: new Date().toISOString() };
+    const newD = [...demandes, dem];
+    await saveDemandes(newD);
+    await notify("demandeReçue", user, dem);
+    setFormData({ type: "CP", dateDebut: "", dateFin: "", motif: "" });
+    show("Demande envoyée — notification envoyée au superviseur");
+  };
+
+  // ═══ VALIDATE / REFUSE ═══
+  const handleValidation = async (demId, action) => {
+    const dem = demandes.find(d => d.id === demId);
+    if (!dem) return;
+    const collab = collabs.find(c => c.id === dem.collaborateurId);
+    if (!collab) return;
+    const newStatut = action === "valider" ? "validee" : "refusee";
+    const newD = demandes.map(d => d.id === demId ? { ...d, statut: newStatut, dateValidation: new Date().toISOString(), validePar: "Christophe Hermann" } : d);
+    // Décompter les jours si validé
+    if (action === "valider") {
+      const field = dem.type === "RTT" ? "soldeRTT" : "soldeCP";
+      const newC = collabs.map(c => c.id === collab.id ? { ...c, [field]: Math.max(0, (c[field] || 0) - dem.nbJours) } : c);
+      await saveCollabs(newC);
+    }
+    await saveDemandes(newD);
+    await notify(newStatut === "validee" ? "validee" : "refusee", collab, dem);
+    show(action === "valider" ? "Congé validé — notifications envoyées" : "Demande refusée — salarié notifié");
+  };
+
+  // ═══ STYLES ═══
+  const S = {
+    bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828",
+    border: "#1c2e4a", gold: "#f5a623", teal: "#22d3ee", blue: "#3b82f6",
+    red: "#ef4444", green: "#22c55e", purple: "#8b5cf6", orange: "#f59e0b",
+    text: "#e1e5f0", text2: "#8aa8c4", text3: "#4a6580"
+  };
+  const Btn = ({ children, onClick, c = S.blue, bg: b, style: st = {} }) => <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#fff", background: b || c, fontFamily: "inherit", transition: "all .15s", ...st }}>{children}</button>;
+  const Card = ({ title, tr, children, style: st = {} }) => <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", ...st }}>{title && <div style={{ padding: "12px 16px", borderBottom: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 14 }}>{title}</span>{tr}</div>}<div style={{ padding: "16px" }}>{children}</div></div>;
+  const Inp = ({ label, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<input {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }} /></div>;
+  const Sel = ({ label, children, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<select {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }}>{children}</select></div>;
+  const Badge = ({ children, c = S.blue }) => <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: `${c}20`, color: c, border: `1px solid ${c}30` }}>{children}</span>;
+
+  // ═══ HOME SCREEN ═══
+  if (loading) return <div style={{ background: S.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: S.text, fontFamily: "system-ui" }}>Chargement...</div>;
+
+  if (screen === "home") return (
+    <div style={{ background: S.bg, minHeight: "100vh", fontFamily: '"Segoe UI", system-ui, sans-serif', color: S.text, padding: "40px 20px" }}>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}`}</style>
+      <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
+        <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>TAF CP / RTT</div>
+        <div style={{ fontSize: 12, color: S.text3, marginBottom: 30 }}>v{VER} — Gestion des congés et RTT</div>
+
+        {/* Calendrier public */}
+        <div onClick={() => setScreen("calendar")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 24, cursor: "pointer", transition: "all .15s" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: S.teal }}>Calendrier partagé</div>
+          <div style={{ fontSize: 11, color: S.text3 }}>Voir les congés, RTT et vacations de l'équipe</div>
+        </div>
+
+        {/* Profils salariés */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: S.text2, marginBottom: 12, textAlign: "left" }}>Choisir un profil</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          {collabs.filter(c => c.actif !== false).map(c => (
+            <div key={c.id} onClick={() => { setPinTarget(c); setScreen("pin"); setPin(""); }} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "16px", cursor: "pointer", textAlign: "center", transition: "all .15s", borderLeft: `4px solid ${c.color || S.blue}` }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: c.color || S.blue, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", fontSize: 16, fontWeight: 800, color: "#fff" }}>{(c.prenom || "?")[0]}</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{c.prenom} {c.nom}</div>
+              <div style={{ fontSize: 10, color: S.text3 }}>{c.poste || "—"}</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 6 }}>
+                <Badge c={S.blue}>CP: {c.soldeCP || 0}j</Badge>
+                <Badge c={S.purple}>RTT: {c.soldeRTT || 0}j</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Superviseur */}
+        <div onClick={() => { setPinTarget({ role: "supervisor" }); setScreen("pin"); setPin(""); }} style={{ background: `linear-gradient(135deg, ${S.purple}, ${S.blue})`, borderRadius: 12, padding: "16px", cursor: "pointer", textAlign: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Espace Superviseur</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.7)" }}>Validation, gestion, supervision</div>
+        </div>
+      </div>
+
+      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, padding: "10px 16px", background: S.card, border: `1px solid ${toast.t === "ok" ? `${S.green}30` : `${S.red}30`}`, borderRadius: 8, fontSize: 12, zIndex: 200, color: S.text }}>{toast.t === "ok" ? "✅" : "❌"} {toast.m}</div>}
+    </div>
+  );
+
+  // ═══ PIN SCREEN ═══
+  if (screen === "pin") return (
+    <div style={{ background: S.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui", color: S.text }}>
+      <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 40, width: 320, textAlign: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{pinTarget?.role === "supervisor" ? "Superviseur" : `${pinTarget?.prenom || ""} ${pinTarget?.nom || ""}`}</div>
+        <div style={{ fontSize: 11, color: S.text3, marginBottom: 24 }}>Entrez votre PIN</div>
+        <input type="password" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => {
+          if (e.key === "Enter") {
+            if (pinTarget?.role === "supervisor") {
+              if (pin === cfg.supervisorPin) { setUser({ role: "supervisor" }); setScreen("supervisor"); }
+              else show("PIN incorrect", "err");
+            } else {
+              if (pin === pinTarget?.pin) { setUser(pinTarget); setScreen("employee"); }
+              else show("PIN incorrect", "err");
+            }
+          }
+        }} placeholder="••••" maxLength={6} style={{ width: "100%", height: 50, fontSize: 28, fontFamily: "monospace", letterSpacing: 10, textAlign: "center", background: S.bg3, border: `2px solid ${S.border}`, borderRadius: 8, color: S.text, outline: "none" }} autoFocus />
+        <div style={{ marginTop: 16 }}><Btn onClick={() => setScreen("home")} bg={S.bg3} style={{ color: S.text2 }}>Retour</Btn></div>
+        {!pinTarget?.pin && pinTarget?.role !== "supervisor" && <div style={{ fontSize: 10, color: S.red, marginTop: 10 }}>PIN non configuré — demandez au superviseur</div>}
+      </div>
+    </div>
+  );
+
+  // ═══ EMPLOYEE DASHBOARD ═══
+  const [empTab, setEmpTab] = useState("demande");
+  if (screen === "employee" && user) {
+    const myDem = demandes.filter(d => d.collaborateurId === user.id).sort((a, b) => (b.dateDemande || "").localeCompare(a.dateDemande || ""));
+    const upcoming = myDem.filter(d => d.statut === "validee" && d.dateFin >= today());
+    const past = myDem.filter(d => d.statut === "validee" && d.dateFin < today());
+    const pending = myDem.filter(d => d.statut === "en_attente");
+    const cpPris = past.filter(d => d.type === "CP").reduce((a, d) => a + d.nbJours, 0) + upcoming.filter(d => d.type === "CP").reduce((a, d) => a + d.nbJours, 0);
+    const rttPris = past.filter(d => d.type === "RTT").reduce((a, d) => a + d.nbJours, 0) + upcoming.filter(d => d.type === "RTT").reduce((a, d) => a + d.nbJours, 0);
+
+    return (
+      <div style={{ background: S.bg, minHeight: "100vh", fontFamily: "system-ui", color: S.text }}>
+        <style>{`*{box-sizing:border-box;margin:0;padding:0}`}</style>
+        <header style={{ background: S.card, borderBottom: `1px solid ${S.border}`, padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: user.color || S.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>{(user.prenom || "?")[0]}</div>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{user.prenom} {user.nom}</span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <Badge c={S.blue}>CP: {user.soldeCP || 0}j</Badge>
+            <Badge c={S.purple}>RTT: {user.soldeRTT || 0}j</Badge>
+            <Btn onClick={() => { setUser(null); setScreen("home"); }} bg={S.bg3} style={{ color: S.text2, padding: "4px 10px", fontSize: 11 }}>Déconnexion</Btn>
+          </div>
+        </header>
+
+        <div style={{ display: "flex", gap: 4, padding: "12px 20px 0", borderBottom: `1px solid ${S.border}` }}>
+          {[["demande", "Nouvelle demande"], ["historique", "Historique"], ["compte", "Mon compte"]].map(([k, l]) => (
+            <button key={k} onClick={() => setEmpTab(k)} style={{ padding: "8px 16px", borderRadius: "8px 8px 0 0", border: `1px solid ${empTab === k ? S.border : "transparent"}`, borderBottom: empTab === k ? `1px solid ${S.bg}` : "none", background: empTab === k ? S.card : "transparent", color: empTab === k ? S.text : S.text3, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative", bottom: -1 }}>{l}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: 20 }}>
+          {empTab === "demande" && (
+            <Card title="Nouvelle demande de congé">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <Sel label="Type" value={formData.type} onChange={e => setFormData(p => ({ ...p, type: e.target.value }))}><option value="CP">Congé payé (CP)</option><option value="RTT">RTT</option><option value="Sans solde">Sans solde</option><option value="Maladie">Maladie</option></Sel>
+                <div />
+                <Inp label="Date début" type="date" value={formData.dateDebut} onChange={e => setFormData(p => ({ ...p, dateDebut: e.target.value }))} />
+                <Inp label="Date fin" type="date" value={formData.dateFin} onChange={e => setFormData(p => ({ ...p, dateFin: e.target.value }))} />
+              </div>
+              <Inp label="Motif (optionnel)" value={formData.motif} onChange={e => setFormData(p => ({ ...p, motif: e.target.value }))} placeholder="Vacances, rendez-vous..." />
+              {formData.dateDebut && formData.dateFin && (() => {
+                const avail = isSlotAvailable(formData.dateDebut, formData.dateFin);
+                const nb = diffDays(formData.dateDebut, formData.dateFin);
+                return (
+                  <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, background: avail.ok ? `${S.green}10` : `${S.red}10`, border: `1px solid ${avail.ok ? `${S.green}30` : `${S.red}30`}`, fontSize: 12 }}>
+                    {avail.ok ? <span style={{ color: S.green }}>✅ Créneau disponible — {nb} jour(s)</span> : <span style={{ color: S.red }}>❌ {avail.msg}</span>}
+                    {avail.conflicts?.length > 0 && <div style={{ fontSize: 10, color: S.text3, marginTop: 4 }}>Déjà absent(s) : {avail.conflicts.map(c => { const col = collabs.find(x => x.id === c.collaborateurId); return col ? `${col.prenom}` : "?"; }).join(", ")}</div>}
+                  </div>
+                );
+              })()}
+              <Btn onClick={submitRequest}>Soumettre la demande</Btn>
+            </Card>
+          )}
+
+          {empTab === "historique" && (
+            <div>
+              {/* Compteurs */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+                {[["CP restants", user.soldeCP, S.blue], ["RTT restants", user.soldeRTT, S.purple], ["CP pris", cpPris, S.orange], ["RTT pris", rttPris, S.orange]].map(([l, v, c]) => (
+                  <div key={l} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: c }}>{v || 0}</div>
+                    <div style={{ fontSize: 10, color: S.text3 }}>{l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {pending.length > 0 && <Card title={`En attente (${pending.length})`} style={{ marginBottom: 12 }}>{pending.map(d => (
+                <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${S.border}15`, fontSize: 12 }}>
+                  <span><Badge c={S.orange}>{d.type}</Badge> {fmtS(d.dateDebut)} → {fmtS(d.dateFin)}</span>
+                  <span style={{ color: S.orange }}>{d.nbJours}j — En attente</span>
+                </div>
+              ))}</Card>}
+
+              {upcoming.length > 0 && <Card title={`À venir (${upcoming.length})`} style={{ marginBottom: 12 }}>{upcoming.map(d => (
+                <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${S.border}15`, fontSize: 12 }}>
+                  <span><Badge c={S.green}>{d.type}</Badge> {fmtS(d.dateDebut)} → {fmtS(d.dateFin)}</span>
+                  <span style={{ color: S.green }}>{d.nbJours}j</span>
+                </div>
+              ))}</Card>}
+
+              <Card title={`Historique (${past.length})`}>{past.length > 0 ? past.map(d => (
+                <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${S.border}15`, fontSize: 12, color: S.text3 }}>
+                  <span><Badge c={S.text3}>{d.type}</Badge> {fmtS(d.dateDebut)} → {fmtS(d.dateFin)}</span>
+                  <span>{d.nbJours}j</span>
+                </div>
+              )) : <div style={{ color: S.text3, fontSize: 12 }}>Aucun congé passé</div>}</Card>
+            </div>
+          )}
+
+          {empTab === "compte" && (
+            <Card title="Mon compte">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>NOM</div><div style={{ fontSize: 14 }}>{user.nom}</div></div>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>PRÉNOM</div><div style={{ fontSize: 14 }}>{user.prenom}</div></div>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>POSTE</div><div style={{ fontSize: 14 }}>{user.poste || "—"}</div></div>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>EMAIL</div><div style={{ fontSize: 14 }}>{user.email || "—"}</div></div>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>SOLDE CP</div><div style={{ fontSize: 22, fontWeight: 800, color: S.blue }}>{user.soldeCP || 0} jours</div></div>
+                <div><div style={{ fontSize: 10, color: S.text3, fontWeight: 700 }}>SOLDE RTT</div><div style={{ fontSize: 22, fontWeight: 800, color: S.purple }}>{user.soldeRTT || 0} jours</div></div>
+              </div>
+            </Card>
+          )}
+        </div>
+        {toast && <div style={{ position: "fixed", bottom: 20, right: 20, padding: "10px 16px", background: S.card, border: `1px solid ${toast.t === "ok" ? `${S.green}30` : `${S.red}30`}`, borderRadius: 8, fontSize: 12, zIndex: 200 }}>{toast.t === "ok" ? "✅" : "❌"} {toast.m}</div>}
+      </div>
+    );
+  }
+
+  // ═══ SUPERVISOR DASHBOARD ═══
+  const [supTab, setSupTab] = useState("validation");
+  if (screen === "supervisor") {
+    const pendingD = demandes.filter(d => d.statut === "en_attente");
+    return (
+      <div style={{ background: S.bg, minHeight: "100vh", fontFamily: "system-ui", color: S.text }}>
+        <style>{`*{box-sizing:border-box;margin:0;padding:0}`}</style>
+        <header style={{ background: `linear-gradient(135deg, ${S.purple}, ${S.blue})`, padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>Superviseur — TAF CP/RTT</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            {pendingD.length > 0 && <Badge c="#fff">{pendingD.length} en attente</Badge>}
+            <Btn onClick={() => { setUser(null); setScreen("home"); }} bg="rgba(255,255,255,.15)" style={{ color: "#fff", padding: "4px 10px", fontSize: 11 }}>Sortir</Btn>
+          </div>
+        </header>
+
+        <div style={{ display: "flex", gap: 4, padding: "12px 20px 0", borderBottom: `1px solid ${S.border}` }}>
+          {[["validation", `Validation (${pendingD.length})`], ["equipe", "Équipe & PINs"], ["calendrier", "Calendrier"], ["config", "Configuration"]].map(([k, l]) => (
+            <button key={k} onClick={() => setSupTab(k)} style={{ padding: "8px 16px", borderRadius: "8px 8px 0 0", border: `1px solid ${supTab === k ? S.border : "transparent"}`, borderBottom: supTab === k ? `1px solid ${S.bg}` : "none", background: supTab === k ? S.card : "transparent", color: supTab === k ? S.text : S.text3, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative", bottom: -1 }}>{l}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: 20 }}>
+          {supTab === "validation" && (
+            <div>
+              {pendingD.length === 0 && <div style={{ textAlign: "center", padding: 40, color: S.text3 }}>Aucune demande en attente</div>}
+              {pendingD.map(d => {
+                const c = collabs.find(x => x.id === d.collaborateurId);
+                return (
+                  <Card key={d.id} style={{ marginBottom: 12, borderLeft: `4px solid ${c?.color || S.blue}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 700 }}>{c?.prenom} {c?.nom}</div>
+                        <div style={{ fontSize: 12, color: S.text2, marginTop: 2 }}>{d.type} — {fmt(d.dateDebut)} au {fmt(d.dateFin)} — {d.nbJours} jour(s)</div>
+                        {d.motif && <div style={{ fontSize: 11, color: S.text3, marginTop: 4 }}>Motif : {d.motif}</div>}
+                        <div style={{ fontSize: 10, color: S.text3, marginTop: 4 }}>Demandé le {fmt(d.dateDemande)}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Btn onClick={() => handleValidation(d.id, "valider")} bg={S.green}>Valider</Btn>
+                        <Btn onClick={() => handleValidation(d.id, "refuser")} bg={S.red}>Refuser</Btn>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {supTab === "equipe" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <span style={{ fontSize: 16, fontWeight: 700 }}>Gestion de l'équipe</span>
+                <Btn onClick={async () => {
+                  const team = await fbGet("team");
+                  if (!team) { show("Aucune donnée TAF TEAM", "err"); return; }
+                  const existing = collabs.map(c => c.id);
+                  const newC = [...collabs];
+                  let added = 0;
+                  Object.entries(team).forEach(([id, m]) => {
+                    if (!existing.includes(id)) {
+                      newC.push({ id, nom: m.nom || m.name || "", prenom: m.prenom || m.firstName || "", poste: m.poste || m.role || "", email: m.email || "", pin: "", color: COLORS[newC.length % COLORS.length], soldeCP: 25, soldeRTT: 10, actif: true });
+                      added++;
+                    }
+                  });
+                  if (added > 0) { await saveCollabs(newC); show(`${added} profil(s) importé(s) depuis TAF TEAM`); }
+                  else show("Tous les profils sont déjà synchronisés");
+                }} bg={S.teal} style={{ fontSize: 11 }}>Sync depuis TAF TEAM</Btn>
+              </div>
+
+              {collabs.map(c => (
+                <Card key={c.id} style={{ marginBottom: 10, borderLeft: `4px solid ${c.color || S.blue}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{c.prenom} {c.nom}</div>
+                      <div style={{ fontSize: 11, color: S.text3 }}>{c.poste} · {c.email || "pas d'email"}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        <Badge c={S.blue}>CP: {c.soldeCP}</Badge>
+                        <Badge c={S.purple}>RTT: {c.soldeRTT}</Badge>
+                        <Badge c={c.pin ? S.green : S.red}>PIN: {c.pin ? "••••" : "Non défini"}</Badge>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Btn onClick={() => setEditCollab(c)} bg={S.bg3} style={{ color: S.text2, fontSize: 11 }}>Modifier</Btn>
+                      <Btn onClick={async () => {
+                        const newPin = prompt(`Nouveau PIN pour ${c.prenom} :`, c.pin || "");
+                        if (newPin !== null) {
+                          const newC = collabs.map(x => x.id === c.id ? { ...x, pin: newPin } : x);
+                          await saveCollabs(newC);
+                          show(`PIN ${newPin ? "défini" : "effacé"} pour ${c.prenom}`);
+                        }
+                      }} bg={S.orange} style={{ fontSize: 11 }}>PIN</Btn>
+                    </div>
+                  </div>
+                  {editCollab?.id === c.id && (
+                    <div style={{ marginTop: 12, padding: 12, background: S.bg3, borderRadius: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <Inp label="Prénom" value={editCollab.prenom} onChange={e => setEditCollab(p => ({ ...p, prenom: e.target.value }))} />
+                        <Inp label="Nom" value={editCollab.nom} onChange={e => setEditCollab(p => ({ ...p, nom: e.target.value }))} />
+                        <Inp label="Poste" value={editCollab.poste} onChange={e => setEditCollab(p => ({ ...p, poste: e.target.value }))} />
+                        <Inp label="Email" value={editCollab.email} onChange={e => setEditCollab(p => ({ ...p, email: e.target.value }))} />
+                        <Inp label="Solde CP" type="number" value={editCollab.soldeCP} onChange={e => setEditCollab(p => ({ ...p, soldeCP: +e.target.value }))} />
+                        <Inp label="Solde RTT" type="number" value={editCollab.soldeRTT} onChange={e => setEditCollab(p => ({ ...p, soldeRTT: +e.target.value }))} />
+                        <div><label style={{ fontSize: 10, color: S.text2, fontWeight: 700 }}>COULEUR</label><div style={{ display: "flex", gap: 4, marginTop: 4 }}>{COLORS.map(col => <div key={col} onClick={() => setEditCollab(p => ({ ...p, color: col }))} style={{ width: 24, height: 24, borderRadius: "50%", background: col, cursor: "pointer", border: editCollab.color === col ? "2px solid #fff" : "2px solid transparent" }} />)}</div></div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                        <Btn onClick={async () => { const newC = collabs.map(x => x.id === editCollab.id ? editCollab : x); await saveCollabs(newC); setEditCollab(null); show("Profil mis à jour"); }} bg={S.green} style={{ fontSize: 11 }}>Sauvegarder</Btn>
+                        <Btn onClick={() => setEditCollab(null)} bg={S.bg3} style={{ color: S.text2, fontSize: 11 }}>Annuler</Btn>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {supTab === "calendrier" && renderCalendar()}
+
+          {supTab === "config" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Card title="Webhooks & Notifications">
+                <Inp label="Webhook Make (emails)" placeholder="https://hook.eu2.make.com/..." value={cfg.webhookMake} onChange={e => setCfg(p => ({ ...p, webhookMake: e.target.value }))} />
+                <Inp label="Webhook Slack" placeholder="https://hooks.slack.com/..." value={cfg.webhookSlack} onChange={e => setCfg(p => ({ ...p, webhookSlack: e.target.value }))} />
+                <Inp label="Email admin (from)" value={cfg.emailAdmin} onChange={e => setCfg(p => ({ ...p, emailAdmin: e.target.value }))} />
+                <Inp label="CC validation (S. + J.B.)" value={cfg.emailCC} onChange={e => setCfg(p => ({ ...p, emailCC: e.target.value }))} />
+                <Btn onClick={() => saveCfg(cfg)}>Sauvegarder</Btn>
+              </Card>
+              <Card title="Sécurité">
+                <Inp label="PIN superviseur" value={cfg.supervisorPin} onChange={e => setCfg(p => ({ ...p, supervisorPin: e.target.value }))} />
+                <Btn onClick={() => saveCfg(cfg)}>Sauvegarder</Btn>
+              </Card>
+            </div>
+          )}
+        </div>
+        {toast && <div style={{ position: "fixed", bottom: 20, right: 20, padding: "10px 16px", background: S.card, border: `1px solid ${toast.t === "ok" ? `${S.green}30` : `${S.red}30`}`, borderRadius: 8, fontSize: 12, zIndex: 200 }}>{toast.t === "ok" ? "✅" : "❌"} {toast.m}</div>}
+      </div>
+    );
+  }
+
+  // ═══ SHARED CALENDAR ═══
+  const renderCalendar = () => {
+    const year = calYear;
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1).getDay() || 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 1; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    const approved = demandes.filter(d => d.statut === "validee");
+    const getAbsents = (day) => {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return approved.filter(d => d.dateDebut <= dateStr && d.dateFin >= dateStr).map(d => {
+        const c = collabs.find(x => x.id === d.collaborateurId);
+        return { ...d, collab: c };
+      });
+    };
+
+    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <Btn onClick={() => { if (month === 0) { setCalMonth(11); setCalYear(year - 1); } else setCalMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2 }}>◀</Btn>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>{monthNames[month]} {year}</span>
+          <Btn onClick={() => { if (month === 11) { setCalMonth(0); setCalYear(year + 1); } else setCalMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
+        </div>
+
+        {/* Légende couleurs */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          {collabs.filter(c => c.actif !== false).map(c => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color || S.blue }} />
+              <span style={{ color: S.text2 }}>{c.prenom}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
+            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: S.text3, padding: "6px 0" }}>{d}</div>
+          ))}
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
+            const absents = getAbsents(day);
+            const isToday = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today();
+            const isWeekend = (i % 7 >= 5);
+            return (
+              <div key={day} style={{ background: isToday ? `${S.blue}20` : isWeekend ? `${S.bg3}` : S.card, border: `1px solid ${isToday ? S.blue : S.border}`, borderRadius: 8, padding: "4px 6px", minHeight: 56 }}>
+                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : isWeekend ? S.text3 : S.text, marginBottom: 2 }}>{day}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                  {absents.map((a, j) => (
+                    <div key={j} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${a.collab?.color || S.blue}30`, color: a.collab?.color || S.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {a.collab?.prenom || "?"} · {a.type}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (screen === "calendar") return (
+    <div style={{ background: S.bg, minHeight: "100vh", fontFamily: "system-ui", color: S.text, padding: 20 }}>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}`}</style>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <span style={{ fontSize: 20, fontWeight: 800 }}>Calendrier partagé</span>
+        <Btn onClick={() => setScreen("home")} bg={S.bg3} style={{ color: S.text2 }}>Retour</Btn>
+      </div>
+      {renderCalendar()}
+    </div>
+  );
+
+  return null;
+}

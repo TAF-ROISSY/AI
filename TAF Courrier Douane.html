@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF — Courrier Douane CDG v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07111e;--bg2:#0d1b2a;--bg3:#162336;--bg4:#1e2f42;
+  --gold:#c9a84c;--gold2:#e2c97e;--goldG:rgba(201,168,76,.12);
+  --green:#22c55e;--red:#ef4444;--blue:#3b82f6;--purple:#8b5cf6;--orange:#f97316;--teal:#14b8a6;
+  --text:#eee8d8;--textM:#8a9bb8;--textD:#4a5e72;
+  --border:rgba(201,168,76,.12);--borderL:rgba(201,168,76,.2);
+  --radius:12px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+input,select,textarea{font-family:inherit;background:var(--bg3);color:var(--text);border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:13.5px;width:100%;outline:none;transition:border .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--goldG)}
+input::placeholder,textarea::placeholder{color:var(--textD)}
+textarea{resize:vertical;line-height:1.6}
+select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a9bb8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(201,168,76,.3)}50%{box-shadow:0 0 14px rgba(201,168,76,.7)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.fade-in{animation:fadeIn .25s ease}
+/* HEADER */
+.hdr{background:var(--bg2);border-bottom:2px solid var(--gold);padding:0 24px;position:sticky;top:0;z-index:200}
+.hdr-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:13px 0}
+.logo-box{display:flex;align-items:center;gap:14px}
+.logo-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:var(--bg);letter-spacing:.5px;flex-shrink:0;box-shadow:0 4px 14px rgba(201,168,76,.3)}
+.logo-title{font-weight:800;font-size:17px;letter-spacing:.3px}
+.logo-sub{font-size:11px;color:var(--textM);margin-top:1px;font-family:'JetBrains Mono',monospace}
+.hdr-actions{display:flex;align-items:center;gap:8px}
+.ver-badge{font-size:10px;font-weight:700;color:var(--textD);background:var(--bg4);padding:3px 8px;border-radius:6px;border:1px solid var(--border);letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+/* TABBAR */
+.tabbar{background:var(--bg3);border-bottom:1px solid var(--border);padding:0 24px}
+.tabbar-inner{max-width:1100px;margin:0 auto;display:flex;gap:2px}
+.tb{padding:11px 16px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--textD);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:inherit}
+.tb.on{color:var(--gold);border-bottom-color:var(--gold)}
+.tb:hover:not(.on){color:var(--textM)}
+.tb-badge{background:var(--goldG);color:var(--gold);border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700}
+/* CONTENT */
+.content{max-width:1100px;margin:0 auto;padding:24px}
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.25);margin-bottom:16px}
+.card-h{background:var(--bg3);padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.card-icon{font-size:18px}
+.card-title{font-weight:700;font-size:14px;flex:1}
+.card-actions{display:flex;gap:6px}
+.card-b{padding:20px}
+/* BUTTONS */
+.btn{padding:10px 18px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;font-family:inherit}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--bg)}
+.btn-gold:hover{box-shadow:0 4px 16px rgba(201,168,76,.4);transform:translateY(-1px)}
+.btn-dark{background:var(--bg4);color:var(--text);border:1px solid var(--border)}
+.btn-dark:hover{border-color:var(--gold);color:var(--gold)}
+.btn-ghost{background:transparent;color:var(--textM);border:1.5px solid var(--border)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.btn-green:hover{background:rgba(34,197,94,.2)}
+.btn-red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.btn-red:hover{background:rgba(239,68,68,.18)}
+.btn-blue{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
+.btn-blue:hover{background:rgba(59,130,246,.2)}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+/* FORM */
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--textM);margin-bottom:5px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-gold{background:var(--goldG);color:var(--gold);border:1px solid var(--borderL)}
+.badge-green{background:rgba(34,197,94,.1);color:var(--green)}
+.badge-blue{background:rgba(59,130,246,.1);color:var(--blue)}
+.badge-purple{background:rgba(139,92,246,.1);color:var(--purple)}
+.badge-teal{background:rgba(20,184,166,.1);color:var(--teal)}
+.badge-orange{background:rgba(249,115,22,.1);color:var(--orange)}
+.badge-gray{background:rgba(138,155,184,.1);color:var(--textM)}
+/* LIST ITEMS */
+.li{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px;border:1.5px solid var(--border);border-radius:9px;margin-bottom:8px;background:var(--bg3);gap:10px;transition:border-color .15s}
+.li:hover{border-color:var(--borderL)}
+.li-title{font-weight:700;font-size:13.5px;color:var(--text)}
+.li-sub{font-size:11.5px;color:var(--textM);margin-top:2px;font-family:'JetBrains Mono',monospace}
+/* TEMPLATE CARDS */
+.tpl-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:15px;margin-bottom:10px;transition:all .15s;cursor:pointer}
+.tpl-card:hover{border-color:var(--borderL);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.tpl-card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.tpl-card-title{font-weight:700;font-size:13.5px}
+.tpl-card-sub{font-size:11px;color:var(--textM);margin-top:3px}
+.tpl-card-body{margin-top:12px;display:none;border-top:1px solid var(--border);padding-top:12px}
+.tpl-card-body.open{display:block}
+.tpl-preview{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11.5px;color:var(--textM);line-height:1.6;max-height:180px;overflow:hidden;font-family:'Lora',serif}
+/* BUREAU LIST */
+.bur-row{display:grid;grid-template-columns:2.5fr 2fr 80px 90px;gap:10px;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;transition:all .15s}
+.bur-row:hover{border-color:var(--borderL)}
+.bur-nom{font-size:13px;font-weight:700}
+.bur-email{font-size:11.5px;color:var(--textM);font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg4);color:var(--text);padding:12px 18px;font-size:13px;font-weight:600;border-radius:10px;border-left:3px solid var(--gold);box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:9999;max-width:340px}
+.toast.on{transform:translateY(0);opacity:1}
+.toast.err{border-left-color:var(--red)}
+/* ALERT BANNERS */
+.alert{padding:12px 16px;border-radius:9px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
+.alert-info{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:#93c5fd}
+.alert-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#86efac}
+.alert-warn{background:rgba(201,168,76,.08);border:1px solid var(--borderL);color:var(--gold2)}
+.alert-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#fca5a5}
+/* SPINNER */
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
+/* TAF OPS BRIDGE BANNER */
+.ops-banner{background:linear-gradient(135deg,rgba(20,184,166,.1),rgba(59,130,246,.06));border:1.5px solid rgba(20,184,166,.3);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:16px;animation:slideDown .3s ease}
+.ops-banner-dot{width:10px;height:10px;border-radius:50%;background:var(--teal);flex-shrink:0;animation:pulse 2s infinite}
+/* SIGNATURE */
+.sig-box{border:2px dashed var(--border);border-radius:9px;padding:16px;text-align:center;cursor:pointer;background:var(--bg3);margin-top:8px;transition:border-color .2s}
+.sig-box:hover{border-color:var(--gold)}
+.sig-preview{max-height:60px;max-width:200px;object-fit:contain;display:block;margin:0 auto}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modal-box{background:var(--bg2);border:1px solid var(--borderL);border-radius:16px;width:100%;max-width:900px;max-height:90vh;overflow:auto;box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.modal-h{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg3);position:sticky;top:0;z-index:1}
+.modal-close{background:var(--bg4);border:none;border-radius:7px;padding:7px 12px;color:var(--textM);cursor:pointer;font-size:16px;transition:all .15s}
+.modal-close:hover{color:var(--red);background:rgba(239,68,68,.1)}
+/* SECTION DIVIDER */
+.sec-div{display:flex;align-items:center;gap:12px;margin:20px 0}
+.sec-div::before,.sec-div::after{content:'';flex:1;height:1px;background:var(--border)}
+.sec-div span{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--textD)}
+/* STAT ROW */
+.stat-row{display:flex;gap:12px;margin-bottom:20px}
+.stat{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.stat-val{font-size:24px;font-weight:800;color:var(--gold);line-height:1}
+.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--textD);margin-top:4px}
+/* CAT PILLS */
+.cat-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.cat-pill{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .15s;font-family:inherit}
+.cat-pill.active{border-color:currentColor}
+/* HISTORY TABLE */
+.hist-row{display:grid;grid-template-columns:110px 1.8fr 1fr 90px 80px;gap:10px;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:5px;transition:all .15s}
+.hist-row:hover{border-color:var(--borderL)}
+/* BALISES PANEL */
+.balises-panel{background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.balises-h{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.balise-btn{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.balise-btn:hover{border-color:var(--gold);background:var(--goldG)}
+/* CATEGORY HEADER */
+.cat-header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg4);border-radius:9px;margin-bottom:10px;margin-top:16px}
+.cat-header:first-child{margin-top:0}
+/* DECL CARD */
+.decl-card{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--bg3);transition:border-color .15s}
+.decl-card:hover{border-color:var(--borderL)}
+.decl-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--bg4),var(--bg2));color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;border:1.5px solid var(--borderL)}
+/* LETTER EDITOR */
+.ltr-editor{width:100%;min-height:300px;padding:18px;border:1.5px solid var(--borderL);border-radius:9px;font-family:'Lora',Georgia,serif;font-size:14px;line-height:1.8;color:var(--text);background:rgba(12,26,42,.8);resize:vertical;outline:none;transition:border-color .2s}
+.ltr-editor:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--goldG)}
+/* NOTIF FIXED */
+.notif-fixed{position:fixed;top:20px;right:20px;z-index:9990;padding:13px 20px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:fadeIn .2s ease;max-width:360px;display:flex;align-items:center;gap:10px}
+.notif-ok{background:var(--green);color:#fff}
+.notif-err{background:var(--red);color:#fff}
+/* SEND STATUS */
+.send-success{text-align:center;padding:40px 24px}
+.send-success .ico{font-size:60px;margin-bottom:16px}
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px;color:var(--textD)}
+.empty .ico{font-size:48px;margin-bottom:12px}
+/* RESPONSIVE */
+@media(max-width:720px){.g2,.g3{grid-template-columns:1fr}.stat-row{flex-wrap:wrap}.bur-row{grid-template-columns:1fr}.hist-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo} = React;
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+const WEBHOOK_SEND    = "https://hook.eu2.make.com/mgw0elsgsv37t5ct2k8hhwco6kmw6fsg";
+const WEBHOOK_BACKUP  = "https://hook.eu2.make.com/z18lf1d25skty0douw053d1hf3prmp20";
+const DRIVE_PROXY     = "https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec";
+const DRIVE_FOLDER_ID = "1pudOMRgdLQT6IeOP2UzBfrsY61EPK-__";
+const SENDER_PRIMARY  = "christophe@taftrans.fr";
+const SENDER_CC       = "import@taftrans.fr";
+const STORAGE_KEY     = "taf_courrier_v3";
+const VERSION         = "v3.0";
+const PIN_CORRECT     = "1234"; // à changer en Paramètres
+
+/* ═══════════════════════════════════════════════════════════
+   CATEGORIESS
+═══════════════════════════════════════════════════════════ */
+const CATEGORIES = [
+  {id:"douane",  label:"Douane",       icon:"🏛️", color:"#3b82f6", badge:"badge-blue"},
+  {id:"sivep",   label:"SIVEP/Phyto",  icon:"🌿", color:"#14b8a6", badge:"badge-teal"},
+  {id:"handler", label:"Handler",      icon:"✈️", color:"#8b5cf6", badge:"badge-purple"},
+  {id:"client",  label:"Client",       icon:"👤", color:"#f97316", badge:"badge-orange"},
+  {id:"general", label:"Général",      icon:"📋", color:"#8a9bb8", badge:"badge-gray"},
+];
+
+/* ═══════════════════════════════════════════════════════════
+   BUREAU CATEGORIES
+═══════════════════════════════════════════════════════════ */
+const BUR_CATS = [
+  {id:"douane",  label:"Douane / DR2D",        icon:"🏛️"},
+  {id:"sivep",   label:"SIVEP / Phyto / SVI",  icon:"🌿"},
+  {id:"handler", label:"Handlers / Compagnies",icon:"✈️"},
+  {id:"autre",   label:"Autres organismes",    icon:"🏢"},
+];
+
+/* ═══════════════════════════════════════════════════════════
+   BASE BUREAUX
+═══════════════════════════════════════════════════════════ */
+const FACTORY_BUREAUX = [
+  // === DOUANE CDG ===
+  {id:"b01",cat:"douane",nom:"Bureau de Douane CDG — Cargo 1 (Bât. 9420)",       email:"cd.cdg-cargo1@douane.finances.gouv.fr",    code:"CDG-C1",    note:"Bureau principal fret aérien"},
+  {id:"b02",cat:"douane",nom:"Bureau de Douane CDG — Cargo 2 (Bât. 9430)",       email:"cd.cdg-cargo2@douane.finances.gouv.fr",    code:"CDG-C2",    note:""},
+  {id:"b03",cat:"douane",nom:"Bureau de Douane CDG — Fret Express",              email:"cd.cdg-express@douane.finances.gouv.fr",   code:"CDG-EXP",   note:"Messagerie et express"},
+  {id:"b04",cat:"douane",nom:"DR2D Roissy — Direction Régionale",                email:"dr2d.roissy@douane.finances.gouv.fr",      code:"DR2D",      note:"Rectifications et contentieux"},
+  {id:"b05",cat:"douane",nom:"Recette Principale des Douanes CDG",               email:"recette.cdg@douane.finances.gouv.fr",      code:"REC-CDG",   note:"Paiement droits et taxes"},
+  {id:"b06",cat:"douane",nom:"Bureau de Douane CDG — Transit International",     email:"transit.cdg@douane.finances.gouv.fr",      code:"CDG-TR",    note:"T1 / Transit"},
+  {id:"b07",cat:"douane",nom:"Bureau de Douane CDG — Admissions Temporaires",   email:"at.cdg@douane.finances.gouv.fr",           code:"CDG-AT",    note:"ATA / Admission temporaire"},
+  {id:"b08",cat:"douane",nom:"Bureau de Douane CDG — Accises / Alcools",        email:"accises.cdg@douane.finances.gouv.fr",      code:"CDG-ACC",   note:"Alcools, tabacs"},
+  {id:"b09",cat:"douane",nom:"Bureau des Douanes — Orly",                        email:"cd.orly@douane.finances.gouv.fr",          code:"ORY",       note:""},
+  {id:"b10",cat:"douane",nom:"Service Contentieux IDF — DGDDI",                 email:"contentieux.idf@douane.finances.gouv.fr",  code:"CONT-IDF",  note:"Litiges et amendes"},
+  {id:"b11",cat:"douane",nom:"Recette Régionale des Douanes — Ile-de-France",   email:"recette.idf@douane.finances.gouv.fr",      code:"REC-IDF",   note:""},
+  {id:"b12",cat:"douane",nom:"Cellule Enquêtes Douane CDG",                     email:"enquetes.cdg@douane.finances.gouv.fr",     code:"ENQ-CDG",   note:"Investigations"},
+  // === SIVEP / PHYTO / SVI ===
+  {id:"b13",cat:"sivep", nom:"SIVEP CDG — Poste d'Inspection Frontalier",       email:"sivep.cdg@agriculture.gouv.fr",            code:"SIVEP",     note:"Animaux, produits animaux"},
+  {id:"b14",cat:"sivep", nom:"SVI CDG — Service Vétérinaire aux Importations",  email:"svi.cdg@agriculture.gouv.fr",              code:"SVI",       note:""},
+  {id:"b15",cat:"sivep", nom:"SPF CDG — Service Phytosanitaire Frontalier",     email:"spf.cdg@agriculture.gouv.fr",              code:"SPF",       note:"Végétaux et produits végétaux"},
+  {id:"b16",cat:"sivep", nom:"DGAL — Direction Générale Alimentation (national)",email:"dgal@agriculture.gouv.fr",                code:"DGAL",      note:"Autorité centrale vétérinaire"},
+  {id:"b17",cat:"sivep", nom:"TRACES NT — Notifications DGAL",                  email:"traces@agriculture.gouv.fr",               code:"TRACES",    note:"Notifications TRACES NT"},
+  {id:"b18",cat:"sivep", nom:"ANSES — Labo National de Référence CDG",          email:"anses.cdg@anses.fr",                       code:"ANSES",     note:"Analyses et contrôles"},
+  // === HANDLERS ===
+  {id:"b19",cat:"handler",nom:"Air France Cargo — CDG (Service Import)",         email:"afcargo.import.cdg@airfrance.fr",         code:"AF-CARGO",  note:"Handler AF"},
+  {id:"b20",cat:"handler",nom:"Air France Cargo — Réclamations / Litiges",       email:"afcargo.litige.cdg@airfrance.fr",         code:"AF-LITGE",  note:""},
+  {id:"b21",cat:"handler",nom:"WFS — Worldwide Flight Services CDG",             email:"wfs.import.cdg@wfs.aero",                 code:"WFS",       note:"Handler WFS"},
+  {id:"b22",cat:"handler",nom:"France Handling (FH) — CDG Import",              email:"import.cdg@france-handling.fr",            code:"FH",        note:"Handler France Handling"},
+  {id:"b23",cat:"handler",nom:"Swissport Cargo CDG",                             email:"cargo.cdg@swissport.com",                 code:"SWISS",     note:""},
+  {id:"b24",cat:"handler",nom:"Qatar Airways Cargo CDG",                         email:"cdg.cargo@qatarairways.com.qa",           code:"QR-CRG",    note:""},
+  {id:"b25",cat:"handler",nom:"Emirates SkyCargo CDG",                           email:"cdg.skycargo@emirates.com",               code:"EK-CRG",    note:""},
+  // === AUTRES ===
+  {id:"b26",cat:"autre",  nom:"ICCAT — Commission Internationale Thon Atlantique",email:"info@iccat.int",                         code:"ICCAT",     note:"Certificats de capture thon"},
+  {id:"b27",cat:"autre",  nom:"Min. Commerce Extérieur — Licences Import",       email:"licences.import@finances.gouv.fr",        code:"MCE",       note:"Licences et quotas"},
+  {id:"b28",cat:"autre",  nom:"Direction Générale des Douanes (DGDDI Paris)",    email:"info@douane.finances.gouv.fr",             code:"DGDDI",     note:"Administration centrale"},
+];
+
+/* ═══════════════════════════════════════════════════════════
+   TEMPLATES
+═══════════════════════════════════════════════════════════ */
+const T = (id,name,subject,category,body) => ({id,name,subject,category,body});
+
+function tBody(rows,motif,closing=""){
+  const tableRows = rows.map(([lbl,val]) =>
+    `<tr><td style="padding:7px 14px 7px 0;font-size:12.5px;color:#666;font-weight:600;white-space:nowrap;vertical-align:top">${lbl}</td><td style="padding:7px 0;font-size:13px;font-weight:700">${val}</td></tr>`
+  ).join('');
+  return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>${motif}</p>
+<table style="border-collapse:collapse;margin:16px 0;width:100%">${tableRows}</table>
+${closing||'<p>Veuillez trouver ci-joint les documents justificatifs.</p><p>Dans l\'attente de votre retour, nous vous prions d\'agréer, Madame, Monsieur, l\'expression de nos salutations distinguées.</p>'}
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import — Commissionnaire en Douane Agréé<br/>Aéroport de Paris-Charles de Gaulle<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`;
+}
+
+const FACTORY_TEMPLATES = [
+// ── DOUANE ──────────────────────────────────────────────────────────────
+T("rectif","Demande de rectification (DR2D)",
+  "Demande de rectification — N° {numDec} — Dossier {ref}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Motif","{motif}"]],
+    "Trans Air Freight CDG (TAF), commissionnaire en douane agréé, a l'honneur de solliciter auprès de vos services la rectification de la déclaration d'importation ci-après :")),
+
+T("mainlevee","Demande de mainlevée",
+  "Demande de mainlevée — {ref} — LTA {lta}","douane",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["N° Déclaration","{numDec}"]],
+    "Par la présente, Trans Air Freight CDG (TAF), mandataire en douane, sollicite la mainlevée de la marchandise dont les références sont reprises ci-dessous :",
+    "<p>La déclaration est complète, les droits et taxes ont été acquittés / une garantie a été constituée. Nous vous remercions de bien vouloir procéder à la mainlevée dans les meilleurs délais.</p><p>Cordialement,</p>")),
+
+T("mainlevee_urgente","Demande de mainlevée urgente — Périssables",
+  "🚨 URGENT — Demande de mainlevée — Marchandises périssables — {ref}","douane",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p style="background:#fff3cd;border-left:4px solid #f0ad4e;padding:10px 14px;border-radius:4px"><strong>⚠️ URGENCE — MARCHANDISES PÉRISSABLES</strong></p>
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) sollicite de toute urgence la mainlevée des marchandises périssables ci-après :</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%">
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Référence TAF</td><td style="font-weight:700">{ref}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">LTA / AWB</td><td style="font-weight:700">{lta}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Importateur</td><td style="font-weight:700">{client}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Nature marchandise</td><td style="font-weight:700">{motif}</td></tr>
+</table>
+<p>La marchandise est de nature extrêmement périssable. Tout retard supplémentaire entraînerait une détérioration irrémédiable et un préjudice économique majeur. Les documents réglementaires sont complets et conformes.</p>
+<p>Nous vous saurions gré de traiter cette demande en priorité absolue et restons joignables 24h/24 au +33 (0)1 48 64 64 46.</p>
+<p>Dans l'attente de votre accord en urgence, veuillez agréer nos sincères salutations.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import — Commissionnaire en Douane Agréé<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("decl_anticipee","Déclaration anticipée (Article 171 CDU)",
+  "Déclaration anticipée — Art. 171 CDU — {ref} — LTA {lta}","douane",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Conformément à l'article 171 du Code des Douanes de l'Union (CDU), Trans Air Freight CDG (TAF) présente une déclaration anticipée pour la marchandise ci-après, dont l'arrivée est imminente :</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%">
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Référence TAF</td><td style="font-weight:700">{ref}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">LTA / N° AWB</td><td style="font-weight:700">{lta}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Importateur</td><td style="font-weight:700">{client}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Vol estimé / ETA</td><td style="font-weight:700">{motif}</td></tr>
+</table>
+<p>Les documents nécessaires à la mise en libre pratique sont joints à ce courrier. Nous sollicitons le déclenchement de la procédure de dédouanement anticipé afin de permettre la mainlevée dès l'arrivée physique de la marchandise, dans le respect des délais réglementaires fixés à l'article 171 CDU.</p>
+<p>Veuillez agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import — Commissionnaire en Douane Agréé<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("info","Demande d'information",
+  "Demande d'information — Dossier {ref}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"]],
+    "Trans Air Freight CDG (TAF) souhaite obtenir des informations complémentaires concernant le dossier repris ci-dessous :",
+    "<p>{motif}</p><p>Nous vous remercions par avance de votre retour et restons disponibles pour tout complément.</p><p>Cordialement,</p>")),
+
+T("levee_reserve","Levée de réserve",
+  "Levée de réserve — {numDec} — Dossier {ref}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Objet réserve","{motif}"]],
+    "Trans Air Freight CDG (TAF) a l'honneur de vous transmettre les éléments nécessaires à la levée de la réserve émise sur la déclaration ci-après :",
+    "<p>Les pièces justificatives demandées sont jointes au présent courrier. Nous sollicitons la levée de la réserve et la régularisation de la déclaration.</p><p>Dans l'attente de votre retour favorable, veuillez agréer nos sincères salutations.</p>")),
+
+T("contestation_visite","Contestation / Suite à visite douanière",
+  "Contestation — Suite visite douanière — {numDec} — {ref}","douane",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Suite à la visite douanière effectuée le <strong>{motif}</strong> sur la déclaration n° <strong>{numDec}</strong> (réf. TAF : <strong>{ref}</strong>, LTA : <strong>{lta}</strong>), Trans Air Freight CDG (TAF), agissant en qualité de commissionnaire en douane pour le compte de <strong>{client}</strong>, souhaite faire valoir les éléments de contestation suivants :</p>
+<p style="background:#f8f9fa;border:1px solid #dee2e6;padding:12px 16px;border-radius:4px">[<em>Développer ici les arguments de contestation</em>]</p>
+<p>À l'appui de cette contestation, vous trouverez ci-joint les documents justificatifs correspondants.</p>
+<p>Nous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("regularisation","Demande de régularisation de déclaration",
+  "Demande de régularisation — {numDec} — {ref}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Motif","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite la régularisation de la déclaration ci-après, suite à la détection d'une anomalie dans les informations déclarées :")),
+
+T("remboursement_droits","Demande de remboursement de droits et taxes",
+  "Demande de remboursement — Droits et taxes — {numDec}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Montant estimé","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite le remboursement des droits et taxes perçus en excédent sur la déclaration ci-après :",
+    "<p>Les pièces justificatives sont jointes. Nous sollicitons le traitement de cette demande conformément à l'article 116 CDU.</p><p>Cordialement,</p>")),
+
+T("classement_tarifaire","Contestation de classement tarifaire",
+  "Contestation classement tarifaire — {numDec} — NC8 {motif}","douane",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) souhaite contester le classement tarifaire retenu par vos services sur la déclaration n° <strong>{numDec}</strong> (réf. TAF : <strong>{ref}</strong>, LTA : <strong>{lta}</strong>, importateur : <strong>{client}</strong>).</p>
+<p><strong>Code NC8 retenu par la douane :</strong> {motif}</p>
+<p><strong>Code NC8 que nous proposons :</strong> [<em>indiquer le code proposé</em>]</p>
+<p><strong>Argumentation :</strong> [<em>développer l'argumentation technique et réglementaire</em>]</p>
+<p>Nous joignons à ce courrier la fiche technique du produit, ainsi que tout document permettant d'établir la nature et l'usage de la marchandise.</p>
+<p>Veuillez agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("admission_temp","Demande d'admission temporaire",
+  "Demande d'admission temporaire — {ref} — {client}","douane",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Demandeur","{client}"],["Nature marchandise","{motif}"],["Durée demandée","[à préciser]"]],
+    "Trans Air Freight CDG (TAF) sollicite le placement en régime d'admission temporaire de la marchandise ci-après, conformément à l'article 210 CDU et aux articles 204 à 211 CDU :")),
+
+T("prolongation_delai","Demande de prolongation de délai",
+  "Demande de prolongation de délai — {numDec} — {ref}","douane",
+  tBody([["Référence TAF","{ref}"],["N° Déclaration","{numDec}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Motif","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite une prolongation du délai imparti pour la régularisation de la déclaration ci-après :",
+    "<p>Des difficultés d'ordre technique / administratif (cf. motif ci-dessus) nous empêchent de respecter l'échéance initiale. Nous vous saurions gré d'accorder un délai supplémentaire de [X jours ouvrés].</p><p>Cordialement,</p>")),
+
+T("retour_expediteur","Refus / Retour à l'expéditeur",
+  "Refus importation — Retour expéditeur — {ref} — LTA {lta}","douane",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Expéditeur","{client}"],["Motif du refus","{motif}"]],
+    "Trans Air Freight CDG (TAF) informe vos services de la décision de refus d'importation et de retour à l'expéditeur de la marchandise ci-après :",
+    "<p>La marchandise ne satisfait pas aux conditions d'importation requises pour les motifs mentionnés. Nous sollicitons l'autorisation de ré-expédier la marchandise à l'expéditeur d'origine, conformément à l'article 77 CDU.</p><p>Cordialement,</p>")),
+
+T("rens_tarifaire","Demande de renseignement tarifaire contraignant (RTC)",
+  "Demande RTC — {client} — {motif}","douane",
+  tBody([["Demandeur","{client}"],["Référence TAF","{ref}"],["Description marchandise","{motif}"],["Code NC8 proposé","[à préciser]"]],
+    "Trans Air Freight CDG (TAF), agissant pour le compte de son client, sollicite la délivrance d'un Renseignement Tarifaire Contraignant (RTC) pour la marchandise ci-après :",
+    "<p>Nous joignons une description détaillée, les fiches techniques et, le cas échéant, des échantillons.</p><p>Cordialement,</p>")),
+
+T("proc_simplifiee","Demande d'accès à une procédure simplifiée",
+  "Demande procédure simplifiée — {client}","douane",
+  tBody([["Demandeur","{client}"],["Type de procédure","{motif}"],["Référence TAF","{ref}"]],
+    "Trans Air Freight CDG (TAF) sollicite, pour le compte de son client, l'octroi d'une procédure douanière simplifiée :",
+    "<p>Notre client remplit les conditions d'éligibilité requises. L'ensemble des justificatifs est joint au présent courrier.</p><p>Cordialement,</p>")),
+
+// ── SIVEP / PHYTO ─────────────────────────────────────────────────────────
+T("sivep_urgence","Demande d'intervention urgente SIVEP — Périssables",
+  "🚨 URGENT SIVEP — Inspection périssables — {ref} — LTA {lta}","sivep",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p style="background:#fff3cd;border-left:4px solid #f0ad4e;padding:10px 14px;border-radius:4px"><strong>⚠️ URGENCE — Marchandises périssables en attente d'inspection vétérinaire / phytosanitaire</strong></p>
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) sollicite en urgence l'inspection des marchandises périssables ci-après, dont la durée de stockage menace l'intégrité :</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%">
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Référence TAF</td><td style="font-weight:700">{ref}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">LTA / AWB</td><td style="font-weight:700">{lta}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Importateur</td><td style="font-weight:700">{client}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Nature / Espèce</td><td style="font-weight:700">{motif}</td></tr>
+</table>
+<p>La marchandise est stockée en chambre froide / entrepôt depuis [heure d'arrivée]. Tout retard supplémentaire engendrerait une perte totale. Les certificats sanitaires et/ou phytosanitaires sont complets et conformes.</p>
+<p>Nous restons joignables 24h/24 au +33 (0)1 48 64 64 46 et remercions par avance vos services pour leur réactivité.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import — Tél : +33 (0)1 48 64 64 46</p>
+</div>`),
+
+T("sivep_blocage","Contestation de blocage SIVEP",
+  "Contestation blocage SIVEP — {ref} — LTA {lta}","sivep",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Espèce / NC8","{numDec}"],["Motif du blocage","{motif}"]],
+    "Trans Air Freight CDG (TAF) conteste le blocage prononcé par le Poste d'Inspection Frontalier (PIF) sur la marchandise ci-après :",
+    "<p>Nous estimons que la marchandise satisfait aux exigences réglementaires applicables et vous joignons les éléments justificatifs. Nous sollicitons la révision de la décision de blocage.</p><p>Cordialement,</p>")),
+
+T("traces_nt","Courrier accompagnant notification TRACES NT",
+  "Transmission TRACES NT — {ref} — LTA {lta}","sivep",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["N° notification TRACES","{numDec}"],["Nature","{motif}"]],
+    "Trans Air Freight CDG (TAF) transmet ci-joint la notification TRACES NT relative à l'importation ci-après :",
+    "<p>L'ensemble des certificats vétérinaires / phytosanitaires est joint. Nous sollicitons la validation de la notification et l'autorisation d'importation.</p><p>Cordialement,</p>")),
+
+T("iccat","Transmission certificat ICCAT / Document de capture",
+  "Transmission certificat ICCAT — {ref} — {client}","sivep",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Espèce","{motif}"],["N° Document capture","{numDec}"]],
+    "Trans Air Freight CDG (TAF) transmet le document de capture (certificat ICCAT) relatif à l'importation de produits de la pêche thonidés ci-après :",
+    "<p>Le document de capture ICCAT est dûment validé par l'autorité compétente de l'État du pavillon. Nous sollicitons validation afin de procéder à la mise en libre pratique.</p><p>Cordialement,</p>")),
+
+T("phyto_cert","Accompagnement certificat phytosanitaire",
+  "Transmission certificat phytosanitaire — {ref} — LTA {lta}","sivep",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Végétal / Pays origine","{motif}"],["N° certificat phyto","{numDec}"]],
+    "Trans Air Freight CDG (TAF) transmet le certificat phytosanitaire accompagnant l'envoi de végétaux et produits végétaux ci-après :",
+    "<p>Le certificat phytosanitaire original est joint. Nous sollicitons l'inspection phytosanitaire et la mainlevée dans les meilleurs délais.</p><p>Cordialement,</p>")),
+
+// ── HANDLER ───────────────────────────────────────────────────────────────
+T("handler_liberation","Demande de libération — Marchandise bloquée",
+  "Demande de libération marchandise — {ref} — LTA {lta}","handler",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Motif blocage","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite la libération de la marchandise actuellement bloquée dans vos installations :",
+    "<p>La mainlevée douanière a été obtenue / les droits ont été acquittés. Nous vous remercions de procéder à la mise à disposition dans les meilleurs délais.</p><p>Cordialement,</p>")),
+
+T("handler_facturation","Contestation de facturation handler",
+  "Contestation facturation — {ref} — Facture {numDec}","handler",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) souhaite contester la facturation émise sous la référence <strong>{numDec}</strong> relative au dossier <strong>{ref}</strong> (LTA : <strong>{lta}</strong>, client : <strong>{client}</strong>).</p>
+<p><strong>Motif de la contestation :</strong> {motif}</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%;border:1px solid #dee2e6">
+<tr style="background:#f8f9fa"><th style="padding:8px 12px;text-align:left;font-size:12px">Poste contesté</th><th style="padding:8px 12px;text-align:right;font-size:12px">Montant facturé</th><th style="padding:8px 12px;text-align:right;font-size:12px">Montant correct</th></tr>
+<tr><td style="padding:8px 12px;border-top:1px solid #dee2e6">[À compléter]</td><td style="padding:8px 12px;border-top:1px solid #dee2e6;text-align:right"></td><td style="padding:8px 12px;border-top:1px solid #dee2e6;text-align:right"></td></tr>
+</table>
+<p>Nous sollicitons l'émission d'un avoir et/ou la correction de la facture dans les meilleurs délais.</p>
+<p>Cordialement,<br/><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("handler_temperature","Demande de relevé de température",
+  "Demande relevé de température — {ref} — LTA {lta}","handler",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Nature marchandise","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite la communication du relevé de température de la zone de stockage ayant accueilli la marchandise ci-après :",
+    "<p>Ce relevé est nécessaire pour attester du maintien de la chaîne du froid et traiter une réclamation client. Nous vous remercions de le transmettre par retour.</p><p>Cordialement,</p>")),
+
+T("handler_avarie","Déclaration d'avarie / dommage à la marchandise",
+  "Déclaration d'avarie — {ref} — LTA {lta}","handler",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) déclare formellement une avarie / un dommage constaté(e) sur la marchandise ci-après :</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%">
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Référence TAF</td><td style="font-weight:700">{ref}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">LTA / AWB</td><td style="font-weight:700">{lta}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Importateur</td><td style="font-weight:700">{client}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Nature du dommage</td><td style="font-weight:700">{motif}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Date de constat</td><td style="font-weight:700">[date]</td></tr>
+</table>
+<p>Nous vous demandons de dresser un constat contradictoire et d'engager la procédure de déclaration d'avarie prévue par la convention de Montréal et vos conditions générales. Une expertise est demandée.</p>
+<p>Veuillez agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("handler_stockage","Demande de prolongation de stockage",
+  "Demande prolongation stockage — {ref} — LTA {lta}","handler",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Durée souhaitée","{motif}"]],
+    "Trans Air Freight CDG (TAF) sollicite la prolongation de la durée de stockage pour la marchandise ci-après :",
+    "<p>Des contraintes liées au dédouanement / à la disponibilité du destinataire nous contraignent à demander cette prolongation. Nous acceptons les frais supplémentaires de stockage applicables.</p><p>Cordialement,</p>")),
+
+// ── CLIENT ────────────────────────────────────────────────────────────────
+T("client_dedouane","Notification dédouanement terminé",
+  "✅ Dossier {ref} — Dédouanement terminé — Marchandise disponible","client",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p>Trans Air Freight CDG (TAF) a le plaisir de vous informer que le dédouanement de votre envoi est désormais terminé.</p>
+<table style="border-collapse:collapse;margin:14px 0;width:100%">
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Référence TAF</td><td style="font-weight:700">{ref}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">LTA / AWB</td><td style="font-weight:700">{lta}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">N° Déclaration</td><td style="font-weight:700">{numDec}</td></tr>
+<tr><td style="padding:6px 14px 6px 0;color:#666;font-weight:600">Droits & taxes acquittés</td><td style="font-weight:700">{motif}</td></tr>
+</table>
+<p>La mainlevée a été accordée et votre marchandise est disponible auprès du handler. Nos services se tiennent à votre disposition pour organiser la livraison ou pour toute information complémentaire.</p>
+<p>Cordialement,<br/><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("client_attente","Mise en attente — Documents manquants",
+  "⏳ Dossier {ref} — En attente de documents","client",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Documents manquants","{motif}"]],
+    "Trans Air Freight CDG (TAF) revient vers vous concernant le dédouanement de votre envoi actuellement en attente.",
+    "<p>Le traitement du dossier ne peut pas être finalisé en l'absence des documents mentionnés. Merci de nous les transmettre dès que possible afin d'éviter tout surcoût de stockage.</p><p>Cordialement,</p>")),
+
+T("client_droits","Information droits et taxes estimatifs",
+  "Information droits et taxes — Dossier {ref}","client",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Importateur","{client}"],["Droits estimés","{motif}"]],
+    "Trans Air Freight CDG (TAF) vous communique l'estimation des droits et taxes applicables à votre envoi :",
+    "<p><em>Ces montants sont estimatifs et peuvent varier selon la décision définitive des autorités douanières. Votre accord exprès est requis avant déclenchement du dédouanement.</em></p><p>Cordialement,</p>")),
+
+T("client_mainlevee","Confirmation mainlevée accordée",
+  "✅ Mainlevée accordée — {ref} — LTA {lta}","client",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["N° Déclaration","{numDec}"]],
+    "Trans Air Freight CDG (TAF) vous confirme l'accord de mainlevée obtenu pour votre envoi :",
+    "<p>La marchandise est libérée et disponible pour enlèvement. Veuillez prendre contact avec nos services pour organiser la livraison.</p><p>Cordialement,</p>")),
+
+T("client_blocage_info","Information blocage SIVEP / Douane",
+  "⚠️ Information blocage — Dossier {ref}","client",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Motif du blocage","{motif}"]],
+    "Trans Air Freight CDG (TAF) vous informe d'un blocage affectant votre envoi :",
+    "<p>Nos services interviennent activement auprès des autorités pour résoudre cette situation. Nous vous tiendrons informé(e) de l'évolution du dossier. Votre assistance pour fournir les documents complémentaires éventuels serait appréciée.</p><p>Cordialement,</p>")),
+
+// ── GÉNÉRAL ───────────────────────────────────────────────────────────────
+T("libre","Courrier libre",
+  "{ref}","general",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p></p>
+<p>Veuillez agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+<br/><p><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`),
+
+T("transmission","Transmission de dossier",
+  "Transmission dossier — {ref} — LTA {lta}","general",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Concernant","{client}"],["Objet","{motif}"]],
+    "Trans Air Freight CDG (TAF) vous transmet ci-joint les éléments relatifs au dossier ci-après :",
+    "<p>Veuillez trouver ci-joint l'ensemble des pièces constitutives du dossier.</p><p>Cordialement,</p>")),
+
+T("relance","Relance sans réponse",
+  "Relance — {ref} — Sans réponse de votre part","general",
+  tBody([["Référence TAF","{ref}"],["LTA / AWB","{lta}"],["Objet initial","{motif}"]],
+    "Trans Air Freight CDG (TAF) revient vers vous suite à son courrier du [date] resté sans réponse, concernant :",
+    "<p>Nous vous serions reconnaissants de bien vouloir donner suite à notre demande. Sans nouvelles de votre part sous [X jours], nous serons contraints de [préciser la démarche suivante].</p><p>Cordialement,</p>")),
+
+T("note_interne","Note interne / Transmission interne",
+  "Note interne — {ref}","general",
+  `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p><strong>NOTE INTERNE — CONFIDENTIEL</strong></p>
+<p>De : Trans Air Freight CDG — Service Import</p>
+<p>Objet : {motif}</p>
+<p>Dossier : {ref} | LTA : {lta} | Client : {client}</p>
+<hr style="border:none;border-top:1px solid #ddd;margin:14px 0"/>
+<p>[Corps de la note interne]</p>
+</div>`),
+];
+
+/* ═══════════════════════════════════════════════════════════
+   BALISES
+═══════════════════════════════════════════════════════════ */
+const DEFAULT_BALISES = [
+  {key:"ref",     label:"Référence",      icon:"🏷️", placeholder:"TAF-2026-001"},
+  {key:"numDec",  label:"N° Déclaration", icon:"📋", placeholder:"26FR7600..."},
+  {key:"lta",     label:"N° LTA/AWB",     icon:"✈️", placeholder:"057-1234 5678"},
+  {key:"client",  label:"Client",         icon:"👤", placeholder:"Nom du client"},
+  {key:"motif",   label:"Motif/Info",     icon:"📝", placeholder:"Motif..."},
+];
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════ */
+function loadData(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");}catch(e){return {};}}
+function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function ts(){return new Date().toISOString();}
+function fmtDate(iso){try{return new Date(iso).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});}catch(e){return iso;}}
+
+function fileToBase64(file){
+  return new Promise(resolve=>{
+    var r=new FileReader();
+    r.onload=()=>resolve(r.result.split(",")[1]||r.result);
+    r.readAsDataURL(file);
+  });
+}
+
+function replacePlaceholders(text,vars){
+  var result=text;
+  Object.keys(vars).forEach(k=>{result=result.split("{"+k+"}").join(vars[k]||"");});
+  return result;
+}
+
+async function driveBackup(data,fileName){
+  var b64=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
+  var payload=JSON.stringify({folderId:DRIVE_FOLDER_ID,fileName,mimeType:"application/json",data:b64});
+  try{
+    await fetch(DRIVE_PROXY,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:payload});
+    return true;
+  }catch(e1){
+    try{await fetch(DRIVE_PROXY,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:payload});return true;}
+    catch(e2){return false;}
+  }
+}
+
+async function webhookBackup(action,data){
+  try{
+    await fetch(WEBHOOK_BACKUP,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({app:"taf_courrier_douane",version:VERSION,action,from:SENDER_PRIMARY,timestamp:ts(),data})});
+    return true;
+  }catch(e){return false;}
+}
+
+/* TAF OPS BRIDGE */
+function readOPSBridge(){
+  try{return JSON.parse(localStorage.getItem("taf_ops_to_courrier")||"null");}catch(e){return null;}
+}
+function clearOPSBridge(){localStorage.removeItem("taf_ops_to_courrier");}
+function writeCourierBridge(entry){
+  try{
+    localStorage.setItem("taf_courrier_to_ops",JSON.stringify(entry));
+    window.dispatchEvent(new CustomEvent("taf-courrier-sent",{detail:entry}));
+  }catch(e){}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTS
+═══════════════════════════════════════════════════════════ */
+function Btn({children,onClick,variant="dark",disabled,style,size}){
+  return <button className={"btn btn-"+variant+(size?" btn-"+size:"")} onClick={onClick} disabled={disabled} style={style}>{children}</button>;
+}
+
+function Spinner(){return <span className="spin"/>}
+
+function Badge({children,variant="gold"}){return <span className={"badge badge-"+variant}>{children}</span>;}
+
+function FieldGroup({label,children}){return <div className="fg"><label>{label}</label>{children}</div>;}
+
+function CatBadge({catId}){
+  const c=CATEGORIES.find(x=>x.id===catId)||CATEGORIES[4];
+  return <Badge variant={c.badge.replace("badge-","")}>{c.icon} {c.label}</Badge>;
+}
+
+function Toast({msg,err}){
+  return <div className={"toast on"+(err?" err":"")} style={{position:"fixed",bottom:24,right:24}}>{msg}</div>;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TEMPLATE EDITOR MODAL
+═══════════════════════════════════════════════════════════ */
+function TemplateEditor({template,onSave,onCancel,customBalises=[]}){
+  const [name,setName]=useState(template?.name||"");
+  const [subject,setSubject]=useState(template?.subject||"");
+  const [category,setCategory]=useState(template?.category||"general");
+  const [body,setBody]=useState(template?.body||`<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.75;color:#222">
+<p>Madame, Monsieur,</p>
+<p></p>
+<p>Cordialement,<br/><strong>Trans Air Freight CDG (TAF)</strong><br/>Service Import<br/>Tél : +33 (0)1 48 64 64 46 | import@taftrans.fr</p>
+</div>`);
+  const [insertTarget,setInsertTarget]=useState("body");
+  const [showPrev,setShowPrev]=useState(false);
+  const bodyRef=useRef(null);
+  const subjRef=useRef(null);
+  const allBalises=[...DEFAULT_BALISES,...customBalises];
+
+  function insertBalise(key){
+    var tag="{"+key+"}";
+    if(insertTarget==="subject"){
+      var el=subjRef.current;
+      if(el){var s=el.selectionStart||subject.length,e=el.selectionEnd||s;
+        setSubject(subject.slice(0,s)+tag+subject.slice(e));
+        setTimeout(()=>{el.focus();el.setSelectionRange(s+tag.length,s+tag.length);},0);}
+      else setSubject(v=>v+tag);
+    } else {
+      var el=bodyRef.current;
+      if(el){var s=el.selectionStart||body.length,e=el.selectionEnd||s;
+        setBody(body.slice(0,s)+tag+body.slice(e));
+        setTimeout(()=>{el.focus();el.setSelectionRange(s+tag.length,s+tag.length);},0);}
+      else setBody(v=>v+tag);
+    }
+  }
+
+  return <div className="modal-overlay">
+    <div className="modal-box fade-in">
+      <div className="modal-h">
+        <span style={{fontSize:20}}>{template?"✏️":"➕"}</span>
+        <span style={{fontWeight:800,fontSize:16,flex:1}}>{template?"Modifier le template":"Nouveau template"}</span>
+        <button className="modal-close" onClick={onCancel}>✕</button>
+      </div>
+      <div style={{padding:24,display:"flex",flexDirection:"column",gap:14}}>
+        <div className="g2">
+          <FieldGroup label="Nom du template">
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ex: Demande de mainlevée urgente"/>
+          </FieldGroup>
+          <FieldGroup label="Catégorie">
+            <select value={category} onChange={e=>setCategory(e.target.value)}>
+              {CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+            </select>
+          </FieldGroup>
+        </div>
+
+        <FieldGroup label="Objet (sujet)">
+          <input ref={subjRef} value={subject} onChange={e=>setSubject(e.target.value)}
+            placeholder="Ex: Demande de mainlevée — {ref} — LTA {lta}"
+            onFocus={()=>setInsertTarget("subject")}/>
+        </FieldGroup>
+
+        {/* BALISES */}
+        <div className="balises-panel">
+          <div className="balises-h">
+            <span style={{fontSize:13}}>🏷️</span>
+            <span style={{fontSize:11,fontWeight:700,color:"var(--gold)",textTransform:"uppercase",letterSpacing:1,flex:1}}>Balises — cliquer pour insérer</span>
+            <div style={{display:"flex",gap:2,background:"var(--bg)",borderRadius:7,padding:2}}>
+              {["subject","body"].map(t=><button key={t} onClick={()=>setInsertTarget(t)}
+                style={{background:insertTarget===t?"var(--gold)":"transparent",color:insertTarget===t?"var(--bg)":"var(--textD)",
+                  border:"none",borderRadius:5,padding:"3px 9px",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>
+                → {t==="subject"?"Objet":"Corps"}
+              </button>)}
+            </div>
+          </div>
+          <div style={{padding:"10px 14px",display:"flex",flexWrap:"wrap",gap:6}}>
+            {allBalises.map(b=><button key={b.key} className="balise-btn" onClick={()=>insertBalise(b.key)}>
+              <span>{b.icon}</span><span style={{fontSize:11,fontWeight:700,color:"var(--text)"}}>{b.label}</span>
+              <span style={{fontSize:10,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace"}}>{"{"+b.key+"}"}</span>
+            </button>)}
+          </div>
+        </div>
+
+        <FieldGroup label="Corps HTML (éditeur)">
+          <textarea ref={bodyRef} value={body} onChange={e=>setBody(e.target.value)}
+            onFocus={()=>setInsertTarget("body")} rows={10}
+            style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.6}}/>
+        </FieldGroup>
+
+        {showPrev&&<div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--textM)",marginBottom:8}}>Aperçu</div>
+          <div style={{background:"#fff",border:"1px solid var(--border)",borderRadius:8,padding:16,maxHeight:300,overflow:"auto"}}>
+            <div dangerouslySetInnerHTML={{__html:body}}/>
+          </div>
+        </div>}
+
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",paddingTop:8,borderTop:"1px solid var(--border)"}}>
+          <Btn variant="gold" onClick={()=>{if(!name.trim()){alert("Nom requis");return;}onSave({id:template?.id||genId(),name:name.trim(),subject,category,body,updatedAt:ts()});}}>
+            {template?"💾 Enregistrer":"➕ Créer template"}
+          </Btn>
+          <Btn variant="ghost" onClick={()=>setShowPrev(v=>!v)}>{showPrev?"🙈 Masquer":"👁️ Aperçu"}</Btn>
+          <Btn variant="ghost" onClick={onCancel}>Annuler</Btn>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN APP
+═══════════════════════════════════════════════════════════ */
+function App(){
+  const stored=loadData();
+  const [tab,setTab]=useState("compose");
+  const [bureaux,setBureaux]=useState(stored.bureaux||FACTORY_BUREAUX);
+  const [templates,setTemplates]=useState(stored.templates||FACTORY_TEMPLATES);
+  const [history,setHistory]=useState(stored.history||[]);
+  const [decls,setDecls]=useState(stored.decls||[]);
+  const [notif,setNotif]=useState(null);
+  const [bkpStatus,setBkpStatus]=useState(null);
+
+  /* Compose */
+  const [selBur,setSelBur]=useState("");
+  const [selTpl,setSelTpl]=useState("");
+  const [subject,setSubject]=useState("");
+  const [body,setBody]=useState("");
+  const [vars,setVars]=useState({ref:"",numDec:"",lta:"",client:"",motif:""});
+  const [selDecl,setSelDecl]=useState("");
+  const [attachments,setAttachments]=useState([]);
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState(false);
+  const fileRef=useRef(null);
+
+  /* Template editor */
+  const [showTplEditor,setShowTplEditor]=useState(false);
+  const [editingTpl,setEditingTpl]=useState(null);
+  const [catFilter,setCatFilter]=useState("all");
+  const [openPreview,setOpenPreview]=useState(null);
+
+  /* Bureaux */
+  const [burCatFilter,setBurCatFilter]=useState("all");
+  const [editBurId,setEditBurId]=useState(null);
+  const [showAddBur,setShowAddBur]=useState(false);
+  const [newBur,setNewBur]=useState({nom:"",email:"",code:"",cat:"douane",note:""});
+
+  /* Déclarants */
+  const [showAddDecl,setShowAddDecl]=useState(false);
+  const [newDecl,setNewDecl]=useState({prenom:"",nom:"",titre:"",tel:"",email:"",sig:""});
+  const [pendingSig,setPendingSig]=useState("");
+
+  /* OPS Bridge */
+  const [opsPrefill,setOpsPrefill]=useState(null);
+
+  /* Drive backup */
+  const [driveBacking,setDriveBacking]=useState(false);
+  const bkpTimer=useRef(null);
+
+  useEffect(()=>{saveData({bureaux,templates,history,decls});},[bureaux,templates,history,decls]);
+
+  // Check TAF OPS bridge on load
+  useEffect(()=>{
+    const d=readOPSBridge();
+    if(d) setOpsPrefill(d);
+    window.addEventListener("taf-ops-prefill",()=>{const d2=readOPSBridge();if(d2) setOpsPrefill(d2);});
+  },[]);
+
+  function notify(msg,ok=true){setNotif({msg,ok});setTimeout(()=>setNotif(null),3500);}
+
+  const triggerBkp=useCallback((action,data)=>{
+    if(bkpTimer.current) clearTimeout(bkpTimer.current);
+    bkpTimer.current=setTimeout(async()=>{
+      setBkpStatus("saving");
+      var ok=await webhookBackup(action,data);
+      setBkpStatus(ok?"saved":"error");
+      setTimeout(()=>setBkpStatus(null),3000);
+    },800);
+  },[]);
+
+  function applyOPSPrefill(){
+    if(!opsPrefill) return;
+    setVars(v=>({...v,ref:opsPrefill.ref||v.ref,lta:opsPrefill.lta||v.lta,client:opsPrefill.client||v.client}));
+    if(opsPrefill.bureau_code){
+      const b=bureaux.find(x=>x.code===opsPrefill.bureau_code);
+      if(b) setSelBur(b.id);
+    }
+    clearOPSBridge();
+    setOpsPrefill(null);
+    notify("✅ Données TAF OPS importées");
+  }
+
+  function applyTemplate(tplId){
+    setSelTpl(tplId);
+    const t=templates.find(x=>x.id===tplId);
+    if(t){setSubject(t.subject);setBody(t.body);}
+  }
+
+  async function handleAddAttachment(e){
+    const files=Array.from(e.target.files||[]);
+    if(!files.length) return;
+    const newAtts=await Promise.all(files.map(async f=>({name:f.name,size:f.size,b64:await fileToBase64(f)})));
+    setAttachments(prev=>[...prev,...newAtts]);
+    e.target.value="";
+  }
+
+  async function handleSend(){
+    if(!selBur){notify("Sélectionnez un bureau destinataire",false);return;}
+    if(!subject.trim()){notify("Objet requis",false);return;}
+    const bureau=bureaux.find(b=>b.id===selBur);
+    if(!bureau) return;
+    const decl=decls.find(d=>d.id===selDecl);
+    setSending(true);
+    try{
+      const finalSubject=replacePlaceholders(subject,vars);
+      const finalBody=replacePlaceholders(body,vars);
+      const payload={
+        email:bureau.email.replace(/\s/g,""),
+        from:SENDER_PRIMARY,cc:SENDER_CC,
+        bureauName:bureau.nom,
+        subject:finalSubject,
+        body:finalBody,
+        declarant:decl?`${decl.prenom} ${decl.nom}${decl.titre?", "+decl.titre:""}`:undefined,
+        declarantEmail:decl?.email,
+        attachments:attachments.map(a=>({name:a.name,base64:a.b64})),
+      };
+      const resp=await fetch(WEBHOOK_SEND,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(resp.ok){
+        setSent(true);
+        const entry={id:genId(),date:ts(),bureau:bureau.nom,email:bureau.email,subject:finalSubject,ref:vars.ref,lta:vars.lta,client:vars.client,from:SENDER_PRIMARY};
+        setHistory(h=>[entry,...h].slice(0,300));
+        writeCourierBridge(entry);
+        triggerBkp("courrier_sent",entry);
+        notify("✅ Courrier envoyé à "+bureau.nom);
+      } else {
+        notify("❌ Erreur envoi ("+resp.status+")",false);
+      }
+    }catch(err){notify("❌ "+err.message,false);}
+    setSending(false);
+  }
+
+  function resetForm(){
+    setSelBur("");setSelTpl("");setSubject("");setBody("");
+    setVars({ref:"",numDec:"",lta:"",client:"",motif:""});
+    setAttachments([]);setSent(false);
+  }
+
+  async function handleDriveBackup(){
+    setDriveBacking(true);
+    const ok=await driveBackup({app:"taf_courrier_douane",version:VERSION,exportedAt:ts(),templates,bureaux,history},"taf_courrier_backup_"+ts().slice(0,10)+".json");
+    notify(ok?"☁️ Sauvegarde Drive réussie":"❌ Erreur Drive",ok);
+    setDriveBacking(false);
+  }
+
+  // Saves template
+  function handleSaveTpl(tpl){
+    const isNew=!editingTpl;
+    setTemplates(prev=>isNew?[...prev,tpl]:prev.map(t=>t.id===tpl.id?tpl:t));
+    setShowTplEditor(false);setEditingTpl(null);
+    notify(isNew?"✅ Template créé":"✅ Template modifié");
+    triggerBkp(isNew?"template_created":"template_updated",tpl);
+  }
+
+  // Rendered templates by category
+  const filteredTpls=useMemo(()=>catFilter==="all"?templates:templates.filter(t=>t.category===catFilter),[templates,catFilter]);
+  const filteredBurs=useMemo(()=>burCatFilter==="all"?bureaux:bureaux.filter(b=>b.cat===burCatFilter),[bureaux,burCatFilter]);
+
+  /* ──────────────────────── TAB: COMPOSE ─────────────────────────── */
+  function renderCompose(){
+    if(sent) return <div className="send-success fade-in">
+      <div className="ico">✅</div>
+      <div style={{fontWeight:800,fontSize:20,marginBottom:8}}>Courrier envoyé</div>
+      <div style={{color:"var(--textM)",fontSize:14,marginBottom:20}}>Transmis via Outlook depuis <strong>{SENDER_PRIMARY}</strong> avec copie à <strong>{SENDER_CC}</strong></div>
+      <Btn variant="gold" onClick={resetForm}>✉️ Nouveau courrier</Btn>
+    </div>;
+
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:16}}>
+
+      {/* OPS Bridge Banner */}
+      {opsPrefill&&<div className="ops-banner">
+        <div className="ops-banner-dot"/>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--teal)"}}>🔗 Données TAF OPS disponibles</div>
+          <div style={{fontSize:12,color:"var(--textM)",marginTop:2}}>Réf: {opsPrefill.ref||"—"} | LTA: {opsPrefill.lta||"—"} | Client: {opsPrefill.client||"—"}</div>
+        </div>
+        <Btn variant="ghost" size="sm" onClick={applyOPSPrefill} style={{borderColor:"var(--teal)",color:"var(--teal)"}}>Pré-remplir →</Btn>
+        <button onClick={()=>setOpsPrefill(null)} style={{background:"none",border:"none",color:"var(--textD)",cursor:"pointer",fontSize:18}}>✕</button>
+      </div>}
+
+      {/* Expéditeur */}
+      <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 16px",display:"flex",alignItems:"center",gap:14,fontSize:12}}>
+        <span>📤</span>
+        <span style={{color:"var(--textM)"}}>De : <strong style={{color:"var(--text)"}}>{SENDER_PRIMARY}</strong></span>
+        <span style={{color:"var(--border)"}}>|</span>
+        <span style={{color:"var(--textM)"}}>Cc : <strong style={{color:"var(--text)"}}>{SENDER_CC}</strong></span>
+        <span style={{marginLeft:"auto",color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace",fontSize:10}}>Make.com webhook</span>
+      </div>
+
+      {/* Bureau destinataire */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">🏛️</span><span className="card-title">Destinataire</span></div>
+        <div className="card-b">
+          <div className="g2">
+            <FieldGroup label="Bureau de douane / Organisme">
+              <select value={selBur} onChange={e=>setSelBur(e.target.value)}>
+                <option value="">— Sélectionner —</option>
+                {BUR_CATS.map(cat=>{
+                  const cats=bureaux.filter(b=>b.cat===cat.id);
+                  if(!cats.length) return null;
+                  return <optgroup key={cat.id} label={cat.icon+" "+cat.label}>
+                    {cats.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+                  </optgroup>;
+                })}
+              </select>
+            </FieldGroup>
+            <FieldGroup label="Déclarant signataire (optionnel)">
+              <select value={selDecl} onChange={e=>setSelDecl(e.target.value)}>
+                <option value="">— Aucun déclarant sélectionné —</option>
+                {decls.map(d=><option key={d.id} value={d.id}>{d.prenom} {d.nom}{d.titre?", "+d.titre:""}</option>)}
+              </select>
+            </FieldGroup>
+          </div>
+          {selBur&&(()=>{const b=bureaux.find(x=>x.id===selBur);return b?<div className="alert alert-info">
+            📧 Destinataire : <strong>{b.email}</strong>{b.note&&<> · <em>{b.note}</em></>}
+          </div>:null;})()}
+        </div>
+      </div>
+
+      {/* Template */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">📑</span><span className="card-title">Modèle & Références</span></div>
+        <div className="card-b">
+          <FieldGroup label="Choisir un template">
+            <select value={selTpl} onChange={e=>applyTemplate(e.target.value)}>
+              <option value="">— Sélectionner un template —</option>
+              {CATEGORIES.map(cat=>{
+                const tpls=templates.filter(t=>t.category===cat.id);
+                if(!tpls.length) return null;
+                return <optgroup key={cat.id} label={cat.icon+" "+cat.label}>
+                  {tpls.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>;
+              })}
+            </select>
+          </FieldGroup>
+          <div className="g3" style={{marginBottom:14}}>
+            {DEFAULT_BALISES.map(b=><FieldGroup key={b.key} label={b.icon+" "+b.label}>
+              <input value={vars[b.key]} onChange={e=>setVars(v=>({...v,[b.key]:e.target.value}))} placeholder={b.placeholder}/>
+            </FieldGroup>)}
+          </div>
+        </div>
+      </div>
+
+      {/* Courrier */}
+      <div className="card">
+        <div className="card-h"><span className="card-icon">✉️</span><span className="card-title">Courrier</span>
+          <div className="card-actions">
+            <Btn variant="ghost" size="sm" onClick={()=>setShowTplEditor(true)}>+ Template</Btn>
+          </div>
+        </div>
+        <div className="card-b">
+          <FieldGroup label="Objet du courrier">
+            <input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Objet du courrier..."/>
+          </FieldGroup>
+          <FieldGroup label="Corps (HTML)">
+            <textarea className="ltr-editor" value={body} onChange={e=>setBody(e.target.value)} rows={14}
+              style={{fontFamily:"'Lora',Georgia,serif"}}/>
+          </FieldGroup>
+
+          {/* Aperçu */}
+          {body&&<details style={{marginBottom:14}}>
+            <summary style={{fontSize:12,cursor:"pointer",color:"var(--textM)",userSelect:"none"}}>👁️ Aperçu du corps</summary>
+            <div style={{background:"#fff",border:"1px solid var(--border)",borderRadius:8,padding:16,marginTop:8,maxHeight:400,overflow:"auto"}}>
+              <div dangerouslySetInnerHTML={{__html:replacePlaceholders(body,vars)}}/>
+            </div>
+          </details>}
+
+          {/* Pièces jointes */}
+          <div className="sec-div"><span>Pièces jointes</span></div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
+            {attachments.map((a,i)=><div key={i} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"6px 12px",fontSize:12,display:"flex",alignItems:"center",gap:8}}>
+              <span>📎</span><span style={{fontFamily:"'JetBrains Mono',monospace"}}>{a.name}</span>
+              <span style={{color:"var(--textD)"}}>({(a.size/1024).toFixed(0)}ko)</span>
+              <button onClick={()=>setAttachments(p=>p.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14}}>✕</button>
+            </div>)}
+            {!attachments.length&&<span style={{fontSize:12,color:"var(--textD)"}}>Aucune pièce jointe</span>}
+          </div>
+          <input type="file" ref={fileRef} multiple onChange={handleAddAttachment} style={{display:"none"}}/>
+          <Btn variant="ghost" size="sm" onClick={()=>fileRef.current.click()}>📎 Ajouter fichier(s)</Btn>
+
+          {/* Actions */}
+          <div style={{display:"flex",gap:10,marginTop:16,paddingTop:14,borderTop:"1px solid var(--border)",flexWrap:"wrap"}}>
+            <Btn variant="gold" onClick={handleSend} disabled={sending}>
+              {sending?<><Spinner/> Envoi en cours...</>:"📤 Envoyer via Outlook"}
+            </Btn>
+            <Btn variant="ghost" onClick={resetForm}>Réinitialiser</Btn>
+          </div>
+        </div>
+      </div>
+    </div>;
+  }
+
+  /* ──────────────────────── TAB: TEMPLATES ─────────────────────────── */
+  function renderTemplates(){
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:16}}>
+
+      {/* Filtres */}
+      <div className="cat-pills">
+        <button className={"cat-pill"+(catFilter==="all"?" active":"")}
+          style={{color:"var(--gold)",borderColor:catFilter==="all"?"var(--gold)":"transparent"}}
+          onClick={()=>setCatFilter("all")}>
+          Tous ({templates.length})
+        </button>
+        {CATEGORIES.map(c=>{
+          const n=templates.filter(t=>t.category===c.id).length;
+          return <button key={c.id} className={"cat-pill"+(catFilter===c.id?" active":"")}
+            style={{color:c.color,borderColor:catFilter===c.id?c.color:"transparent"}}
+            onClick={()=>setCatFilter(c.id)}>
+            {c.icon} {c.label} ({n})
+          </button>;
+        })}
+      </div>
+
+      {/* Liste */}
+      {(catFilter==="all"?CATEGORIES:CATEGORIES.filter(c=>c.id===catFilter)).map(cat=>{
+        const tpls=filteredTpls.filter(t=>t.category===cat.id);
+        if(!tpls.length) return null;
+        return <div key={cat.id}>
+          <div className="cat-header">
+            <span style={{fontSize:18}}>{cat.icon}</span>
+            <span style={{fontWeight:700,fontSize:14}}>{cat.label}</span>
+            <Badge variant={cat.badge.replace("badge-","")}>{tpls.length} template{tpls.length>1?"s":""}</Badge>
+          </div>
+          {tpls.map(tpl=><div key={tpl.id} className="tpl-card">
+            <div className="tpl-card-h" onClick={()=>setOpenPreview(openPreview===tpl.id?null:tpl.id)}>
+              <div style={{flex:1}}>
+                <div className="tpl-card-title">{tpl.name}</div>
+                <div className="tpl-card-sub" style={{fontFamily:"'JetBrains Mono',monospace"}}>{tpl.subject.slice(0,60)}{tpl.subject.length>60?"...":""}</div>
+              </div>
+              <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                <CatBadge catId={tpl.category}/>
+                <span style={{color:"var(--textD)",fontSize:16}}>{openPreview===tpl.id?"▲":"▼"}</span>
+              </div>
+            </div>
+            {openPreview===tpl.id&&<div className="tpl-card-body open">
+              <div className="tpl-preview"><div dangerouslySetInnerHTML={{__html:tpl.body}}/></div>
+              <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                <Btn variant="gold" size="sm" onClick={()=>{applyTemplate(tpl.id);setTab("compose");notify("Template appliqué → Onglet Courrier");}}>
+                  ✉️ Utiliser
+                </Btn>
+                <Btn variant="ghost" size="sm" onClick={()=>{setEditingTpl(tpl);setShowTplEditor(true);}}>✏️ Modifier</Btn>
+                <Btn variant="ghost" size="sm" onClick={()=>{
+                  const dup={...tpl,id:genId(),name:tpl.name+" (copie)",updatedAt:ts()};
+                  setTemplates(p=>[...p,dup]);notify("📋 Template dupliqué");
+                }}>📋 Dupliquer</Btn>
+                <Btn variant="red" size="sm" onClick={()=>{
+                  if(!window.confirm("Supprimer « "+tpl.name+" » ?")) return;
+                  setTemplates(p=>p.filter(t=>t.id!==tpl.id));notify("🗑️ Supprimé");
+                }}>🗑️</Btn>
+              </div>
+            </div>}
+          </div>)}
+        </div>;
+      })}
+
+      {/* Actions globales */}
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",paddingTop:8,borderTop:"1px solid var(--border)"}}>
+        <Btn variant="gold" onClick={()=>{setEditingTpl(null);setShowTplEditor(true);}}>➕ Nouveau template</Btn>
+        <Btn variant="ghost" onClick={()=>{
+          const miss=FACTORY_TEMPLATES.filter(f=>!templates.find(t=>t.id===f.id));
+          setTemplates(p=>[...p,...miss]);notify("🔄 "+miss.length+" template(s) restauré(s)");
+        }}>🔄 Restaurer usine</Btn>
+        <Btn variant="blue" onClick={()=>{
+          const json=JSON.stringify(templates,null,2);
+          const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+          a.download="taf_templates_"+ts().slice(0,10)+".json";a.click();notify("📥 Exporté");
+        }}>📥 Export JSON</Btn>
+        <Btn variant="ghost" onClick={()=>{
+          const input=document.createElement("input");input.type="file";input.accept=".json";
+          input.onchange=e=>{const f=e.target.files[0];if(!f) return;const r=new FileReader();r.onload=()=>{
+            try{const imp=JSON.parse(r.result);if(!Array.isArray(imp)){notify("Format invalide",false);return;}
+              const ids=templates.map(t=>t.id);const news=imp.filter(t=>!ids.includes(t.id));
+              setTemplates(p=>[...p,...news]);notify("📤 "+news.length+" template(s) importé(s)");
+            }catch(err){notify("❌ Erreur: "+err.message,false);}};r.readAsText(f);};
+          input.click();
+        }}>📤 Import JSON</Btn>
+      </div>
+    </div>;
+  }
+
+  /* ──────────────────────── TAB: BUREAUX ─────────────────────────── */
+  function renderBureaux(){
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:16}}>
+
+      {/* Stats */}
+      <div className="stat-row">
+        {BUR_CATS.map(cat=><div key={cat.id} className="stat">
+          <div className="stat-val">{bureaux.filter(b=>b.cat===cat.id).length}</div>
+          <div className="stat-lbl">{cat.icon} {cat.label}</div>
+        </div>)}
+      </div>
+
+      <div className="alert alert-warn">⚠️ Les adresses email sont indicatives. Vérifiez leur validité auprès des services concernés avant tout envoi officiel.</div>
+
+      {/* Filtre catégories */}
+      <div className="cat-pills">
+        <button className={"cat-pill"+(burCatFilter==="all"?" active":"")} style={{color:"var(--gold)",borderColor:burCatFilter==="all"?"var(--gold)":"transparent"}} onClick={()=>setBurCatFilter("all")}>
+          Tous ({bureaux.length})
+        </button>
+        {BUR_CATS.map(c=><button key={c.id} className={"cat-pill"+(burCatFilter===c.id?" active":"")}
+          style={{color:"var(--textM)",borderColor:burCatFilter===c.id?"var(--textM)":"transparent"}}
+          onClick={()=>setBurCatFilter(c.id)}>{c.icon} {c.label} ({bureaux.filter(b=>b.cat===c.id).length})
+        </button>)}
+      </div>
+
+      {/* Liste par catégorie */}
+      {(burCatFilter==="all"?BUR_CATS:BUR_CATS.filter(c=>c.id===burCatFilter)).map(cat=>{
+        const burs=filteredBurs.filter(b=>b.cat===cat.id);
+        if(!burs.length) return null;
+        return <div key={cat.id} className="card">
+          <div className="card-h"><span className="card-icon">{cat.icon}</span><span className="card-title">{cat.label}</span>
+            <Badge>{burs.length}</Badge>
+          </div>
+          <div className="card-b">
+            {burs.map((b,i)=>{
+              const isEdit=editBurId===b.id;
+              return <div key={b.id} className="bur-row" style={{gridTemplateColumns:"2.5fr 2fr 80px 80px",background:i%2===0?"var(--bg3)":"transparent"}}>
+                {isEdit?<>
+                  <input value={b.nom} onChange={e=>{const n=[...bureaux];const idx=n.findIndex(x=>x.id===b.id);n[idx]={...n[idx],nom:e.target.value};setBureaux(n);}} style={{fontSize:12,padding:"5px 8px"}}/>
+                  <input value={b.email} onChange={e=>{const n=[...bureaux];const idx=n.findIndex(x=>x.id===b.id);n[idx]={...n[idx],email:e.target.value};setBureaux(n);}} style={{fontSize:12,padding:"5px 8px",fontFamily:"'JetBrains Mono',monospace"}}/>
+                  <input value={b.code} onChange={e=>{const n=[...bureaux];const idx=n.findIndex(x=>x.id===b.id);n[idx]={...n[idx],code:e.target.value};setBureaux(n);}} style={{fontSize:12,padding:"5px 8px"}}/>
+                  <Btn variant="green" size="sm" onClick={()=>{setEditBurId(null);notify("✅ Sauvegardé");triggerBkp("bureau_updated",b);}}>✓</Btn>
+                </>:<>
+                  <div>
+                    <div className="bur-nom">{b.nom}</div>
+                    {b.note&&<div style={{fontSize:11,color:"var(--textD)",marginTop:2}}>{b.note}</div>}
+                  </div>
+                  <div className="bur-email">{b.email}</div>
+                  <div style={{textAlign:"center"}}><span style={{fontSize:10,fontWeight:700,color:"var(--gold)",background:"var(--goldG)",borderRadius:6,padding:"3px 7px"}}>{b.code}</span></div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={()=>setEditBurId(b.id)} style={{background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"var(--textM)",fontSize:12}}>✏️</button>
+                    <button onClick={()=>{if(window.confirm("Supprimer "+b.nom+" ?")) setBureaux(p=>p.filter(x=>x.id!==b.id));}} style={{background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.2)",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"var(--red)",fontSize:12}}>✕</button>
+                  </div>
+                </>}
+              </div>;
+            })}
+          </div>
+        </div>;
+      })}
+
+      {/* Ajouter bureau */}
+      {showAddBur?<div className="card">
+        <div className="card-h"><span className="card-icon">➕</span><span className="card-title">Ajouter un bureau</span>
+          <button className="modal-close" onClick={()=>{setShowAddBur(false);setNewBur({nom:"",email:"",code:"",cat:"douane",note:""});}}>✕</button>
+        </div>
+        <div className="card-b">
+          <div className="g2">
+            <FieldGroup label="Nom"><input value={newBur.nom} onChange={e=>setNewBur(v=>({...v,nom:e.target.value}))} placeholder="Bureau de Douane ..."/></FieldGroup>
+            <FieldGroup label="Email"><input value={newBur.email} onChange={e=>setNewBur(v=>({...v,email:e.target.value}))} placeholder="xxx@douane.finances.gouv.fr"/></FieldGroup>
+            <FieldGroup label="Code"><input value={newBur.code} onChange={e=>setNewBur(v=>({...v,code:e.target.value}))} placeholder="EX: CDG-C1"/></FieldGroup>
+            <FieldGroup label="Catégorie"><select value={newBur.cat} onChange={e=>setNewBur(v=>({...v,cat:e.target.value}))}>
+              {BUR_CATS.map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+            </select></FieldGroup>
+          </div>
+          <FieldGroup label="Note (optionnel)"><input value={newBur.note} onChange={e=>setNewBur(v=>({...v,note:e.target.value}))} placeholder="Ex: Bureau principal fret aérien"/></FieldGroup>
+          <Btn variant="gold" onClick={()=>{
+            if(!newBur.nom||!newBur.email){notify("Nom et email requis",false);return;}
+            const b={...newBur,id:genId()};
+            setBureaux(p=>[...p,b]);setShowAddBur(false);setNewBur({nom:"",email:"",code:"",cat:"douane",note:""});
+            notify("✅ Bureau ajouté");triggerBkp("bureau_created",b);
+          }}>✅ Ajouter</Btn>
+        </div>
+      </div>:<Btn variant="gold" onClick={()=>setShowAddBur(true)}>➕ Ajouter un bureau</Btn>}
+    </div>;
+  }
+
+  /* ──────────────────────── TAB: DÉCLARANTS ─────────────────────────── */
+  function renderDeclarants(){
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:16}}>
+      {!decls.length&&<div className="empty"><div className="ico">🖊️</div><div>Aucun déclarant configuré</div></div>}
+      {decls.map(d=><div key={d.id} className="decl-card">
+        <div className="decl-av">{(d.prenom||"?").charAt(0)+(d.nom||"?").charAt(0)}</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:14}}>{d.prenom} {d.nom}</div>
+          <div style={{fontSize:12,color:"var(--textM)"}}>{d.titre}</div>
+          <div style={{fontSize:12,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace"}}>{d.tel&&"Tél. "+d.tel} {d.email&&"· "+d.email}</div>
+          {d.sig&&<img src={d.sig} style={{height:34,width:"auto",marginTop:6,border:"1px solid var(--border)",borderRadius:4,padding:2,background:"#fff"}} alt="Signature"/>}
+        </div>
+        <button onClick={()=>setDecls(p=>p.filter(x=>x.id!==d.id))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:16}}>✕</button>
+      </div>)}
+
+      {showAddDecl?<div className="card">
+        <div className="card-h"><span className="card-icon">➕</span><span className="card-title">Ajouter un déclarant</span>
+          <button className="modal-close" onClick={()=>{setShowAddDecl(false);setNewDecl({prenom:"",nom:"",titre:"",tel:"",email:"",sig:""});setPendingSig("");}}>✕</button>
+        </div>
+        <div className="card-b">
+          <div className="g2">
+            <FieldGroup label="Prénom"><input value={newDecl.prenom} onChange={e=>setNewDecl(v=>({...v,prenom:e.target.value}))}/></FieldGroup>
+            <FieldGroup label="Nom"><input value={newDecl.nom} onChange={e=>setNewDecl(v=>({...v,nom:e.target.value}))}/></FieldGroup>
+            <FieldGroup label="Titre / Fonction"><input value={newDecl.titre} onChange={e=>setNewDecl(v=>({...v,titre:e.target.value}))} placeholder="Ex: Responsable Import"/></FieldGroup>
+            <FieldGroup label="Téléphone"><input value={newDecl.tel} onChange={e=>setNewDecl(v=>({...v,tel:e.target.value}))} placeholder="+33 1 48 64 ..."/></FieldGroup>
+            <FieldGroup label="Email"><input value={newDecl.email} onChange={e=>setNewDecl(v=>({...v,email:e.target.value}))} placeholder="@taftrans.fr"/></FieldGroup>
+          </div>
+          <FieldGroup label="Signature (PNG/JPG)">
+            <div className="sig-box" onClick={()=>document.getElementById("sig-input").click()}>
+              {pendingSig?<img src={pendingSig} className="sig-preview" alt="Signature"/>:<>
+                <div style={{fontSize:28,marginBottom:6}}>✍️</div>
+                <div style={{fontSize:13,color:"var(--textM)"}}>Cliquer pour importer</div>
+                <div style={{fontSize:11,color:"var(--textD)"}}>PNG ou JPG</div>
+              </>}
+            </div>
+            <input id="sig-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+              const f=e.target.files[0];if(!f) return;
+              const r=new FileReader();r.onload=ev=>{setPendingSig(ev.target.result);setNewDecl(v=>({...v,sig:ev.target.result}));};r.readAsDataURL(f);
+            }}/>
+          </FieldGroup>
+          <Btn variant="gold" onClick={()=>{
+            if(!newDecl.prenom||!newDecl.nom){notify("Prénom et nom requis",false);return;}
+            setDecls(p=>[...p,{...newDecl,id:genId()}]);
+            setShowAddDecl(false);setNewDecl({prenom:"",nom:"",titre:"",tel:"",email:"",sig:""});setPendingSig("");
+            notify("✅ Déclarant ajouté");
+          }}>✅ Ajouter</Btn>
+        </div>
+      </div>:<Btn variant="gold" onClick={()=>setShowAddDecl(true)}>➕ Ajouter un déclarant</Btn>}
+    </div>;
+  }
+
+  /* ──────────────────────── TAB: HISTORIQUE ─────────────────────────── */
+  function renderHistory(){
+    return <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:12}}>
+      {!history.length&&<div className="empty"><div className="ico">📭</div><div>Aucun courrier envoyé</div></div>}
+      {history.map(h=><div key={h.id} className="hist-row">
+        <div style={{fontSize:11,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace",lineHeight:1.4}}>{fmtDate(h.date)}</div>
+        <div>
+          <div style={{fontSize:13,fontWeight:700}}>{h.bureau}</div>
+          <div style={{fontSize:11,color:"var(--textD)"}}>{h.email}</div>
+        </div>
+        <div style={{fontSize:12,color:"var(--textM)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.subject}</div>
+        <div style={{fontSize:11,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace"}}>{h.ref||"—"}</div>
+        <div><span style={{fontSize:10,fontWeight:700,color:"var(--green)",background:"rgba(34,197,94,.1)",borderRadius:6,padding:"3px 8px"}}>✓ Envoyé</span></div>
+      </div>)}
+      {history.length>0&&<div style={{display:"flex",gap:10,paddingTop:8}}>
+        <Btn variant="ghost" onClick={()=>{
+          const csv="Date,Bureau,Email,Objet,Référence\n"+history.map(h=>`"${fmtDate(h.date)}","${h.bureau}","${h.email}","${h.subject}","${h.ref||""}"`).join("\n");
+          const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+          a.download="taf_historique_courrier_"+ts().slice(0,10)+".csv";a.click();notify("📥 Exporté");
+        }}>📥 Exporter CSV</Btn>
+        <Btn variant="red" size="sm" onClick={()=>{if(window.confirm("Effacer tout l'historique ?")) setHistory([]);}}>🗑️ Effacer</Btn>
+      </div>}
+    </div>;
+  }
+
+  /* ──────────────────────── TABS DEFINITION ─────────────────────────── */
+  const TABS = [
+    {id:"compose",   icon:"✉️",  label:"Courrier"},
+    {id:"templates", icon:"📑",  label:"Templates",   badge:templates.length},
+    {id:"bureaux",   icon:"🏛️",  label:"Bureaux",     badge:bureaux.length},
+    {id:"decls",     icon:"🖊️",  label:"Déclarants",  badge:decls.length||null},
+    {id:"history",   icon:"📜",  label:"Historique",  badge:history.length||null},
+  ];
+
+  /* ──────────────────────── RENDER ─────────────────────────── */
+  return <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+
+    {showTplEditor&&<TemplateEditor template={editingTpl} onSave={handleSaveTpl} onCancel={()=>{setShowTplEditor(false);setEditingTpl(null);}}/>}
+
+    {notif&&<div className={"notif-fixed "+(notif.ok?"notif-ok":"notif-err")}>{notif.msg}</div>}
+
+    {/* HEADER */}
+    <header className="hdr">
+      <div className="hdr-inner">
+        <div className="logo-box">
+          <div className="logo-icon">TAF<br/><span style={{fontSize:8,letterSpacing:0}}>CDG</span></div>
+          <div>
+            <div className="logo-title">Courrier Douane <span className="ver-badge">{VERSION}</span></div>
+            <div className="logo-sub">📤 {SENDER_PRIMARY} · cc: {SENDER_CC}</div>
+          </div>
+        </div>
+        <div className="hdr-actions">
+          {bkpStatus&&<span style={{fontSize:11,fontWeight:700,color:bkpStatus==="saved"?"var(--green)":bkpStatus==="error"?"var(--red)":"var(--gold)",display:"flex",alignItems:"center",gap:5}}>
+            {bkpStatus==="saving"&&<Spinner/>}
+            {bkpStatus==="saving"?"Sauvegarde...":bkpStatus==="saved"?"✓ Sauvegardé":"⚠ Erreur"}
+          </span>}
+          <Btn variant="blue" size="sm" onClick={handleDriveBackup} disabled={driveBacking}>
+            {driveBacking?<Spinner/>:"☁️"} Drive
+          </Btn>
+        </div>
+      </div>
+      <nav className="tabbar-inner">
+        {TABS.map(t=><button key={t.id} className={"tb"+(tab===t.id?" on":"")} onClick={()=>setTab(t.id)}>
+          <span>{t.icon}</span><span>{t.label}</span>
+          {t.badge!=null&&<span className="tb-badge">{t.badge}</span>}
+        </button>)}
+      </nav>
+    </header>
+
+    {/* CONTENT */}
+    <main className="content">
+      {tab==="compose"   && renderCompose()}
+      {tab==="templates" && renderTemplates()}
+      {tab==="bureaux"   && renderBureaux()}
+      {tab==="decls"     && renderDeclarants()}
+      {tab==="history"   && renderHistory()}
+    </main>
+
+    {/* FOOTER */}
+    <footer style={{padding:"16px 24px",textAlign:"center",fontSize:11,color:"var(--textD)",borderTop:"1px solid var(--border)"}}>
+      Trans Air Freight CDG — Courrier Douane {VERSION} · {FACTORY_TEMPLATES.length} templates · {FACTORY_BUREAUX.length} bureaux · Bridge TAF OPS · Powered by Make.com
+    </footer>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+<!-- ═══ TAF FIREBASE BRIDGE v2.0 — Sync universel toutes apps TAF ═══ -->
+<script>
+(function(){
+'use strict';
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={
+"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
+"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
+"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
+"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
+"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
+"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
+"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
+"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
+"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
+"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
+"taf_analyse_v3":{p:"taf_stat",n:"STAT"},
+"taf_contacts_data":{p:"taf_contact/data",n:"CONTACT"},
+"taf_contacts_config":{p:"taf_contact/config",n:"CONTACT"},
+"taf_courrier_v3":{p:"taf_courrier/data",n:"COURRIER"},
+"taf_ops_to_courrier":{p:"bridge/ops_to_courrier",n:"BRIDGE OPS→COURRIER"},
+"taf_courrier_to_ops":{p:"bridge/courrier_to_ops",n:"BRIDGE COURRIER→OPS"}
+};
+const B={
+url:FB_URL,tok:"",ok:false,last:null,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
+init:function(){
+  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
+  this._test();this._hook();this._ci();
+  console.log('[TAF BRIDGE v2] 🔥 Init —',this._app());
+},
+_test:async function(){
+  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'2.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline')}
+},
+_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';if(t.includes('TEAM'))return'TEAM';if(t.includes('Contact')||t.includes('CONTACT'))return'CONTACT';if(t.includes('Courrier')||t.includes('COURRIER'))return'COURRIER';return'TAF'},
+_hook:function(){
+  const orig=localStorage.setItem.bind(localStorage);const b=this;
+  localStorage.setItem=function(k,v){
+    orig(k,v);
+    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  }
+},
+_sync:async function(k,v,m){
+  if(!this.ok)return;
+  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
+  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
+  this._si('syncing');const ok=await this.set(m.p,d);
+  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){}
+},
+_isync:async function(){
+  if(!this.ok)return;
+  for(const[k,m]of Object.entries(MAP)){
+    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  }
+},
+readApp:async function(p){return await this.get(p)},
+forceSyncAll:async function(){
+  if(!this.ok){await this._test();if(!this.ok)return false}
+  this._si('syncing');let n=0;
+  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){try{const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}catch(e){}}}
+  this._si('synced');console.log('[TAF BRIDGE] ✅',n,'collections sync');return true
+},
+pullAll:async function(){
+  if(!this.ok)return false;this._si('syncing');let n=0;
+  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
+  for(const[k,m]of Object.entries(MAP)){
+    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
+  }
+  this._si('synced');return n
+},
+// Bridge OPS ↔ Courrier via Firebase (remplace localStorage)
+sendToOPS:async function(data){return await this.set('bridge/courrier_to_ops',data)},
+sendToCourrier:async function(data){return await this.set('bridge/ops_to_courrier',data)},
+readFromOPS:async function(){return await this.get('bridge/ops_to_courrier')},
+readFromCourrier:async function(){return await this.get('bridge/courrier_to_ops')},
+// Bridge TAF Contact → OPS (partager contacts)
+getContacts:async function(){return await this.get('taf_contact/data')},
+// Bridge TAF Team → OPS (partager équipe)
+getTeam:async function(){return await this.get('team')},
+_ci:function(){
+  if(document.getElementById('taf-bridge-ind'))return;
+  const e=document.createElement('div');e.id='taf-bridge-ind';
+  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
+  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
+  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
+  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
+},
+_si:function(s){
+  const e=document.getElementById('taf-bridge-ind');if(!e)return;
+  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
+  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
+  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
+  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
+  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
+  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
+}
+};
+window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
+</body>
+</html>
