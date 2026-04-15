@@ -1,4 +1,18 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAF CP/RTT v4.0 — Gestion des Congés</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
 
 const VER = "4.0.0";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
@@ -46,7 +60,7 @@ const EMAILS = {
   })
 };
 
-export default function App() {
+function App() {
   const [collabs, setCollabs] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const [cfg, setCfg] = useState(defaultCfg());
@@ -60,6 +74,8 @@ export default function App() {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [formData, setFormData] = useState({ type: "CP", dateDebut: "", dateFin: "", motif: "" });
   const [editCollab, setEditCollab] = useState(null);
+  const [empTab, setEmpTab] = useState("demande");
+  const [supTab, setSupTab] = useState("validation");
 
   const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
 
@@ -259,7 +275,6 @@ export default function App() {
   );
 
   // ═══ EMPLOYEE DASHBOARD ═══
-  const [empTab, setEmpTab] = useState("demande");
   if (screen === "employee" && user) {
     const myDem = demandes.filter(d => d.collaborateurId === user.id).sort((a, b) => (b.dateDemande || "").localeCompare(a.dateDemande || ""));
     const upcoming = myDem.filter(d => d.statut === "validee" && d.dateFin >= today());
@@ -367,7 +382,6 @@ export default function App() {
   }
 
   // ═══ SUPERVISOR DASHBOARD ═══
-  const [supTab, setSupTab] = useState("validation");
   if (screen === "supervisor") {
     const pendingD = demandes.filter(d => d.statut === "en_attente");
     return (
@@ -523,6 +537,8 @@ export default function App() {
     };
 
     const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+    const S = { bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828", border: "#1c2e4a", gold: "#f5a623", teal: "#22d3ee", blue: "#3b82f6", red: "#ef4444", green: "#22c55e", purple: "#8b5cf6", orange: "#f59e0b", text: "#e1e5f0", text2: "#8aa8c4", text3: "#4a6580" };
+    const Btn = ({ children, onClick, c = S.blue, bg: b, style: st = {} }) => <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#fff", background: b || c, fontFamily: "inherit", transition: "all .15s", ...st }}>{children}</button>;
 
     return (
       <div>
@@ -571,11 +587,11 @@ export default function App() {
   };
 
   if (screen === "calendar") return (
-    <div style={{ background: S.bg, minHeight: "100vh", fontFamily: "system-ui", color: S.text, padding: 20 }}>
+    <div style={{ background: "#06090f", minHeight: "100vh", fontFamily: "system-ui", color: "#e1e5f0", padding: 20 }}>
       <style>{`*{box-sizing:border-box;margin:0;padding:0}`}</style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <span style={{ fontSize: 20, fontWeight: 800 }}>Calendrier partagé</span>
-        <Btn onClick={() => setScreen("home")} bg={S.bg3} style={{ color: S.text2 }}>Retour</Btn>
+        <button onClick={() => setScreen("home")} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#8aa8c4", background: "#141b28", fontFamily: "inherit" }}>Retour</button>
       </div>
       {renderCalendar()}
     </div>
@@ -583,3 +599,8 @@ export default function App() {
 
   return null;
 }
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
