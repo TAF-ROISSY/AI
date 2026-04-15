@@ -1151,6 +1151,7 @@
       'TAF Courrier Douane': { icon: '📨', desc: 'Génération courriers douaniers', badge: 'douane', badgeClass: 'badge-douane' },
       'TAF EUR1': { icon: '🇪🇺', desc: 'Certificats EUR1 & origine', badge: 'douane', badgeClass: 'badge-douane' },
       'TAF_Douane IntelligencE': { icon: '🔍', desc: 'Intelligence douanière avancée', badge: 'douane', badgeClass: 'badge-douane' },
+      'TAF VALIDE': { icon: '✅', desc: 'Envoi déclarations & documents douaniers', badge: 'douane', badgeClass: 'badge-douane' },
     };
 
     let allApps = [];
@@ -1274,7 +1275,7 @@
       const orderedApps = getOrderedApps();
       
       list.innerHTML = orderedApps.map((app, i) => {
-        const meta = APP_META[app.name] || { icon: '📄', badge: 'tool', badgeClass: 'badge-tool' };
+        const meta = APP_META[app.name] || APP_META[app.name.replace(/_/g, ' ')] || APP_META[app.name.replace(/ /g, '_')] || { icon: '📄', badge: 'tool', badgeClass: 'badge-tool' };
         return `
           <div class="order-item" draggable="true" data-name="${app.name}">
             <span class="order-handle">☰</span>
@@ -1404,7 +1405,7 @@
 
         // Générer les cartes
         grid.innerHTML = orderedApps.map(app => {
-          const meta = APP_META[app.name] || { 
+          const meta = APP_META[app.name] || APP_META[app.name.replace(/_/g, ' ')] || APP_META[app.name.replace(/ /g, '_')] || { 
             icon: '📄', 
             desc: 'Application TAF', 
             badge: 'tool', 

@@ -49,6 +49,37 @@ const AT_BASE   = "app1jUe90acjaPn6t";
 const AT_PROXY  = "https://script.google.com/macros/s/AKfycbyCiyxw_ydQ5wLxQQJ68XuMpmwRkW8TyJwgCNZ3r-jCUO1VLRXZL-H11XsFiiX-mK-s/exec";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 
+/* ══ LOGOS COMPAGNIES AÉRIENNES (partagé avec TAF OPS / TAF Facturation / TAF TV) ══ */
+const AIRLINE_LOGOS={
+  "AF":"https://www.airfranceklm.com/sites/default/files/styles/image_fullpage/public/airfrance_logo.png",
+  "KL":"https://www.airfranceklm.com/sites/default/files/styles/image_fullpage/public/klm_logo.png",
+  "QR":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Qatar_Airways_logo.svg/320px-Qatar_Airways_logo.svg.png",
+  "EK":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Emirates_logo.svg/320px-Emirates_logo.svg.png",
+  "TK":"https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Turkish_Airlines_logo_2019_compact.svg/320px-Turkish_Airlines_logo_2019_compact.svg.png",
+  "ET":"https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Ethiopian_Airlines_Logo.svg/320px-Ethiopian_Airlines_Logo.svg.png",
+  "SQ":"https://upload.wikimedia.org/wikipedia/en/thumb/6/6b/Singapore_Airlines_Logo_2.svg/320px-Singapore_Airlines_Logo_2.svg.png",
+  "CX":"https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Cathay_Pacific_logo.svg/320px-Cathay_Pacific_logo.svg.png",
+  "EY":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Etihad_Airways_logo.svg/320px-Etihad_Airways_logo.svg.png",
+  "LH":"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Lufthansa_Logo_2018.svg/200px-Lufthansa_Logo_2018.svg.png",
+  "BA":"https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/British_Airways_Logo.svg/320px-British_Airways_Logo.svg.png",
+  "GF":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Gulf_Air_logo.svg/320px-Gulf_Air_logo.svg.png",
+  "RJ":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Royal_Jordanian_logo.svg/320px-Royal_Jordanian_logo.svg.png",
+  "MS":"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Egyptair_logo.svg/320px-Egyptair_logo.svg.png",
+  "KE":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Korean_Air_logo.svg/320px-Korean_Air_logo.svg.png",
+  "OZ":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Asiana_Airlines_logo.svg/320px-Asiana_Airlines_logo.svg.png",
+  "SV":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Saudia_logo_2016.svg/320px-Saudia_logo_2016.svg.png",
+  "WY":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Oman_Air_logo.svg/320px-Oman_Air_logo.svg.png",
+  "AI":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Air_India_Logo.svg/200px-Air_India_Logo.svg.png",
+  "KC":"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Air_Astana_logo.svg/320px-Air_Astana_logo.svg.png",
+  "TG":"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Thai_Airways_logo_%282005%29.svg/320px-Thai_Airways_logo_%282005%29.svg.png",
+  "MH":"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Malaysia_Airlines_Logo.svg/320px-Malaysia_Airlines_Logo.svg.png",
+  "UL":"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/SriLankan_Airlines_logo.svg/320px-SriLankan_Airlines_logo.svg.png",
+  "PK":"https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/PIA_logo.svg/200px-PIA_logo.svg.png",
+  "IX":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Air_India_Express_logo.svg/320px-Air_India_Express_logo.svg.png",
+  "KU":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Kuwait_Airways_logo.svg/320px-Kuwait_Airways_logo.svg.png",
+};
+function getAirlineLogo(fn){if(!fn)return null;var c=fn.toUpperCase().replace(/\s/g,"").slice(0,2);return AIRLINE_LOGOS[c]||null;}
+
 /* ── Niveaux de retard ── */
 const DELAY_LEVELS=[
   {min:0,  max:29,  label:"À l\'heure",   color:"#1a7a3a",bg:"#e8f5ee",emoji:"✅",code:0},
@@ -377,19 +408,25 @@ async function fetchFlightViaProxy(flightNum){
       });
     });
     setLoadingIds(function(p){return {...p,[vol.id]:false};});
+    /* Sauvegarde Drive après chaque mise à jour */
+    setTimeout(saveToDrive,1500);
   }
 
   /* ── Sauvegarde complète Drive (format identique à TAF OPS) ── */
+  var [driveStatus,setDriveStatus]=React.useState(null); /* null | 'saving' | 'ok' | 'error' */
   async function saveToDrive(){
     var PROXY="https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec";
     var FOLDER="143DZMp79_EfrVAjyOMquBU0L-JXlKdnF";
     var dt=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+    setDriveStatus('saving');
     try{
-      var d=localStorage.getItem("taf_vols2");if(!d)return;
+      var d=localStorage.getItem("taf_vols2");if(!d){setDriveStatus(null);return;}
       var b64=btoa(unescape(encodeURIComponent(d)));
       var resp=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"text/plain"},redirect:"follow",body:JSON.stringify({action:"uploadPDF",filename:"TAF_VOLS_"+dt+".json",mimeType:"application/json",base64:b64,folder:FOLDER})});
-      if(resp.ok){console.log("✅ Drive OK");notify2("💾 Sauvegarde Drive ✓");}
-    }catch(e){console.error("Drive:",e);}
+      if(resp.ok){console.log("✅ Drive OK");setDriveStatus('ok');notify2("💾 Drive ✓");}
+      else{setDriveStatus('error');notify2("❌ Erreur Drive",false);}
+    }catch(e){console.error("Drive:",e);setDriveStatus('error');notify2("❌ Erreur Drive",false);}
+    setTimeout(function(){setDriveStatus(null);},4000);
   }
 
   function saveVol(){
@@ -560,6 +597,8 @@ async function fetchFlightViaProxy(flightNum){
             for(var i=0;i<vols.length;i++) await doRefresh(vols[i]);
             notify2("Mise à jour complète terminée ✓");
           }} style={{background:"rgba(255,255,255,.03)",color:"#4a7090",border:"1px solid #1a3050",borderRadius:"6px",padding:"9px 18px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"inherit"}} title="Met à jour tous les vols y compris ceux déjà posés">⟳ Forcer tout</button>
+          {/* ── Indicateur Drive ── */}
+          {driveStatus&&<span style={{display:"inline-flex",alignItems:"center",gap:"6px",padding:"6px 14px",borderRadius:"6px",fontSize:"12px",fontWeight:"600",fontFamily:"monospace",border:"1px solid "+(driveStatus==='saving'?"#ffaa0040":driveStatus==='ok'?"#00ff8840":"#ff336640"),background:driveStatus==='saving'?"rgba(255,170,0,.1)":driveStatus==='ok'?"rgba(0,255,136,.1)":"rgba(255,51,102,.1)",color:driveStatus==='saving'?"#ffaa00":driveStatus==='ok'?"#00ff88":"#ff3366",animation:driveStatus==='saving'?"pulse 1.5s ease-in-out infinite":"none"}}>{driveStatus==='saving'?"⏳ Sauvegarde Drive...":driveStatus==='ok'?"☁️ ✅ Drive OK":"☁️ ❌ Erreur Drive"}</span>}
           <button onClick={async function(){
             setShowStats(!showStats);
             if(!statsData&&!statsLoading){
@@ -830,6 +869,7 @@ async function fetchFlightViaProxy(flightNum){
                 <div style={{background:"#060d1a",borderBottom:"1px solid #1a3050",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}}>
                   {/* Gauche : numéro vol + compagnie + heures refresh */}
                   <div style={{display:"flex",alignItems:"center",gap:"14px",flexWrap:"wrap"}}>
+                    {(function(){var lg=getAirlineLogo(vol.flightNum);return lg?React.createElement("img",{src:lg,alt:"",style:{height:"28px",maxWidth:"70px",objectFit:"contain",borderRadius:"4px",background:"rgba(255,255,255,.08)",padding:"2px 4px"}}):null})()}
                     <span style={{fontFamily:"'Courier New',monospace",fontSize:"24px",fontWeight:"900",color:"#ffffff",letterSpacing:"3px",textShadow:"0 0 10px rgba(255,255,255,.3)"}}>{vol.flightNum}</span>
                     {vol.label&&<span style={{fontSize:"13px",color:"#8ab0d0",fontWeight:"600",borderLeft:"2px solid #1a3050",paddingLeft:"12px"}}>{vol.label}</span>}
                     {heures.length>0&&<div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginLeft:"4px"}}>

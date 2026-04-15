@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF CONTACTS</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --border2: #303650;
+    --accent: #4f7cff;
+    --accent2: #7b5ea7;
+    --green: #2de09c;
+    --orange: #ff8c42;
+    --red: #ff4f6a;
+    --yellow: #f5d63d;
+    --text: #e8eaf0;
+    --text2: #8a90a8;
+    --text3: #565d78;
+    --card-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(79,124,255,0.07) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(123,94,167,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,15,20,0.9);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 20px rgba(79,124,255,0.3);
+  }
+
+  .logo-text { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .logo-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sync-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .sync-btn.saving { color: var(--yellow); border-color: var(--yellow); }
+  .sync-btn.saved { color: var(--green); border-color: var(--green); }
+
+  .version-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* STATUS BAR */
+  #statusBar {
+    position: relative; z-index: 9;
+    padding: 8px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-height: 36px;
+    background: var(--surface);
+  }
+
+  .status-item {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text3);
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text3);
+  }
+
+  .status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .status-dot.loading { background: var(--yellow); animation: blink 1s infinite; }
+
+  @keyframes blink { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
+
+  /* TABS */
+  .tabs-wrapper {
+    position: relative; z-index: 8;
+    padding: 20px 32px 0;
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 20px;
+    border: none; background: none; cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 600;
+    color: var(--text3);
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+    position: relative;
+    border: 1px solid transparent;
+    border-bottom: none;
+  }
+
+  .tab-btn:hover { color: var(--text); background: var(--surface); }
+
+  .tab-btn.active {
+    color: var(--text);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom: 1px solid var(--surface);
+    margin-bottom: -1px;
+  }
+
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .tab-icon { font-size: 16px; }
+
+  .tab-count {
+    background: var(--surface2);
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .tab-btn.active .tab-count {
+    background: rgba(79,124,255,0.15);
+    color: var(--accent);
+    border-color: rgba(79,124,255,0.3);
+  }
+
+  /* CONTENT */
+  .content {
+    position: relative; z-index: 5;
+    padding: 28px 32px;
+    max-width: 1400px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0 14px;
+    flex: 1; max-width: 340px;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus-within { border-color: var(--accent); }
+
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    padding: 10px 0;
+    width: 100%;
+  }
+
+  .search-box input::placeholder { color: var(--text3); }
+  .search-icon { color: var(--text3); font-size: 14px; }
+
+  .btn-new {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-new:hover { background: #6b8fff; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(79,124,255,0.4); }
+
+  /* GRID */
+  .contacts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .contact-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .contact-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .contact-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+  }
+
+  .contact-card:hover::before { opacity: 1; }
+
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .card-avatar {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .card-name-block { flex: 1; margin-left: 12px; }
+
+  .card-name {
+    font-size: 15px; font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+
+  .card-company {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--text3);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .card-actions {
+    display: flex; gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .contact-card:hover .card-actions { opacity: 1; }
+
+  .card-action-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .card-action-btn:hover.edit { border-color: var(--accent); color: var(--accent); background: rgba(79,124,255,0.1); }
+  .card-action-btn:hover.del { border-color: var(--red); color: var(--red); background: rgba(255,79,106,0.1); }
+
+  .card-info { display: flex; flex-direction: column; gap: 7px; }
+
+  .info-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text2);
+  }
+
+  .info-icon { width: 18px; text-align: center; font-size: 12px; color: var(--text3); flex-shrink: 0; }
+
+  .info-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .info-link:hover { text-decoration: underline; }
+
+  .card-notes {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text3);
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-title { font-size: 18px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    width: 100%; max-width: 560px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: modalIn 0.2s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .modal-close {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .modal-close:hover { border-color: var(--red); color: var(--red); }
+
+  .modal-body { padding: 24px; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  input, textarea, select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,124,255,0.1);
+  }
+
+  textarea { resize: vertical; min-height: 70px; }
+
+  select option { background: var(--surface2); }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+
+  .btn-cancel:hover { border-color: var(--text2); color: var(--text); }
+
+  .btn-save {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 600;
+    transition: all 0.15s;
+  }
+
+  .btn-save:hover { background: #6b8fff; }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    z-index: 200;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .toast-item {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: var(--card-shadow);
+    animation: toastIn 0.25s ease;
+    max-width: 320px;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .toast-item.success { border-color: rgba(45,224,156,0.3); }
+  .toast-item.error { border-color: rgba(255,79,106,0.3); }
+  .toast-item.info { border-color: rgba(79,124,255,0.3); }
+
+  /* BRIDGE INFO */
+  .bridge-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text3);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .bridge-info b { color: var(--accent); }
+
+  /* TAB color themes */
+  .douane-theme .card-avatar { background: rgba(79,124,255,0.15); color: var(--accent); }
+  .douane-theme .tab-btn.active::after, .douane-theme .contact-card:hover::before { background: var(--accent); }
+
+  .handler-theme .card-avatar { background: rgba(45,224,156,0.15); color: var(--green); }
+  .handler-theme .tab-btn.active::after, .handler-theme .contact-card:hover::before { background: var(--green); }
+
+  .transport-theme .card-avatar { background: rgba(255,140,66,0.15); color: var(--orange); }
+  .transport-theme .tab-btn.active::after, .transport-theme .contact-card:hover::before { background: var(--orange); }
+
+  .autres-theme .card-avatar { background: rgba(123,94,167,0.15); color: #b08ef0; }
+  .autres-theme .tab-btn.active::after, .autres-theme .contact-card:hover::before { background: #b08ef0; }
+
+  /* COPY TAG */
+  .copy-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 4px;
+  }
+
+  .copy-tag:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* CONFIG PANEL */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .config-panel.open { display: block; }
+
+  .config-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .config-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .btn-config-save {
+    background: var(--green);
+    border: none;
+    color: #000;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    .content { padding: 16px; }
+    header { padding: 14px 16px; }
+    .tabs-wrapper { padding: 12px 16px 0; overflow-x: auto; }
+    .form-grid { grid-template-columns: 1fr; }
+    .contacts-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📋</div>
+    <div>
+      <div class="logo-text">TAF <span>CONTACTS</span></div>
+      <div class="logo-sub">Répertoire Prestataires</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
+    <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Sync Drive</button>
+    <button class="sync-btn" id="fbPushBtn" onclick="manualFirebasePush()" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#22c55e;">🔥 Push Firebase</button>
+    <div class="version-badge">v1.3.0</div>
+  </div>
+</header>
+
+<!-- STATUS BAR -->
+<div id="statusBar">
+  <div class="status-item">
+    <div class="status-dot" id="driveStatusDot"></div>
+    <span id="driveStatusTxt">Drive : non configuré</span>
+  </div>
+  <div class="status-item">
+    <div class="status-dot ok"></div>
+    <span id="totalCount">0 contacts</span>
+  </div>
+  <div class="status-item" id="lastSyncItem" style="display:none">
+    <span id="lastSyncTxt"></span>
+  </div>
+</div>
+
+<!-- CONFIG PANEL -->
+<div style="padding: 0 32px; position:relative; z-index:7;" id="configWrapper">
+  <div class="config-panel" id="configPanel">
+    <div class="config-title">⚙️ Configuration Google Drive</div>
+    <div class="config-form">
+      <div class="form-group">
+        <label>URL Proxy GAS (Script Apps)</label>
+        <input type="text" id="cfgProxy" placeholder="https://script.google.com/macros/s/..." />
+      </div>
+      <button class="btn-config-save" onclick="saveConfig()">Enregistrer</button>
+    </div>
+    <div style="margin-top:10px; font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);">
+      📁 Fichier Drive : <b style="color:var(--accent)">taf_contacts.json</b> — Ce fichier sera lisible par toutes les autres apps TAF
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrapper">
+  <button class="tab-btn active" data-tab="douane" onclick="switchTab('douane')">
+    <span class="tab-icon">🏛️</span> Douane
+    <span class="tab-count" id="cnt-douane">0</span>
+  </button>
+  <button class="tab-btn" data-tab="handlers" onclick="switchTab('handlers')">
+    <span class="tab-icon">✈️</span> Handlers
+    <span class="tab-count" id="cnt-handlers">0</span>
+  </button>
+  <button class="tab-btn" data-tab="transporteurs" onclick="switchTab('transporteurs')">
+    <span class="tab-icon">🚚</span> Transporteurs
+    <span class="tab-count" id="cnt-transporteurs">0</span>
+  </button>
+  <button class="tab-btn" data-tab="autres" onclick="switchTab('autres')">
+    <span class="tab-icon">🔗</span> Autres
+    <span class="tab-count" id="cnt-autres">0</span>
+  </button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- BRIDGE INFO -->
+  <div class="bridge-info">
+    📡 Les données sont accessibles par toutes les apps TAF via :
+    <b id="bridgeUrl">Drive → taf_contacts.json</b>
+    <span class="copy-tag" onclick="copyBridgeSnippet()">📋 Copier snippet intégration</span>
+  </div>
+
+  <!-- TAB: DOUANE -->
+  <div class="tab-panel active douane-theme" id="panel-douane">
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Rechercher un contact..." oninput="filterCards('douane', this.value)">
+      </div>
+      <button class="btn-new" onclick="openModal('douane')">+ Nouveau contact Douane</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(79,124,255,0.06);border:1px solid rgba(79,124,255,0.12);border-radius:8px;margin-bottom:12px;font-size:11px;color:rgba(79,124,255,0.8);">
+      📮 Les contacts Douane avec email sont automatiquement disponibles dans <strong style="margin:0 3px;">TAF Courrier Douane</strong> via Firebase
+    </div>
+    <div class="contacts-grid" id="grid-douane"></div>
+  </div>
+
+  <!-- TAB: HANDLERS -->
+  <div class="tab-panel handler-theme" id="panel-handlers">
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Rechercher un contact..." oninput="filterCards('handlers', this.value)">
+      </div>
+      <button class="btn-new" onclick="openModal('handlers')">+ Nouveau contact Handler</button>
+    </div>
+    <div class="contacts-grid" id="grid-handlers"></div>
+  </div>
+
+  <!-- TAB: TRANSPORTEURS -->
+  <div class="tab-panel transport-theme" id="panel-transporteurs">
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Rechercher un contact..." oninput="filterCards('transporteurs', this.value)">
+      </div>
+      <button class="btn-new" onclick="openModal('transporteurs')">+ Nouveau Transporteur</button>
+    </div>
+    <div class="contacts-grid" id="grid-transporteurs"></div>
+  </div>
+
+  <!-- TAB: AUTRES -->
+  <div class="tab-panel autres-theme" id="panel-autres">
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Rechercher un contact..." oninput="filterCards('autres', this.value)">
+      </div>
+      <button class="btn-new" onclick="openModal('autres')">+ Nouveau Prestataire</button>
+    </div>
+    <div class="contacts-grid" id="grid-autres"></div>
+  </div>
+
+</div>
+
+<!-- MODAL CRÉATION / ÉDITION -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">➕ Nouveau contact</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Prénom / Nom *</label>
+          <input type="text" id="fNom" placeholder="Jean Dupont" />
+        </div>
+        <div class="form-group">
+          <label>Société / Bureau</label>
+          <input type="text" id="fSociete" placeholder="Air France Cargo" />
+        </div>
+        <div class="form-group">
+          <label>Poste / Fonction</label>
+          <input type="text" id="fPoste" placeholder="Responsable Import" />
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="tel" id="fTel" placeholder="+33 1 XX XX XX XX" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="fEmail" placeholder="contact@societe.fr" />
+        </div>
+        <div class="form-group">
+          <label>Email secondaire</label>
+          <input type="email" id="fEmail2" placeholder="backup@societe.fr" />
+        </div>
+        <div class="form-group full">
+          <label>Adresse</label>
+          <input type="text" id="fAdresse" placeholder="Terminal X, Aéroport CDG, 95700 Roissy" />
+        </div>
+        <div class="form-group">
+          <label>Téléphone portable</label>
+          <input type="tel" id="fMobile" placeholder="+33 6 XX XX XX XX" />
+        </div>
+        <div class="form-group">
+          <label>Fax / WhatsApp</label>
+          <input type="text" id="fFax" placeholder="+33 1 XX XX XX XX" />
+        </div>
+        <div class="form-group full">
+          <label>Notes / Informations complémentaires</label>
+          <textarea id="fNotes" placeholder="Horaires, spécialités, informations utiles..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-save" onclick="saveContact()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const STORAGE_KEY = 'taf_contacts_data';
+const CONFIG_KEY  = 'taf_contacts_config';
+const DRIVE_FILE  = 'taf_contacts.json';
+const DRIVE_FOLDER = '143DZMp79_EfrVAjyOMquBU0L-JXlKdnF';
+
+let data = {
+  douane: [],
+  handlers: [],
+  transporteurs: [],
+  autres: []
+};
+
+let config = {
+  proxyUrl: 'https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec'
+};
+
+let editState = { tab: null, id: null };
+let currentTab = 'douane';
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+function init() {
+  loadConfig();
+  loadLocal();
+  renderAll();
+  updateStatus();
+  // Push initial vers Firebase pour garantir la sync
+  setTimeout(() => {
+    if (data.douane?.length || data.handlers?.length || data.transporteurs?.length || data.autres?.length) {
+      pushContactsToFirebase();
+    }
+  }, 2000);
+}
+
+function loadConfig() {
+  const saved = localStorage.getItem(CONFIG_KEY);
+  if (saved) {
+    try { config = JSON.parse(saved); } catch(e) {}
+  }
+  document.getElementById('cfgProxy').value = config.proxyUrl || '';
+}
+
+function saveConfig() {
+  config.proxyUrl = document.getElementById('cfgProxy').value.trim();
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  updateStatus();
+  showToast('Configuration enregistrée', 'success');
+  toggleConfig();
+}
+
+function loadLocal() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try { data = JSON.parse(saved); } catch(e) {}
+  }
+  // Ensure all keys exist
+  ['douane','handlers','transporteurs','autres'].forEach(k => {
+    if (!data[k]) data[k] = [];
+  });
+}
+
+function saveLocal() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  // Push direct vers Firebase (ne dépend pas du Bridge)
+  pushContactsToFirebase();
+}
+
+// ── Push direct Firebase — garantit la sync avec TAF Courrier ──
+async function pushContactsToFirebase() {
+  const FB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
+  try {
+    const resp = await fetch(FB + '/taf_contact/data.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (resp.ok) {
+      console.log('[TAF CONTACT] ✅ Contacts pushés vers Firebase →', Object.keys(data).map(k => k + ':' + (data[k]?.length || 0)).join(', '));
+      return true;
+    } else {
+      console.warn('[TAF CONTACT] ⚠️ Firebase push failed:', resp.status);
+      return false;
+    }
+  } catch (e) {
+    console.warn('[TAF CONTACT] Firebase push error:', e);
+    return false;
+  }
+}
+
+async function manualFirebasePush() {
+  const btn = document.getElementById('fbPushBtn');
+  btn.textContent = '⏳ Push...';
+  const ok = await pushContactsToFirebase();
+  if (ok) {
+    btn.textContent = '✅ Pushé !';
+    btn.style.color = '#22c55e';
+    showToast('🔥 Contacts envoyés vers Firebase — disponibles dans TAF Courrier', 'success');
+  } else {
+    btn.textContent = '❌ Erreur';
+    btn.style.color = '#ef4444';
+    showToast('Erreur lors du push Firebase', 'error');
+  }
+  setTimeout(() => { btn.textContent = '🔥 Push Firebase'; btn.style.color = '#22c55e'; }, 3000);
+}
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+const TAB_META = {
+  douane:       { icon: '🏛️', color: '#4f7cff' },
+  handlers:     { icon: '✈️', color: '#2de09c' },
+  transporteurs:{ icon: '🚚', color: '#ff8c42' },
+  autres:       { icon: '🔗', color: '#b08ef0' }
+};
+
+function getInitials(nom) {
+  return nom.split(' ').map(w => w[0]||'').join('').toUpperCase().slice(0,2) || '??';
+}
+
+function renderAll() {
+  ['douane','handlers','transporteurs','autres'].forEach(renderTab);
+  updateCounts();
+}
+
+function renderTab(tab, filter = '') {
+  const grid = document.getElementById(`grid-${tab}`);
+  const list = filter
+    ? data[tab].filter(c =>
+        [c.nom, c.societe, c.poste, c.email, c.tel, c.adresse].join(' ')
+          .toLowerCase().includes(filter.toLowerCase())
+      )
+    : data[tab];
+
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">${TAB_META[tab].icon}</div>
+      <div class="empty-title">${filter ? 'Aucun résultat' : 'Aucun contact'}</div>
+      <div class="empty-sub">${filter ? 'Essayez un autre terme' : 'Cliquez sur "+ Nouveau contact" pour commencer'}</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(c => `
+    <div class="contact-card" onclick="editContact('${tab}','${c.id}')">
+      <div class="card-header">
+        <div class="card-avatar" style="background:${TAB_META[tab].color}1a; color:${TAB_META[tab].color}">
+          ${getInitials(c.nom)}
+        </div>
+        <div class="card-name-block">
+          <div class="card-name">${esc(c.nom)}</div>
+          ${c.societe ? `<div class="card-company">${esc(c.societe)}</div>` : ''}
+          ${c.poste ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">${esc(c.poste)}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <button class="card-action-btn edit" onclick="event.stopPropagation();editContact('${tab}','${c.id}')">✏️</button>
+          <button class="card-action-btn del" onclick="event.stopPropagation();deleteContact('${tab}','${c.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="card-info">
+        ${c.tel ? `<div class="info-row"><span class="info-icon">📞</span><a class="info-link" href="tel:${c.tel}" onclick="event.stopPropagation()">${esc(c.tel)}</a></div>` : ''}
+        ${c.mobile ? `<div class="info-row"><span class="info-icon">📱</span><a class="info-link" href="tel:${c.mobile}" onclick="event.stopPropagation()">${esc(c.mobile)}</a></div>` : ''}
+        ${c.email ? `<div class="info-row"><span class="info-icon">✉️</span><a class="info-link" href="mailto:${c.email}" onclick="event.stopPropagation()">${esc(c.email)}</a></div>` : ''}
+        ${c.email2 ? `<div class="info-row"><span class="info-icon">📧</span><a class="info-link" href="mailto:${c.email2}" onclick="event.stopPropagation()">${esc(c.email2)}</a></div>` : ''}
+        ${c.adresse ? `<div class="info-row"><span class="info-icon">📍</span><span>${esc(c.adresse)}</span></div>` : ''}
+      </div>
+      ${c.notes ? `<div class="card-notes">${esc(c.notes)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function filterCards(tab, val) {
+  renderTab(tab, val);
+}
+
+function updateCounts() {
+  ['douane','handlers','transporteurs','autres'].forEach(tab => {
+    document.getElementById(`cnt-${tab}`).textContent = data[tab].length;
+  });
+  const total = Object.values(data).reduce((s, a) => s + a.length, 0);
+  document.getElementById('totalCount').textContent = `${total} contact${total > 1 ? 's' : ''}`;
+}
+
+// ══════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════
+const TAB_LABELS = {
+  douane: '🏛️ Douane',
+  handlers: '✈️ Handler',
+  transporteurs: '🚚 Transporteur',
+  autres: '🔗 Prestataire'
+};
+
+function openModal(tab, contact = null) {
+  editState = { tab, id: contact ? contact.id : null };
+  document.getElementById('modalTitle').textContent =
+    contact ? `✏️ Modifier — ${esc(contact.nom)}` : `➕ Nouveau ${TAB_LABELS[tab]}`;
+  document.getElementById('fNom').value    = contact?.nom     || '';
+  document.getElementById('fSociete').value= contact?.societe || '';
+  document.getElementById('fPoste').value  = contact?.poste   || '';
+  document.getElementById('fTel').value    = contact?.tel     || '';
+  document.getElementById('fEmail').value  = contact?.email   || '';
+  document.getElementById('fEmail2').value = contact?.email2  || '';
+  document.getElementById('fAdresse').value= contact?.adresse || '';
+  document.getElementById('fMobile').value = contact?.mobile  || '';
+  document.getElementById('fFax').value    = contact?.fax     || '';
+  document.getElementById('fNotes').value  = contact?.notes   || '';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fNom').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editState = { tab: null, id: null };
+}
+
+function saveContact() {
+  const nom = document.getElementById('fNom').value.trim();
+  if (!nom) { showToast('Le nom est obligatoire', 'error'); return; }
+
+  const contact = {
+    id:      editState.id || uid(),
+    nom,
+    societe: document.getElementById('fSociete').value.trim(),
+    poste:   document.getElementById('fPoste').value.trim(),
+    tel:     document.getElementById('fTel').value.trim(),
+    email:   document.getElementById('fEmail').value.trim(),
+    email2:  document.getElementById('fEmail2').value.trim(),
+    adresse: document.getElementById('fAdresse').value.trim(),
+    mobile:  document.getElementById('fMobile').value.trim(),
+    fax:     document.getElementById('fFax').value.trim(),
+    notes:   document.getElementById('fNotes').value.trim(),
+    updated: new Date().toISOString()
+  };
+
+  if (editState.id) {
+    const idx = data[editState.tab].findIndex(c => c.id === editState.id);
+    if (idx > -1) { data[editState.tab][idx] = { ...data[editState.tab][idx], ...contact }; }
+  } else {
+    contact.created = new Date().toISOString();
+    data[editState.tab].push(contact);
+  }
+
+  saveLocal();
+  renderAll();
+  closeModal();
+  showToast(`Contact enregistré — ${nom}`, 'success');
+  if (editState.tab === 'douane' && contact.email) {
+    setTimeout(() => showToast('📮 Sync → TAF Courrier Douane (via Firebase)', 'success'), 1500);
+  }
+  saveToDrive();
+}
+
+function editContact(tab, id) {
+  const c = data[tab].find(x => x.id === id);
+  if (c) openModal(tab, c);
+}
+
+function deleteContact(tab, id) {
+  const c = data[tab].find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`Supprimer "${c.nom}" ?`)) return;
+  data[tab] = data[tab].filter(x => x.id !== id);
+  saveLocal();
+  renderAll();
+  showToast(`Contact supprimé`, 'info');
+  saveToDrive();
+}
+
+// ══════════════════════════════════════════════
+// DRIVE SYNC
+// ══════════════════════════════════════════════
+async function saveToDrive() {
+  if (!config.proxyUrl) {
+    showToast('⚠️ Proxy Drive non configuré', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = '⏳ Sync...';
+  btn.classList.add('saving');
+
+  const payload = {
+    version: '1.0',
+    app: 'TAF_CONTACTS',
+    updated: new Date().toISOString(),
+    ...data
+  };
+
+  try {
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+    const res = await fetch(config.proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'uploadPDF',
+        filename: DRIVE_FILE,
+        base64: b64,
+        folder: DRIVE_FOLDER
+      }),
+      redirect: 'follow'
+    });
+
+    const txt = await res.text();
+    btn.textContent = '✅ Synchronisé';
+    btn.classList.remove('saving');
+    btn.classList.add('saved');
+    setTimeout(() => { btn.textContent = '💾 Sync Drive'; btn.classList.remove('saved'); }, 3000);
+
+    const now = new Date().toLocaleString('fr-FR');
+    document.getElementById('lastSyncTxt').textContent = `Dernière sync : ${now}`;
+    document.getElementById('lastSyncItem').style.display = 'flex';
+    setDriveStatus('ok', 'Drive : connecté');
+    showToast('Contacts synchronisés sur Drive', 'success');
+  } catch (e) {
+    btn.textContent = '💾 Sync Drive';
+    btn.classList.remove('saving');
+    setDriveStatus('error', 'Drive : erreur');
+    showToast('Erreur de synchronisation Drive', 'error');
+  }
+}
+
+async function loadFromDrive() {
+  if (!config.proxyUrl) return;
+  try {
+    const url = `${config.proxyUrl}?file=${DRIVE_FILE}`;
+    const res = await fetch(url, { redirect: 'follow' });
+    const txt = await res.text();
+    const json = JSON.parse(txt);
+    ['douane','handlers','transporteurs','autres'].forEach(k => {
+      if (json[k]) data[k] = json[k];
+    });
+    saveLocal();
+    renderAll();
+    setDriveStatus('ok', 'Drive : connecté');
+    showToast('Contacts chargés depuis Drive', 'success');
+  } catch(e) {
+    setDriveStatus('error', 'Drive : erreur chargement');
+  }
+}
+
+// ══════════════════════════════════════════════
+// STATUS
+// ══════════════════════════════════════════════
+function updateStatus() {
+  if (config.proxyUrl) {
+    setDriveStatus('loading', 'Drive : chargement...');
+    loadFromDrive();
+  } else {
+    setDriveStatus('', 'Drive : non configuré');
+  }
+}
+
+function setDriveStatus(state, txt) {
+  const dot = document.getElementById('driveStatusDot');
+  dot.className = 'status-dot' + (state ? ' ' + state : '');
+  document.getElementById('driveStatusTxt').textContent = txt;
+}
+
+// ══════════════════════════════════════════════
+// BRIDGE SNIPPET
+// ══════════════════════════════════════════════
+function copyBridgeSnippet() {
+  const snippet = `// ── TAF CONTACTS Bridge ──────────────────────────
+// Ajouter dans votre app TAF pour accéder aux contacts
+const TAF_CONTACTS_URL = '${config.proxyUrl || 'VOTRE_PROXY_URL'}?file=taf_contacts.json';
+
+async function loadTAFContacts() {
+  try {
+    const res = await fetch(TAF_CONTACTS_URL, { redirect: 'follow' });
+    const contacts = await res.json();
+    // contacts.douane[] / contacts.handlers[] / contacts.transporteurs[] / contacts.autres[]
+    // Chaque contact : { nom, societe, tel, email, adresse, ... }
+    return contacts;
+  } catch(e) { return null; }
+}
+
+// Exemple : remplir un select email Douane
+async function fillDouaneEmails(selectElement) {
+  const c = await loadTAFContacts();
+  if (!c) return;
+  c.douane.filter(x => x.email).forEach(x => {
+    const opt = document.createElement('option');
+    opt.value = x.email;
+    opt.textContent = x.nom + (x.societe ? ' — ' + x.societe : '');
+    selectElement.appendChild(opt);
+  });
+}
+// ──────────────────────────────────────────────`;
+
+  navigator.clipboard.writeText(snippet).then(() => {
+    showToast('Snippet copié dans le presse-papier !', 'success');
+  });
+}
+
+// ══════════════════════════════════════════════
+// CONFIG PANEL
+// ══════════════════════════════════════════════
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function uid() {
+  return 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const div = document.createElement('div');
+  div.className = `toast-item ${type}`;
+  div.innerHTML = `<span>${icons[type]}</span> ${msg}`;
+  document.getElementById('toast').appendChild(div);
+  setTimeout(() => div.remove(), 4000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'n' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+    openModal(currentTab);
+  }
+});
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Preload proxy from TAF Config
+const globalConfig = JSON.parse(localStorage.getItem('taf_config') || '{}');
+if (globalConfig.driveProxy && !config.proxyUrl) {
+  config.proxyUrl = globalConfig.driveProxy;
+  document.getElementById('cfgProxy').value = config.proxyUrl;
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+// INIT
+init();
+</script>
+
+<!-- ═══ TAF FIREBASE BRIDGE v2.0 — Sync universel toutes apps TAF ═══ -->
+<script>
+(function(){
+'use strict';
+const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAP={
+"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
+"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
+"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
+"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
+"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
+"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
+"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
+"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
+"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
+"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
+"taf_analyse_v3":{p:"taf_stat",n:"STAT"},
+"taf_contacts_data":{p:"taf_contact/data",n:"CONTACT"},
+"taf_contacts_config":{p:"taf_contact/config",n:"CONTACT"},
+"taf_courrier_v3":{p:"taf_courrier/data",n:"COURRIER"},
+"taf_ops_to_courrier":{p:"bridge/ops_to_courrier",n:"BRIDGE OPS→COURRIER"},
+"taf_courrier_to_ops":{p:"bridge/courrier_to_ops",n:"BRIDGE COURRIER→OPS"}
+};
+const B={
+url:FB_URL,tok:"",ok:false,last:null,dt:{},
+_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
+get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
+set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
+init:function(){
+  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
+  this._test();this._hook();this._ci();
+  console.log('[TAF BRIDGE v2] 🔥 Init —',this._app());
+},
+_test:async function(){
+  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'2.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline')}
+},
+_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';if(t.includes('TEAM'))return'TEAM';if(t.includes('Contact')||t.includes('CONTACT'))return'CONTACT';if(t.includes('Courrier')||t.includes('COURRIER'))return'COURRIER';return'TAF'},
+_hook:function(){
+  const orig=localStorage.setItem.bind(localStorage);const b=this;
+  localStorage.setItem=function(k,v){
+    orig(k,v);
+    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  }
+},
+_sync:async function(k,v,m){
+  if(!this.ok)return;
+  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
+  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
+  this._si('syncing');const ok=await this.set(m.p,d);
+  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){}
+},
+_isync:async function(){
+  if(!this.ok)return;
+  for(const[k,m]of Object.entries(MAP)){
+    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  }
+},
+readApp:async function(p){return await this.get(p)},
+forceSyncAll:async function(){
+  if(!this.ok){await this._test();if(!this.ok)return false}
+  this._si('syncing');let n=0;
+  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){try{const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}catch(e){}}}
+  this._si('synced');console.log('[TAF BRIDGE] ✅',n,'collections sync');return true
+},
+pullAll:async function(){
+  if(!this.ok)return false;this._si('syncing');let n=0;
+  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
+  for(const[k,m]of Object.entries(MAP)){
+    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
+  }
+  this._si('synced');return n
+},
+// Bridge OPS ↔ Courrier via Firebase (remplace localStorage)
+sendToOPS:async function(data){return await this.set('bridge/courrier_to_ops',data)},
+sendToCourrier:async function(data){return await this.set('bridge/ops_to_courrier',data)},
+readFromOPS:async function(){return await this.get('bridge/ops_to_courrier')},
+readFromCourrier:async function(){return await this.get('bridge/courrier_to_ops')},
+// Bridge TAF Contact → OPS (partager contacts)
+getContacts:async function(){return await this.get('taf_contact/data')},
+// Bridge TAF Team → OPS (partager équipe)
+getTeam:async function(){return await this.get('team')},
+_ci:function(){
+  if(document.getElementById('taf-bridge-ind'))return;
+  const e=document.createElement('div');e.id='taf-bridge-ind';
+  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
+  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
+  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
+  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
+},
+_si:function(s){
+  const e=document.getElementById('taf-bridge-ind');if(!e)return;
+  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
+  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
+  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
+  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
+  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
+  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
+}
+};
+window.TAFBridge=B;
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+})();
+</script>
+
+</body>
+</html>
