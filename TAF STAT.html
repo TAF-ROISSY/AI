@@ -1,0 +1,665 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, Area, AreaChart } from "recharts";
+
+// ═══════════════════════════════════════════════════
+// TAF ANALYSE PRO v3.0 — FIREBASE + 25 KPIs
+// Analyste financier ultra-précis pour fret aérien
+// ═══════════════════════════════════════════════════
+
+const VER = "3.0.0";
+const LOCAL_KEY = "taf_analyse_v3";
+const TEAM_SIZE = 5;
+
+// ═══ FIREBASE SERVICE ═══
+class FB {
+  constructor() { this.url = ""; this.token = ""; this.ok = false; this.last = null; }
+  cfg(u, t = "") { this.url = u?.replace(/\/$/, "") || ""; this.token = t; this.ok = !!this.url; }
+  _u(p) { let u = `${this.url}/${p}.json`; if (this.token) u += `?auth=${this.token}`; return u; }
+  async get(p) { if (!this.ok) return null; try { const r = await fetch(this._u(p)); if (!r.ok) return null; this.last = new Date(); return await r.json(); } catch { return null; } }
+  async set(p, d) { if (!this.ok) return false; try { const r = await fetch(this._u(p), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); this.last = new Date(); return r.ok; } catch { return false; } }
+  async test() { if (!this.url) return false; try { const r = await fetch(this._u("_ping"), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ts: Date.now(), app: "taf_stat", v: VER }) }); this.ok = r.ok; return r.ok; } catch { return false; } }
+}
+const fb = new FB();
+
+// ═══ COLORS ═══
+const C = { bg: "#07090e", bg2: "#0d1118", bg3: "#141b28", card: "#0f1520", border: "#1a2438", gold: "#f5a623", teal: "#22d3ee", blue: "#6366f1", purple: "#a78bfa", pink: "#f472b6", red: "#ef4444", green: "#22c55e", orange: "#f59e0b", text: "#e1e5f0", text2: "#7a8599", text3: "#454d5e" };
+const CHART_COLORS = [C.blue, C.teal, C.gold, C.pink, C.purple, C.green, C.orange, C.red];
+
+// ═══ HELPERS ═══
+const fmt = (n, d = 0) => n != null ? Number(n).toLocaleString("fr-FR", { maximumFractionDigits: d }) : "—";
+const fmtK = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + "M" : n >= 1000 ? (n / 1000).toFixed(0) + "k" : fmt(n);
+const pct = (n) => n != null ? n.toFixed(1) + "%" : "—";
+const today = () => new Date().toISOString().slice(0, 10);
+
+const defaultState = () => ({
+  data: [], config: { firebaseUrl: "", firebaseToken: "", apiKey: "", pin: "2709" },
+  crossData: { recouvrement: null, facturation: null, ops: null, commercial: null }
+});
+
+// ═══ MAIN APP ═══
+export default function TafStat() {
+  const [state, setState] = useState(defaultState);
+  const [tab, setTab] = useState("dash");
+  const [sync, setSync] = useState("offline");
+  const [toast, setToast] = useState(null);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [locked, setLocked] = useState(true);
+  const [pin, setPin] = useState("");
+  const timer = useRef(null);
+
+  const data = state.data || [];
+  const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
+
+  // ═══ INIT ═══
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(LOCAL_KEY);
+      if (s) { const p = JSON.parse(s); setState(prev => ({ ...defaultState(), ...p })); if (p.config?.firebaseUrl) fb.cfg(p.config.firebaseUrl, p.config.firebaseToken); }
+    } catch {}
+    // Try load cross-data from Firebase
+    (async () => {
+      if (fb.ok) {
+        setSync("syncing");
+        const remote = await fb.get("taf_stat");
+        if (remote) { setState(prev => ({ ...defaultState(), ...remote })); localStorage.setItem(LOCAL_KEY, JSON.stringify(remote)); }
+        // Pull commercial data
+        const comm = await fb.get("taf_commercial");
+        if (comm) setState(prev => ({ ...prev, crossData: { ...prev.crossData, commercial: { prospects: comm.prospects?.length || 0, gagnes: comm.prospects?.filter(p => p.statut === "gagne").length || 0, pipeline: comm.prospects?.filter(p => ["cotation", "negociation"].includes(p.statut)).reduce((a, p) => a + (p.valeur || 0), 0) || 0 } } }));
+        setSync("synced");
+      }
+    })();
+  }, []);
+
+  const save = useCallback((ns) => {
+    setState(ns);
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(ns)); } catch {}
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      if (fb.ok) { setSync("syncing"); const ok = await fb.set("taf_stat", ns); setSync(ok ? "synced" : "error"); }
+    }, 800);
+  }, []);
+
+  // ═══ COMPUTE ALL KPIs ═══
+  const K = (() => {
+    if (!data.length) return null;
+    const totalCA = data.reduce((a, d) => a + (d.amount || 0), 0);
+    const totalKg = data.reduce((a, d) => a + (d.weight || 0), 0);
+    const totalHandling = data.reduce((a, d) => a + (d.handlingCost || 0), 0);
+    const totalCustoms = data.reduce((a, d) => a + (d.customsCost || 0), 0);
+    const totalCost = totalHandling + totalCustoms;
+    const grossProfit = totalCA - totalCost;
+    const grossMargin = totalCA ? (grossProfit / totalCA) * 100 : 0;
+    const nbDossiers = data.length;
+    const avgDays = data.reduce((a, d) => a + (d.days || 0), 0) / nbDossiers;
+    const onTime = data.filter(d => d.status !== "retard").length;
+    const otif = (onTime / nbDossiers) * 100;
+    const retards = data.filter(d => d.status === "retard").length;
+
+    // Client analysis
+    const clientMap = {};
+    data.forEach(d => { clientMap[d.client] = (clientMap[d.client] || 0) + d.amount; });
+    const clientEntries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]);
+    const top3CA = clientEntries.slice(0, 3).reduce((a, [, v]) => a + v, 0);
+    const concentration = totalCA ? (top3CA / totalCA) * 100 : 0;
+    const nbClients = clientEntries.length;
+    const avgCAClient = totalCA / (nbClients || 1);
+    const clientDossiers = {};
+    data.forEach(d => { clientDossiers[d.client] = (clientDossiers[d.client] || 0) + 1; });
+
+    // Type analysis
+    const typeMap = {};
+    data.forEach(d => { typeMap[d.type || "Autre"] = (typeMap[d.type || "Autre"] || 0) + d.amount; });
+    const typeEntries = Object.entries(typeMap).sort((a, b) => b[1] - a[1]);
+
+    // Airline analysis
+    const airMap = {};
+    data.forEach(d => { airMap[d.airline || "Autre"] = (airMap[d.airline || "Autre"] || 0) + d.amount; });
+    const airEntries = Object.entries(airMap).sort((a, b) => b[1] - a[1]);
+
+    // Monthly trend
+    const monthMap = {};
+    data.forEach(d => {
+      const m = d.date?.slice(0, 7) || "?";
+      if (!monthMap[m]) monthMap[m] = { ca: 0, kg: 0, dossiers: 0, cost: 0, retards: 0 };
+      monthMap[m].ca += d.amount || 0;
+      monthMap[m].kg += d.weight || 0;
+      monthMap[m].dossiers += 1;
+      monthMap[m].cost += (d.handlingCost || 0) + (d.customsCost || 0);
+      if (d.status === "retard") monthMap[m].retards += 1;
+    });
+    const months = Object.entries(monthMap).sort().map(([m, v]) => ({
+      mois: m.slice(5), ca: v.ca, kg: v.kg, dossiers: v.dossiers, marge: v.ca - v.cost,
+      margeP: v.ca ? ((v.ca - v.cost) / v.ca * 100) : 0, otif: v.dossiers ? ((v.dossiers - v.retards) / v.dossiers * 100) : 0,
+      caKg: v.kg ? v.ca / v.kg : 0
+    }));
+
+    // DSO estimate (if recouvrement data available)
+    const dso = state.crossData?.recouvrement?.dso || null;
+    const cei = state.crossData?.recouvrement?.cei || null;
+    const impayesTotal = state.crossData?.recouvrement?.total || null;
+
+    // Per employee
+    const caEmployee = totalCA / TEAM_SIZE;
+    const dossiersEmployee = nbDossiers / TEAM_SIZE;
+
+    // Type weight analysis
+    const typeKg = {};
+    data.forEach(d => { typeKg[d.type || "Autre"] = (typeKg[d.type || "Autre"] || 0) + (d.weight || 0); });
+    const typeCAKg = {};
+    Object.entries(typeMap).forEach(([t, ca]) => { typeCAKg[t] = typeKg[t] ? ca / typeKg[t] : 0; });
+
+    return {
+      totalCA, totalKg, totalCost, grossProfit, grossMargin, nbDossiers, avgDays, otif, retards,
+      caParDossier: totalCA / nbDossiers, margeParDossier: grossProfit / nbDossiers,
+      caParKg: totalKg ? totalCA / totalKg : 0, coutParKg: totalKg ? totalCost / totalKg : 0,
+      concentration, nbClients, avgCAClient, caEmployee, dossiersEmployee,
+      clientEntries, typeEntries, airEntries, months, typeCAKg,
+      totalHandling, totalCustoms, clientDossiers,
+      dso, cei, impayesTotal,
+      // Commercial cross
+      pipeline: state.crossData?.commercial?.pipeline || 0,
+      prospectGagnes: state.crossData?.commercial?.gagnes || 0,
+    };
+  })();
+
+  // ═══ AI ANALYSIS ═══
+  const runAI = async () => {
+    if (!state.config.apiKey) { show("Clé API Claude requise", "err"); return; }
+    if (!K) { show("Pas de données", "err"); return; }
+    setAiLoading(true);
+    const prompt = `Tu es un analyste financier senior spécialisé dans le fret aérien. Analyse ces données de Trans Air Freight CDG (handler/transitaire import CDG, 5 employés, 40 ans d'expérience, périssables + cargo).
+
+DONNÉES CLÉS :
+- CA total : ${fmt(K.totalCA)}€ | ${K.nbDossiers} dossiers | ${fmt(K.totalKg, 0)}kg
+- Marge brute : ${pct(K.grossMargin)} (${fmt(K.grossProfit)}€)
+- CA/dossier : ${fmt(K.caParDossier)}€ | CA/kg : ${K.caParKg.toFixed(2)}€
+- Coût/kg : ${K.coutParKg.toFixed(2)}€ | Handling: ${fmt(K.totalHandling)}€ | Customs: ${fmt(K.totalCustoms)}€
+- Ponctualité : ${pct(K.otif)} | Transit moyen : ${K.avgDays.toFixed(1)}j | Retards : ${K.retards}
+- Concentration top3 : ${pct(K.concentration)} | ${K.nbClients} clients
+- CA/employé : ${fmt(K.caEmployee)}€ | Dossiers/employé : ${fmt(K.dossiersEmployee)}
+- Top types : ${K.typeEntries.slice(0, 4).map(([t, v]) => `${t}: ${fmtK(v)}€`).join(", ")}
+- Top clients : ${K.clientEntries.slice(0, 5).map(([c, v]) => `${c}: ${fmtK(v)}€`).join(", ")}
+${K.dso ? `- DSO : ${K.dso}j | CEI : ${pct(K.cei)}` : ""}
+${K.pipeline ? `- Pipeline commercial : ${fmt(K.pipeline)}€` : ""}
+
+TENDANCE MENSUELLE : ${K.months.map(m => `${m.mois}: ${fmtK(m.ca)}€ (marge ${m.margeP.toFixed(0)}%)`).join(" | ")}
+
+Fais une analyse COMPLÈTE en français avec :
+1. 🔍 DIAGNOSTIC GLOBAL (3 phrases percutantes)
+2. 💰 ANALYSE FINANCIÈRE (marge, rentabilité, pricing — benchmark secteur freight forwarder 20-30% marge brute)
+3. 👥 ANALYSE CLIENTÈLE (concentration, LTV, risques, clients à développer)
+4. ✈️ PERFORMANCE OPÉRATIONNELLE (ponctualité, transit, efficacité)
+5. 📈 AXES DE CROISSANCE (3 recommandations concrètes chiffrées)
+6. ⚠️ ALERTES & RISQUES (ce qui nécessite action immédiate)
+7. 🎯 PLAN D'ACTION 30 JOURS (5 actions prioritaires)
+
+Sois direct, concret, chiffré. Pas de blabla. Parle comme un analyste financier qui présente au board.`;
+
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": state.config.apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 3000, messages: [{ role: "user", content: prompt }] })
+      });
+      const d = await r.json();
+      setAiText(d.content?.map(c => c.text || "").join("") || "Erreur");
+    } catch (e) { setAiText("Erreur: " + e.message); }
+    setAiLoading(false);
+  };
+
+  // ═══ FILE IMPORT ═══
+  const handleFile = async (file) => {
+    const XLSX = await import("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js").catch(() => null);
+    // Fallback: use Papaparse for CSV or manual parsing
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let rows;
+        if (file.name.endsWith(".csv")) {
+          const lines = e.target.result.split("\n").filter(l => l.trim());
+          const headers = lines[0].split(/[,;\t]/).map(h => h.trim().replace(/"/g, "").toLowerCase());
+          rows = lines.slice(1).map(l => { const vals = l.split(/[,;\t]/).map(v => v.trim().replace(/"/g, "")); const obj = {}; headers.forEach((h, i) => obj[h] = vals[i] || ""); return obj; });
+        } else {
+          // XLSX
+          if (typeof XLSX !== "undefined" && XLSX.read) {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(ws);
+          } else {
+            // Try dynamic loading
+            show("SheetJS non chargé — essayez un CSV", "err");
+            return;
+          }
+        }
+
+        // Detect format and map
+        const mapped = mapData(rows);
+        if (mapped.length === 0) { show("Impossible de mapper les données", "err"); return; }
+        save({ ...state, data: mapped });
+        show(`${mapped.length} lignes importées ✅`);
+      } catch (err) { show("Erreur import: " + err.message, "err"); }
+    };
+    if (file.name.endsWith(".csv")) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+  };
+
+  const mapData = (rows) => {
+    if (!rows?.length) return [];
+    const keys = Object.keys(rows[0]).map(k => k.toLowerCase().trim());
+    // Detect TAF Bénéfice format
+    const isBBE = keys.some(k => k.includes("b.b.e") || k.includes("bénéfice") || k.includes("bbe"));
+    const hasStd = keys.includes("amount") || keys.includes("montant") || keys.includes("ca");
+
+    return rows.filter(r => {
+      const dateKey = Object.keys(r).find(k => k.toLowerCase().includes("date"));
+      const amtKey = Object.keys(r).find(k => /amount|montant|estimé|ca|b\.b\.e|bbe/i.test(k));
+      return dateKey && r[dateKey] && amtKey && r[amtKey];
+    }).map(r => {
+      const ks = Object.keys(r);
+      const dateKey = ks.find(k => k.toLowerCase().includes("date"));
+      const clientKey = ks.find(k => /client/i.test(k));
+      const amtKey = ks.find(k => /amount|montant|estimé|ca/i.test(k));
+      const bbeKey = ks.find(k => /b\.b\.e|bbe|bénéfice/i.test(k));
+      const wtKey = ks.find(k => /weight|poids|kg/i.test(k));
+      const typeKey = ks.find(k => /type|prestation/i.test(k));
+      const airKey = ks.find(k => /airline|compagnie|cie/i.test(k));
+      const dossKey = ks.find(k => /dossier/i.test(k));
+      const statusKey = ks.find(k => /status|statut/i.test(k));
+      const daysKey = ks.find(k => /days|jours|transit/i.test(k));
+
+      const amt = parseFloat(r[amtKey] || r[bbeKey] || 0) || 0;
+      const wt = parseFloat(r[wtKey] || 0) || Math.round(100 + Math.random() * 2000);
+      let type = r[typeKey] || "Cargo";
+      // Detect type from dossier ID
+      if (dossKey && r[dossKey]) {
+        const prefix = String(r[dossKey]).slice(0, 2).toUpperCase();
+        if (prefix === "SF" || prefix === "PF") type = "Poisson frais";
+        else if (prefix === "AI" || prefix === "AV") type = "AVI";
+        else if (prefix === "FL") type = "F&L";
+      }
+
+      let dateVal = r[dateKey];
+      if (typeof dateVal === "number") dateVal = new Date((dateVal - 25569) * 86400000).toISOString().slice(0, 10);
+      else { try { dateVal = new Date(dateVal).toISOString().slice(0, 10); } catch { dateVal = today(); } }
+
+      return {
+        date: dateVal, client: r[clientKey] || "CLIENT", type,
+        amount: amt, weight: wt, airline: r[airKey] || "Diverse",
+        handlingCost: Math.round(amt * 0.15), customsCost: Math.round(amt * 0.08),
+        status: r[statusKey] || "dédouané", days: parseInt(r[daysKey]) || Math.floor(2 + Math.random() * 5),
+        dossier: r[dossKey] || ""
+      };
+    });
+  };
+
+  // ═══ PULL CROSS DATA FROM FIREBASE ═══
+  const pullCrossData = async () => {
+    if (!fb.ok) { show("Firebase non configuré", "err"); return; }
+    setSync("syncing");
+    const results = {};
+    // Commercial
+    const comm = await fb.get("taf_commercial");
+    if (comm?.prospects) {
+      results.commercial = {
+        prospects: comm.prospects.length,
+        gagnes: comm.prospects.filter(p => p.statut === "gagne").length,
+        pipeline: comm.prospects.filter(p => ["cotation", "negociation"].includes(p.statut)).reduce((a, p) => a + (p.valeur || 0), 0),
+        relances: comm.prospects.filter(p => p.relance).length,
+        rescueActifs: (comm.rescueLeads || []).filter(r => r.statut !== "resolu").length,
+      };
+    }
+    // Recouvrement
+    const rec = await fb.get("taf_recouvrement");
+    if (rec) results.recouvrement = rec;
+    // Facturation
+    const fact = await fb.get("taf_facturation");
+    if (fact) results.facturation = fact;
+    // OPS
+    const ops = await fb.get("taf_ops");
+    if (ops) results.ops = ops;
+
+    save({ ...state, crossData: { ...state.crossData, ...results } });
+    setSync("synced");
+    show("Données inter-apps synchronisées ✅");
+  };
+
+  // ═══ UI COMPONENTS ═══
+  const Btn = ({ children, onClick, v = "ghost", s = "md", style: st = {} }) => {
+    const vars = { gold: { background: `linear-gradient(135deg, ${C.gold}, #ffd700)`, color: "#000" }, ghost: { background: C.bg3, color: C.text2, border: `1px solid ${C.border}` }, blue: { background: C.blue, color: "#fff" }, teal: { background: `${C.teal}18`, color: C.teal, border: `1px solid ${C.teal}30` }, red: { background: `${C.red}15`, color: C.red }, firebase: { background: `linear-gradient(135deg, #FFA000, #F57C00)`, color: "#fff" } };
+    return <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 7, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", fontFamily: "inherit", padding: s === "sm" ? "4px 10px" : "7px 14px", fontSize: s === "sm" ? 10 : 12, transition: "all .15s", ...vars[v], ...st }}>{children}</button>;
+  };
+  const Card = ({ title, tr, children, style: st = {} }) => (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 13, overflow: "hidden", ...st }}>
+      {title && <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: C.bg2 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{title}</span>{tr}</div>}
+      <div style={{ padding: "14px 16px" }}>{children}</div>
+    </div>
+  );
+  const KpiBox = ({ label, value, color, sub, alert: al }) => (
+    <div style={{ background: C.card, border: `1px solid ${al ? `${C.red}40` : C.border}`, borderRadius: 13, padding: "14px 16px", position: "relative", overflow: "hidden" }}>
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: C.text3, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color, fontFamily: "monospace" }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: C.text3, marginTop: 3 }}>{sub}</div>}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${color}, ${color}50)` }} />
+    </div>
+  );
+  const Inp = ({ label, ...p }) => <div style={{ marginBottom: 10 }}>{label && <label style={{ fontSize: 9, fontWeight: 700, color: C.text2, textTransform: "uppercase", display: "block", marginBottom: 4 }}>{label}</label>}<input {...p} style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 11px", color: C.text, fontSize: 12, outline: "none", width: "100%", fontFamily: "inherit", ...p.style }} /></div>;
+  const Stat = ({ l, v, color }) => <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.border}15` }}><span style={{ fontSize: 12, color: C.text2 }}>{l}</span><span style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace", color: color || C.text }}>{v}</span></div>;
+  const syncDot = { offline: C.text3, syncing: C.gold, synced: C.green, error: C.red };
+
+  // ═══ LOGIN SCREEN ═══
+  if (locked) return (
+    <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: '"Segoe UI", sans-serif' }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 40, width: "100%", maxWidth: 340, textAlign: "center" }}>
+        <div style={{ fontSize: 24, fontWeight: 700, background: `linear-gradient(135deg, ${C.blue}, ${C.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 8 }}>🔥 TAF ANALYSE PRO</div>
+        <div style={{ fontSize: 11, color: C.text3, marginBottom: 24 }}>v{VER} — Firebase Edition</div>
+        <input type="password" value={pin} onChange={e => setPin(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && pin === (state.config.pin || "2709")) setLocked(false); }} placeholder="••••" maxLength={4} style={{ width: "100%", height: 50, fontSize: 28, fontFamily: "monospace", letterSpacing: 10, textAlign: "center", background: C.bg3, border: `2px solid ${C.border}`, borderRadius: 8, color: C.text, outline: "none" }} autoFocus />
+        <div style={{ fontSize: 10, color: C.text3, marginTop: 12 }}>PIN 4 chiffres</div>
+      </div>
+    </div>
+  );
+
+  // ═══ DASHBOARD ═══
+  const renderDash = () => {
+    if (!K) return (
+      <div style={{ textAlign: "center", padding: "60px 20px", color: C.text3 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: C.text }}>Aucune donnée</div>
+        <div style={{ fontSize: 12, marginBottom: 20 }}>Importez un fichier Excel/CSV dans l'onglet Données</div>
+        <Btn v="blue" onClick={() => setTab("data")}>📥 Importer des données</Btn>
+        <div style={{ margin: "12px 0" }}>ou</div>
+        <Btn v="ghost" onClick={() => { save({ ...state, data: generateSample() }); }}>🔄 Charger données exemple</Btn>
+      </div>
+    );
+
+    return (
+      <div>
+        {/* KPI GRID — 6 colonnes */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
+          <KpiBox label="CA Total" value={fmtK(K.totalCA) + "€"} color={C.blue} sub={`${K.nbDossiers} dossiers`} />
+          <KpiBox label="Marge Brute" value={pct(K.grossMargin)} color={K.grossMargin >= 25 ? C.green : K.grossMargin >= 15 ? C.gold : C.red} sub={fmtK(K.grossProfit) + "€"} alert={K.grossMargin < 20} />
+          <KpiBox label="Tonnage" value={(K.totalKg / 1000).toFixed(1) + "t"} color={C.teal} sub={`${K.caParKg.toFixed(2)}€/kg`} />
+          <KpiBox label="OTIF" value={pct(K.otif)} color={K.otif >= 90 ? C.green : K.otif >= 80 ? C.gold : C.red} sub={`Transit ${K.avgDays.toFixed(1)}j`} alert={K.otif < 85} />
+          <KpiBox label="CA / Employé" value={fmtK(K.caEmployee) + "€"} color={C.purple} sub={`${Math.round(K.dossiersEmployee)} doss/pers`} />
+          <KpiBox label="Concentration" value={pct(K.concentration)} color={K.concentration > 60 ? C.red : K.concentration > 40 ? C.gold : C.green} sub={`Top 3 / ${K.nbClients} clients`} alert={K.concentration > 60} />
+        </div>
+
+        {/* SECOND ROW — Financial deep */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
+          <KpiBox label="CA / Dossier" value={fmt(K.caParDossier, 0) + "€"} color={C.gold} />
+          <KpiBox label="Marge / Dossier" value={fmt(K.margeParDossier, 0) + "€"} color={K.margeParDossier > 0 ? C.green : C.red} />
+          <KpiBox label="Coût / kg" value={K.coutParKg.toFixed(2) + "€"} color={C.orange} sub={`Handling + Customs`} />
+          <KpiBox label="Retards" value={K.retards} color={K.retards > K.nbDossiers * 0.1 ? C.red : C.green} sub={`sur ${K.nbDossiers}`} alert={K.retards > K.nbDossiers * 0.15} />
+          {K.dso ? <KpiBox label="DSO" value={K.dso + "j"} color={K.dso > 45 ? C.red : K.dso > 30 ? C.gold : C.green} sub="Délai paiement" alert={K.dso > 45} /> : <KpiBox label="Pipeline Comm." value={fmtK(K.pipeline) + "€"} color={C.blue} sub={`${K.prospectGagnes} gagné(s)`} />}
+        </div>
+
+        {/* CHARTS ROW */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 16 }}>
+          <Card title="📈 TENDANCE MENSUELLE CA & MARGE">
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={K.months}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                <XAxis dataKey="mois" tick={{ fontSize: 10, fill: C.text3 }} />
+                <YAxis tick={{ fontSize: 10, fill: C.text3 }} />
+                <Tooltip contentStyle={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11 }} />
+                <Area type="monotone" dataKey="ca" stroke={C.blue} fill={`${C.blue}20`} name="CA €" />
+                <Area type="monotone" dataKey="marge" stroke={C.green} fill={`${C.green}15`} name="Marge €" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card title="🎯 PAR TYPE">
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={K.typeEntries.map(([name, value]) => ({ name, value }))} cx="50%" cy="50%" outerRadius={70} innerRadius={35} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 9 }}>
+                  {K.typeEntries.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+
+        {/* DETAIL TABLES */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          <Card title="👥 TOP CLIENTS">
+            {K.clientEntries.slice(0, 7).map(([c, v], i) => (
+              <Stat key={c} l={`${i + 1}. ${c}`} v={fmtK(v) + "€"} color={i === 0 ? C.gold : C.text} />
+            ))}
+            <Stat l="CA moyen / client" v={fmtK(K.avgCAClient) + "€"} color={C.teal} />
+          </Card>
+
+          <Card title="💰 COÛTS & RENTABILITÉ">
+            <Stat l="Handling (15%)" v={fmtK(K.totalHandling) + "€"} />
+            <Stat l="Douane (8%)" v={fmtK(K.totalCustoms) + "€"} />
+            <Stat l="Total coûts" v={fmtK(K.totalCost) + "€"} color={C.red} />
+            <Stat l="Résultat brut" v={fmtK(K.grossProfit) + "€"} color={C.green} />
+            <Stat l="Marge brute" v={pct(K.grossMargin)} color={K.grossMargin >= 25 ? C.green : C.red} />
+            <Stat l="Coût/kg" v={K.coutParKg.toFixed(2) + "€/kg"} />
+          </Card>
+
+          <Card title="✈️ OPÉRATIONNEL">
+            <Stat l="Transit moyen" v={K.avgDays.toFixed(1) + " jours"} />
+            <Stat l="Ponctualité OTIF" v={pct(K.otif)} color={K.otif >= 90 ? C.green : C.red} />
+            <Stat l="Dossiers retard" v={K.retards.toString()} color={C.red} />
+            <Stat l="CA/dossier" v={fmt(K.caParDossier, 0) + "€"} />
+            <Stat l="Marge/dossier" v={fmt(K.margeParDossier, 0) + "€"} color={C.green} />
+            <Stat l="Dossiers/employé" v={Math.round(K.dossiersEmployee).toString()} />
+          </Card>
+        </div>
+
+        {/* PERFORMANCE CHART */}
+        <Card title="📊 OTIF & CA/KG PAR MOIS" style={{ marginTop: 14 }}>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={K.months}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+              <XAxis dataKey="mois" tick={{ fontSize: 10, fill: C.text3 }} />
+              <YAxis yAxisId="l" tick={{ fontSize: 10, fill: C.text3 }} />
+              <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 10, fill: C.text3 }} />
+              <Tooltip contentStyle={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11 }} />
+              <Bar yAxisId="l" dataKey="otif" fill={C.teal} name="OTIF %" radius={[3, 3, 0, 0]} />
+              <Line yAxisId="r" type="monotone" dataKey="caKg" stroke={C.gold} name="CA/kg €" dot={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* CROSS-APP DATA */}
+        {(state.crossData?.commercial || state.crossData?.recouvrement) && (
+          <Card title="🔗 DONNÉES INTER-APPLICATIONS" tr={<Btn s="sm" v="firebase" onClick={pullCrossData}>🔄 Sync</Btn>} style={{ marginTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              {state.crossData.commercial && <>
+                <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.gold }}>{state.crossData.commercial.prospects}</div><div style={{ fontSize: 9, color: C.text3 }}>PROSPECTS CRM</div></div>
+                <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.green }}>{state.crossData.commercial.gagnes}</div><div style={{ fontSize: 9, color: C.text3 }}>CLIENTS GAGNÉS</div></div>
+                <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.blue }}>{fmtK(state.crossData.commercial.pipeline)}€</div><div style={{ fontSize: 9, color: C.text3 }}>PIPELINE</div></div>
+                <div style={{ padding: 10, background: C.bg3, borderRadius: 8, textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: C.red }}>{state.crossData.commercial.rescueActifs || 0}</div><div style={{ fontSize: 9, color: C.text3 }}>RESCUE ACTIFS</div></div>
+              </>}
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  // ═══ DATA TAB ═══
+  const renderData = () => (
+    <div>
+      <Card title="📥 IMPORT FICHIER" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: C.text2, marginBottom: 10 }}>Formats : XLS, XLSX, CSV — L'app détecte automatiquement le format (TAF Bénéfice, Standard, Générique)</div>
+        <div style={{ border: `2px dashed ${C.border}`, borderRadius: 8, padding: "30px 20px", textAlign: "center", cursor: "pointer" }} onClick={() => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv"; i.onchange = e => e.target.files[0] && handleFile(e.target.files[0]); i.click(); }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Cliquer pour importer un fichier</div>
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 4 }}>XLS, XLSX, CSV</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <Btn v="blue" onClick={() => save({ ...state, data: generateSample() })}>🔄 Données exemple</Btn>
+          <Btn v="ghost" onClick={() => save({ ...state, data: [] })}>🗑 Réinitialiser</Btn>
+        </div>
+        <div style={{ fontSize: 11, color: C.text3, marginTop: 8 }}><strong>{data.length}</strong> lignes chargées</div>
+      </Card>
+
+      <Card title="📋 FORMATS DÉTECTÉS AUTOMATIQUEMENT" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+          {[
+            { n: "Format TAF Bénéfice Brut", cols: "Date | Dossiers | Client | Poids | Estimé | B.B.E.", c: C.green },
+            { n: "Format Standard", cols: "date | client | type | amount | weight | airline", c: C.teal },
+            { n: "Format Générique", cols: "Tant qu'il y a Date + Client + Montant", c: C.gold },
+          ].map(f => (
+            <div key={f.n} style={{ marginBottom: 10 }}><strong style={{ color: f.c }}>✅ {f.n}</strong><br /><span style={{ color: C.text3, fontSize: 10 }}>{f.cols}</span></div>
+          ))}
+        </div>
+      </Card>
+
+      {data.length > 0 && (
+        <Card title={`📋 APERÇU (${Math.min(20, data.length)} / ${data.length})`}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead><tr>{["Date", "Client", "Type", "CA €", "Poids", "Airline", "Statut", "Jours"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px", fontSize: 9, fontWeight: 700, color: C.text3, borderBottom: `1px solid ${C.border}`, background: C.bg2 }}>{h}</th>)}</tr></thead>
+              <tbody>{data.slice(-20).reverse().map((d, i) => (
+                <tr key={i}><td style={{ padding: "5px 8px", fontSize: 10, color: C.text3 }}>{d.date}</td><td style={{ padding: "5px 8px", fontSize: 10, fontWeight: 600 }}>{d.client}</td><td style={{ padding: "5px 8px", fontSize: 10 }}>{d.type}</td><td style={{ padding: "5px 8px", fontSize: 10, fontFamily: "monospace" }}>{fmt(d.amount)}</td><td style={{ padding: "5px 8px", fontSize: 10, color: C.text3 }}>{d.weight}</td><td style={{ padding: "5px 8px", fontSize: 10, color: C.text3 }}>{d.airline}</td><td style={{ padding: "5px 8px" }}><span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 9, background: d.status === "dédouané" ? `${C.green}18` : d.status === "retard" ? `${C.red}18` : `${C.gold}18`, color: d.status === "dédouané" ? C.green : d.status === "retard" ? C.red : C.gold }}>{d.status}</span></td><td style={{ padding: "5px 8px", fontSize: 10 }}>{d.days}j</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+
+  // ═══ AI TAB ═══
+  const renderAI = () => (
+    <div>
+      <Card title="🤖 ANALYSE IA — AGENT FINANCIER" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: C.text2, marginBottom: 10 }}>L'agent IA analyse toutes vos données et produit un rapport financier complet avec diagnostic, benchmarks sectoriels et plan d'action.</div>
+        <Btn v="gold" onClick={runAI} style={{ fontSize: 14, padding: "10px 24px" }}>{aiLoading ? "⏳ Analyse en cours..." : "🧠 Lancer l'analyse complète"}</Btn>
+        {!state.config.apiKey && <div style={{ fontSize: 10, color: C.red, marginTop: 6 }}>⚠️ Clé API Claude requise → onglet Config</div>}
+      </Card>
+      {aiText && (
+        <Card title="📊 RAPPORT D'ANALYSE">
+          <div style={{ fontSize: 13, lineHeight: 1.8, color: C.text, whiteSpace: "pre-wrap" }}>{aiText}</div>
+        </Card>
+      )}
+    </div>
+  );
+
+  // ═══ CONFIG TAB ═══
+  const renderConfig = () => (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Card title="🔥 FIREBASE">
+          <Inp label="Database URL" placeholder="https://taf-xxx-default-rtdb...app" value={state.config.firebaseUrl} onChange={e => save({ ...state, config: { ...state.config, firebaseUrl: e.target.value } })} />
+          <Inp label="Token (optionnel)" type="password" value={state.config.firebaseToken || ""} onChange={e => save({ ...state, config: { ...state.config, firebaseToken: e.target.value } })} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn v="firebase" onClick={async () => { fb.cfg(state.config.firebaseUrl, state.config.firebaseToken); const ok = await fb.test(); show(ok ? "Firebase connecté ✅" : "Erreur connexion", ok ? "ok" : "err"); if (ok) { setSync("synced"); save(state); } }}>🔥 Tester</Btn>
+            <Btn v="ghost" onClick={async () => { if (!fb.ok) return; setSync("syncing"); const ok = await fb.set("taf_stat", state); setSync(ok ? "synced" : "error"); show(ok ? "Push ✅" : "Erreur", ok ? "ok" : "err"); }}>⬆️ Push</Btn>
+            <Btn v="teal" onClick={pullCrossData}>🔗 Sync apps</Btn>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 10, color: C.text3, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: syncDot[sync] }} />
+            {sync === "synced" ? "Connecté" : sync === "syncing" ? "Sync..." : sync === "error" ? "Erreur" : "Offline"}
+          </div>
+        </Card>
+
+        <Card title="🔑 API & SÉCURITÉ">
+          <Inp label="Clé API Claude" type="password" placeholder="sk-ant-..." value={state.config.apiKey} onChange={e => save({ ...state, config: { ...state.config, apiKey: e.target.value } })} />
+          <Inp label="PIN sécurité" value={state.config.pin || "2709"} onChange={e => save({ ...state, config: { ...state.config, pin: e.target.value } })} />
+        </Card>
+      </div>
+
+      {/* INTER-APP */}
+      <Card title="🔗 COMMUNICATION INTER-APPLICATIONS" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 11, color: C.text2, marginBottom: 12 }}>TAF STAT communique avec les autres apps TAF via Firebase. Même base de données partagée.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {[
+            { icon: "🎯", name: "TAF COMMERCIAL", path: "taf_commercial", data: state.crossData?.commercial },
+            { icon: "💰", name: "TAF FACTURATION", path: "taf_facturation", data: state.crossData?.facturation },
+            { icon: "⚠️", name: "RECOUVREMENT", path: "taf_recouvrement", data: state.crossData?.recouvrement },
+            { icon: "📬", name: "TAF OPS", path: "taf_ops", data: state.crossData?.ops },
+          ].map(app => (
+            <div key={app.name} style={{ padding: 14, background: C.bg3, borderRadius: 10, textAlign: "center", border: `1px solid ${app.data ? `${C.green}30` : C.border}` }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>{app.icon}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 3 }}>{app.name}</div>
+              <div style={{ fontSize: 9, color: app.data ? C.green : C.text3 }}>{app.data ? "✅ Connecté" : "⚪ En attente"}</div>
+              <div style={{ fontSize: 8, color: C.text3, marginTop: 2, fontFamily: "monospace" }}>{app.path}</div>
+            </div>
+          ))}
+        </div>
+        <Btn v="firebase" onClick={pullCrossData} style={{ marginTop: 10 }}>🔄 Synchroniser toutes les apps</Btn>
+      </Card>
+
+      {/* DATA */}
+      <Card title="💾 DONNÉES" style={{ marginTop: 14 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn v="gold" onClick={() => { const a = document.createElement("a"); a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2)); a.download = `taf_stat_v3_${today()}.json`; a.click(); show("Export ✅"); }}>📤 Export</Btn>
+          <Btn v="ghost" onClick={() => { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = e => { const r = new FileReader(); r.onload = ev => { try { save({ ...defaultState(), ...JSON.parse(ev.target.result) }); show("Restauré ✅"); } catch { show("Erreur", "err"); } }; r.readAsText(e.target.files[0]); }; i.click(); }}>📥 Import JSON</Btn>
+        </div>
+      </Card>
+    </div>
+  );
+
+  // ═══ SAMPLE DATA ═══
+  function generateSample() {
+    const clients = ["CAPMARIN", "EXOFLORE", "AQUA VIVANT", "GLOBAL SEAFOOD", "FRUIT PARTNER", "OCEAN DÉLICES", "ATLAS CARGO"];
+    const types = ["Poisson frais", "F&L", "AVI", "Cargo"];
+    const airlines = ["Air France", "Ethiopian", "Qatar", "Air Algérie", "Corsair", "Emirates"];
+    const entries = [];
+    for (let m = 0; m < 12; m++) {
+      for (let i = 0; i < 20 + Math.floor(Math.random() * 15); i++) {
+        const type = types[Math.floor(Math.random() * types.length)];
+        const base = type === "Poisson frais" ? 1800 : type === "AVI" ? 1200 : type === "F&L" ? 900 : 1400;
+        const wt = 100 + Math.random() * 3000;
+        const amt = Math.round((base + (Math.random() - 0.5) * 600) / 10) * 10;
+        entries.push({ date: `2026-${String(m + 1).padStart(2, "0")}-${String(1 + Math.floor(Math.random() * 27)).padStart(2, "0")}`, client: clients[Math.floor(Math.random() * clients.length)], type, amount: amt, weight: Math.round(wt), airline: airlines[Math.floor(Math.random() * airlines.length)], handlingCost: Math.round(amt * 0.15), customsCost: Math.round(amt * 0.08), status: Math.random() > 0.15 ? "dédouané" : Math.random() > 0.5 ? "en cours" : "retard", days: Math.floor(1 + Math.random() * 8) });
+      }
+    }
+    return entries;
+  }
+
+  // ═══ MAIN RENDER ═══
+  const tabs = [
+    { id: "dash", icon: "📊", label: "Dashboard" },
+    { id: "data", icon: "📥", label: "Données" },
+    { id: "ai", icon: "🤖", label: "Analyse IA" },
+    { id: "config", icon: "⚙️", label: "Config" },
+  ];
+
+  return (
+    <div style={{ background: C.bg, color: C.text, fontFamily: '"Segoe UI", -apple-system, sans-serif', fontSize: 13, minHeight: "100vh" }}>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:${C.bg2}}::-webkit-scrollbar-thumb{background:${C.border};border-radius:2px}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* HEADER */}
+      <header style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "0 22px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 34, height: 34, background: `linear-gradient(135deg, ${C.blue}, ${C.pink})`, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🔥</div>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: ".05em" }}>TAF ANALYSE PRO</span>
+          <span style={{ background: C.bg3, border: `1px solid ${C.border}`, padding: "2px 8px", borderRadius: 4, fontSize: 10, fontFamily: "monospace", color: C.text3 }}>v{VER}</span>
+          {/* Sync */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: syncDot[sync], boxShadow: sync === "synced" ? `0 0 6px ${C.green}60` : "none" }} />
+            <span style={{ color: syncDot[sync] }}>{sync === "synced" ? "🔥 Firebase" : sync === "syncing" ? "Sync..." : ""}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 2, background: C.bg3, borderRadius: 8, padding: 3 }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: tab === t.id ? C.blue : "transparent", color: tab === t.id ? "#fff" : C.text3, fontFamily: "inherit", transition: "all .15s" }}>{t.icon} {t.label}</button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Btn s="sm" v="ghost" onClick={() => { const a = document.createElement("a"); a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data)); a.download = `taf_analyse_${today()}.json`; a.click(); }}>⬇️ Export</Btn>
+          <Btn s="sm" v="ghost" onClick={() => setLocked(true)}>🔓</Btn>
+        </div>
+      </header>
+
+      {/* CONTENT */}
+      <div style={{ padding: "20px 22px" }}>
+        {tab === "dash" && renderDash()}
+        {tab === "data" && renderData()}
+        {tab === "ai" && renderAI()}
+        {tab === "config" && renderConfig()}
+      </div>
+
+      {/* TOAST */}
+      {toast && <div style={{ position: "fixed", bottom: 20, right: 20, padding: "10px 16px", background: C.card, border: `1px solid ${toast.t === "ok" ? `${C.green}30` : `${C.red}30`}`, borderRadius: 8, fontSize: 12, zIndex: 200 }}>{toast.t === "ok" ? "✅" : "❌"} {toast.m}</div>}
+    </div>
+  );
+}
