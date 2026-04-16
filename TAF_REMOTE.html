@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#060a14">
+<title>TAF REMOTE — Télécommande TV</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#060a14;--panel:#0c1220;--card:#111827;--card2:#1a2435;--cyan:#00d4ff;--cd:rgba(0,212,255,.15);--green:#00ff88;--gd:rgba(0,255,136,.15);--red:#ff3366;--rd:rgba(255,51,102,.15);--amber:#ffaa00;--ad:rgba(255,170,0,.15);--purple:#a78bfa;--pd:rgba(167,139,250,.15);--txt:#e8ecf4;--t2:#8892a4;--t3:#4a5568;--bd:rgba(255,255,255,.08)}
+html,body{height:100%;overflow-x:hidden;overscroll-behavior-y:none}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--txt);padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.header{padding:20px 0;text-align:center;border-bottom:1px solid var(--bd);margin-bottom:20px;position:sticky;top:0;background:var(--bg);z-index:10}
+.logo{font-size:11px;color:var(--t2);letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
+.title{font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+.sub{font-size:12px;color:var(--t3);margin-top:4px;letter-spacing:1px}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:6px 12px;background:var(--card);border-radius:20px;width:fit-content;margin-left:auto;margin-right:auto;border:1px solid var(--bd)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pg 2s ease-in-out infinite}
+.dot.off{background:var(--red);animation:none}
+@keyframes pg{0%,100%{box-shadow:0 0 4px var(--green);opacity:1}50%{box-shadow:0 0 12px var(--green);opacity:.6}}
+.status-t{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+
+/* SECTION */
+.section{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:16px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-t{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t2);display:flex;align-items:center;gap:10px}
+.sec-t .ic{font-size:20px}
+
+/* TOGGLE */
+.toggle{position:relative;width:58px;height:30px;background:var(--card2);border:1px solid var(--bd);border-radius:30px;cursor:pointer;transition:.3s;flex-shrink:0}
+.toggle.on{background:var(--green);border-color:var(--green);box-shadow:0 0 12px rgba(0,255,136,.3)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.3s;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.toggle.on::after{left:31px}
+
+/* BUTTONS */
+.btn{padding:14px 20px;border-radius:12px;border:1px solid var(--bd);background:var(--card2);color:var(--txt);cursor:pointer;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;transition:.2s;width:100%;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn:active{transform:scale(.97)}
+.btn-big{padding:18px;font-size:16px;font-weight:700}
+.btn-on{background:var(--cyan);color:var(--bg);border-color:var(--cyan);box-shadow:0 0 16px rgba(0,212,255,.4)}
+.btn-green{background:var(--green);color:#000;border-color:var(--green)}
+.btn-amber{background:var(--amber);color:#000;border-color:var(--amber)}
+.btn-red{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* CHANNEL GRID */
+.ch-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ch-btn{background:var(--card2);border:2px solid var(--bd);border-radius:12px;padding:16px 12px;cursor:pointer;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;overflow:hidden}
+.ch-btn:active{transform:scale(.96)}
+.ch-btn.active{border-color:var(--cyan);background:var(--cd);box-shadow:0 0 16px rgba(0,212,255,.3)}
+.ch-btn.active::before{content:'● ON';position:absolute;top:6px;right:8px;font-size:9px;font-weight:800;color:var(--cyan);font-family:'JetBrains Mono',monospace;animation:pg 2s ease-in-out infinite}
+.ch-logo{font-size:28px}
+.ch-name{font-size:13px;font-weight:700;color:var(--txt)}
+.ch-desc{font-size:9px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase}
+
+/* MODE SWITCH */
+.mode-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--card2);padding:4px;border-radius:10px;border:1px solid var(--bd)}
+.mode-b{padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-align:center;border:none;background:transparent;color:var(--t2);transition:.2s}
+.mode-b.active{background:var(--cyan);color:var(--bg)}
+
+/* QUICK ACTIONS */
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* INFO */
+.info-box{background:var(--card2);border-radius:10px;padding:12px;margin-top:12px;border-left:3px solid var(--cyan)}
+.info-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.info-v{font-size:14px;font-family:'JetBrains Mono',monospace;color:var(--cyan);font-weight:600}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1px solid var(--green);padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;color:var(--green);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100;transition:.3s;opacity:0}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.err{color:var(--red);border-color:var(--red)}
+
+.footer{padding:20px 0;text-align:center;color:var(--t3);font-size:10px;margin-top:auto}
+.ver{font-family:'JetBrains Mono',monospace;color:var(--t3);font-size:10px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">📱 TÉLÉCOMMANDE</div>
+  <div class="title">TAF REMOTE</div>
+  <div class="sub">Pilote TAF TV à distance</div>
+  <div class="status" id="status">
+    <div class="dot" id="statDot"></div>
+    <span class="status-t" id="statTxt">Connexion...</span>
+  </div>
+</div>
+
+<!-- Section VOLS -->
+<div class="section">
+  <div class="sec-h">
+    <div class="sec-t"><span class="ic">✈️</span>Widget Vols</div>
+    <div class="toggle" id="togVols" onclick="toggleVols()"></div>
+  </div>
+  <div class="info-box">
+    <div class="info-l">État actuel</div>
+    <div class="info-v" id="volsState">—</div>
+  </div>
+</div>
+
+<!-- Section TV -->
+<div class="section">
+  <div class="sec-h">
+    <div class="sec-t"><span class="ic">📺</span>Widget TV</div>
+    <div class="toggle" id="togTv" onclick="toggleTv()"></div>
+  </div>
+
+  <div style="margin-bottom:12px">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">MODE</div>
+    <div class="mode-g">
+      <button class="mode-b active" id="modeFixed" onclick="setMode('fixed')">📌 Fixe</button>
+      <button class="mode-b" id="modeCar" onclick="setMode('carousel')">🔄 Carrousel</button>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:var(--t3);margin-bottom:8px;letter-spacing:1px">CHAÎNES</div>
+  <div class="ch-grid" id="chGrid"></div>
+
+  <div class="info-box">
+    <div class="info-l">Chaîne active</div>
+    <div class="info-v" id="chActive">—</div>
+  </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="section">
+  <div class="sec-t" style="margin-bottom:12px"><span class="ic">⚡</span>Actions rapides</div>
+  <div class="quick">
+    <button class="btn btn-amber" onclick="forceRefresh()">⟳ Refresh</button>
+    <button class="btn btn-red" onclick="forceReload()">⟲ Reload</button>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="ver">TAF REMOTE v1.0 • Firebase Realtime Sync</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══ CONFIG FIREBASE ═══ */
+const FB="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const REMOTE_PATH="taf_tv/remote";
+
+/* ═══ CHAÎNES TV ═══ */
+const CHANNELS=[
+  {id:'cnews',name:'CNews',logo:'📰',desc:'Info en continu'},
+  {id:'franceinfo',name:'France Info',logo:'🇫🇷',desc:'Info publique'},
+  {id:'france24',name:'France 24',logo:'🌍',desc:'International'},
+  {id:'euronews',name:'Euronews FR',logo:'🇪🇺',desc:'Europe'},
+  {id:'bfmtv',name:'BFM TV',logo:'📺',desc:'Info privée'},
+];
+
+/* ═══ STATE ═══ */
+let state={
+  tv_enabled:true,
+  tv_channel:'cnews',
+  tv_mode:'fixed',
+  vols_enabled:true,
+  refresh:0,
+  reload:0,
+  last_ping:0
+};
+let isOnline=false;
+
+/* ═══ FIREBASE REST ═══ */
+async function fbGet(){
+  try{
+    const r=await fetch(`${FB}/${REMOTE_PATH}.json`);
+    if(!r.ok)return null;
+    return await r.json();
+  }catch{return null}
+}
+async function fbSet(data){
+  try{
+    const r=await fetch(`${FB}/${REMOTE_PATH}.json`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data)
+    });
+    return r.ok;
+  }catch{return false}
+}
+
+/* ═══ LOAD + RENDER ═══ */
+async function loadState(){
+  const s=await fbGet();
+  if(s){
+    state={...state,...s};
+    isOnline=true;
+    setStatus(true,'Synchronisé avec TAF TV');
+  }else{
+    /* Pas encore de config → initialiser */
+    isOnline=true;
+    setStatus(true,'Première connexion');
+    await saveState();
+  }
+  render();
+}
+
+async function saveState(){
+  state.last_ping=Date.now();
+  const ok=await fbSet(state);
+  if(ok){
+    toast('✓ TAF TV mis à jour');
+  }else{
+    toast('❌ Erreur sync',true);
+  }
+}
+
+function setStatus(online,msg){
+  document.getElementById('statDot').classList.toggle('off',!online);
+  document.getElementById('statTxt').textContent=msg;
+}
+
+function render(){
+  /* Toggles */
+  document.getElementById('togVols').classList.toggle('on',state.vols_enabled);
+  document.getElementById('togTv').classList.toggle('on',state.tv_enabled);
+
+  /* État vols */
+  document.getElementById('volsState').textContent=state.vols_enabled?'✅ Affiché sur TAF TV':'❌ Masqué';
+  document.getElementById('volsState').style.color=state.vols_enabled?'var(--green)':'var(--red)';
+
+  /* Mode */
+  document.getElementById('modeFixed').classList.toggle('active',state.tv_mode==='fixed');
+  document.getElementById('modeCar').classList.toggle('active',state.tv_mode==='carousel');
+
+  /* Chaînes */
+  const grid=document.getElementById('chGrid');
+  grid.innerHTML=CHANNELS.map(ch=>`
+    <div class="ch-btn ${state.tv_channel===ch.id?'active':''}" onclick="setChannel('${ch.id}')">
+      <div class="ch-logo">${ch.logo}</div>
+      <div class="ch-name">${ch.name}</div>
+      <div class="ch-desc">${ch.desc}</div>
+    </div>
+  `).join('');
+
+  /* Chaîne active */
+  const active=CHANNELS.find(c=>c.id===state.tv_channel);
+  document.getElementById('chActive').textContent=state.tv_enabled?(active?active.logo+' '+active.name:'—'):'TV désactivée';
+  document.getElementById('chActive').style.color=state.tv_enabled?'var(--cyan)':'var(--t3)';
+}
+
+/* ═══ ACTIONS ═══ */
+async function toggleVols(){
+  state.vols_enabled=!state.vols_enabled;
+  render();
+  await saveState();
+}
+async function toggleTv(){
+  state.tv_enabled=!state.tv_enabled;
+  render();
+  await saveState();
+}
+async function setChannel(id){
+  state.tv_channel=id;
+  state.tv_enabled=true; /* active automatiquement le widget TV */
+  render();
+  await saveState();
+}
+async function setMode(mode){
+  state.tv_mode=mode;
+  render();
+  await saveState();
+}
+async function forceRefresh(){
+  state.refresh=Date.now();
+  await saveState();
+  toast('🔄 Refresh demandé');
+}
+async function forceReload(){
+  if(!confirm('Recharger TAF TV ? (l\'écran va se rafraîchir)')) return;
+  state.reload=Date.now();
+  await saveState();
+  toast('⟲ Reload demandé');
+}
+
+/* ═══ TOAST ═══ */
+let tT=null;
+function toast(msg,err){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.toggle('err',!!err);
+  t.classList.add('show');
+  if(tT)clearTimeout(tT);
+  tT=setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+/* ═══ POLL — rafraîchir l'état toutes les 5s ═══ */
+setInterval(async ()=>{
+  const s=await fbGet();
+  if(s){
+    if(!isOnline){isOnline=true;setStatus(true,'Reconnecté');}
+    /* Mettre à jour uniquement si la dernière modif vient de TAF TV (pas de nous) */
+    if(s.last_ping && (!state.last_ping || s.last_ping>state.last_ping+2000)){
+      state={...state,...s};
+      render();
+    }
+  }else if(isOnline){
+    isOnline=false;
+    setStatus(false,'Hors ligne');
+  }
+},5000);
+
+/* Init */
+loadState();
+</script>
+</body>
+</html>

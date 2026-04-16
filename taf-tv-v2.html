@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF TV v3.0 — Hub Média</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060a14;--panel:#0c1220;--card:#111827;--cyan:#00d4ff;--cyan-dim:rgba(0,212,255,.15);--amber:#ffaa00;--amber-dim:rgba(255,170,0,.15);--green:#00ff88;--green-dim:rgba(0,255,136,.15);--red:#ff3366;--red-dim:rgba(255,51,102,.15);--purple:#a78bfa;--purple-dim:rgba(167,139,250,.15);--txt:#e8ecf4;--txt2:#8892a4;--txt3:#4a5568;--brd:rgba(255,255,255,.06);--brd-c:rgba(0,212,255,.2);--ui:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--cols:3;--rows:2}
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}
+body{font-family:var(--ui);background:var(--bg);color:var(--txt)}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
+.top{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--panel);border-bottom:1px solid var(--brd);z-index:100}
+.logo{font-weight:800;font-size:22px;letter-spacing:2px;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:11px;color:var(--txt2);letter-spacing:3px;text-transform:uppercase}
+.clock{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--cyan);letter-spacing:2px}
+.date-d{font-size:13px;color:var(--txt2)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pg 2s ease-in-out infinite}
+@keyframes pg{0%,100%{box-shadow:0 0 4px var(--green);opacity:1}50%{box-shadow:0 0 12px var(--green);opacity:.6}}
+.rtimer{font-family:var(--mono);font-size:11px;color:var(--txt3)}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--brd-c);background:transparent;color:var(--cyan);cursor:pointer;font-family:var(--ui);font-size:13px;font-weight:500;transition:.2s}
+.btn:hover{background:var(--cyan-dim)}
+.grid-area{flex:1;padding:16px;overflow:auto;background:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);background-size:40px 40px}
+.tv-grid{height:100%;display:grid;gap:16px;grid-template-columns:repeat(var(--cols),1fr);grid-template-rows:repeat(var(--rows),1fr)}
+.wc{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:20px;display:flex;flex-direction:column;overflow:hidden;transition:.3s;animation:wi .5s ease-out}
+@keyframes wi{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1}}
+.wc:hover{border-color:var(--brd-c)}.wc.alert{border-color:var(--red);box-shadow:0 0 20px var(--red-dim)}
+.wh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.wt{font-size:11px;font-weight:600;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.wt-i{font-size:14px}
+.wb{flex:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.wm{font-family:var(--mono);font-weight:700;line-height:1}
+.m-xl{font-size:48px}.m-lg{font-size:36px}.m-md{font-size:28px}.m-sm{font-size:20px}
+.ml{font-size:12px;color:var(--txt3);margin-top:6px}
+.mc{color:var(--cyan)}.ma{color:var(--amber)}.mg{color:var(--green)}.mr{color:var(--red)}.mp{color:var(--purple)}
+.wl{list-style:none}.wl li{padding:6px 0;border-bottom:1px solid var(--brd);font-size:12px;display:flex;align-items:center;justify-content:space-between}.wl li:last-child{border-bottom:none}
+.sd{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
+.sg{background:var(--green);box-shadow:0 0 6px var(--green-dim)}.sa{background:var(--amber);box-shadow:0 0 6px var(--amber-dim)}.sr{background:var(--red);box-shadow:0 0 6px var(--red-dim)}.sc{background:var(--cyan);box-shadow:0 0 6px var(--cyan-dim)}
+.tag{padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);font-weight:500}
+.tc{background:var(--cyan-dim);color:var(--cyan)}.ta{background:var(--amber-dim);color:var(--amber)}.tg{background:var(--green-dim);color:var(--green)}.tr{background:var(--red-dim);color:var(--red)}.tp{background:var(--purple-dim);color:var(--purple)}
+.ft{width:100%;border-collapse:collapse}.ft th{font-size:9px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:4px 6px;text-align:left;border-bottom:1px solid var(--brd)}.ft td{font-size:12px;padding:5px 6px;font-family:var(--mono);font-weight:400;border-bottom:1px solid var(--brd)}.ft tr:last-child td{border-bottom:none}
+.wld{display:flex;align-items:center;justify-content:center;height:100%;color:var(--txt3);font-size:12px}
+.spin{width:20px;height:20px;border:2px solid var(--brd);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;margin-right:8px}@keyframes sp{to{transform:rotate(360deg)}}
+.src{font-size:9px;color:var(--txt3);margin-top:8px;text-align:right;font-style:italic}
+.plan-g{display:grid;grid-template-columns:80px repeat(5,1fr);gap:2px}
+.plan-h{text-align:center;font-size:10px;font-weight:600;padding:4px;border-radius:4px}
+.plan-n{font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 0}
+.plan-c{text-align:center;padding:4px;border-radius:4px;font-size:9px;font-weight:600}
+.ver{position:fixed;bottom:8px;right:12px;font-size:10px;color:var(--txt3);font-family:var(--mono);z-index:9998}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--txt3);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;align-items:center;gap:16px"><div><div class="logo">TAF TV</div><div class="logo-sub">Hub Média v3</div></div></div>
+  <div style="display:flex;align-items:center;gap:24px"><div class="clock" id="clk">--:--:--</div><div class="date-d" id="dt">--</div></div>
+  <div style="display:flex;align-items:center;gap:12px"><div class="pulse" id="pls"></div><span class="rtimer" id="rtm">30s</span><button class="btn" onclick="refreshAll()">⟳ REFRESH</button></div>
+</div>
+<div style="height:calc(100vh - 56px)" class="grid-area">
+  <div class="tv-grid" id="grid">
+    <!-- 6 widgets pré-câblés -->
+    <div class="wc" id="w-vols"><div class="wh"><div class="wt"><span class="wt-i">✈️</span>VOLS DU JOUR</div><span class="tag tc">SUIVI VOLS</span></div><div class="wb" id="b-vols"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+    <div class="wc" id="w-retards"><div class="wh"><div class="wt"><span class="wt-i">⏱</span>RETARDS</div><span class="tag tr">SUIVI VOLS</span></div><div class="wb" id="b-retards"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+    <div class="wc" id="w-planning"><div class="wh"><div class="wt"><span class="wt-i">📅</span>PLANNING SEMAINE</div><span class="tag tg">CP/RTT</span></div><div class="wb" id="b-planning"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+    <div class="wc" id="w-dossiers"><div class="wh"><div class="wt"><span class="wt-i">📡</span>DOSSIERS ACTIFS</div><span class="tag tc">OPS</span></div><div class="wb" id="b-dossiers"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+    <div class="wc" id="w-absences"><div class="wh"><div class="wt"><span class="wt-i">🏖</span>ABSENCES DU MOIS</div><span class="tag tp">CP/RTT</span></div><div class="wb" id="b-absences"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+    <div class="wc" id="w-demandes"><div class="wh"><div class="wt"><span class="wt-i">📥</span>DEMANDES EN ATTENTE</div><span class="tag ta">OPS</span></div><div class="wb" id="b-demandes"><div class="wld"><div class="spin"></div>Chargement...</div></div></div>
+  </div>
+</div>
+<div class="ver">TAF TV v3.0</div>
+
+<script>
+// ═══ FIREBASE REST (même URL que les apps TAF) ═══
+const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+async function fbGet(path) { try { const r = await fetch(`${FB}/${path}.json`); return r.ok ? await r.json() : null; } catch { return null; } }
+
+// ═══ DONNÉES CENTRALES ═══
+let DATA = { vols: [], collabs: [], demandes_cp: [], dossiers: {import:[], export:[], seafood:[]}, demandes_ops: [] };
+
+// ═══ CLOCK ═══
+function updClock() {
+  const n=new Date(),h=String(n.getHours()).padStart(2,'0'),m=String(n.getMinutes()).padStart(2,'0'),s=String(n.getSeconds()).padStart(2,'0');
+  document.getElementById('clk').textContent=`${h}:${m}:${s}`;
+  const j=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const ms=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('dt').textContent=`${j[n.getDay()]} ${n.getDate()} ${ms[n.getMonth()]} ${n.getFullYear()}`;
+}
+
+// ═══ CHARGEMENT DES DONNÉES ═══
+async function loadVols() {
+  try { const s=localStorage.getItem("taf_vols2"); DATA.vols=s?JSON.parse(s):[]; } catch { DATA.vols=[]; }
+}
+
+async function loadCPRTT() {
+  DATA.collabs = (await fbGet("taf_cprtt/collaborateurs")) || [];
+  const raw = await fbGet("taf_cprtt/demandes");
+  DATA.demandes_cp = raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : [];
+}
+
+async function loadOPS() {
+  const types = ['import','export','seafood'];
+  for (const t of types) {
+    const raw = await fbGet(`dossiers/${t}`);
+    DATA.dossiers[t] = raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : [];
+  }
+  const rawD = await fbGet("demandes");
+  DATA.demandes_ops = rawD ? (Array.isArray(rawD) ? rawD : Object.values(rawD)).filter(Boolean) : [];
+}
+
+// ═══ REFRESH ═══
+let countdown = 30;
+async function refreshAll() {
+  document.getElementById('pls').style.background='var(--amber)';
+  await Promise.all([loadVols(), loadCPRTT(), loadOPS()]);
+  renderAllWidgets();
+  document.getElementById('pls').style.background='var(--green)';
+  countdown = 30;
+}
+
+function startTimer() {
+  setInterval(() => {
+    countdown--;
+    document.getElementById('rtm').textContent=`${countdown}s`;
+    if (countdown <= 0) refreshAll();
+  }, 1000);
+}
+
+// ═══ HELPERS ═══
+function tr(s,m){if(!s)return'—';s=String(s);return s.length>m?s.slice(0,m)+'…':s;}
+function fmt(d){if(!d)return'—';try{const p=new Date(d);return p.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});}catch{return d;}}
+
+// ═══ RENDER WIDGETS ═══
+function renderAllWidgets() {
+  renderVols();
+  renderRetards();
+  renderPlanning();
+  renderDossiers();
+  renderAbsences();
+  renderDemandes();
+}
+
+// ── VOLS DU JOUR ──
+function renderVols() {
+  const b=document.getElementById('b-vols');
+  const vols=DATA.vols;
+  if (!vols.length) { b.innerHTML='<div style="text-align:center"><div class="wm m-lg mc">0</div><div class="ml">Aucun vol suivi</div></div>'; return; }
+  const today=new Date().toDateString();
+  const rows=vols.slice(0,10).map(v => {
+    const del=v.delayMin||0;
+    const sc=del>30?'sr':del>0?'sa':'sg';
+    const st=v.status==='cancelled'?'ANNULÉ':v.status==='diverted'?'DÉROUTÉ':del>0?`+${del}min`:'À l\'heure';
+    return `<tr><td style="color:var(--cyan);font-weight:600">${v.flightNum||'—'}</td><td>${tr(v.label||v.origin,12)}</td><td>${v.scheduledArr||v.actualArr||'—'}</td><td><span class="sd ${sc}"></span>${st}</td></tr>`;
+  }).join('');
+  b.innerHTML=`<div style="overflow:auto;flex:1"><table class="ft"><thead><tr><th>Vol</th><th>Origine</th><th>Heure</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></div><div class="src">Source : TAF Suivi des Vols • ${vols.length} vol(s)</div>`;
+}
+
+// ── RETARDS ──
+function renderRetards() {
+  const b=document.getElementById('b-retards');
+  const card=document.getElementById('w-retards');
+  const delayed=DATA.vols.filter(v=>(v.delayMin||0)>0 || v.status==='cancelled' || v.status==='diverted');
+  card.classList.toggle('alert', delayed.length > 0);
+  if (!delayed.length) { b.innerHTML='<div style="text-align:center"><div class="wm m-lg mg">0</div><div class="ml">Aucun retard ✓</div></div>'; return; }
+  const items=delayed.slice(0,8).map(v => {
+    const st=v.status==='cancelled'?'ANNULÉ':v.status==='diverted'?'DÉROUTÉ':`+${v.delayMin}min`;
+    return `<li><span><span class="sd sr"></span>${v.flightNum||'—'} — ${tr(v.label||v.origin,12)}</span><span class="tag tr">${st}</span></li>`;
+  }).join('');
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span class="wm m-lg mr">${delayed.length}</span><span class="ml">vol(s) perturbé(s)</span></div><ul class="wl">${items}</ul><div class="src">Source : TAF Suivi des Vols</div>`;
+}
+
+// ── PLANNING SEMAINE CP/RTT ──
+function renderPlanning() {
+  const b=document.getElementById('b-planning');
+  const collabs=DATA.collabs;
+  const demandes=DATA.demandes_cp;
+  if (!collabs || !collabs.length) { b.innerHTML='<div style="text-align:center;color:var(--txt3);font-size:12px">Aucun collaborateur dans TAF CP-RTT</div>'; return; }
+
+  const today=new Date();
+  const dow=today.getDay();
+  const monday=new Date(today); monday.setDate(today.getDate()-(dow===0?6:dow-1)); monday.setHours(0,0,0,0);
+  const jours=['LUN','MAR','MER','JEU','VEN'];
+
+  const header=`<div class="plan-g"><div></div>${jours.map((j,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);const isT=d.toDateString()===today.toDateString();return`<div class="plan-h" style="${isT?'background:var(--cyan-dim);color:var(--cyan)':'color:var(--txt3)'}">${j} ${d.getDate()}</div>`;}).join('')}</div>`;
+
+  const validDemandes=(demandes||[]).filter(d=>d && d.statut==='Validée');
+  let presentCount=0;
+
+  const rows=(Array.isArray(collabs)?collabs:Object.values(collabs)).filter(Boolean).map(c=>{
+    const cols=jours.map((_,i)=>{
+      const cellDate=new Date(monday);cellDate.setDate(monday.getDate()+i);
+      const cds=cellDate.toISOString().slice(0,10);
+      const abs=validDemandes.find(d=>d.collaborateurId===c.id && d.dateDebut<=cds && d.dateFin>=cds);
+      if(abs){const cm={CP:'var(--cyan)',RTT:'var(--purple)',Maladie:'var(--red)',Formation:'var(--green)'}; const co=cm[abs.type]||'var(--amber)';return`<div class="plan-c" style="background:${co}22;border:1px solid ${co}44;color:${co}">${abs.type||'ABS'}</div>`;}
+      return`<div class="plan-c" style="background:var(--green-dim);color:var(--green)">OK</div>`;
+    }).join('');
+    // Count present today
+    const todayStr=today.toISOString().slice(0,10);
+    const absTod=validDemandes.find(d=>d.collaborateurId===c.id && d.dateDebut<=todayStr && d.dateFin>=todayStr);
+    if(!absTod) presentCount++;
+    return`<div class="plan-g"><div class="plan-n">${c.prenom||c.nom||'—'}</div>${cols}</div>`;
+  }).join('');
+
+  const total=Array.isArray(collabs)?collabs.length:Object.values(collabs).filter(Boolean).length;
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><span class="wm m-md mg">${presentCount}/${total}</span><span class="ml">présents aujourd'hui</span></div>${header}${rows}<div class="src">Source : TAF CP-RTT</div>`;
+}
+
+// ── DOSSIERS ACTIFS OPS ──
+function renderDossiers() {
+  const b=document.getElementById('b-dossiers');
+  const all=[...DATA.dossiers.import,...DATA.dossiers.export,...DATA.dossiers.seafood];
+  const actifs=all.filter(d=>d && d.statut!=='Clôturé' && d.statut!=='CLOTURE');
+
+  if (!all.length) { b.innerHTML='<div style="text-align:center;color:var(--txt3);font-size:12px">Aucun dossier OPS chargé</div>'; return; }
+
+  // Compteur par flux
+  const byFlux={};
+  actifs.forEach(d=>{const f=d.flux||d.module||'Autre';byFlux[f]=(byFlux[f]||0)+1;});
+  const badges=Object.entries(byFlux).map(([f,c])=>`<span class="tag tc">${f}: ${c}</span>`).join(' ');
+
+  const items=actifs.slice(0,8).map(d=>{
+    const sc=d.alerte?'sr':d.statut==='En cours'?'sa':'sg';
+    return`<li><span><span class="sd ${sc}"></span>${tr(d.client||d.nom_client,16)} — ${d.lta||d.ref||'—'}</span><span class="tag ${d.alerte?'tr':'tc'}">${tr(d.statut||'—',10)}</span></li>`;
+  }).join('');
+
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span class="wm m-lg mc">${actifs.length}</span><span class="ml">dossiers actifs</span></div><div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px">${badges}</div><ul class="wl">${items}</ul><div class="src">Source : TAF OPS</div>`;
+}
+
+// ── ABSENCES DU MOIS ──
+function renderAbsences() {
+  const b=document.getElementById('b-absences');
+  const now=new Date();
+  const monthDemandes=(DATA.demandes_cp||[]).filter(d=>{
+    if(!d||d.statut!=='Validée'||!d.dateDebut) return false;
+    const dd=new Date(d.dateDebut);
+    return dd.getMonth()===now.getMonth() && dd.getFullYear()===now.getFullYear();
+  });
+  const totalJours=monthDemandes.reduce((s,d)=>s+(d.nbJours||0),0);
+  const byType={};
+  monthDemandes.forEach(d=>{const t=d.type||'Autre';byType[t]=(byType[t]||0)+(d.nbJours||0);});
+  const cm={CP:'cyan',RTT:'purple',Maladie:'red',Formation:'green'};
+  const badges=Object.entries(byType).map(([t,j])=>`<span class="tag t${(cm[t]||'a')[0]}">${t}: ${j}j</span>`).join(' ');
+  b.innerHTML=`<div class="wm m-lg ma">${totalJours}j</div><div class="ml">absences ce mois</div><div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px">${badges}</div><div class="src">Source : TAF CP-RTT • ${monthDemandes.length} demande(s)</div>`;
+}
+
+// ── DEMANDES EN ATTENTE OPS ──
+function renderDemandes() {
+  const b=document.getElementById('b-demandes');
+  const pending=(DATA.demandes_ops||[]).filter(d=>d && d.statut!=='Traité' && d.statut!=='Clôturé');
+
+  if (!DATA.demandes_ops.length) { b.innerHTML='<div style="text-align:center;color:var(--txt3);font-size:12px">Aucune demande OPS</div>'; return; }
+
+  const items=pending.slice(0,8).map(d=>`<li><span>${tr(d.client||d.objet||d.type||'Demande',20)}</span><span class="tag ta">${tr(d.statut||'En attente',10)}</span></li>`).join('');
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span class="wm m-lg ma">${pending.length}</span><span class="ml">en attente</span></div><ul class="wl">${items}</ul><div class="src">Source : TAF OPS • ${DATA.demandes_ops.length} total</div>`;
+}
+
+// ═══ KEYBOARD ═══
+document.addEventListener('keydown',e=>{
+  if(e.key==='r'&&!e.ctrlKey) refreshAll();
+  if(e.key==='f'||e.key==='F11'){e.preventDefault();if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+});
+
+// ═══ INIT ═══
+updClock(); setInterval(updClock, 1000);
+refreshAll();
+startTimer();
+</script>
+</body>
+</html>

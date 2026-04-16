@@ -321,6 +321,19 @@ const SOURCES = [
       return[];
     },
   },
+  {
+    id:'tv', name:'TV en direct', icon:'📺', color:'red', desc:'Chaînes d\'information en continu',
+    modules:[
+      { id:'tv_live', name:'Flux TV Live', fields:[
+        {k:'cnews',n:'CNews',t:'channel'},
+        {k:'franceinfo',n:'France Info',t:'channel'},
+        {k:'france24',n:'France 24',t:'channel'},
+        {k:'euronews',n:'Euronews FR',t:'channel'},
+        {k:'bfmtv',n:'BFM TV',t:'channel'},
+      ]},
+    ],
+    load: async ()=>[{_static:true}], /* pas de data dynamique */
+  },
 ];
 
 /* ═══ STATE ═══ */
@@ -354,10 +367,10 @@ function renderCatalog(){
             </div>
             <div class="cfg-row" style="margin-top:8px">
               <div><label>Visualisation</label><select id="viz-${mod.id}">
-                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>${s.id==='vols'?'<option value="vols_card" selected>✈️ Carte Vol</option>':''}${mod.id==='export_dashboard'?'<option value="export_dashboard" selected>📊 Dashboard Export</option>':''}${mod.id==='absences_semaine'?'<option value="absences_semaine" selected>🏖 Absences Semaine</option>':''}
+                <option value="table">📋 Tableau</option><option value="metric">🔢 Compteur</option><option value="list">📝 Liste</option><option value="bars">📊 Barres</option><option value="planning">📅 Planning</option>${s.id==='vols'?'<option value="vols_card" selected>✈️ Carte Vol</option>':''}${mod.id==='export_dashboard'?'<option value="export_dashboard" selected>📊 Dashboard Export</option>':''}${mod.id==='absences_semaine'?'<option value="absences_semaine" selected>🏖 Absences Semaine</option>':''}${s.id==='tv'?'<option value="tv_live" selected>📺 TV Live</option>':''}
               </select></div>
               <div><label>Mode</label><select id="mode-${mod.id}">
-                <option value="fixed">Fixe</option><option value="carousel">Carrousel</option>
+                <option value="fixed"${s.id==='tv'?'':''}>Fixe</option><option value="carousel"${s.id==='tv'?' selected':''}>Carrousel</option>
               </select></div>
             </div>
             <div class="cfg-row">
@@ -495,6 +508,7 @@ function renderData(w){
     case'bars':renderBars(b,w,d);break;
     case'planning':renderPlanning(b,w,d);break;
     case'vols_card':renderVolsCard(b,w,d);break;
+    case'tv_live':renderTvLive(b,w,d);break;
     case'export_dashboard':renderExportDashboard(b,w,d);break;
     case'absences_semaine':renderAbsencesSemaine(b,w,d);break;
     default:renderTable(b,w,d);
@@ -528,6 +542,50 @@ function renderBars(b,w,d){
     return`<div style="margin-bottom:5px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>${tr(k,20)}</span><span style="font-family:var(--mono);color:var(--${c})">${v}</span></div><div style="height:4px;background:var(--bd);border-radius:2px"><div style="height:100%;width:${pct}%;background:var(--${c});border-radius:2px"></div></div></div>`;
   }).join('');
   b.innerHTML=(bars||'<div class="ml">Aucune donnée</div>')+`<div class="wsrc">${w.srcName}</div>`;
+}
+
+/* ═══ CHAÎNES TV LIVE (YouTube officiel) ═══ */
+const TV_CHANNELS={
+  cnews:{name:'CNews',embed:'https://www.youtube.com/embed/live_stream?channel=UCThbSsDwh3J7tb4kJQSTcEw&autoplay=1&mute=1',logo:'📰',color:'#e8002c'},
+  franceinfo:{name:'France Info',embed:'https://www.youtube.com/embed/live_stream?channel=UC3-KM3H6HDlJjiTJeHHWGdw&autoplay=1&mute=1',logo:'🇫🇷',color:'#003c7e'},
+  france24:{name:'France 24',embed:'https://www.youtube.com/embed/live_stream?channel=UCCCPCZNChQdGa9EkATeye4g&autoplay=1&mute=1',logo:'🌍',color:'#ffcc00'},
+  euronews:{name:'Euronews FR',embed:'https://www.youtube.com/embed/live_stream?channel=UCW6UrNO6vh3ogdLVSaCqJ3A&autoplay=1&mute=1',logo:'🇪🇺',color:'#1a5fb4'},
+  bfmtv:{name:'BFM TV',embed:'https://www.youtube.com/embed/live_stream?channel=UCVLDyFlx-7fflG4BR05EDrA&autoplay=1&mute=1',logo:'📺',color:'#005cab'},
+};
+
+/* ═══ RENDU TV LIVE — iframe YouTube + carrousel entre chaînes ═══ */
+let tvCarTimer=null;
+function renderTvLive(b,w,d){
+  /* Récupérer les chaînes sélectionnées dans w.fields */
+  const channels=(w.fields||['cnews']).filter(k=>TV_CHANNELS[k]);
+  if(!channels.length){b.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3)"><div style="text-align:center"><div style="font-size:48px">📺</div><div>Aucune chaîne sélectionnée</div></div></div>';return;}
+
+  if(!w._tvIdx) w._tvIdx=0;
+  const idx=w._tvIdx%channels.length;
+  const ch=TV_CHANNELS[channels[idx]];
+
+  b.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:4px 8px;background:${ch.color}15;border:1px solid ${ch.color}40;border-radius:6px;flex-shrink:0">
+      <span style="font-size:16px">${ch.logo}</span>
+      <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:${ch.color}">${ch.name.toUpperCase()}</span>
+      <span style="font-size:9px;padding:2px 6px;background:#ff0000;color:#fff;border-radius:3px;font-weight:700;animation:pg 2s ease-in-out infinite">● LIVE</span>
+      <div style="flex:1"></div>
+      ${channels.length>1?`<div style="display:flex;gap:3px">${channels.map((_,i)=>`<div style="width:${i===idx?'16px':'5px'};height:4px;border-radius:2px;background:${i===idx?ch.color:'var(--t3)'};transition:.3s"></div>`).join('')}</div>`:''}
+    </div>
+    <div style="flex:1;background:#000;border-radius:8px;overflow:hidden;position:relative;min-height:0">
+      <iframe src="${ch.embed}" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+    <div class="wsrc" style="margin-top:4px">Flux YouTube officiel • ${channels.length>1?`Rotation toutes les 5 min (${idx+1}/${channels.length})`:'Lecture continue'}</div>
+  </div>`;
+
+  /* Carrousel entre chaînes toutes les 5 minutes */
+  if(channels.length>1 && w.mode==='carousel'){
+    if(tvCarTimer) clearInterval(tvCarTimer);
+    tvCarTimer=setInterval(()=>{
+      w._tvIdx=((w._tvIdx||0)+1)%channels.length;
+      renderTvLive(b,w,d);
+    },300000); /* 5 min */
+  }
 }
 
 /* ═══ RENDU VOLS — FORMAT TABLEAU AÉROPORT (10+ vols par page) ═══ */
@@ -764,8 +822,103 @@ function checkDailyRefresh() {
     lastDailyRefresh = today;
     console.log('🔄 Refresh quotidien 06h30 déclenché');
     refreshAll();
-    // Recharger la page pour forcer la synchro complète
     setTimeout(() => location.reload(), 5000);
+  }
+}
+
+/* ═══ TÉLÉCOMMANDE — TAF REMOTE ═══ */
+let remoteState={tv_enabled:true,tv_channel:'cnews',tv_mode:'fixed',vols_enabled:true,refresh:0,reload:0};
+let lastRefreshCmd=0, lastReloadCmd=0;
+
+async function pollRemote(){
+  try{
+    const r=await fetch(`${FB}/taf_tv/remote.json`);
+    if(!r.ok)return;
+    const s=await r.json();
+    if(!s)return;
+
+    /* Détection changements */
+    const changed=(
+      s.tv_enabled!==remoteState.tv_enabled ||
+      s.tv_channel!==remoteState.tv_channel ||
+      s.tv_mode!==remoteState.tv_mode ||
+      s.vols_enabled!==remoteState.vols_enabled
+    );
+
+    /* Commandes rapides */
+    if(s.refresh && s.refresh>lastRefreshCmd){
+      lastRefreshCmd=s.refresh;
+      console.log('📱 Remote: Refresh');
+      refreshAll();
+    }
+    if(s.reload && s.reload>lastReloadCmd){
+      lastReloadCmd=s.reload;
+      console.log('📱 Remote: Reload');
+      setTimeout(()=>location.reload(),500);
+    }
+
+    if(changed){
+      remoteState={...remoteState,...s};
+      console.log('📱 Remote: Config changée',remoteState);
+      applyRemoteConfig();
+    }
+  }catch(e){}
+}
+
+function applyRemoteConfig(){
+  /* Appliquer la config remote aux widgets existants */
+  widgets.forEach(w=>{
+    /* Widget vols : on/off */
+    if(w.viz==='vols_card'){
+      const wEl=document.getElementById(`w-${w.id}`);
+      if(wEl)wEl.style.display=remoteState.vols_enabled?'':'none';
+    }
+    /* Widget TV : on/off + changement chaîne + mode */
+    if(w.viz==='tv_live'){
+      const wEl=document.getElementById(`w-${w.id}`);
+      if(wEl)wEl.style.display=remoteState.tv_enabled?'':'none';
+      /* Changer la chaîne */
+      w.fields=[remoteState.tv_channel];
+      w.mode=remoteState.tv_mode;
+      w._tvIdx=0;
+      refreshW(w);
+    }
+  });
+
+  /* Si pas de widget TV et remote demande TV on → créer auto */
+  if(remoteState.tv_enabled && !widgets.some(w=>w.viz==='tv_live')){
+    widgets.push({
+      id:'remote_tv_'+Date.now(),
+      srcId:'tv', modId:'tv_live',
+      title:'TV en direct', icon:'📺',
+      fields:[remoteState.tv_channel],
+      viz:'tv_live',
+      mode:remoteState.tv_mode,
+      colSpan:1, rowSpan:1,
+      color:'red',
+      srcName:'TV Live',
+      data:null, ci:0, _tvIdx:0
+    });
+    renderGrid();
+    refreshAll();
+  }
+
+  /* Si pas de widget vols et remote demande vols on → créer auto */
+  if(remoteState.vols_enabled && !widgets.some(w=>w.viz==='vols_card')){
+    widgets.push({
+      id:'remote_vols_'+Date.now(),
+      srcId:'vols', modId:'vols_list',
+      title:'Liste des vols', icon:'✈️',
+      fields:['flightNum','label','origin','scheduledArr','actualArr','delayMin','status'],
+      viz:'vols_card',
+      mode:'fixed',
+      colSpan:1, rowSpan:1,
+      color:'cyan',
+      srcName:'TAF Suivi des Vols',
+      data:null, ci:0
+    });
+    renderGrid();
+    refreshAll();
   }
 }
 
@@ -776,7 +929,10 @@ renderCatalog();
 loadCfg();
 renderGrid();
 setInterval(()=>{countdown--;document.getElementById('rtm').textContent=`${countdown}s`;if(countdown<=0)refreshAll()},1000);
-setInterval(checkDailyRefresh, 30000); // Vérifie toutes les 30 secondes
+setInterval(checkDailyRefresh, 30000);
+/* Polling de la télécommande toutes les 3 secondes */
+pollRemote();
+setInterval(pollRemote, 3000);
 if(!widgets.length)refreshAll();
 </script>
 </body>

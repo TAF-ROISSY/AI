@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF · Certificats de Capture</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&family=Raleway:wght@300;400;500;600&family=Josefin+Sans:wght@300;400;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+:root {
+  --bg:#0e0e12;--surface:#16161d;--surface2:#1e1e28;--surface3:#252535;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --gold:#c9a84c;--gold-light:#e2c97e;--gold-dim:rgba(201,168,76,0.15);
+  --text:#e8e8f0;--text-dim:#8888a0;--text-dimmer:#555568;
+  --afg:#4c9ac9;--frh:#c96b4c;--success:#4caf7d;
+  --radius:8px;--radius-lg:14px;
+  --font-title:'Cormorant Garamond',serif;--font-body:'DM Sans',sans-serif;--font-size:14px;
+}
+.theme-marine{--bg:#06080f;--surface:#0d1120;--surface2:#141828;--surface3:#1c2235;--gold:#4a9eda;--gold-light:#7ab8ed;--gold-dim:rgba(74,158,218,0.12)}
+.theme-emerald{--bg:#060f08;--surface:#0d1a10;--surface2:#132118;--surface3:#1a2d20;--gold:#4ab87a;--gold-light:#7dd4a0;--gold-dim:rgba(74,184,122,0.12)}
+.theme-bordeaux{--bg:#0f0608;--surface:#1a0d10;--surface2:#221218;--surface3:#2d1820;--gold:#c94a6b;--gold-light:#e07a95;--gold-dim:rgba(201,74,107,0.12)}
+.theme-midnight{--bg:#03010a;--surface:#08051a;--surface2:#0e0a25;--surface3:#140e30;--gold:#9b7fd4;--gold-light:#c4a8ed;--gold-dim:rgba(155,127,212,0.12)}
+.theme-copper{--bg:#0f0a06;--surface:#1a1209;--surface2:#22180e;--surface3:#2c2015;--gold:#d4824a;--gold-light:#e8a878;--gold-dim:rgba(212,130,74,0.12)}
+.theme-noir{--bg:#000000;--surface:#0a0a0a;--surface2:#111111;--surface3:#1a1a1a;--gold:#d4af37;--gold-light:#f0d060;--gold-dim:rgba(212,175,55,0.1)}
+.theme-rose{--bg:#0f080c;--surface:#1a0e14;--surface2:#22121c;--surface3:#2d1828;--gold:#d47ab0;--gold-light:#e8a8cc;--gold-dim:rgba(212,122,176,0.12)}
+.theme-ivory{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f8f4ec;--surface3:#ede8df;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.12);--text:#1a1810;--text-dim:#6a6858;--text-dimmer:#aaa898;--gold:#8b6914;--gold-light:#b8920f;--gold-dim:rgba(139,105,20,0.1)}
+.theme-arctic{--bg:#f0f5f8;--surface:#ffffff;--surface2:#f2f7fa;--surface3:#e5eef4;--border:rgba(0,80,120,0.08);--border2:rgba(0,80,120,0.14);--text:#102030;--text-dim:#507090;--text-dimmer:#90b0c0;--gold:#1a7faa;--gold-light:#2a9fd4;--gold-dim:rgba(26,127,170,0.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:var(--font-size);line-height:1.6;min-height:100vh}
+.app-shell{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border2);padding:0 32px;display:flex;align-items:center;height:64px;position:sticky;top:0;z-index:100}
+.topbar-brand{font-family:var(--font-title);font-size:22px;font-weight:500;letter-spacing:0.02em;color:var(--gold-light);margin-right:40px;white-space:nowrap}
+.topbar-brand span{color:var(--text-dim);font-weight:300;font-size:14px;margin-left:8px;letter-spacing:0.15em;text-transform:uppercase;font-family:var(--font-body)}
+.nav-tabs{display:flex;gap:2px;flex:1}
+.nav-tab{padding:8px 22px;border-radius:6px;font-size:12.5px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;transition:all 0.2s;border:none;background:transparent}
+.nav-tab:hover{color:var(--text);background:var(--surface2)}
+.nav-tab.active{color:var(--gold-light);background:var(--gold-dim)}
+.bureau-switcher{display:flex;gap:8px;margin-left:auto;align-items:center}
+.bureau-btn{padding:7px 18px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;transition:all 0.2s}
+.bureau-btn.afg{color:var(--afg);border-color:rgba(76,154,201,0.3);background:rgba(76,154,201,0.07)}
+.bureau-btn.afg.active{background:rgba(76,154,201,0.18);border-color:var(--afg)}
+.bureau-btn.frh{color:var(--frh);border-color:rgba(201,107,76,0.3);background:rgba(201,107,76,0.07)}
+.bureau-btn.frh.active{background:rgba(201,107,76,0.18);border-color:var(--frh)}
+.content{flex:1;padding:36px 40px;max-width:1400px;width:100%;margin:0 auto}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.saisie-grid{display:grid;grid-template-columns:360px 1fr;gap:28px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px}
+.card-title{font-family:var(--font-title);font-size:18px;font-weight:500;color:var(--gold-light);margin-bottom:22px;padding-bottom:14px;border-bottom:1px solid var(--border);letter-spacing:0.02em}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:10.5px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+.form-control{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--font-body);font-size:var(--font-size);padding:10px 14px;outline:none;transition:border-color 0.2s}
+.form-control:focus{border-color:var(--gold)}
+select.form-control{cursor:pointer}
+.form-control::placeholder{color:var(--text-dimmer)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:var(--radius);font-family:var(--font-body);font-size:12.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;cursor:pointer;border:none;transition:all 0.2s}
+.btn-primary{background:var(--gold);color:#0a0800}
+.btn-primary:hover{background:var(--gold-light);transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text-dim)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold-light)}
+.btn-danger{background:transparent;border:1px solid rgba(201,74,74,0.3);color:#e07878}
+.btn-danger:hover{background:rgba(201,74,74,0.1)}
+.btn-success{background:var(--success);color:#040f08}
+.btn-success:hover{filter:brightness(1.1)}
+.btn-sm{padding:7px 14px;font-size:11px}
+.btn-full{width:100%;justify-content:center}
+.table-wrapper{overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface2);padding:12px 14px;font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);text-align:left;border-bottom:1px solid var(--border2);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:12px 14px;font-size:13px;color:var(--text);vertical-align:middle}
+.td-num{color:var(--text-dimmer);font-size:11px;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase}
+.badge-afg{background:rgba(76,154,201,0.15);color:var(--afg)}
+.badge-frh{background:rgba(201,107,76,0.15);color:var(--frh)}
+.stats-bar{display:flex;gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 22px;flex:1}
+.stat-value{font-family:var(--font-title);font-size:32px;font-weight:500;color:var(--gold-light);line-height:1}
+.stat-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px}
+.params-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.client-list{list-style:none;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto}
+.client-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px}
+.client-item-name{font-weight:500;flex:1}
+.client-item-prefix{font-size:11px;color:var(--gold-light);font-family:monospace;margin:0 10px;background:var(--gold-dim);padding:2px 8px;border-radius:4px}
+.theme-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.theme-swatch{border-radius:var(--radius);padding:12px 8px 10px;cursor:pointer;border:2px solid transparent;text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.05em;transition:all 0.2s}
+.theme-swatch.active{border-color:var(--gold)}
+.font-grid{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
+.font-option{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;cursor:pointer;transition:all 0.2s}
+.font-option:hover,.font-option.active{border-color:var(--gold);background:var(--gold-dim)}
+.font-name{font-size:13px;font-weight:500;flex:1}
+.font-preview{font-size:14px;color:var(--text-dim);text-align:right}
+.size-row{display:flex;align-items:center;gap:12px}
+.size-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.size-btn:hover{border-color:var(--gold);color:var(--gold)}
+.size-display{min-width:48px;text-align:center;font-size:16px;font-weight:600;color:var(--gold-light)}
+.drive-status{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);margin-top:12px;font-size:12px}
+.drive-dot{width:8px;height:8px;border-radius:50%}
+.drive-dot.ok{background:var(--success);box-shadow:0 0 6px var(--success)}
+.drive-dot.ko{background:#e07878}
+.empty-state{text-align:center;padding:60px 20px}
+.empty-icon{font-size:40px;margin-bottom:16px;opacity:0.4}
+.empty-text{color:var(--text-dim);font-size:14px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{background:var(--surface);border:1px solid var(--border2);border-left:3px solid var(--gold);border-radius:var(--radius);padding:12px 18px;font-size:13px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toastIn 0.3s ease;max-width:320px}
+.toast.success{border-left-color:var(--success)}
+.toast.error{border-left-color:#e07878}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:32px;min-width:480px;max-width:600px}
+.modal-title{font-family:var(--font-title);font-size:22px;color:var(--gold-light);margin-bottom:24px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.row{display:flex;gap:14px}
+.row .form-group{flex:1}
+.section-header{margin-bottom:28px}
+.section-title{font-family:var(--font-title);font-size:28px;font-weight:400;color:var(--text);letter-spacing:0.01em}
+.section-sub{color:var(--text-dim);font-size:13px;margin-top:4px}
+.action-bar{display:flex;gap:10px;margin-bottom:20px;align-items:center}
+.action-bar .spacer{flex:1}
+.bureau-indicator{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-left:12px}
+.bureau-indicator.afg{background:rgba(76,154,201,0.15);color:var(--afg);border:1px solid rgba(76,154,201,0.3)}
+.bureau-indicator.frh{background:rgba(201,107,76,0.15);color:var(--frh);border:1px solid rgba(201,107,76,0.3)}
+/* Country modal */
+.country-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.country-card-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.country-flag{font-size:20px}
+.country-name{font-weight:600;font-size:14px;flex:1}
+/* params country section */
+.country-list{list-style:none;display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+.country-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.country-item-flag{font-size:18px}
+.country-item-info{flex:1}
+.country-item-name{font-weight:600;font-size:13px}
+.country-item-prefix{font-size:11px;color:var(--gold-light);font-family:monospace;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="topbar-brand">TAF <span>Certificats de Capture</span></div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" onclick="showTab('saisie',this)">✦ Saisie</button>
+      <button class="nav-tab" onclick="showTab('historique',this)">⊞ Historique</button>
+      <button class="nav-tab" onclick="showTab('params',this)">⚙ Paramètres</button>
+    </nav>
+    <div class="bureau-switcher">
+      <button class="bureau-btn afg active" id="btn-afg" onclick="setBureau('AFG')">AFG</button>
+      <button class="bureau-btn frh" id="btn-frh" onclick="setBureau('FRH')">FRH</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- SAISIE -->
+    <div class="tab-pane active" id="tab-saisie">
+      <div class="section-header">
+        <div class="section-title">Nouvelle déclaration <span class="bureau-indicator afg" id="bureau-badge">AFG</span></div>
+        <div class="section-sub">Saisie des certificats de capture — bureau des douanes</div>
+      </div>
+      <div class="saisie-grid">
+        <div class="card">
+          <div class="card-title">Informations de la déclaration</div>
+          <div class="form-group">
+            <label class="form-label">Client / Importateur</label>
+            <select class="form-control" id="f-client"><option value="">— Sélectionner —</option></select>
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label class="form-label">Date déclaration</label>
+              <input type="date" class="form-control" id="f-date-dec">
+            </div>
+            <div class="form-group">
+              <label class="form-label">IMA N°</label>
+              <input type="text" class="form-control" id="f-ima" placeholder="IMA2025-001">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pays d'origine</label>
+            <select class="form-control" id="f-origine" onchange="onOrigineChange()"><option value="">— Sélectionner —</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Certificat de capture N°</label>
+            <input type="text" class="form-control" id="f-cc" placeholder="N° sera pré-rempli selon l'origine">
+          </div>
+          <div class="form-group">
+            <label class="form-label">REF Interne</label>
+            <input type="text" class="form-control" id="f-ref" placeholder="TAF-2025-456">
+          </div>
+          <div class="divider"></div>
+          <div class="form-group">
+            <label class="form-label">Date de dépôt</label>
+            <input type="date" class="form-control" id="f-depot">
+          </div>
+          <button class="btn btn-primary btn-full" onclick="addDeclaration()"><span>+</span> Ajouter à la liste</button>
+        </div>
+
+        <div>
+          <div class="stats-bar">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-count">0</div>
+              <div class="stat-label">Déclarations</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-bureau">—</div>
+              <div class="stat-label">Bureau actif</div>
+            </div>
+            <div class="stat-card" style="flex:2">
+              <div class="stat-value" style="font-size:16px;line-height:1.4" id="stat-periode">—</div>
+              <div class="stat-label">Période couverte</div>
+            </div>
+          </div>
+          <div class="action-bar">
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Déclarations en cours</div>
+            <div class="spacer"></div>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()" title="Raccourci : Alt+Suppr">🗑 Effacer le tableau</button>
+            <button class="btn btn-success" onclick="generatePDF()"><span>⬇</span> Générer PDF</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>#</th><th>Date déc.</th><th>IMA N°</th><th>Importateur</th><th>Origine</th><th>CC N°</th><th>REF</th><th>Dépôt</th><th></th></tr></thead>
+              <tbody id="declarations-tbody">
+                <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Aucune déclaration saisie</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORIQUE -->
+    <div class="tab-pane" id="tab-historique">
+      <div class="section-header">
+        <div class="section-title">Historique des dépôts</div>
+        <div class="section-sub">Tous les lots PDF générés et déposés en douane</div>
+      </div>
+      <div class="action-bar"><div class="spacer"></div><button class="btn btn-outline btn-sm" onclick="clearHistory()">Effacer l'historique</button></div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Date génération</th><th>Bureau</th><th>Nb déclarations</th><th>Semaine</th><th>Date dépôt</th><th>Drive</th></tr></thead>
+          <tbody id="history-tbody"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🗂</div><div class="empty-text">Aucun historique</div></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PARAMÈTRES -->
+    <div class="tab-pane" id="tab-params">
+      <div class="section-header">
+        <div class="section-title">Paramètres</div>
+        <div class="section-sub">Personnalisez l'application selon vos préférences</div>
+      </div>
+      <div class="params-grid">
+
+        <!-- Clients -->
+        <div class="card">
+          <div class="card-title">Liste des clients</div>
+          <div class="row" style="margin-bottom:14px">
+            <div class="form-group" style="flex:1;margin:0"><input type="text" class="form-control" id="new-client" placeholder="Nom du client / importateur"></div>
+            <button class="btn btn-primary" onclick="addClient()">+</button>
+          </div>
+          <ul class="client-list" id="client-list"></ul>
+        </div>
+
+        <!-- Pays + préfixe CC -->
+        <div class="card">
+          <div class="card-title">Pays d'origine & préfixes CC</div>
+          <div class="row" style="margin-bottom:14px">
+            <div class="form-group" style="flex:2;margin:0"><input type="text" class="form-control" id="new-country-name" placeholder="Pays (ex: SÉNÉGAL)"></div>
+            <div class="form-group" style="flex:1;margin:0"><input type="text" class="form-control" id="new-country-flag" placeholder="🇸🇳" style="text-align:center;font-size:18px"></div>
+          </div>
+          <div class="row" style="margin-bottom:14px">
+            <div class="form-group" style="flex:1;margin:0"><input type="text" class="form-control" id="new-country-prefix" placeholder="Préfixe CC (ex: SEN/CC-2025-)"></div>
+            <button class="btn btn-primary" onclick="addCountry()">+</button>
+          </div>
+          <ul class="country-list" id="country-list"></ul>
+        </div>
+
+        <!-- Google Drive -->
+        <div class="card">
+          <div class="card-title">Google Drive</div>
+          <div class="form-group">
+            <label class="form-label">Access Token OAuth2</label>
+            <input type="password" class="form-control" id="gdrive-token" placeholder="ya29.xxxxx..." oninput="saveParams()">
+            <small style="color:var(--text-dimmer);font-size:11px;margin-top:5px;display:block">Token généré via Google OAuth Playground</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dossier Drive (Folder ID)</label>
+            <input type="text" class="form-control" id="gdrive-folder" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs..." oninput="saveParams()">
+            <small style="color:var(--text-dimmer);font-size:11px;margin-top:5px;display:block">ID du dossier destination (URL Drive)</small>
+          </div>
+          <button class="btn btn-outline btn-full" onclick="testDrive()">Tester la connexion</button>
+          <div class="drive-status" id="drive-status" style="display:none">
+            <div class="drive-dot" id="drive-dot"></div>
+            <span id="drive-status-text"></span>
+          </div>
+        </div>
+
+        <!-- Thèmes -->
+        <div class="card">
+          <div class="card-title">Thème de l'interface</div>
+          <div class="theme-grid" id="theme-grid"></div>
+        </div>
+
+        <!-- Polices -->
+        <div class="card" style="grid-column:1/-1">
+          <div class="card-title">Police & taille du texte</div>
+          <div class="font-grid" id="font-grid"></div>
+          <div class="divider"></div>
+          <div class="form-label" style="margin-bottom:10px">Taille du texte</div>
+          <div class="size-row">
+            <button class="size-btn" onclick="changeSize(-1)">−</button>
+            <div class="size-display"><span id="size-display">14</span>px</div>
+            <button class="size-btn" onclick="changeSize(1)">+</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- MODAL PDF -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal">
+    <div class="modal-title">Générer le PDF</div>
+    <div class="form-group">
+      <label class="form-label">Date de dépôt officiel</label>
+      <input type="date" class="form-control" id="modal-depot">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nom du fichier PDF</label>
+      <input type="text" class="form-control" id="modal-filename" placeholder="CC_AFG_2025-S01">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmPDF()">⬇ Télécharger</button>
+      <button class="btn btn-success" onclick="confirmPDFDrive()">⬆ Drive</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LOGO_B64 = 'data:image/png;base64,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';
+
+let bureau = 'AFG';
+let declarations = [];
+let history = [];
+let params = {
+  clients: ['CAPMARIN','OCEANOS','ATLANTIC PÊCHE','EUROFISH','AQUA NORD'],
+  countries: [
+    {name:'SÉNÉGAL',    flag:'🇸🇳', prefix:'SEN/CC-2025-'},
+    {name:'MAROC',      flag:'🇲🇦', prefix:'MAR/CC-2025-'},
+    {name:'MAURITANIE', flag:'🇲🇷', prefix:'MRT/CC-2025-'},
+    {name:'NAMIBIE',    flag:'🇳🇦', prefix:'NAM/CC-2025-'},
+    {name:'NORVÈGE',    flag:'🇳🇴', prefix:'NOR/CC-2025-'},
+  ],
+  theme:'default', font:'DM Sans', fontSize:14,
+  gdriveToken:'', gdriveFolder:''
+};
+
+const THEMES=[
+  {id:'default',label:'Onyx',bg:'#0e0e12',accent:'#c9a84c'},
+  {id:'marine',label:'Marine',bg:'#06080f',accent:'#4a9eda'},
+  {id:'emerald',label:'Émeraude',bg:'#060f08',accent:'#4ab87a'},
+  {id:'bordeaux',label:'Bordeaux',bg:'#0f0608',accent:'#c94a6b'},
+  {id:'midnight',label:'Minuit',bg:'#03010a',accent:'#9b7fd4'},
+  {id:'copper',label:'Cuivre',bg:'#0f0a06',accent:'#d4824a'},
+  {id:'noir',label:'Noir',bg:'#000000',accent:'#d4af37'},
+  {id:'rose',label:'Rosé',bg:'#0f080c',accent:'#d47ab0'},
+  {id:'ivory',label:'Ivoire',bg:'#f5f0e8',accent:'#8b6914'},
+  {id:'arctic',label:'Arctique',bg:'#f0f5f8',accent:'#1a7faa'},
+];
+const FONTS=[
+  {id:'DM Sans',label:'DM Sans',preview:'Moderne & lisible'},
+  {id:'Cormorant Garamond',label:'Cormorant Garamond',preview:'Élégant & raffiné'},
+  {id:'Playfair Display',label:'Playfair Display',preview:'Editorial & chic'},
+  {id:'Libre Baskerville',label:'Libre Baskerville',preview:'Classique & sérieux'},
+  {id:'EB Garamond',label:'EB Garamond',preview:'Traditionnel & précis'},
+  {id:'Crimson Pro',label:'Crimson Pro',preview:'Sobre & académique'},
+  {id:'Raleway',label:'Raleway',preview:'Géométrique & fin'},
+  {id:'Josefin Sans',label:'Josefin Sans',preview:'Minimaliste & net'},
+  {id:'Spectral',label:'Spectral',preview:'Digital & sérif'},
+  {id:'Lora',label:'Lora',preview:'Littéraire & doux'},
+];
+
+function getWeekNumber(d) {
+  const date = new Date(d);
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate()+3-(date.getDay()+6)%7);
+  const week1 = new Date(date.getFullYear(),0,4);
+  return 'S' + String(1+Math.round(((date-week1)/86400000-3+(week1.getDay()+6)%7)/7)).padStart(2,'0');
+}
+
+function init() {
+  const saved = localStorage.getItem('taf-cc-params');
+  if (saved) params = {...params, ...JSON.parse(saved)};
+  const savedD = localStorage.getItem('taf-cc-declarations');
+  if (savedD) declarations = JSON.parse(savedD);
+  const savedH = localStorage.getItem('taf-cc-history');
+  if (savedH) history = JSON.parse(savedH);
+
+  renderThemes(); renderFonts();
+  applyTheme(params.theme); applyFont(params.font, params.fontSize);
+  renderClients(); renderCountries(); renderCountrySelect();
+  renderDeclarations(); renderHistory(); updateStats();
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date-dec').value = today;
+  document.getElementById('f-depot').value = today;
+  document.getElementById('gdrive-token').value = params.gdriveToken||'';
+  document.getElementById('gdrive-folder').value = params.gdriveFolder||'';
+  document.getElementById('size-display').textContent = params.fontSize;
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+
+function setBureau(b) {
+  bureau=b;
+  document.getElementById('btn-afg').classList.toggle('active',b==='AFG');
+  document.getElementById('btn-frh').classList.toggle('active',b==='FRH');
+  const badge=document.getElementById('bureau-badge');
+  badge.textContent=b; badge.className='bureau-indicator '+b.toLowerCase();
+  document.getElementById('stat-bureau').textContent=b;
+  renderDeclarations(); updateStats();
+}
+
+// PAYS → préfixe CC auto
+function onOrigineChange() {
+  const sel = document.getElementById('f-origine');
+  const country = params.countries.find(c=>c.name===sel.value);
+  const ccField = document.getElementById('f-cc');
+  if (country && country.prefix) {
+    ccField.value = country.prefix;
+    ccField.focus();
+    ccField.setSelectionRange(ccField.value.length, ccField.value.length);
+  }
+}
+
+function renderCountrySelect() {
+  const sel = document.getElementById('f-origine');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Sélectionner un pays —</option>' +
+    params.countries.map(c=>`<option value="${c.name}" ${c.name===current?'selected':''}>${c.flag||''} ${c.name}</option>`).join('');
+}
+
+// DECLARATIONS
+function addDeclaration() {
+  const client = document.getElementById('f-client').value;
+  const dateD  = document.getElementById('f-date-dec').value;
+  const ima    = document.getElementById('f-ima').value.trim();
+  const origine= document.getElementById('f-origine').value;
+  const cc     = document.getElementById('f-cc').value.trim();
+  const ref    = document.getElementById('f-ref').value.trim();
+  const depot  = document.getElementById('f-depot').value;
+  if (!client||!dateD||!cc) { toast('Veuillez remplir : client, date et N° CC','error'); return; }
+  declarations.push({id:Date.now(),bureau,client,dateD,ima,origine,cc,ref,depot});
+  saveDecl(); renderDeclarations(); updateStats();
+  document.getElementById('f-ima').value='';
+  document.getElementById('f-cc').value='';
+  document.getElementById('f-ref').value='';
+  toast('Déclaration ajoutée ✓');
+}
+
+function removeDeclaration(id) {
+  declarations=declarations.filter(d=>d.id!==id);
+  saveDecl(); renderDeclarations(); updateStats();
+}
+
+function clearAll() {
+  if(!declarations.filter(d=>d.bureau===bureau).length) return;
+  if(confirm(`Effacer les ${declarations.filter(d=>d.bureau===bureau).length} déclaration(s) du bureau ${bureau} ?`)) {
+    declarations=declarations.filter(d=>d.bureau!==bureau);
+    saveDecl(); renderDeclarations(); updateStats();
+    toast(`Tableau ${bureau} effacé`);
+  }
+}
+
+// Raccourci clavier Alt+Suppr
+document.addEventListener('keydown', e => {
+  if(e.altKey && (e.key==='Delete'||e.key==='Backspace')) { e.preventDefault(); clearAll(); }
+});
+
+function renderDeclarations() {
+  const tbody=document.getElementById('declarations-tbody');
+  const current=declarations.filter(d=>d.bureau===bureau);
+  if(!current.length){
+    tbody.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Aucune déclaration pour le bureau ${bureau}</div></div></td></tr>`;return;
+  }
+  tbody.innerHTML=current.map((d,i)=>`
+    <tr>
+      <td class="td-num">${i+1}</td>
+      <td>${fmtDate(d.dateD)}</td>
+      <td>${d.ima||'—'}</td>
+      <td style="font-weight:500">${d.client}</td>
+      <td>${d.origine||'—'}</td>
+      <td style="font-family:monospace;font-size:12px">${d.cc}</td>
+      <td>${d.ref||'—'}</td>
+      <td class="td-num">${fmtDate(d.depot)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeDeclaration(${d.id})">✕</button></td>
+    </tr>`).join('');
+}
+
+function updateStats() {
+  const current=declarations.filter(d=>d.bureau===bureau);
+  document.getElementById('stat-count').textContent=current.length;
+  document.getElementById('stat-bureau').textContent=bureau;
+  if(current.length){
+    const dates=current.map(d=>d.dateD).filter(Boolean).sort();
+    document.getElementById('stat-periode').textContent=dates.length>=2?fmtDate(dates[0])+' → '+fmtDate(dates[dates.length-1]):fmtDate(dates[0]);
+  } else document.getElementById('stat-periode').textContent='—';
+}
+
+// CLIENTS
+function renderClients() {
+  const sel=document.getElementById('f-client');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Sélectionner —</option>'+params.clients.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
+  const list=document.getElementById('client-list');
+  if(!params.clients.length){list.innerHTML='<li style="color:var(--text-dimmer);font-size:12px;padding:8px">Aucun client</li>';return;}
+  list.innerHTML=params.clients.map((c,i)=>`<li class="client-item"><span class="client-item-name">${c}</span><button class="btn btn-danger btn-sm" onclick="removeClient(${i})">✕</button></li>`).join('');
+}
+function addClient(){
+  const v=document.getElementById('new-client').value.trim().toUpperCase();
+  if(!v)return;
+  if(params.clients.includes(v)){toast('Client déjà dans la liste','error');return;}
+  params.clients.push(v); document.getElementById('new-client').value='';
+  saveParams(); renderClients(); toast('Client ajouté ✓');
+}
+function removeClient(i){params.clients.splice(i,1);saveParams();renderClients();}
+
+// COUNTRIES
+function renderCountries() {
+  const list=document.getElementById('country-list');
+  if(!params.countries.length){list.innerHTML='<li style="color:var(--text-dimmer);font-size:12px;padding:8px">Aucun pays configuré</li>';return;}
+  list.innerHTML=params.countries.map((c,i)=>`
+    <li class="country-item">
+      <span class="country-item-flag">${c.flag||'🌍'}</span>
+      <div class="country-item-info">
+        <div class="country-item-name">${c.name}</div>
+        <div class="country-item-prefix">${c.prefix||'(pas de préfixe)'}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="removeCountry(${i})">✕</button>
+    </li>`).join('');
+}
+function addCountry(){
+  const name=document.getElementById('new-country-name').value.trim().toUpperCase();
+  const flag=document.getElementById('new-country-flag').value.trim();
+  const prefix=document.getElementById('new-country-prefix').value.trim();
+  if(!name)return;
+  params.countries.push({name,flag,prefix});
+  document.getElementById('new-country-name').value='';
+  document.getElementById('new-country-flag').value='';
+  document.getElementById('new-country-prefix').value='';
+  saveParams(); renderCountries(); renderCountrySelect(); toast('Pays ajouté ✓');
+}
+function removeCountry(i){params.countries.splice(i,1);saveParams();renderCountries();renderCountrySelect();}
+
+// THEMES
+function renderThemes(){
+  document.getElementById('theme-grid').innerHTML=THEMES.map(t=>`
+    <div class="theme-swatch ${t.id===params.theme?'active':''}" style="background:${t.bg};color:${t.accent};border-color:${t.id===params.theme?t.accent:'transparent'}" onclick="applyTheme('${t.id}')">${t.label}</div>`).join('');
+}
+function applyTheme(id){
+  document.body.className=document.body.className.replace(/theme-\S+/g,'').trim();
+  if(id!=='default')document.body.classList.add('theme-'+id);
+  params.theme=id; saveParams(); renderThemes();
+}
+
+// FONTS
+function renderFonts(){
+  document.getElementById('font-grid').innerHTML=FONTS.map(f=>`
+    <div class="font-option ${f.id===params.font?'active':''}" onclick="applyFont('${f.id}',${params.fontSize})">
+      <div class="font-name" style="font-family:'${f.id}',serif">${f.label}</div>
+      <div class="font-preview" style="font-family:'${f.id}',serif;font-style:italic">${f.preview}</div>
+    </div>`).join('');
+}
+function applyFont(id,size){
+  document.documentElement.style.setProperty('--font-body',`'${id}',sans-serif`);
+  document.documentElement.style.setProperty('--font-size',size+'px');
+  params.font=id; params.fontSize=size; saveParams(); renderFonts();
+  document.getElementById('size-display').textContent=size;
+}
+function changeSize(d){applyFont(params.font,Math.max(11,Math.min(20,params.fontSize+d)));}
+
+// DRIVE
+function saveParamsDrive(){
+  params.gdriveToken=document.getElementById('gdrive-token').value.trim();
+  params.gdriveFolder=document.getElementById('gdrive-folder').value.trim();
+  saveParams();
+}
+async function testDrive(){
+  saveParamsDrive();
+  const token=params.gdriveToken;
+  if(!token){toast('Entrez un token OAuth2 d\'abord','error');return;}
+  const status=document.getElementById('drive-status');
+  const dot=document.getElementById('drive-dot');
+  const text=document.getElementById('drive-status-text');
+  status.style.display='flex'; dot.className='drive-dot'; text.textContent='Test en cours...';
+  try{
+    const res=await fetch('https://www.googleapis.com/drive/v3/about?fields=user',{headers:{Authorization:'Bearer '+token}});
+    if(res.ok){const d=await res.json();dot.className='drive-dot ok';text.textContent='✓ Connecté : '+(d.user?.displayName||d.user?.emailAddress||'Compte Google');toast('Drive connecté ✓','success');}
+    else{dot.className='drive-dot ko';text.textContent='✗ Token invalide ou expiré';toast('Token invalide','error');}
+  }catch{dot.className='drive-dot ko';text.textContent='✗ Erreur réseau';}
+}
+async function uploadToDrive(blob,filename){
+  saveParamsDrive();
+  const token=params.gdriveToken;
+  if(!token){toast('Configurez le token Drive dans Paramètres','error');return false;}
+  const metadata={name:filename,mimeType:'application/pdf'};
+  if(params.gdriveFolder)metadata.parents=[params.gdriveFolder];
+  const form=new FormData();
+  form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
+  form.append('file',blob);
+  try{
+    const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});
+    if(res.ok){const d=await res.json();toast('PDF sauvegardé sur Drive ✓','success');return d.id;}
+    else{toast('Erreur Drive : '+res.status,'error');return false;}
+  }catch{toast('Erreur upload Drive','error');return false;}
+}
+
+// PDF
+function generatePDF(){
+  const current=declarations.filter(d=>d.bureau===bureau);
+  if(!current.length){toast('Ajoutez des déclarations d\'abord','error');return;}
+  const today=new Date().toISOString().split('T')[0];
+  const week=getWeekNumber(today);
+  document.getElementById('modal-depot').value=today;
+  document.getElementById('modal-filename').value=`CC_${bureau}_${today}_${week}`;
+  document.getElementById('pdf-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('pdf-modal').classList.remove('open');}
+async function confirmPDF(){
+  const blob=buildPDF();
+  const filename=(document.getElementById('modal-filename').value||`CC_${bureau}`)+'.pdf';
+  downloadBlob(blob,filename); addToHistory(filename); closeModal();
+}
+async function confirmPDFDrive(){
+  saveParamsDrive();
+  const blob=buildPDF();
+  const filename=(document.getElementById('modal-filename').value||`CC_${bureau}`)+'.pdf';
+  const id=await uploadToDrive(blob,filename);
+  if(id){addToHistory(filename,id);downloadBlob(blob,filename);}
+  closeModal();
+}
+
+function buildPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const current=declarations.filter(d=>d.bureau===bureau);
+  const depotDate=document.getElementById('modal-depot').value;
+  const W=297, H=210;
+
+  const WHITE=[255,255,255];
+  const OFF=[248,248,251];
+  const LGREY=[243,243,246];
+  const RULE=[210,210,220];
+  const DARK=[20,20,34];
+  const MID=[75,75,100];
+  const DIM=[148,148,168];
+  const BC=bureau==='AFG'?[26,90,160]:[160,55,30]; // bureau color
+
+  // Fond blanc
+  doc.setFillColor(...WHITE);
+  doc.rect(0,0,W,H,'F');
+
+  // Bande latérale gauche
+  doc.setFillColor(...BC);
+  doc.rect(0,0,7,H,'F');
+
+  // Zone header fond légèrement grisé
+  doc.setFillColor(...OFF);
+  doc.rect(7,0,W-7,48,'F');
+
+  // Liseré couleur bas du header
+  doc.setFillColor(...BC);
+  doc.rect(7,46,W-7,2,'F');
+
+  // Filet léger de séparation
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.3);
+  doc.line(7,48,W,48);
+
+  // ── LOGO haut gauche ──
+  try{doc.addImage(LOGO_B64,'JPEG',10,4,32,18);}catch(e){
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...BC);
+    doc.text('TAF',11,12);
+  }
+
+  // Séparateur vertical après logo
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.3);
+  doc.line(47,5,47,42);
+
+  // Sous-titre entreprise
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...BC);
+  doc.text('TRANS AIR FREIGHT CDG',50,10);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...DIM);
+  doc.text('Fret aérien · Dédouanement · CDG',50,14.5);
+
+  // Séparateur vertical central
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.3);
+  doc.line(W/2-45,5,W/2-45,42);
+
+  // TITRE
+  doc.setFont('times','bold');doc.setFontSize(19);doc.setTextColor(...DARK);
+  doc.text('CERTIFICATS DE CAPTURE',W/2+10,14,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...MID);
+  doc.text('RÉCAPITULATIF DES DÉCLARATIONS BAE',W/2+10,20,{align:'center'});
+
+  // Badge bureau
+  doc.setFillColor(...BC);
+  doc.roundedRect(W/2-2,22.5,24,8,2,2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...WHITE);
+  doc.text(bureau,W/2+10,28,{align:'center'});
+
+  // Période + semaine
+  if(current.length){
+    const dates=current.map(d=>d.dateD).filter(Boolean).sort();
+    const week=dates.length?getWeekNumber(dates[0]):'';
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...MID);
+    const pLabel=dates.length>=2
+      ?`Période : du ${fmtDateFr(dates[0])} au ${fmtDateFr(dates[dates.length-1])}  ·  ${week}`
+      :`Date : ${fmtDateFr(dates[0])}  ·  ${week}`;
+    doc.text(pLabel,50,37);
+  }
+
+  // ── BLOC DROITE : nb déc + date dépôt + case retrait ──
+  const RX=W-12;
+
+  // Nb déclarations
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+  doc.text('DÉCLARATIONS',RX,8,{align:'right'});
+  doc.setFont('times','bold');doc.setFontSize(30);doc.setTextColor(...BC);
+  doc.text(String(current.length).padStart(2,'0'),RX,22,{align:'right'});
+
+  // DATE DE DÉPÔT
+  const COL2=RX-44;
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+  doc.text('DATE DE DÉPÔT',COL2,8,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(...DARK);
+  doc.text(depotDate?fmtDateFr(depotDate):'— / — / ——',COL2,16,{align:'right'});
+
+  // DATE DE RETRAIT — juste en dessous de DATE DE DÉPÔT
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+  doc.text('DATE DE RETRAIT',COL2,25,{align:'right'});
+  // Boite vide à remplir à la main
+  doc.setDrawColor(...BC);doc.setLineWidth(0.6);
+  const bW=44, bH=10, bX=COL2-bW, bY=26.5;
+  doc.roundedRect(bX,bY,bW,bH,1.5,1.5,'S');
+  // Date édition
+  doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...DIM);
+  doc.text('Édité le '+fmtDateFr(new Date().toISOString().split('T')[0]),RX,43,{align:'right'});
+
+  // ── TABLEAU ──
+  doc.autoTable({
+    startY:51,
+    margin:{left:9,right:9},
+    head:[['N°','Date déclaration','IMA N°','Importateur','Pays d\'origine','Certificat CC N°','Réf. Interne','Résultat des contrôles']],
+    body:current.map((d,i)=>[
+      i+1,
+      fmtDateFr(d.dateD)||'—',
+      d.ima||'—',
+      d.client,
+      d.origine||'—',
+      d.cc,
+      d.ref||'—',
+      '',  // colonne vide Résultat contrôles
+    ]),
+    styles:{font:'helvetica',fontSize:8,textColor:DARK,fillColor:WHITE,lineColor:RULE,lineWidth:0.25,cellPadding:{top:4,bottom:4,left:3,right:3},valign:'middle'},
+    headStyles:{fillColor:BC,textColor:WHITE,fontStyle:'bold',fontSize:7,halign:'center',cellPadding:{top:3.5,bottom:3.5,left:3,right:3}},
+    alternateRowStyles:{fillColor:LGREY},
+    columnStyles:{
+      0:{halign:'center',cellWidth:9,textColor:DIM,fontStyle:'bold'},
+      1:{cellWidth:24,halign:'center'},
+      2:{cellWidth:26},
+      3:{cellWidth:38,fontStyle:'bold'},
+      4:{cellWidth:24},
+      5:{cellWidth:42,font:'courier',fontSize:7.5},
+      6:{cellWidth:26},
+      7:{cellWidth:'auto',halign:'center'},
+    },
+    didDrawCell(data){
+      // Encadrer la colonne "Résultat des contrôles" pour annotation manuelle
+      if(data.section==='body'&&data.column.index===7){
+        doc.setDrawColor(...BC);doc.setLineWidth(0.35);
+        doc.rect(data.cell.x+1.5,data.cell.y+1,data.cell.width-3,data.cell.height-2,'S');
+      }
+    }
+  });
+
+  // ── BLOC SIGNATURE TAF (bas droite) ──
+  const sigW=70, sigH=28;
+  const sigX=W-9-sigW, sigY=H-9-sigH-8;
+  // Fond légèrement teinté
+  doc.setFillColor(...OFF);
+  doc.roundedRect(sigX,sigY,sigW,sigH,2,2,'F');
+  doc.setDrawColor(...BC);doc.setLineWidth(0.5);
+  doc.roundedRect(sigX,sigY,sigW,sigH,2,2,'S');
+  // Label
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...BC);
+  doc.text('VISA TAF — TRANS AIR FREIGHT CDG',sigX+sigW/2,sigY+5,{align:'center'});
+  // Ligne de signature
+  doc.setDrawColor(...RULE);doc.setLineWidth(0.4);
+  doc.line(sigX+6,sigY+18,sigX+sigW-6,sigY+18);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...DIM);
+  doc.text('Signature & cachet',sigX+sigW/2,sigY+22,{align:'center'});
+  // Date
+  doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(...DIM);
+  doc.text('Date :',sigX+6,sigY+27);
+  doc.setDrawColor(...RULE);doc.setLineWidth(0.4);
+  doc.line(sigX+16,sigY+27,sigX+sigW-6,sigY+27);
+
+  // ── FOOTER ──
+  const fY=H-9;
+  doc.setDrawColor(...RULE);doc.setLineWidth(0.3);
+  doc.line(9,fY-3,W-9,fY-3);
+  doc.setFillColor(...BC);doc.rect(9,fY-3,2.5,9,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...MID);
+  doc.text('TRANS AIR FREIGHT CDG (TAF)  ·  Fret aérien & Dédouanement  ·  Aéroport Paris-Charles de Gaulle',W/2,fY+1,{align:'center'});
+  doc.setTextColor(...DIM);
+  doc.text(`Bureau ${bureau}  ·  ${current.length} déclaration(s)`,15,fY+1);
+  doc.text('Document confidentiel – Usage douanier exclusivement',W-12,fY+1,{align:'right'});
+
+  return doc.output('blob');
+}
+
+function addToHistory(filename,driveId=null){
+  const depotDate=document.getElementById('modal-depot').value;
+  const current=declarations.filter(d=>d.bureau===bureau);
+  const week=depotDate?getWeekNumber(depotDate):'';
+  history.unshift({id:Date.now(),date:new Date().toISOString(),bureau,count:current.length,depot:depotDate,week,filename,driveId});
+  localStorage.setItem('taf-cc-history',JSON.stringify(history));
+  renderHistory();
+}
+function renderHistory(){
+  const tbody=document.getElementById('history-tbody');
+  if(!history.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🗂</div><div class="empty-text">Aucun historique</div></div></td></tr>`;return;}
+  tbody.innerHTML=history.map(h=>`
+    <tr>
+      <td>${fmtDateFr(h.date.split('T')[0])} ${h.date.split('T')[1].substring(0,5)}</td>
+      <td><span class="badge badge-${h.bureau.toLowerCase()}">${h.bureau}</span></td>
+      <td><strong>${h.count}</strong></td>
+      <td style="font-weight:600;color:var(--gold-light)">${h.week||'—'}</td>
+      <td>${h.depot?fmtDateFr(h.depot):'—'}</td>
+      <td>${h.driveId?`<span style="color:var(--success);font-size:11px">✓ Synchronisé</span>`:'<span style="color:var(--text-dimmer);font-size:11px">Local</span>'}</td>
+    </tr>`).join('');
+}
+function clearHistory(){if(confirm('Effacer tout l\'historique ?')){history=[];localStorage.removeItem('taf-cc-history');renderHistory();}}
+
+function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
+function fmtDateFr(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
+function downloadBlob(blob,filename){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;a.click();URL.revokeObjectURL(u);}
+function saveDecl(){localStorage.setItem('taf-cc-declarations',JSON.stringify(declarations));}
+function saveParams(){
+  params.gdriveToken=document.getElementById('gdrive-token')?.value?.trim()||params.gdriveToken;
+  params.gdriveFolder=document.getElementById('gdrive-folder')?.value?.trim()||params.gdriveFolder;
+  localStorage.setItem('taf-cc-params',JSON.stringify(params));
+}
+function toast(msg,type='info'){
+  const c=document.getElementById('toast-container');
+  const el=document.createElement('div');
+  el.className='toast '+type;el.textContent=msg;c.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+init();
+</script>
+</body>
+</html>

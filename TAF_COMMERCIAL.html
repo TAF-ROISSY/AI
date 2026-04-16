@@ -2542,5 +2542,107 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
+
+<!-- TAF_MONITOR_DB_INJECT -->
+<script>window.TAF_MONITOR_DB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';</script>
+<!-- ===== TAF MONITOR v1.0 TRACKER (auto-injected) ===== -->
+<script>
+(function () {
+  'use strict';
+  if (window.__TAF_MONITOR__) return; // évite double injection
+  var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
+  var APP_NAME  = 'TAF COMMERCIAL';
+  var APP_VER   = 'v3.2';
+  var HB_MS     = 30000;
+  if (!DB_URL) {
+    console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
+    return;
+  }
+  var PC_KEY = 'taf_monitor_pc_id';
+  var pcId = null;
+  try { pcId = localStorage.getItem(PC_KEY); } catch(e) {}
+  if (!pcId) {
+    pcId = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
+    try { localStorage.setItem(PC_KEY, pcId); } catch(e) {}
+  }
+  var ua = navigator.userAgent;
+  var os = /Windows NT 10/.test(ua) ? 'Windows 10/11'
+         : /Windows/.test(ua) ? 'Windows'
+         : /Mac OS X/.test(ua) ? 'macOS'
+         : /Android/.test(ua) ? 'Android'
+         : /iPhone|iPad|iPod/.test(ua) ? 'iOS'
+         : /Linux/.test(ua) ? 'Linux' : 'OS ?';
+  var br = /Edg\//.test(ua) ? 'Edge'
+         : /OPR\//.test(ua) ? 'Opera'
+         : /Chrome\//.test(ua) ? 'Chrome'
+         : /Firefox\//.test(ua) ? 'Firefox'
+         : /Safari\//.test(ua) ? 'Safari' : 'Navigateur ?';
+  var detected = os + ' · ' + br;
+  function fb(method, path, data, keepalive) {
+    var opts = { method: method };
+    if (data !== undefined) {
+      opts.body = JSON.stringify(data);
+      opts.headers = { 'Content-Type': 'application/json' };
+    }
+    if (keepalive) opts.keepalive = true;
+    return fetch(DB_URL + '/' + path + '.json', opts).catch(function(){});
+  }
+  var sid   = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
+  var start = Date.now();
+  var visible = !document.hidden;
+  var lastChk = start;
+  var active = 0;
+  function tick() {
+    var n = Date.now();
+    if (visible) active += (n - lastChk);
+    lastChk = n;
+  }
+  fb('PATCH', 'monitor/pcs/' + pcId, {
+    uuid: pcId, detectedName: detected, os: os, browser: br,
+    userAgent: ua, language: navigator.language || '',
+    timezone: (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+    screen: (screen.width||0) + 'x' + (screen.height||0),
+    lastSeen: start
+  });
+  fb('PUT', 'monitor/sessions/' + sid, {
+    pcId: pcId, detectedName: detected,
+    app: APP_NAME, appVersion: APP_VER,
+    startTime: start, lastHeartbeat: start,
+    endTime: null, duration: 0, active: true
+  });
+  document.addEventListener('visibilitychange', function () {
+    tick(); visible = !document.hidden;
+  });
+  var hb = setInterval(function () {
+    tick();
+    var n = Date.now();
+    fb('PATCH', 'monitor/sessions/' + sid, {
+      lastHeartbeat: n,
+      duration: Math.round(active/1000),
+      active: true
+    });
+    fb('PATCH', 'monitor/pcs/' + pcId, { lastSeen: n });
+  }, HB_MS);
+  function endSession() {
+    tick();
+    clearInterval(hb);
+    fb('PATCH', 'monitor/sessions/' + sid, {
+      endTime: Date.now(),
+      lastHeartbeat: Date.now(),
+      duration: Math.round(active/1000),
+      active: false
+    }, true);
+  }
+  window.addEventListener('beforeunload', endSession);
+  window.addEventListener('pagehide', endSession);
+  window.__TAF_MONITOR__ = {
+    pcId: pcId, sessionId: sid, app: APP_NAME, version: APP_VER,
+    detectedName: detected,
+    getActiveSec: function(){ tick(); return Math.round(active/1000); }
+  };
+  console.log('[TAF Monitor v1.0] ' + APP_NAME + ' ' + APP_VER + ' | ' + detected + ' | ' + pcId);
+})();
+</script>
+<!-- ===== /TAF MONITOR v1.0 TRACKER ===== -->
 </body>
 </html>

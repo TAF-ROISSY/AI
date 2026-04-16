@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF MONITOR v1.0</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #334155;
+    --border: #475569;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --accent: #3b82f6;
+    --accent-2: #60a5fa;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+  header h1 span.sub { font-weight: 400; opacity: 0.8; font-size: 14px; margin-left: 8px; }
+  .version-badge {
+    background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  }
+  nav {
+    background: var(--panel); padding: 0 24px; display: flex; gap: 4px; overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+  }
+  nav button {
+    background: none; border: none; color: var(--text-dim); padding: 14px 16px;
+    cursor: pointer; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent-2); border-bottom-color: var(--accent-2); }
+  main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  .grid { display: grid; gap: 16px; }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px;
+  }
+  .card h3 { margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-dim); font-weight: 600; }
+  .stat { font-size: 32px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  .stat-green { color: var(--green); }
+  .stat-amber { color: var(--amber); }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 14px;
+  }
+  th, td {
+    padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--text-dim); font-size: 12px; text-transform: uppercase; font-weight: 600; }
+  td .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  td .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  td .dot.off { background: var(--text-dim); }
+  input, button, select {
+    font-family: inherit; font-size: 14px;
+  }
+  input[type=text], input[type=url], input[type=date], select {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 12px; border-radius: 6px;
+  }
+  input[type=text]:focus, input[type=url]:focus { border-color: var(--accent); outline: none; }
+  .btn {
+    background: var(--accent); color: white; border: none; padding: 9px 16px;
+    border-radius: 6px; cursor: pointer; font-weight: 600;
+  }
+  .btn:hover { background: var(--accent-2); }
+  .btn-secondary { background: var(--panel-2); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-danger { background: var(--red); }
+  .inline-edit {
+    background: transparent; border: none; color: var(--text); font-size: 14px;
+    border-bottom: 1px dashed transparent; padding: 2px 4px;
+  }
+  .inline-edit:hover, .inline-edit:focus {
+    border-bottom-color: var(--text-dim); outline: none;
+  }
+  .chip {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; background: var(--panel-2); color: var(--text-dim);
+  }
+  .chip.app { background: rgba(59,130,246,0.2); color: var(--accent-2); }
+  .empty {
+    text-align: center; padding: 40px; color: var(--text-dim);
+  }
+  .chart-wrap { position: relative; height: 300px; }
+  .filter-bar {
+    display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .small { font-size: 12px; color: var(--text-dim); }
+  .pill-live {
+    background: var(--green); color: white; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .config-row { margin-bottom: 12px; }
+  .config-row label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing:0.5px; }
+  .config-row input { width: 100%; max-width: 700px; }
+  .notice {
+    background: rgba(245,158,11,0.1); border-left: 3px solid var(--amber);
+    padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 13px;
+  }
+  .notice.error { background: rgba(239,68,68,0.1); border-left-color: var(--red); }
+  .notice.ok { background: rgba(16,185,129,0.1); border-left-color: var(--green); }
+  @media (max-width: 640px) {
+    main { padding: 14px; }
+    header { padding: 14px; }
+    header h1 { font-size: 18px; }
+    .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖥️ TAF MONITOR <span class="sub">Usage tracking</span></h1>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span id="live-indicator" class="pill-live" style="display:none">LIVE</span>
+    <span class="version-badge">v1.0</span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="overview">Vue d'ensemble</button>
+  <button data-tab="pcs">Postes (PC)</button>
+  <button data-tab="apps">Par App</button>
+  <button data-tab="sessions">Sessions</button>
+  <button data-tab="config">⚙️ Config</button>
+</nav>
+
+<main>
+
+  <div id="tab-overview" class="tab active">
+    <div class="filter-bar">
+      <label class="small">Période :</label>
+      <select id="period-select">
+        <option value="today">Aujourd'hui</option>
+        <option value="7d" selected>7 derniers jours</option>
+        <option value="30d">30 derniers jours</option>
+        <option value="all">Tout</option>
+      </select>
+      <button class="btn btn-secondary" onclick="loadData()">🔄 Actualiser</button>
+      <span class="small" id="last-update"></span>
+    </div>
+
+    <div class="grid grid-3" style="margin-bottom:16px">
+      <div class="card">
+        <h3>Temps total</h3>
+        <div class="stat" id="kpi-total-time">—</div>
+        <div class="stat-sub" id="kpi-total-sessions">0 sessions</div>
+      </div>
+      <div class="card">
+        <h3>Postes actifs</h3>
+        <div class="stat" id="kpi-pcs">—</div>
+        <div class="stat-sub" id="kpi-pcs-now">0 en ligne maintenant</div>
+      </div>
+      <div class="card">
+        <h3>App la plus utilisée</h3>
+        <div class="stat" id="kpi-top-app" style="font-size:22px">—</div>
+        <div class="stat-sub" id="kpi-top-app-time"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Temps par app</h3>
+        <div class="chart-wrap"><canvas id="chart-apps"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Temps par PC</h3>
+        <div class="chart-wrap"><canvas id="chart-pcs"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Activité par jour</h3>
+      <div class="chart-wrap"><canvas id="chart-days"></canvas></div>
+    </div>
+  </div>
+
+  <div id="tab-pcs" class="tab">
+    <div class="toolbar">
+      <strong>Postes enregistrés</strong>
+      <span class="small" id="pc-count"></span>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Statut</th>
+            <th>Nom du poste</th>
+            <th>Détecté</th>
+            <th>OS / Navigateur</th>
+            <th>Dernière activité</th>
+            <th>Temps total</th>
+            <th>Sessions</th>
+          </tr>
+        </thead>
+        <tbody id="pcs-tbody"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="small" style="margin-top:8px">💡 Cliquez sur un nom de poste pour le renommer (ex: "PC Marie", "Poste accueil").</div>
+  </div>
+
+  <div id="tab-apps" class="tab">
+    <div class="toolbar"><strong>Utilisation par application</strong></div>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>App</th>
+            <th>Dernière version vue</th>
+            <th>Temps cumulé</th>
+            <th>Sessions</th>
+            <th>PCs distincts</th>
+            <th>Dernière activité</th>
+          </tr>
+        </thead>
+        <tbody id="apps-tbody"><tr><td colspan="6" class="empty">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-sessions" class="tab">
+    <div class="filter-bar">
+      <label class="small">Filtrer par app :</label>
+      <select id="filter-app"><option value="">Toutes</option></select>
+      <label class="small">PC :</label>
+      <select id="filter-pc"><option value="">Tous</option></select>
+      <label class="small">Depuis :</label>
+      <input type="date" id="filter-date-from">
+      <button class="btn btn-secondary" onclick="renderSessions()">Filtrer</button>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Statut</th>
+            <th>App</th>
+            <th>PC</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th>Durée active</th>
+          </tr>
+        </thead>
+        <tbody id="sessions-tbody"><tr><td colspan="6" class="empty">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-config" class="tab">
+    <div class="card">
+      <h3>Configuration Firebase</h3>
+      <div id="config-notice"></div>
+      <div class="config-row">
+        <label>URL Firebase Realtime Database</label>
+        <input type="url" id="cfg-db-url" placeholder="https://votre-projet-default-rtdb.europe-west1.firebasedatabase.app">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="saveConfig()">💾 Sauvegarder</button>
+        <button class="btn btn-secondary" onclick="testConnection()">🔌 Tester la connexion</button>
+      </div>
+      <div class="small" style="margin-top:12px">
+        ℹ️ Utilisez la même base Firebase que TAF TEAM. L'URL est celle du projet
+        sans <code>.json</code> final.<br>
+        Les règles Firebase doivent autoriser read/write sur <code>/monitor/*</code>.
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>🧹 Maintenance</h3>
+      <p class="small">Purger les anciennes sessions (plus de 90 jours).</p>
+      <button class="btn btn-danger" onclick="purgeOld()">Purger &gt; 90 jours</button>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>📋 Snippet traceur</h3>
+      <p class="small">À injecter dans chaque app TAF à tracker. Adaptez <code>TAF_APP_NAME</code> et <code>TAF_APP_VERSION</code>.</p>
+      <pre style="background:#0b1220;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px;color:#cbd5e1"><code id="snippet-code"></code></pre>
+      <button class="btn btn-secondary" onclick="copySnippet()">📋 Copier</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* =========================================================
+   TAF MONITOR v1.0 - Dashboard
+   ========================================================= */
+const VERSION = 'v1.0';
+const CFG_KEY = 'taf_monitor_config';
+const NAMES_KEY = 'taf_monitor_pc_names'; // noms custom (backup local — aussi écrit en DB)
+
+let CONFIG = { dbUrl: 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app' };
+let STATE = { pcs: {}, sessions: {}, customNames: {} };
+let chartApps = null, chartPcs = null, chartDays = null;
+let autoRefreshTimer = null;
+
+/* ---------- CONFIG ---------- */
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if (raw) CONFIG = Object.assign(CONFIG, JSON.parse(raw));
+  } catch(e) {}
+  document.getElementById('cfg-db-url').value = CONFIG.dbUrl || '';
+}
+function saveConfig() {
+  const url = document.getElementById('cfg-db-url').value.trim().replace(/\/+$/,'');
+  CONFIG.dbUrl = url;
+  localStorage.setItem(CFG_KEY, JSON.stringify(CONFIG));
+  showNotice('Configuration sauvegardée.', 'ok');
+  loadData();
+}
+async function testConnection() {
+  if (!CONFIG.dbUrl) { showNotice('Renseignez d\'abord l\'URL.', 'error'); return; }
+  try {
+    const r = await fetch(CONFIG.dbUrl + '/monitor.json?shallow=true');
+    if (r.ok) showNotice('✅ Connexion OK', 'ok');
+    else showNotice('❌ Erreur HTTP ' + r.status + ' (vérifier règles Firebase)', 'error');
+  } catch(e) {
+    showNotice('❌ Erreur réseau : ' + e.message, 'error');
+  }
+}
+function showNotice(msg, kind) {
+  const el = document.getElementById('config-notice');
+  el.innerHTML = '<div class="notice ' + (kind||'') + '">' + msg + '</div>';
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+/* ---------- FIREBASE REST ---------- */
+async function fbGet(path) {
+  if (!CONFIG.dbUrl) return null;
+  try {
+    const r = await fetch(CONFIG.dbUrl + '/' + path + '.json');
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+async function fbPatch(path, data) {
+  if (!CONFIG.dbUrl) return;
+  return fetch(CONFIG.dbUrl + '/' + path + '.json', {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+  });
+}
+async function fbDelete(path) {
+  if (!CONFIG.dbUrl) return;
+  return fetch(CONFIG.dbUrl + '/' + path + '.json', { method:'DELETE' });
+}
+
+/* ---------- DATA LOAD ---------- */
+async function loadData() {
+  if (!CONFIG.dbUrl) {
+    document.getElementById('config-notice').innerHTML =
+      '<div class="notice">⚙️ Configurez d\'abord l\'URL Firebase dans l\'onglet Config.</div>';
+    switchTab('config');
+    return;
+  }
+  const data = await fbGet('monitor');
+  STATE.pcs = (data && data.pcs) || {};
+  STATE.sessions = (data && data.sessions) || {};
+  STATE.customNames = (data && data.pc_names) || {};
+  // merge local backup
+  try {
+    const local = JSON.parse(localStorage.getItem(NAMES_KEY) || '{}');
+    Object.keys(local).forEach(k => { if (!STATE.customNames[k]) STATE.customNames[k] = local[k]; });
+  } catch(e) {}
+  document.getElementById('last-update').textContent =
+    'Dernière maj : ' + new Date().toLocaleTimeString('fr-FR');
+  renderAll();
+}
+
+function pcDisplayName(pcId, pc) {
+  const custom = STATE.customNames[pcId];
+  if (custom) return custom;
+  return (pc && pc.detectedName) || pcId;
+}
+
+/* ---------- PERIOD FILTER ---------- */
+function periodStart() {
+  const v = document.getElementById('period-select').value;
+  const now = Date.now();
+  if (v === 'today') {
+    const d = new Date(); d.setHours(0,0,0,0); return d.getTime();
+  }
+  if (v === '7d') return now - 7*24*3600*1000;
+  if (v === '30d') return now - 30*24*3600*1000;
+  return 0;
+}
+function sessionsInPeriod() {
+  const start = periodStart();
+  return Object.entries(STATE.sessions)
+    .filter(([id,s]) => s && s.startTime >= start);
+}
+
+/* ---------- FORMAT ---------- */
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.round(sec || 0));
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  if (h > 0) return h + 'h ' + String(m).padStart(2,'0') + 'm';
+  if (m > 0) return m + 'm ' + String(s).padStart(2,'0') + 's';
+  return s + 's';
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function relativeTime(ts) {
+  if (!ts) return '—';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'à l\'instant';
+  if (diff < 3600000) return Math.floor(diff/60000) + ' min';
+  if (diff < 86400000) return Math.floor(diff/3600000) + ' h';
+  return Math.floor(diff/86400000) + ' j';
+}
+function isActiveNow(s) {
+  return s && s.active && s.lastHeartbeat && (Date.now() - s.lastHeartbeat) < 90000;
+}
+
+/* ---------- RENDER: OVERVIEW ---------- */
+function renderOverview() {
+  const sess = sessionsInPeriod();
+  const totalSec = sess.reduce((a, [,s]) => a + (s.duration || 0), 0);
+  document.getElementById('kpi-total-time').textContent = fmtDuration(totalSec);
+  document.getElementById('kpi-total-sessions').textContent = sess.length + ' sessions';
+
+  const pcsInPeriod = new Set(sess.map(([,s]) => s.pcId));
+  document.getElementById('kpi-pcs').textContent = pcsInPeriod.size;
+  const activeNow = sess.filter(([,s]) => isActiveNow(s)).length;
+  document.getElementById('kpi-pcs-now').textContent = activeNow + ' en ligne maintenant';
+  document.getElementById('live-indicator').style.display = activeNow > 0 ? 'inline-block' : 'none';
+
+  // Per app
+  const appTimes = {};
+  sess.forEach(([,s]) => { appTimes[s.app] = (appTimes[s.app]||0) + (s.duration||0); });
+  const sortedApps = Object.entries(appTimes).sort((a,b) => b[1]-a[1]);
+  if (sortedApps.length) {
+    document.getElementById('kpi-top-app').textContent = sortedApps[0][0];
+    document.getElementById('kpi-top-app-time').textContent = fmtDuration(sortedApps[0][1]);
+  } else {
+    document.getElementById('kpi-top-app').textContent = '—';
+    document.getElementById('kpi-top-app-time').textContent = '';
+  }
+
+  // Chart apps
+  renderChart('chart-apps', 'bar',
+    sortedApps.slice(0,10).map(([n]) => n),
+    sortedApps.slice(0,10).map(([,v]) => Math.round(v/60)),
+    'minutes', '#3b82f6',
+    (c) => chartApps = c, chartApps);
+
+  // Chart PCs
+  const pcTimes = {};
+  sess.forEach(([,s]) => { pcTimes[s.pcId] = (pcTimes[s.pcId]||0) + (s.duration||0); });
+  const sortedPcs = Object.entries(pcTimes).sort((a,b) => b[1]-a[1]);
+  renderChart('chart-pcs', 'bar',
+    sortedPcs.slice(0,10).map(([id]) => pcDisplayName(id, STATE.pcs[id])),
+    sortedPcs.slice(0,10).map(([,v]) => Math.round(v/60)),
+    'minutes', '#10b981',
+    (c) => chartPcs = c, chartPcs);
+
+  // Chart days
+  const dayTimes = {};
+  sess.forEach(([,s]) => {
+    const d = new Date(s.startTime);
+    const key = d.toISOString().slice(0,10);
+    dayTimes[key] = (dayTimes[key]||0) + (s.duration||0);
+  });
+  const days = Object.keys(dayTimes).sort();
+  renderChart('chart-days', 'line',
+    days.map(d => new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})),
+    days.map(d => Math.round(dayTimes[d]/60)),
+    'minutes', '#f59e0b',
+    (c) => chartDays = c, chartDays);
+}
+
+function renderChart(canvasId, type, labels, data, label, color, setRef, existing) {
+  if (existing) existing.destroy();
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const c = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data,
+        backgroundColor: color + (type==='line' ? '33' : 'cc'),
+        borderColor: color,
+        borderWidth: 2,
+        tension: 0.3,
+        fill: type==='line'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color:'#94a3b8' }, grid: { color:'#334155' } },
+        y: { ticks: { color:'#94a3b8' }, grid: { color:'#334155' }, beginAtZero: true }
+      }
+    }
+  });
+  setRef(c);
+}
+
+/* ---------- RENDER: PCS ---------- */
+function renderPcs() {
+  const tbody = document.getElementById('pcs-tbody');
+  const ids = Object.keys(STATE.pcs);
+  document.getElementById('pc-count').textContent = ids.length + ' poste(s)';
+  if (!ids.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucun poste enregistré.</td></tr>'; return; }
+
+  // aggregate sessions per PC
+  const sessByPc = {};
+  Object.entries(STATE.sessions).forEach(([,s]) => {
+    if (!s || !s.pcId) return;
+    if (!sessByPc[s.pcId]) sessByPc[s.pcId] = { total:0, count:0, active:false };
+    sessByPc[s.pcId].total += s.duration || 0;
+    sessByPc[s.pcId].count += 1;
+    if (isActiveNow(s)) sessByPc[s.pcId].active = true;
+  });
+
+  tbody.innerHTML = ids.map(id => {
+    const pc = STATE.pcs[id] || {};
+    const agg = sessByPc[id] || {total:0, count:0, active:false};
+    const name = pcDisplayName(id, pc);
+    return `<tr>
+      <td><span class="dot ${agg.active?'on':'off'}"></span><span class="small">${agg.active?'Actif':'Inactif'}</span></td>
+      <td><input class="inline-edit" value="${escapeHtml(name)}" data-pc="${id}" onblur="renamePc('${id}', this.value)"></td>
+      <td class="small">${escapeHtml(pc.detectedName || '—')}</td>
+      <td class="small">${escapeHtml(pc.os||'')} / ${escapeHtml(pc.browser||'')}</td>
+      <td class="small">${relativeTime(pc.lastSeen)}</td>
+      <td>${fmtDuration(agg.total)}</td>
+      <td>${agg.count}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function renamePc(pcId, newName) {
+  newName = (newName||'').trim();
+  if (!newName) return;
+  STATE.customNames[pcId] = newName;
+  // backup local
+  try {
+    const local = JSON.parse(localStorage.getItem(NAMES_KEY) || '{}');
+    local[pcId] = newName;
+    localStorage.setItem(NAMES_KEY, JSON.stringify(local));
+  } catch(e) {}
+  // Firebase
+  const payload = {}; payload[pcId] = newName;
+  await fbPatch('monitor/pc_names', payload);
+  renderAll();
+}
+
+/* ---------- RENDER: APPS ---------- */
+function renderApps() {
+  const tbody = document.getElementById('apps-tbody');
+  const byApp = {};
+  Object.entries(STATE.sessions).forEach(([,s]) => {
+    if (!s || !s.app) return;
+    if (!byApp[s.app]) byApp[s.app] = { total:0, sessions:0, pcs:new Set(), lastSeen:0, version:'' };
+    const a = byApp[s.app];
+    a.total += s.duration||0; a.sessions += 1; a.pcs.add(s.pcId);
+    if ((s.lastHeartbeat||s.startTime) > a.lastSeen) {
+      a.lastSeen = s.lastHeartbeat||s.startTime;
+      a.version = s.appVersion || a.version;
+    }
+  });
+  const sorted = Object.entries(byApp).sort((a,b) => b[1].total - a[1].total);
+  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Aucune donnée.</td></tr>'; return; }
+  tbody.innerHTML = sorted.map(([app, a]) =>
+    `<tr>
+      <td><span class="chip app">${escapeHtml(app)}</span></td>
+      <td class="small">${escapeHtml(a.version||'—')}</td>
+      <td>${fmtDuration(a.total)}</td>
+      <td>${a.sessions}</td>
+      <td>${a.pcs.size}</td>
+      <td class="small">${relativeTime(a.lastSeen)}</td>
+    </tr>`
+  ).join('');
+}
+
+/* ---------- RENDER: SESSIONS ---------- */
+function renderSessions() {
+  const tbody = document.getElementById('sessions-tbody');
+  const appFilter = document.getElementById('filter-app').value;
+  const pcFilter = document.getElementById('filter-pc').value;
+  const dateFrom = document.getElementById('filter-date-from').value;
+  const fromTs = dateFrom ? new Date(dateFrom).getTime() : 0;
+
+  // populate filters (once)
+  populateFilters();
+
+  let list = Object.entries(STATE.sessions)
+    .filter(([,s]) => s && (!appFilter || s.app === appFilter) &&
+                      (!pcFilter || s.pcId === pcFilter) &&
+                      (!fromTs || s.startTime >= fromTs))
+    .sort((a,b) => (b[1].startTime||0) - (a[1].startTime||0))
+    .slice(0, 500);
+
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Aucune session.</td></tr>'; return; }
+  tbody.innerHTML = list.map(([id, s]) => {
+    const active = isActiveNow(s);
+    return `<tr>
+      <td><span class="dot ${active?'on':'off'}"></span><span class="small">${active?'En cours':'Terminée'}</span></td>
+      <td><span class="chip app">${escapeHtml(s.app||'?')}</span> <span class="small">${escapeHtml(s.appVersion||'')}</span></td>
+      <td class="small">${escapeHtml(pcDisplayName(s.pcId, STATE.pcs[s.pcId]))}</td>
+      <td class="small">${fmtDate(s.startTime)}</td>
+      <td class="small">${active ? '—' : fmtDate(s.endTime||s.lastHeartbeat)}</td>
+      <td>${fmtDuration(s.duration)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function populateFilters() {
+  const apps = new Set(), pcs = new Set();
+  Object.values(STATE.sessions).forEach(s => {
+    if (s && s.app) apps.add(s.app);
+    if (s && s.pcId) pcs.add(s.pcId);
+  });
+  const fa = document.getElementById('filter-app');
+  const fp = document.getElementById('filter-pc');
+  const curA = fa.value, curP = fp.value;
+  fa.innerHTML = '<option value="">Toutes</option>' +
+    [...apps].sort().map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  fp.innerHTML = '<option value="">Tous</option>' +
+    [...pcs].sort().map(id => `<option value="${id}">${escapeHtml(pcDisplayName(id, STATE.pcs[id]))}</option>`).join('');
+  fa.value = curA; fp.value = curP;
+}
+
+/* ---------- MAINTENANCE ---------- */
+async function purgeOld() {
+  if (!confirm('Supprimer les sessions de plus de 90 jours ?')) return;
+  const cutoff = Date.now() - 90*24*3600*1000;
+  const toDelete = Object.entries(STATE.sessions)
+    .filter(([,s]) => (s.startTime||0) < cutoff)
+    .map(([id]) => id);
+  for (const id of toDelete) await fbDelete('monitor/sessions/' + id);
+  alert(toDelete.length + ' session(s) supprimée(s).');
+  loadData();
+}
+
+/* ---------- SNIPPET ---------- */
+const SNIPPET = `<!-- TAF MONITOR v1.0 tracker -->
+<script>
+  window.TAF_APP_NAME    = 'TAF HUB';      // ← adapter
+  window.TAF_APP_VERSION = 'v14';          // ← adapter
+  window.TAF_MONITOR_DB  = 'REMPLACER_PAR_URL_FIREBASE';
+<\/script>
+<script src="taf-monitor-tracker.js"><\/script>`;
+
+function copySnippet() {
+  navigator.clipboard.writeText(SNIPPET);
+  alert('Snippet copié.');
+}
+
+/* ---------- HELPERS ---------- */
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function switchTab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id==='tab-'+name));
+}
+function renderAll() {
+  renderOverview();
+  renderPcs();
+  renderApps();
+  renderSessions();
+}
+
+/* ---------- INIT ---------- */
+document.querySelectorAll('nav button').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+document.getElementById('period-select').addEventListener('change', renderOverview);
+document.getElementById('snippet-code').textContent = SNIPPET;
+
+loadConfig();
+loadData();
+autoRefreshTimer = setInterval(loadData, 15000); // refresh toutes les 15s
+</script>
+
+</body>
+</html>

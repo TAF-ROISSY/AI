@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF ANALYSE PRO v3.0</title>
+<title>TAF ANALYSE PRO v3.1</title>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -81,6 +81,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', -appl
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
 
 /* TABLE */
@@ -137,7 +138,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', -appl
 <div id="loginScreen" class="login-screen">
   <div class="login-box">
     <div class="login-title">🔥 TAF ANALYSE PRO</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:24px;">v3.0.0 — Standalone Edition</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:24px;">v3.1.0 — Bridge Drive Edition</div>
     <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="4" autofocus>
     <div style="font-size:10px;color:var(--text3);margin-top:12px;">PIN 4 chiffres</div>
   </div>
@@ -149,7 +150,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', -appl
     <div class="header-left">
       <div class="logo">🔥</div>
       <span class="app-title">TAF ANALYSE PRO</span>
-      <span class="ver-tag">v3.0.0</span>
+      <span class="ver-tag">v3.1.0</span>
       <span id="syncIndicator" style="display:flex;align-items:center;gap:4px;font-size:10px;">
         <span id="syncDot" class="sync-dot" style="background:var(--text3)"></span>
         <span id="syncText" class="sync-label" style="color:var(--text3)"></span>
@@ -176,23 +177,23 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', -appl
 </div>
 
 <!-- VERSION BADGE -->
-<div class="version-badge">TAF ANALYSE PRO v3.0.0</div>
+<div class="version-badge">TAF ANALYSE PRO v3.1.0</div>
 
 <div id="toastContainer"></div>
 
 <script>
 // ═══════════════════════════════════════════════════
-// TAF ANALYSE PRO v3.0.0 — HTML STANDALONE
+// TAF ANALYSE PRO v3.1.0 — HTML STANDALONE
 // Analyste financier ultra-précis pour fret aérien
 // ═══════════════════════════════════════════════════
 
-const VER = "3.0.0";
+const VER = "3.1.0";
 const LOCAL_KEY = "taf_analyse_v3";
 const TEAM_SIZE = 5;
 const CHART_COLORS = ['#6366f1','#22d3ee','#f5a623','#f472b6','#a78bfa','#22c55e','#f59e0b','#ef4444'];
 
 // ═══ STATE ═══
-let state = { data: [], config: { firebaseUrl: "", firebaseToken: "", apiKey: "", pin: "2709" }, crossData: { recouvrement: null, facturation: null, ops: null, commercial: null } };
+let state = { data: [], config: { firebaseUrl: "", firebaseToken: "", apiKey: "", pin: "2709" }, crossData: { recouvrement: null, facturation: null, ops: null, commercial: null, litige: null } };
 let currentTab = "dash";
 let aiText = "";
 let aiLoading = false;
@@ -206,6 +207,37 @@ const fb = {
   async get(p) { if (!this.ok) return null; try { const r = await fetch(this._u(p)); if (!r.ok) return null; this.last = new Date(); return await r.json(); } catch { return null; } },
   async set(p, d) { if (!this.ok) return false; try { const r = await fetch(this._u(p), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); this.last = new Date(); return r.ok; } catch { return false; } },
   async test() { if (!this.url) return false; try { const r = await fetch(this._u("_ping"), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ts: Date.now(), app: "taf_stat", v: VER }) }); this.ok = r.ok; return r.ok; } catch { return false; } }
+};
+
+// ═══ DRIVE BRIDGE SERVICE (V3.1) ═══
+// Source de vérité pour TAF_RECOUVREMENT et TAF_LITIGE
+const drv = {
+  proxyUrl: "https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec",
+  folder: "143DZMp79_EfrVAjyOMquBU0L-JXlKdnF",
+  ok: false,
+  async read(filename) {
+    try {
+      const r = await fetch(this.proxyUrl + "?action=read&file=" + encodeURIComponent(filename), { redirect: "follow" });
+      if (!r.ok) { this.ok = false; return null; }
+      const t = await r.text();
+      if (!t || t.trim().length < 5) return null;
+      const d = JSON.parse(t);
+      if (d && d.error) return null;
+      this.ok = true;
+      return d;
+    } catch (err) { this.ok = false; console.warn("[DRV] read err:", err.message); return null; }
+  },
+  async write(filename, data) {
+    try {
+      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+      const r = await fetch(this.proxyUrl, {
+        method: "POST", headers: {"Content-Type":"text/plain"}, redirect: "follow",
+        body: JSON.stringify({action:"uploadPDF",filename,mimeType:"application/json",base64:b64,folder:this.folder})
+      });
+      if (r.ok) { this.ok = true; return await r.json(); }
+    } catch (err) { console.warn("[DRV] write err:", err.message); }
+    return null;
+  }
 };
 
 // ═══ HELPERS ═══
@@ -448,7 +480,7 @@ function renderDash() {
     <!-- OTIF & CA/KG CHART -->
     <div class="card" style="margin-bottom:16px;"><div class="card-header"><span>📊 OTIF & CA/KG PAR MOIS</span></div><div class="card-body"><canvas id="chartOtif" height="180"></canvas></div></div>
     <!-- CROSS-APP -->
-    ${(state.crossData?.commercial || state.crossData?.recouvrement) ? `
+    ${(state.crossData?.commercial || state.crossData?.recouvrement || state.crossData?.litige) ? `
     <div class="card"><div class="card-header"><span>🔗 DONNÉES INTER-APPLICATIONS</span><button class="btn btn-firebase btn-sm" onclick="pullCrossData()">🔄 Sync</button></div><div class="card-body"><div class="grid-4">
       ${state.crossData?.commercial ? `
         <div class="cross-box"><div class="cross-value" style="color:var(--gold)">${state.crossData.commercial.prospects}</div><div class="cross-label">PROSPECTS CRM</div></div>
@@ -456,7 +488,28 @@ function renderDash() {
         <div class="cross-box"><div class="cross-value" style="color:var(--blue)">${fmtK(state.crossData.commercial.pipeline)}€</div><div class="cross-label">PIPELINE</div></div>
         <div class="cross-box"><div class="cross-value" style="color:var(--red)">${state.crossData.commercial?.rescueActifs || 0}</div><div class="cross-label">RESCUE ACTIFS</div></div>
       ` : ''}
-    </div></div></div>` : ''}
+    </div>
+    ${state.crossData?.recouvrement ? `
+      <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--orange)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">⚠️ RECOUVREMENT (via Drive)</div>
+        <div class="grid-4">
+          <div class="cross-box"><div class="cross-value" style="color:var(--red)">${fmtK(state.crossData.recouvrement.total_impaye || state.crossData.recouvrement.total || 0)}€</div><div class="cross-label">TOTAL IMPAYÉ</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--orange)">${state.crossData.recouvrement.total_clients || 0}</div><div class="cross-label">CLIENTS DÉBITEURS</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--yellow)">${state.crossData.recouvrement.nb_retard || 0}</div><div class="cross-label">EN RETARD &gt;30J</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--blue)">${state.crossData.recouvrement.dso != null ? Math.round(state.crossData.recouvrement.dso) + 'j' : '—'}</div><div class="cross-label">DSO</div></div>
+        </div>
+      </div>` : ''}
+    ${state.crossData?.litige ? `
+      <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--red)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">⚖️ LITIGES AWB (via Drive)</div>
+        <div class="grid-4">
+          <div class="cross-box"><div class="cross-value" style="color:var(--red)">${state.crossData.litige.nb_urgents || 0}</div><div class="cross-label">⚡ DÉLAIS CRITIQUES</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--orange)">${fmtK(state.crossData.litige.total_encours || 0)}€</div><div class="cross-label">EN COURS</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--blue)">${state.crossData.litige.total || 0}</div><div class="cross-label">TOTAL LITIGES</div></div>
+          <div class="cross-box"><div class="cross-value" style="color:var(--text2);font-size:10px">${(state.crossData.litige.timestamp||'').slice(0,10)}</div><div class="cross-label">DERNIÈRE SYNC</div></div>
+        </div>
+      </div>` : ''}
+    </div></div>` : ''}
   `;
 
   // Build charts
@@ -583,7 +636,8 @@ function renderConfig() {
   const apps = [
     { icon: "🎯", name: "TAF COMMERCIAL", path: "taf_commercial", data: state.crossData?.commercial },
     { icon: "💰", name: "TAF FACTURATION", path: "taf_facturation", data: state.crossData?.facturation },
-    { icon: "⚠️", name: "RECOUVREMENT", path: "taf_recouvrement", data: state.crossData?.recouvrement },
+    { icon: "⚠️", name: "RECOUVREMENT", path: "taf_recouvrement (Drive)", data: state.crossData?.recouvrement },
+    { icon: "⚖️", name: "TAF LITIGE", path: "taf_bridge_litige (Drive)", data: state.crossData?.litige },
     { icon: "📬", name: "TAF OPS", path: "taf_ops", data: state.crossData?.ops },
   ];
 
@@ -610,7 +664,7 @@ function renderConfig() {
     </div>
     <div class="card" style="margin-bottom:14px;"><div class="card-header"><span>🔗 COMMUNICATION INTER-APPLICATIONS</span></div><div class="card-body">
       <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">TAF STAT communique avec les autres apps TAF via Firebase. Même base de données partagée.</div>
-      <div class="grid-4">${apps.map(a => `
+      <div class="grid-5">${apps.map(a => `
         <div class="app-card" style="border:1px solid ${a.data ? 'rgba(34,197,94,0.19)' : 'var(--border)'}">
           <div class="app-icon">${a.icon}</div>
           <div class="app-name">${a.name}</div>
@@ -671,8 +725,17 @@ async function pullCrossData() {
       rescueActifs: (comm.rescueLeads || []).filter(r => r.statut !== "resolu").length,
     };
   }
-  const rec = await fb.get("taf_recouvrement");
+
+  // V3.1 — Recouvrement : Drive en priorité, Firebase en fallback
+  let rec = await drv.read("taf_recouvrement.json");
+  if (!rec) rec = await drv.read("taf_bridge_recouvrement.json");
+  if (!rec) rec = await fb.get("taf_recouvrement");
   if (rec) results.recouvrement = rec;
+
+  // V3.1 — Litiges via Drive
+  const lit = await drv.read("taf_bridge_litige.json");
+  if (lit) results.litige = lit;
+
   const fact = await fb.get("taf_facturation");
   if (fact) results.facturation = fact;
   const ops = await fb.get("taf_ops");
