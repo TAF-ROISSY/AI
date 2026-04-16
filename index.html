@@ -276,10 +276,65 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 32px;
+      margin-bottom: 16px;
       padding-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px 18px 12px 42px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--bg-card);
+      color: var(--text);
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .search-box:focus { border-color: var(--gold); }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+    }
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .filter-btn {
+      padding: 9px 18px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
     .section-title {
       font-family: 'Playfair Display', serif;
@@ -887,6 +942,8 @@
       .footer-credits { flex-direction: column; gap: 12px; }
       .theme-grid { grid-template-columns: repeat(2, 1fr); }
       .admin-panel { max-height: 80vh; }
+      .filter-bar { gap: 8px; }
+      .filter-btn { padding: 7px 12px; font-size: 11px; }
     }
 
     @media (max-width: 480px) {
@@ -962,6 +1019,20 @@
     <div class="section-header">
       <h2 class="section-title">Applications</h2>
       <span class="section-count" id="sectionCount">—</span>
+    </div>
+    <div class="filter-bar">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-box" id="searchBox" placeholder="Rechercher une application..." oninput="filterApps()">
+      </div>
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Tout</button>
+      <button class="filter-btn" data-filter="ops" onclick="setFilter('ops')">Ops</button>
+      <button class="filter-btn" data-filter="commercial" onclick="setFilter('commercial')">Commercial</button>
+      <button class="filter-btn" data-filter="factu" onclick="setFilter('factu')">Factu</button>
+      <button class="filter-btn" data-filter="douane" onclick="setFilter('douane')">Douane</button>
+      <button class="filter-btn" data-filter="rh" onclick="setFilter('rh')">RH</button>
+      <button class="filter-btn" data-filter="tool" onclick="setFilter('tool')">Outils</button>
+      <button class="filter-btn" data-filter="security" onclick="setFilter('security')">Sécu</button>
     </div>
     <div class="apps-grid" id="appsGrid">
       <div class="loading">
@@ -1105,7 +1176,7 @@
     </div>
   </div>
 
-  <div class="version-badge">v2.0</div>
+  <div class="version-badge">v3.0</div>
 
   <script>
     const REPO = 'TAF-ROISSY/AI';
@@ -1127,33 +1198,57 @@
 
     // Métadonnées des apps
     const APP_META = {
-      'TAF OPS': { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
-      'TAF STAT': { icon: '📊', desc: 'Statistiques et KPIs opérationnels', badge: 'ops', badgeClass: 'badge-ops' },
-      'TAF SUIVI DES VOLS': { icon: '✈️', desc: 'Tracking temps réel des vols cargo', badge: 'ops', badgeClass: 'badge-ops' },
-      'TAF CAPTURE': { icon: '📸', desc: 'Capture et documentation terrain', badge: 'ops', badgeClass: 'badge-ops' },
-      'TAF COMMERCIAL': { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'commercial', badgeClass: 'badge-commercial' },
-      'TAF CONTACT': { icon: '📇', desc: 'Gestion des contacts et annuaire', badge: 'commercial', badgeClass: 'badge-commercial' },
-      'TAF COTATION': { icon: '💰', desc: 'Élaboration et suivi des cotations', badge: 'commercial', badgeClass: 'badge-commercial' },
-      'TAF COMPAGNIE': { icon: '🏢', desc: 'Base compagnies aériennes partenaires', badge: 'commercial', badgeClass: 'badge-commercial' },
-      'TAF LITIGE': { icon: '⚠️', desc: 'Gestion et suivi des litiges', badge: 'commercial', badgeClass: 'badge-commercial' },
-      'TAF FACTURATION': { icon: '🧾', desc: 'Facturation Pro — Génération automatique', badge: 'factu', badgeClass: 'badge-factu' },
+      // ── OPS ──
+      'TAF OPS':              { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF_OPS':              { icon: '📡', desc: 'Dashboard opérations — Import/Export/Seafood', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF STAT':             { icon: '📊', desc: 'Statistiques et KPIs opérationnels', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF SUIVI DES VOLS':   { icon: '✈️', desc: 'Tracking temps réel des vols cargo', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF_SUIVI_DES_VOLS':   { icon: '✈️', desc: 'Tracking temps réel des vols cargo', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF CAPTURE':          { icon: '📸', desc: 'Capture et documentation terrain', badge: 'ops', badgeClass: 'badge-ops' },
+      'TAF-MONITOR-v1.0':     { icon: '🖥️', desc: 'Monitoring système — Santé des apps TAF', badge: 'ops', badgeClass: 'badge-ops' },
+
+      // ── COMMERCIAL ──
+      'TAF COMMERCIAL':       { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF_COMMERCIAL':       { icon: '💼', desc: 'CRM — Prospects, cotations, suivi commercial', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF CONTACT':          { icon: '📇', desc: 'Gestion des contacts et annuaire', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF_CONTACT':          { icon: '📇', desc: 'Gestion des contacts et annuaire', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF COTATION':         { icon: '💰', desc: 'Élaboration et suivi des cotations', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF COMPAGNIE':        { icon: '🏢', desc: 'Base compagnies aériennes partenaires', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF LITIGE':           { icon: '⚠️', desc: 'Gestion et suivi des litiges', badge: 'commercial', badgeClass: 'badge-commercial' },
+      'TAF_LITIGE':           { icon: '⚠️', desc: 'Gestion et suivi des litiges', badge: 'commercial', badgeClass: 'badge-commercial' },
+
+      // ── FACTURATION ──
+      'TAF FACTURATION':      { icon: '🧾', desc: 'Facturation Pro — Génération automatique', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF_FACTURATION':      { icon: '🧾', desc: 'Facturation Pro — Génération automatique', badge: 'factu', badgeClass: 'badge-factu' },
       'TAF_FACTURATION_ding': { icon: '🔔', desc: 'Notifications facturation temps réel', badge: 'factu', badgeClass: 'badge-factu' },
-      'TAF RECOUVREMENT': { icon: '💳', desc: 'Suivi impayés et relances automatiques', badge: 'factu', badgeClass: 'badge-factu' },
-      'TAF VERICHECK': { icon: '✓', desc: 'Vérification factures multi-handler v3.0', badge: 'factu', badgeClass: 'badge-factu' },
-      'TAF NOTE DE FRAIS': { icon: '📝', desc: 'Saisie et validation notes de frais', badge: 'factu', badgeClass: 'badge-factu' },
-      'TAF RAHAND': { icon: '🤝', desc: 'Rapprochement handling et facturation', badge: 'factu', badgeClass: 'badge-factu' },
-      'TAF Config Manager': { icon: '⚙️', desc: 'Configuration centralisée des clés API', badge: 'tool', badgeClass: 'badge-tool' },
-      'TAF DEPLOY': { icon: '🚀', desc: 'Déploiement GitHub & backup Drive', badge: 'tool', badgeClass: 'badge-tool' },
-      'TAFCOFFREFORT': { icon: '🔐', desc: 'Coffre-fort mots de passe — AES-256, auto-lock, générateur', badge: 'security', badgeClass: 'badge-security' },
-      'taf-ps': { icon: '🔧', desc: 'PowerShell & Scripts automation', badge: 'tool', badgeClass: 'badge-tool' },
-      'TAF TV': { icon: '📺', desc: 'Hub Média — Dashboard TV temps réel', badge: 'tool', badgeClass: 'badge-tool' },
-      'TAF CP-RTT': { icon: '🗓', desc: 'Gestion congés payés et RTT', badge: 'rh', badgeClass: 'badge-rh' },
-      'TAF Formulaire CP RTT': { icon: '📋', desc: 'Formulaire demande CP/RTT', badge: 'rh', badgeClass: 'badge-rh' },
-      'TAF-TEAM': { icon: '👥', desc: 'Gestion équipe et planning', badge: 'rh', badgeClass: 'badge-rh' },
-      'TAF Courrier Douane': { icon: '📨', desc: 'Génération courriers douaniers', badge: 'douane', badgeClass: 'badge-douane' },
-      'TAF EUR1': { icon: '🇪🇺', desc: 'Certificats EUR1 & origine', badge: 'douane', badgeClass: 'badge-douane' },
+      'TAF RECOUVREMENT':     { icon: '💳', desc: 'Suivi impayés et relances automatiques', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF_RECOUVREMENT':     { icon: '💳', desc: 'Suivi impayés et relances automatiques', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF VERICHECK':        { icon: '✓', desc: 'Vérification factures multi-handler v3.0', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF_VERICHECK':        { icon: '✓', desc: 'Vérification factures multi-handler v3.0', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF NOTE DE FRAIS':    { icon: '📝', desc: 'Saisie et validation notes de frais', badge: 'factu', badgeClass: 'badge-factu' },
+      'TAF RAHAND':           { icon: '🤝', desc: 'Rapprochement handling et facturation', badge: 'factu', badgeClass: 'badge-factu' },
+
+      // ── TOOLS ──
+      'TAF Config Manager':   { icon: '⚙️', desc: 'Configuration centralisée des clés API', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF DEPLOY':           { icon: '🚀', desc: 'Déploiement GitHub & backup Drive', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAFCOFFREFORT':        { icon: '🔐', desc: 'Coffre-fort mots de passe — AES-256, auto-lock', badge: 'security', badgeClass: 'badge-security' },
+      'taf-ps':               { icon: '🔧', desc: 'PowerShell & Scripts automation', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF TV':               { icon: '📺', desc: 'Hub Média — Dashboard TV temps réel', badge: 'tool', badgeClass: 'badge-tool' },
+      'taf-tv-v2':            { icon: '📺', desc: 'Hub Média v2 — Dashboard TV amélioré', badge: 'tool', badgeClass: 'badge-tool' },
+      'TAF_REMOTE':           { icon: '🌐', desc: 'Accès distant et contrôle à distance', badge: 'tool', badgeClass: 'badge-tool' },
+
+      // ── RH ──
+      'TAF CP-RTT':           { icon: '🗓', desc: 'Gestion congés payés et RTT', badge: 'rh', badgeClass: 'badge-rh' },
+      'TAF_CP-RTT':           { icon: '🗓', desc: 'Gestion congés payés et RTT', badge: 'rh', badgeClass: 'badge-rh' },
+      'TAF Formulaire CP RTT':{ icon: '📋', desc: 'Formulaire demande CP/RTT', badge: 'rh', badgeClass: 'badge-rh' },
+      'TAF-TEAM':             { icon: '👥', desc: 'Gestion équipe et planning v1.0', badge: 'rh', badgeClass: 'badge-rh' },
+
+      // ── DOUANE ──
+      'TAF Courrier Douane':  { icon: '📨', desc: 'Génération courriers douaniers', badge: 'douane', badgeClass: 'badge-douane' },
+      'TAF EUR1':             { icon: '🇪🇺', desc: 'Certificats EUR1 & origine', badge: 'douane', badgeClass: 'badge-douane' },
       'TAF_Douane IntelligencE': { icon: '🔍', desc: 'Intelligence douanière avancée', badge: 'douane', badgeClass: 'badge-douane' },
-      'TAF VALIDE': { icon: '✅', desc: 'Envoi déclarations & documents douaniers', badge: 'douane', badgeClass: 'badge-douane' },
+      'TAF VALIDE':           { icon: '✅', desc: 'Envoi déclarations & documents douaniers', badge: 'douane', badgeClass: 'badge-douane' },
+      'TAF_VALIDE':           { icon: '✅', desc: 'Envoi déclarations & documents douaniers', badge: 'douane', badgeClass: 'badge-douane' },
     };
 
     let allApps = [];
@@ -1394,16 +1489,26 @@
           return;
         }
 
-        // Store all apps
-        allApps = htmlFiles.map(f => ({ name: f.name.replace('.html', ''), file: f.name }));
+        // Store all apps — avec déduplication espace/underscore/tiret
+        const rawApps = htmlFiles.map(f => ({ name: f.name.replace('.html', ''), file: f.name }));
+        const seen = new Set();
+        allApps = [];
+        for (const app of rawApps) {
+          // Clé de dédup : normalise espaces, underscores, tirets et casse
+          const key = app.name.toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+          if (!seen.has(key)) {
+            seen.add(key);
+            allApps.push(app);
+          }
+        }
 
         // Get ordered apps
         const orderedApps = getOrderedApps();
 
         // Mettre à jour les compteurs
-        document.getElementById('appCount').innerHTML = `Applications: <span class="status-value">${htmlFiles.length}</span>`;
+        document.getElementById('appCount').innerHTML = `Applications: <span class="status-value">${allApps.length}</span>`;
         document.getElementById('lastUpdate').innerHTML = `Mise à jour: <span class="status-value">${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`;
-        document.getElementById('sectionCount').textContent = `${htmlFiles.length} applications`;
+        document.getElementById('sectionCount').textContent = `${allApps.length} applications`;
 
         // Générer les cartes
         grid.innerHTML = orderedApps.map(app => {
@@ -1418,7 +1523,7 @@
           const accentColor = ACCENT_COLORS[meta.badge] || ACCENT_COLORS.tool;
 
           return `
-            <article class="app-card" onclick="window.open('${url}', '_blank')" style="--card-accent: ${accentColor}">
+            <article class="app-card" onclick="window.open('${url}', '_blank')" style="--card-accent: ${accentColor}" data-name="${displayName}" data-badge="${meta.badge}">
               <div class="app-header">
                 <div class="app-icon">
                   <span class="app-icon-inner">${meta.icon}</span>
@@ -1442,6 +1547,35 @@
           </div>
         `;
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SEARCH & FILTER
+    // ═══════════════════════════════════════════════════════════════
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+      });
+      filterApps();
+    }
+
+    function filterApps() {
+      const query = (document.getElementById('searchBox').value || '').toLowerCase();
+      const cards = document.querySelectorAll('.app-card');
+      let visible = 0;
+      cards.forEach(card => {
+        const name = (card.dataset.name || '').toLowerCase();
+        const badge = card.dataset.badge || '';
+        const matchSearch = !query || name.includes(query);
+        const matchFilter = currentFilter === 'all' || badge === currentFilter;
+        const show = matchSearch && matchFilter;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      document.getElementById('sectionCount').textContent = `${visible} application${visible > 1 ? 's' : ''}`;
     }
 
     // ═══════════════════════════════════════════════════════════════
