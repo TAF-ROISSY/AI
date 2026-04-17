@@ -609,6 +609,85 @@
 
   .config-panel.open { display: block; }
 
+  /* SCAN RESULTS PANEL */
+  .scan-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .scan-panel.open { display: block; }
+  .scan-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .scan-node {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .scan-node-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .scan-node-path {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .scan-node-status {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .scan-node-status.has-data { background: rgba(45,224,156,0.15); color: var(--green); }
+  .scan-node-status.empty { background: rgba(255,79,106,0.1); color: var(--red); }
+  .scan-entries {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .scan-entry {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .scan-entry-name { font-weight: 600; color: var(--text); }
+  .scan-entry-email { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+  .scan-entry-cat {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 10px; font-weight: 600;
+    text-transform: uppercase;
+  }
+  .cat-douane { background: rgba(79,124,255,0.15); color: var(--accent); }
+  .cat-handler { background: rgba(45,224,156,0.15); color: var(--green); }
+  .cat-transport { background: rgba(255,140,66,0.15); color: var(--orange); }
+  .cat-autre { background: rgba(123,94,167,0.15); color: #b08ef0; }
+  .scan-import-btn {
+    margin-top: 12px;
+    background: var(--green);
+    border: none;
+    color: #000;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700;
+    width: 100%;
+    transition: all 0.15s;
+  }
+  .scan-import-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .scan-import-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .config-title {
     font-size: 14px; font-weight: 700; margin-bottom: 14px;
     display: flex; align-items: center; gap: 8px;
@@ -659,7 +738,7 @@
     <button class="sync-btn" id="scanBtn" onclick="manualScan()">🔍 Scanner</button>
     <button class="sync-btn" id="fbSyncBtn" onclick="reloadFromFirebase()">🔥 Sync Firebase</button>
     <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Backup Drive</button>
-    <div class="version-badge">v2.1</div>
+    <div class="version-badge">v2.2</div>
   </div>
 </header>
 
@@ -691,6 +770,16 @@
     </div>
     <div style="margin-top:10px; font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);">
       📁 Fichier Drive : <b style="color:var(--accent)">taf_contacts.json</b> — Ce fichier sera lisible par toutes les autres apps TAF
+    </div>
+  </div>
+</div>
+
+<!-- SCAN PANEL -->
+<div style="padding: 0 32px; position:relative; z-index:6;">
+  <div class="scan-panel" id="scanPanel">
+    <div class="scan-title">🔍 Scanner Firebase — Recherche de contacts</div>
+    <div id="scanResults">
+      <div style="text-align:center;padding:20px;color:var(--text3);">Cliquez sur 🔍 Scanner pour lancer l'analyse</div>
     </div>
   </div>
 </div>
@@ -1116,45 +1205,215 @@ async function manualScan() {
   btn.textContent = '⏳ Scan...';
   btn.classList.add('saving');
 
-  // D'abord afficher le diagnostic dans la console
-  console.log('═══ DIAGNOSTIC FIREBASE ═══');
-  const allPaths = [
-    'taf_contact/data',
-    'taf_courrier/data',
-    'taf_courrier',
-    'taf_recouvrement/contacts',
-    'taf_commercial',
-    'taf_facturation/database',
+  // Ouvrir le panneau
+  document.getElementById('scanPanel').classList.add('open');
+  const resultsDiv = document.getElementById('scanResults');
+  resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);">⏳ Analyse Firebase en cours...</div>';
+
+  // Scanner tous les nœuds
+  const scanPaths = [
+    { path: 'taf_courrier/data', name: 'TAF Courrier Douane' },
+    { path: 'taf_courrier', name: 'TAF Courrier (racine)' },
+    { path: 'taf_recouvrement/contacts', name: 'TAF Recouvrement' },
+    { path: 'taf_commercial', name: 'TAF Commercial' },
+    { path: 'taf_contact/data', name: 'TAF Contact (actuel)' },
   ];
 
-  let report = [];
-  for (const p of allPaths) {
-    const d = await fbGet(p);
-    const size = d ? JSON.stringify(d).length : 0;
-    const status = size > 10 ? `✅ ${size} chars` : '❌ vide';
-    console.log(`📁 ${p} → ${status}`);
-    if (size > 10) {
-      report.push({ path: p, size, sample: typeof d === 'object' ? Object.keys(d).slice(0, 8) : typeof d });
+  let allFound = [];
+  let html = '';
+
+  for (const source of scanPaths) {
+    const raw = await fbGet(source.path);
+    const size = raw ? JSON.stringify(raw).length : 0;
+
+    if (!raw || size < 10) {
+      html += `<div class="scan-node">
+        <div class="scan-node-header">
+          <span class="scan-node-path">${source.path}</span>
+          <span class="scan-node-status empty">❌ Vide</span>
+        </div>
+      </div>`;
+      continue;
+    }
+
+    // Explorer la structure et trouver des contacts
+    const found = deepScanContacts(raw, source.name);
+    allFound.push(...found);
+
+    html += `<div class="scan-node">
+      <div class="scan-node-header">
+        <span class="scan-node-path">${source.path}</span>
+        <span class="scan-node-status has-data">✅ ${size > 1000 ? Math.round(size/1024)+'KB' : size+' chars'} · ${found.length} contact(s)</span>
+      </div>`;
+
+    if (found.length > 0) {
+      html += `<div class="scan-entries">`;
+      found.forEach(c => {
+        const catClass = c._cat === 'douane' ? 'cat-douane' : c._cat === 'handlers' ? 'cat-handler' : c._cat === 'transporteurs' ? 'cat-transport' : 'cat-autre';
+        html += `<div class="scan-entry">
+          <div>
+            <span class="scan-entry-name">${esc(c.nom)}</span>
+            ${c.societe ? ' <span style="color:var(--text3);font-size:11px;">— '+esc(c.societe)+'</span>' : ''}
+            ${c.email ? '<br><span class="scan-entry-email">'+esc(c.email)+'</span>' : ''}
+          </div>
+          <span class="scan-entry-cat ${catClass}">${c._cat}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      // Montrer la structure brute pour debug
+      const keys = typeof raw === 'object' ? Object.keys(raw).slice(0, 10) : [];
+      html += `<div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;padding:8px 0;">
+        Clés: ${keys.join(', ')}${keys.length >= 10 ? '...' : ''}
+      </div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  // Déduplication
+  const unique = [];
+  const seen = new Set();
+  allFound.forEach(c => {
+    const key = (c.email || c.nom || '').toLowerCase().trim();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      unique.push(c);
+    }
+  });
+
+  // Résumé + bouton import
+  const alreadyInData = countAll();
+  html += `<div style="margin-top:16px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2);">
+    <div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 Résultat du scan</div>
+    <div style="font-size:12px;color:var(--text2);">
+      ${unique.length} contact(s) unique(s) trouvé(s) · ${alreadyInData} déjà en base
+    </div>
+  </div>`;
+
+  if (unique.length > 0) {
+    // Stocker les contacts trouvés pour l'import
+    window._scanResults = unique;
+    html += `<button class="scan-import-btn" onclick="importScanResults()">
+      ✅ Importer ${unique.length} contact(s) dans TAF CONTACTS
+    </button>`;
+  }
+
+  html += `<button style="margin-top:8px;width:100%;padding:10px;background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;" onclick="document.getElementById('scanPanel').classList.remove('open')">
+    Fermer
+  </button>`;
+
+  resultsDiv.innerHTML = html;
+  btn.textContent = '🔍 Scanner';
+  btn.classList.remove('saving');
+}
+
+function toggleScan() {
+  document.getElementById('scanPanel').classList.toggle('open');
+}
+
+// ══════════════════════════════════════════════
+// DEEP SCAN — Explorer récursivement Firebase
+// ══════════════════════════════════════════════
+function deepScanContacts(raw, source) {
+  const contacts = [];
+
+  // Mots-clés pour détecter les catégories
+  const DOUANE_KW = /douane|customs|bureau|inspection|dvd|dv[0-9]|sce|brigade|recette|cedex|dgddi|piste/i;
+  const HANDLER_KW = /handler|handling|wfs|swissport|dnata|ground|assis|cargo|fedex|dhl|hub/i;
+  const TRANSPORT_KW = /transport|livr|camion|chauffeur|logist/i;
+
+  function guessCategory(item) {
+    const txt = JSON.stringify(item).toLowerCase();
+    if (DOUANE_KW.test(txt)) return 'douane';
+    if (HANDLER_KW.test(txt)) return 'handlers';
+    if (TRANSPORT_KW.test(txt)) return 'transporteurs';
+    return 'autres';
+  }
+
+  function tryExtract(obj, depth = 0) {
+    if (!obj || depth > 4) return;
+
+    // Si c'est un tableau
+    if (Array.isArray(obj)) {
+      obj.forEach(item => tryExtract(item, depth + 1));
+      return;
+    }
+
+    // Si c'est un objet
+    if (typeof obj === 'object') {
+      // Ça ressemble à un contact ?
+      const hasName = obj.nom || obj.name || obj.client || obj.destinataire || obj.contact || obj.bureau;
+      const hasContact = obj.email || obj.mail || obj.tel || obj.telephone || obj.phone || obj.mobile;
+
+      if (hasName || hasContact) {
+        const nom = (obj.nom || obj.name || obj.client || obj.destinataire || obj.contact || obj.bureau || obj.service || '').trim();
+        if (nom && nom.length > 1 && nom.length < 200) {
+          contacts.push({
+            id: uid(),
+            nom: nom,
+            societe: (obj.societe || obj.company || obj.société || obj.organisme || obj.administration || '').trim(),
+            poste: (obj.poste || obj.fonction || obj.role || obj.titre || obj.service || '').trim(),
+            tel: (obj.tel || obj.telephone || obj.phone || obj.téléphone || '').trim(),
+            email: (obj.email || obj.mail || obj.courriel || '').trim(),
+            email2: (obj.email2 || obj.emailSecondaire || '').trim(),
+            adresse: (obj.adresse || obj.address || obj.lieu || obj.ville || '').trim(),
+            mobile: (obj.mobile || obj.portable || obj.gsm || '').trim(),
+            fax: (obj.fax || obj.whatsapp || '').trim(),
+            notes: (obj.notes || obj.commentaire || obj.info || '').trim(),
+            created: obj.created || obj.date || new Date().toISOString(),
+            updated: new Date().toISOString(),
+            _cat: guessCategory(obj),
+            _source: source
+          });
+          return; // Ne pas descendre plus dans cet objet
+        }
+      }
+
+      // Sinon, descendre dans les sous-clés
+      for (const [k, v] of Object.entries(obj)) {
+        if (k.startsWith('_')) continue; // Skip meta keys
+        tryExtract(v, depth + 1);
+      }
     }
   }
 
-  // Tenter l'import
-  const imported = await scanAndImport();
-  if (imported > 0) {
-    renderAll();
-    await saveData();
-    showToast(`✅ ${imported} contacts importés ! Voir console (F12) pour détails`, 'success');
-  } else {
-    // Afficher le diagnostic
-    const paths = report.map(r => `${r.path} (${r.size} chars, clés: ${r.sample.join(', ')})`).join('\n');
-    const msg = report.length > 0
-      ? `Données trouvées mais pas de contacts extractibles.\n\nNœuds Firebase avec données :\n${paths}\n\nVoir console (F12) pour détails.`
-      : 'Aucune donnée trouvée dans les nœuds Firebase scannés.';
-    alert(`🔍 Résultat du scan\n\n${msg}`);
+  tryExtract(raw);
+  return contacts;
+}
+
+async function importScanResults() {
+  const results = window._scanResults || [];
+  if (results.length === 0) return;
+
+  let imported = 0;
+  for (const c of results) {
+    const tab = c._cat || 'autres';
+    delete c._cat;
+    delete c._source;
+
+    // Éviter les doublons
+    const exists = data[tab].some(x =>
+      (x.email && c.email && x.email.toLowerCase() === c.email.toLowerCase()) ||
+      (x.nom && c.nom && x.nom.toLowerCase() === c.nom.toLowerCase())
+    );
+    if (!exists) {
+      data[tab].push(c);
+      imported++;
+    }
   }
 
-  btn.textContent = '🔍 Scanner';
-  btn.classList.remove('saving');
+  if (imported > 0) {
+    await saveData();
+    renderAll();
+    showToast(`✅ ${imported} contacts importés avec succès !`, 'success');
+  } else {
+    showToast('Tous les contacts existent déjà', 'info');
+  }
+
+  // Mettre à jour le panneau
+  document.getElementById('scanPanel').classList.remove('open');
+  window._scanResults = [];
 }
 
 // ══════════════════════════════════════════════
