@@ -985,6 +985,142 @@
       opacity: 0.5;
       font-family: 'IBM Plex Mono', monospace;
     }
+
+    /* App Editor */
+    .app-editor-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .app-edit-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .app-edit-item:hover { border-color: var(--border-hover); }
+    .app-edit-item .edit-icon-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: var(--bg-card);
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .app-edit-item .edit-icon-btn:hover { border-color: var(--gold); }
+    .app-edit-info { flex: 1; min-width: 0; }
+    .app-edit-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-edit-desc-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .app-edit-desc-input {
+      flex: 1;
+      padding: 4px 8px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .app-edit-desc-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      background: var(--bg-card);
+    }
+    .app-edit-cat {
+      flex-shrink: 0;
+    }
+    .app-edit-cat select {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .app-edit-status {
+      font-size: 10px;
+      color: var(--gold);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .app-edit-status.show { opacity: 1; }
+
+    /* Icon picker modal */
+    .icon-picker-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    .icon-picker-overlay.active { display: flex; }
+    .icon-picker {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 24px;
+      width: 340px;
+      max-height: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .icon-picker h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      font-family: 'Playfair Display', serif;
+    }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .icon-option {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--bg);
+    }
+    .icon-option:hover {
+      border-color: var(--gold);
+      transform: scale(1.15);
+      background: var(--bg-warm);
+    }
   </style>
 </head>
 <body>
@@ -1168,6 +1304,19 @@
           </div>
         </div>
 
+        <!-- App Editor Section -->
+        <div class="admin-section">
+          <div class="admin-section-title">✏️ Personnaliser les applications</div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Cliquez sur l'icône pour la changer · Modifiez la description et la catégorie</p>
+          <div class="app-editor-list" id="appEditorList">
+            <div class="loading-text">Chargement...</div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:12px;">
+            <button class="admin-btn admin-btn-primary" style="flex:1" onclick="saveAppMeta()">💾 Enregistrer les apps</button>
+            <button class="admin-btn admin-btn-secondary" style="flex:1" onclick="resetAppMeta()">↺ Par défaut</button>
+          </div>
+        </div>
+
         <!-- Reset Section -->
         <div class="admin-section" style="border-top:1px solid var(--border);padding-top:24px;">
           <button class="admin-btn admin-btn-secondary" onclick="resetAll()" style="color:#c05030;">🗑 Réinitialiser tous les paramètres</button>
@@ -1176,7 +1325,15 @@
     </div>
   </div>
 
-  <div class="version-badge">v3.0</div>
+  <!-- Icon Picker -->
+  <div class="icon-picker-overlay" id="iconPickerOverlay" onclick="if(event.target===this)closeIconPicker()">
+    <div class="icon-picker">
+      <h3>Choisir une icône</h3>
+      <div class="icon-grid" id="iconGrid"></div>
+    </div>
+  </div>
+
+  <div class="version-badge">v3.1</div>
 
   <script>
     const REPO = 'TAF-ROISSY/AI';
@@ -1315,6 +1472,7 @@
         document.getElementById('adminPanel').style.display = 'block';
         populateAdminFields();
         populateOrderList();
+        populateAppEditor();
       } else {
         input.classList.add('error');
         setTimeout(() => input.classList.remove('error'), 400);
@@ -1328,6 +1486,7 @@
       }
       if (e.key === 'Escape') {
         closeAdmin();
+        closeIconPicker();
       }
     });
 
@@ -1372,7 +1531,7 @@
       const orderedApps = getOrderedApps();
       
       list.innerHTML = orderedApps.map((app, i) => {
-        const meta = APP_META[app.name] || APP_META[app.name.replace(/_/g, ' ')] || APP_META[app.name.replace(/ /g, '_')] || { icon: '📄', badge: 'tool', badgeClass: 'badge-tool' };
+        const meta = getEffectiveMeta(app.name);
         return `
           <div class="order-item" draggable="true" data-name="${app.name}">
             <span class="order-handle">☰</span>
@@ -1512,12 +1671,7 @@
 
         // Générer les cartes
         grid.innerHTML = orderedApps.map(app => {
-          const meta = APP_META[app.name] || APP_META[app.name.replace(/_/g, ' ')] || APP_META[app.name.replace(/ /g, '_')] || { 
-            icon: '📄', 
-            desc: 'Application TAF', 
-            badge: 'tool', 
-            badgeClass: 'badge-tool'
-          };
+          const meta = getEffectiveMeta(app.name);
           const url = GITHUB_PAGES_BASE + encodeURIComponent(app.file);
           const displayName = app.name.replace(/_/g, ' ').replace(/-/g, ' ');
           const accentColor = ACCENT_COLORS[meta.badge] || ACCENT_COLORS.tool;
@@ -1546,6 +1700,147 @@
             </div>
           </div>
         `;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // APP META EDITOR
+    // ═══════════════════════════════════════════════════════════════
+    const CUSTOM_META_KEY = 'taf_index_custom_meta';
+    const AVAILABLE_ICONS = [
+      '📡','📊','✈️','📸','🖥️','💼','📇','💰','🏢','⚠️','🧾','🔔',
+      '💳','✓','📝','🤝','⚙️','🚀','🔐','🔧','📺','🗓','📋','👥',
+      '📨','🇪🇺','🔍','✅','🌐','📄','📦','🛫','🛬','🏷️','📊',
+      '🗂️','📁','🔒','🔑','💡','⭐','🎯','📌','🧮','🗃️','🔗',
+      '📤','📥','🛠️','💬','📞','🌍','🏗️','🧪','📈','📉','⏱️',
+      '🎨','🖨️','📮','🚚','🛡️','💎','🔥','⚡','🎁','🏆'
+    ];
+    const CATEGORIES = [
+      { value: 'ops', label: 'Ops' },
+      { value: 'commercial', label: 'Commercial' },
+      { value: 'factu', label: 'Factu' },
+      { value: 'douane', label: 'Douane' },
+      { value: 'rh', label: 'RH' },
+      { value: 'tool', label: 'Outil' },
+      { value: 'security', label: 'Sécu' },
+      { value: 'admin', label: 'Admin' }
+    ];
+
+    let customMeta = loadCustomMeta();
+    let iconPickerTarget = null;
+
+    function loadCustomMeta() {
+      try {
+        const s = localStorage.getItem(CUSTOM_META_KEY);
+        return s ? JSON.parse(s) : {};
+      } catch { return {}; }
+    }
+
+    function saveCustomMeta() {
+      localStorage.setItem(CUSTOM_META_KEY, JSON.stringify(customMeta));
+    }
+
+    function getEffectiveMeta(appName) {
+      // Custom overrides built-in
+      if (customMeta[appName]) return customMeta[appName];
+      // Try all name variants
+      const variants = [
+        appName,
+        appName.replace(/_/g, ' '),
+        appName.replace(/ /g, '_'),
+        appName.replace(/-/g, ' ')
+      ];
+      for (const v of variants) {
+        if (APP_META[v]) return APP_META[v];
+      }
+      return { icon: '📄', desc: 'Application TAF', badge: 'tool', badgeClass: 'badge-tool' };
+    }
+
+    function populateAppEditor() {
+      const list = document.getElementById('appEditorList');
+      if (!allApps.length) { list.innerHTML = '<div class="loading-text">Aucune app chargée</div>'; return; }
+
+      list.innerHTML = allApps.map((app, i) => {
+        const meta = getEffectiveMeta(app.name);
+        const catOptions = CATEGORIES.map(c =>
+          `<option value="${c.value}" ${c.value === meta.badge ? 'selected' : ''}>${c.label}</option>`
+        ).join('');
+
+        return `
+          <div class="app-edit-item" data-app="${app.name}">
+            <button class="edit-icon-btn" onclick="openIconPicker('${app.name}', this)" title="Changer l'icône">${meta.icon}</button>
+            <div class="app-edit-info">
+              <div class="app-edit-name">${app.name.replace(/_/g, ' ')}</div>
+              <div class="app-edit-desc-row">
+                <input type="text" class="app-edit-desc-input" value="${meta.desc}" data-field="desc" placeholder="Description...">
+              </div>
+            </div>
+            <div class="app-edit-cat">
+              <select data-field="badge">${catOptions}</select>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openIconPicker(appName, btnEl) {
+      iconPickerTarget = { appName, btnEl };
+      const grid = document.getElementById('iconGrid');
+      grid.innerHTML = AVAILABLE_ICONS.map(ic =>
+        `<div class="icon-option" onclick="pickIcon('${ic}')">${ic}</div>`
+      ).join('');
+      document.getElementById('iconPickerOverlay').classList.add('active');
+    }
+
+    function closeIconPicker() {
+      document.getElementById('iconPickerOverlay').classList.remove('active');
+      iconPickerTarget = null;
+    }
+
+    function pickIcon(icon) {
+      if (iconPickerTarget) {
+        iconPickerTarget.btnEl.textContent = icon;
+      }
+      closeIconPicker();
+    }
+
+    function saveAppMeta() {
+      const items = document.querySelectorAll('#appEditorList .app-edit-item');
+      items.forEach(item => {
+        const appName = item.dataset.app;
+        const icon = item.querySelector('.edit-icon-btn').textContent.trim();
+        const desc = item.querySelector('[data-field="desc"]').value.trim();
+        const badge = item.querySelector('[data-field="badge"]').value;
+        const badgeClass = 'badge-' + badge;
+
+        // Only store if different from built-in default
+        const builtIn = getBuiltInMeta(appName);
+        if (icon !== builtIn.icon || desc !== builtIn.desc || badge !== builtIn.badge) {
+          customMeta[appName] = { icon, desc, badge, badgeClass };
+        } else {
+          delete customMeta[appName]; // Remove override if back to default
+        }
+      });
+      saveCustomMeta();
+      loadApps(); // Refresh grid
+      alert('✅ Applications enregistrées !');
+    }
+
+    function getBuiltInMeta(appName) {
+      const variants = [appName, appName.replace(/_/g, ' '), appName.replace(/ /g, '_')];
+      for (const v of variants) {
+        if (APP_META[v]) return APP_META[v];
+      }
+      return { icon: '📄', desc: 'Application TAF', badge: 'tool', badgeClass: 'badge-tool' };
+    }
+
+    function resetAppMeta() {
+      if (confirm('⚠️ Réinitialiser toutes les personnalisations des apps ?')) {
+        customMeta = {};
+        saveCustomMeta();
+        populateAppEditor();
+        loadApps();
+        alert('✅ Personnalisations réinitialisées !');
       }
     }
 
