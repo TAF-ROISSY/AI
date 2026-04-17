@@ -3199,15 +3199,22 @@ ${CONFIG.company.email}`;
   },
 
   async generateAndSaveProformaPDF(dossierId){
+    console.log("🔵 Début génération PDF pour dossier:", dossierId);
     const d = state.dossiers[dossierId];
-    if (!d){ toast("Dossier introuvable","error"); return; }
+    if (!d){ 
+      console.error("❌ Dossier introuvable:", dossierId);
+      toast("Dossier introuvable","error"); 
+      return; 
+    }
     
     try {
       toast("Génération du PDF Pro Forma…","info");
+      console.log("📊 Données dossier:", d);
       
       // Créer une proforma automatique basée sur les données du dossier
       const next = Object.values(state.proformas||{}).reduce((m,p)=>{const n=parseInt(String(p.numProforma||"").replace(/\D/g,""))||0; return n>m?n:m;},0)+1;
       const num = `PF${new Date().getFullYear()}-${String(next).padStart(4,"0")}`;
+      console.log("📄 Numéro proforma:", num);
       
       const pf = {
         id: "pf_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
@@ -3249,12 +3256,29 @@ ${CONFIG.company.email}`;
       pf.totalTVA = tvaDd + tvaSurTaxable;
       pf.totalTTC = totalFinal;
       
+      console.log("💰 Totaux calculés:", {totalHT: pf.totalHT, totalTVA: pf.totalTVA, totalTTC: pf.totalTTC});
+      
+      // Vérifier que jsPDF est chargé
+      if (!window.jspdf) {
+        throw new Error("jsPDF n'est pas chargé. Vérifie que le CDN est accessible.");
+      }
+      
       // Générer le PDF
+      console.log("🎨 Génération PDF avec jsPDF...");
       const doc = this.generateProformaPDF(pf);
+      console.log("✅ PDF généré");
+      
       const pdfB64 = doc.output("datauristring").split(",")[1];
+      console.log("📦 PDF encodé en base64, taille:", pdfB64.length, "caractères");
       
       // Upload vers Drive
       toast("Upload vers Drive…","info");
+      console.log("☁️ Upload vers Drive...", {
+        url: CONFIG.drive.uploadUrl,
+        folder: CONFIG.drive.folder,
+        filename: `${pf.numProforma}_${d.nom||d.id}.pdf`
+      });
+      
       const up = await fetch(CONFIG.drive.uploadUrl,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -3266,8 +3290,40 @@ ${CONFIG.company.email}`;
         })
       });
       
+      console.log("📡 Réponse Drive status:", up.status);
+      
+      if (!up.ok) {
+        const errorText = await up.text();
+        console.error("❌ Erreur Drive:", errorText);
+        throw new Error(`Upload Drive échoué (${up.status}): ${errorText}`);
+      }
+      
       const upJson = await up.json();
-      if (!upJson.url) throw new Error("Upload Drive échoué");
+      console.log("📥 Réponse Drive:", upJson);
+      
+      if (!upJson.url) throw new Error("Upload Drive réussi mais pas d'URL retournée");
+      
+      pf.pdfUrl = upJson.url;
+      console.log("🔗 URL PDF:", pf.pdfUrl);
+      
+      // Sauvegarder la proforma dans Firebase
+      console.log("💾 Sauvegarde Firebase...");
+      await fb.set(`/proformas/${pf.id}`, pf);
+      state.proformas[pf.id] = pf;
+      console.log("✅ Proforma sauvegardée");
+      
+      toast("Pro Forma PDF créée et sauvegardée ✓","success");
+      
+      // Rafraîchir l'onglet Documents
+      this.renderTab(state.dossiers[dossierId]);
+      console.log("✅ Onglet rafraîchi");
+      
+    } catch(e) {
+      console.error("❌ ERREUR COMPLÈTE:", e);
+      console.error("Stack trace:", e.stack);
+      toast("Erreur : "+e.message,"error");
+    }
+  },
       
       pf.pdfUrl = upJson.url;
       
