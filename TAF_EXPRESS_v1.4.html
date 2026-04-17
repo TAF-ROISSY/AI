@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.6</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.7</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -600,7 +600,7 @@ a{color:var(--accent);text-decoration:none}
 
     <div class="sidebar-footer">
       <div><span class="live-dot" id="liveDot"></span><span id="fbStatus">temps réel</span></div>
-      <div style="margin-top:4px">/taf_shared · Opus · v1.6</div>
+      <div style="margin-top:4px">/taf_shared · Opus · v1.7</div>
     </div>
   </aside>
 
@@ -1943,19 +1943,47 @@ const app = {
   },
 
   async uploadDoc(k){
-    if(!state.currentDossierId){toast("Enregistre d'abord","info");return;}
+    // Vérifier qu'on a bien un dossier (sauvegardé ou temporaire)
+    const dossierId = state.currentDossierId;
+    if(!dossierId){toast("Enregistre d'abord le dossier","info");return;}
+    
+    const d = state.dossiers[dossierId] || state.tempDossier;
+    if(!d){toast("Enregistre d'abord le dossier","info");return;}
+    
+    // Si c'est un dossier temporaire non sauvegardé, demander de sauvegarder d'abord
+    if(!state.dossiers[dossierId]){
+      toast("Enregistre d'abord le dossier avant d'uploader des documents","info");
+      return;
+    }
+    
     const input=document.createElement("input"); input.type="file";
     input.onchange=async()=>{ const file=input.files[0]; if(!file) return; toast("Upload…","info");
       try{ const b64=await fileToBase64(file);
-        const res=await fetch(CONFIG.drive.uploadUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({folderId:CONFIG.drive.folder,filename:`${state.currentDossierId}_${k}_${file.name}`,mimeType:file.type,data:b64})});
+        const res=await fetch(CONFIG.drive.uploadUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({folderId:CONFIG.drive.folder,filename:`${dossierId}_${k}_${file.name}`,mimeType:file.type,data:b64})});
         const j=await res.json(); if(!j.url) throw new Error("Drive");
-        const d=state.dossiers[state.currentDossierId]; d.docs=d.docs||{}; d.docs[k]={url:j.url,name:file.name,uploadedAt:Date.now()};
-        await fb.update(`/dossiers/${d.id}/docs`,{[k]:d.docs[k]}); this.renderTab(d); toast("Document chargé ✓","success");
-      }catch(e){toast("Upload échoué","error");}
+        d.docs=d.docs||{}; d.docs[k]={url:j.url,name:file.name,uploadedAt:Date.now()};
+        await fb.update(`/dossiers/${d.id}/docs`,{[k]:d.docs[k]}); 
+        state.dossiers[dossierId].docs = d.docs; // Mettre à jour dans state
+        this.renderTab(d); 
+        toast("Document chargé ✓","success");
+      }catch(e){
+        console.error("Upload error:", e);
+        toast("Upload échoué : "+e.message,"error");
+      }
     };
     input.click();
   },
-  async removeDoc(k){ if(!confirm("Retirer ?")) return; const d=state.dossiers[state.currentDossierId]; d.docs=d.docs||{}; delete d.docs[k]; await fb.set(`/dossiers/${d.id}/docs`,d.docs); this.renderTab(d); toast("Retiré","info"); },
+  async removeDoc(k){ 
+    if(!state.currentDossierId){toast("Dossier introuvable","error");return;}
+    const d=state.dossiers[state.currentDossierId]; 
+    if(!d){toast("Enregistre d'abord le dossier","info");return;}
+    if(!confirm("Retirer ce document ?")) return; 
+    d.docs=d.docs||{}; 
+    delete d.docs[k]; 
+    await fb.set(`/dossiers/${d.id}/docs`,d.docs); 
+    this.renderTab(d); 
+    toast("Document retiré","info"); 
+  },
 
   /* ==========================================================================
      SYNTHÈSE — vue 360° plein écran (ouverture sur clic nom client)
@@ -3078,7 +3106,7 @@ ${CONFIG.company.website}`;
     doc.setFontSize(7); 
     doc.setTextColor(140,140,140);
     doc.text("Document proforma — non valable comme facture", W/2, 285, { align:"center" });
-    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.6`, W/2, 290, { align:"center" });
+    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.7`, W/2, 290, { align:"center" });
 
     return doc;
   },
