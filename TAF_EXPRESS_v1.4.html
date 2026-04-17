@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.7</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.8</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -600,7 +600,7 @@ a{color:var(--accent);text-decoration:none}
 
     <div class="sidebar-footer">
       <div><span class="live-dot" id="liveDot"></span><span id="fbStatus">temps réel</span></div>
-      <div style="margin-top:4px">/taf_shared · Opus · v1.7</div>
+      <div style="margin-top:4px">/taf_shared · Opus · v1.8</div>
     </div>
   </aside>
 
@@ -714,7 +714,7 @@ const CONFIG = {
     sharedNode: "taf_shared"
   },
   drive: {
-    uploadUrl: "https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec",
+    uploadUrl: "https://script.google.com/macros/s/AKfycbzbvFTMO96jAaQPORH-41Lli1JYLIIirsI6JThXkdgd22yrsk2dhTd78E9552pDfdzzGw/exec",
     folder: "143DZMp79_EfrVAjyOMquBU0L-JXlKdnF"
   },
   airtable: {
@@ -3106,7 +3106,7 @@ ${CONFIG.company.website}`;
     doc.setFontSize(7); 
     doc.setTextColor(140,140,140);
     doc.text("Document proforma — non valable comme facture", W/2, 285, { align:"center" });
-    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.7`, W/2, 290, { align:"center" });
+    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.8`, W/2, 290, { align:"center" });
 
     return doc;
   },
@@ -3199,22 +3199,15 @@ ${CONFIG.company.email}`;
   },
 
   async generateAndSaveProformaPDF(dossierId){
-    console.log("🔵 Début génération PDF pour dossier:", dossierId);
     const d = state.dossiers[dossierId];
-    if (!d){ 
-      console.error("❌ Dossier introuvable:", dossierId);
-      toast("Dossier introuvable","error"); 
-      return; 
-    }
+    if (!d){ toast("Dossier introuvable","error"); return; }
     
     try {
       toast("Génération du PDF Pro Forma…","info");
-      console.log("📊 Données dossier:", d);
       
       // Créer une proforma automatique basée sur les données du dossier
       const next = Object.values(state.proformas||{}).reduce((m,p)=>{const n=parseInt(String(p.numProforma||"").replace(/\D/g,""))||0; return n>m?n:m;},0)+1;
       const num = `PF${new Date().getFullYear()}-${String(next).padStart(4,"0")}`;
-      console.log("📄 Numéro proforma:", num);
       
       const pf = {
         id: "pf_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
@@ -3256,29 +3249,12 @@ ${CONFIG.company.email}`;
       pf.totalTVA = tvaDd + tvaSurTaxable;
       pf.totalTTC = totalFinal;
       
-      console.log("💰 Totaux calculés:", {totalHT: pf.totalHT, totalTVA: pf.totalTVA, totalTTC: pf.totalTTC});
-      
-      // Vérifier que jsPDF est chargé
-      if (!window.jspdf) {
-        throw new Error("jsPDF n'est pas chargé. Vérifie que le CDN est accessible.");
-      }
-      
       // Générer le PDF
-      console.log("🎨 Génération PDF avec jsPDF...");
       const doc = this.generateProformaPDF(pf);
-      console.log("✅ PDF généré");
-      
       const pdfB64 = doc.output("datauristring").split(",")[1];
-      console.log("📦 PDF encodé en base64, taille:", pdfB64.length, "caractères");
       
       // Upload vers Drive
       toast("Upload vers Drive…","info");
-      console.log("☁️ Upload vers Drive...", {
-        url: CONFIG.drive.uploadUrl,
-        folder: CONFIG.drive.folder,
-        filename: `${pf.numProforma}_${d.nom||d.id}.pdf`
-      });
-      
       const up = await fetch(CONFIG.drive.uploadUrl,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -3290,40 +3266,8 @@ ${CONFIG.company.email}`;
         })
       });
       
-      console.log("📡 Réponse Drive status:", up.status);
-      
-      if (!up.ok) {
-        const errorText = await up.text();
-        console.error("❌ Erreur Drive:", errorText);
-        throw new Error(`Upload Drive échoué (${up.status}): ${errorText}`);
-      }
-      
       const upJson = await up.json();
-      console.log("📥 Réponse Drive:", upJson);
-      
-      if (!upJson.url) throw new Error("Upload Drive réussi mais pas d'URL retournée");
-      
-      pf.pdfUrl = upJson.url;
-      console.log("🔗 URL PDF:", pf.pdfUrl);
-      
-      // Sauvegarder la proforma dans Firebase
-      console.log("💾 Sauvegarde Firebase...");
-      await fb.set(`/proformas/${pf.id}`, pf);
-      state.proformas[pf.id] = pf;
-      console.log("✅ Proforma sauvegardée");
-      
-      toast("Pro Forma PDF créée et sauvegardée ✓","success");
-      
-      // Rafraîchir l'onglet Documents
-      this.renderTab(state.dossiers[dossierId]);
-      console.log("✅ Onglet rafraîchi");
-      
-    } catch(e) {
-      console.error("❌ ERREUR COMPLÈTE:", e);
-      console.error("Stack trace:", e.stack);
-      toast("Erreur : "+e.message,"error");
-    }
-  },
+      if (!upJson.url) throw new Error("Upload Drive échoué");
       
       pf.pdfUrl = upJson.url;
       
