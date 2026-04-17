@@ -1333,13 +1333,14 @@
     </div>
   </div>
 
-  <div class="version-badge">v3.1</div>
+  <div class="version-badge">v3.2</div>
 
   <script>
     const REPO = 'TAF-ROISSY/AI';
     const GITHUB_PAGES_BASE = 'https://taf-roissy.github.io/AI/';
-    const STORAGE_KEY = 'taf_index_config';
     const ADMIN_PIN = '2709';
+    const FIREBASE_DB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
+    const FIREBASE_NODE = 'taf_index/config';
 
     // Couleurs d'accent par catégorie
     const ACCENT_COLORS = {
@@ -1409,29 +1410,43 @@
     };
 
     let allApps = [];
-    let config = loadConfig();
+    const DEFAULT_CONFIG = {
+      theme: 'default',
+      logo: 'TAF',
+      title: 'TAF',
+      subtitle: 'Transit Air Fret',
+      tagline: 'Écosystème d\'applications · Paris Charles de Gaulle',
+      appOrder: [],
+      customMeta: {}
+    };
+    let config = { ...DEFAULT_CONFIG };
 
     // ═══════════════════════════════════════════════════════════════
-    // CONFIG MANAGEMENT
+    // CONFIG MANAGEMENT (Firebase Realtime Database)
     // ═══════════════════════════════════════════════════════════════
-    function loadConfig() {
+    async function loadConfig() {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : {
-          theme: 'default',
-          logo: 'TAF',
-          title: 'TAF',
-          subtitle: 'Transit Air Fret',
-          tagline: 'Écosystème d\'applications · Paris Charles de Gaulle',
-          appOrder: []
-        };
-      } catch {
-        return { theme: 'default', logo: 'TAF', title: 'TAF', subtitle: 'Transit Air Fret', tagline: 'Écosystème d\'applications · Paris Charles de Gaulle', appOrder: [] };
+        const resp = await fetch(`${FIREBASE_DB}/${FIREBASE_NODE}.json`);
+        if (!resp.ok) throw new Error('Firebase read error');
+        const data = await resp.json();
+        return data ? { ...DEFAULT_CONFIG, ...data } : { ...DEFAULT_CONFIG };
+      } catch (e) {
+        console.warn('⚠️ Firebase load failed, using defaults:', e);
+        return { ...DEFAULT_CONFIG };
       }
     }
 
-    function saveConfig() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    async function saveConfig() {
+      try {
+        await fetch(`${FIREBASE_DB}/${FIREBASE_NODE}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+      } catch (e) {
+        console.error('❌ Firebase save failed:', e);
+        alert('❌ Erreur de sauvegarde Firebase. Vérifiez la connexion.');
+      }
     }
 
     function applyConfig() {
@@ -1504,21 +1519,21 @@
     // ═══════════════════════════════════════════════════════════════
     // THEME
     // ═══════════════════════════════════════════════════════════════
-    function setTheme(theme) {
+    async function setTheme(theme) {
       config.theme = theme;
-      saveConfig();
+      await saveConfig();
       applyConfig();
     }
 
     // ═══════════════════════════════════════════════════════════════
     // BANNER
     // ═══════════════════════════════════════════════════════════════
-    function saveBanner() {
+    async function saveBanner() {
       config.logo = document.getElementById('inputLogo').value || 'TAF';
       config.title = document.getElementById('inputTitle').value || 'TAF';
       config.subtitle = document.getElementById('inputSubtitle').value || 'Transit Air Fret';
       config.tagline = document.getElementById('inputTagline').value || 'Écosystème d\'applications · Paris Charles de Gaulle';
-      saveConfig();
+      await saveConfig();
       applyConfig();
       alert('✅ Bandeau enregistré !');
     }
@@ -1595,17 +1610,17 @@
       });
     }
 
-    function saveOrder() {
+    async function saveOrder() {
       const items = document.querySelectorAll('#orderList .order-item');
       config.appOrder = Array.from(items).map(item => item.dataset.name);
-      saveConfig();
-      loadApps(); // Refresh grid
+      await saveConfig();
+      loadApps();
       alert('✅ Ordre enregistré !');
     }
 
-    function resetOrder() {
+    async function resetOrder() {
       config.appOrder = [];
-      saveConfig();
+      await saveConfig();
       populateOrderList();
       loadApps();
       alert('✅ Ordre réinitialisé !');
@@ -1614,13 +1629,14 @@
     // ═══════════════════════════════════════════════════════════════
     // RESET ALL
     // ═══════════════════════════════════════════════════════════════
-    function resetAll() {
-      if (confirm('⚠️ Réinitialiser tous les paramètres (thème, bandeau, ordre) ?')) {
-        localStorage.removeItem(STORAGE_KEY);
-        config = loadConfig();
+    async function resetAll() {
+      if (confirm('⚠️ Réinitialiser tous les paramètres (thème, bandeau, ordre, apps) ?')) {
+        config = { ...DEFAULT_CONFIG };
+        await saveConfig();
         applyConfig();
         populateAdminFields();
         populateOrderList();
+        populateAppEditor();
         loadApps();
         alert('✅ Paramètres réinitialisés !');
       }
@@ -1706,7 +1722,6 @@
     // ═══════════════════════════════════════════════════════════════
     // APP META EDITOR
     // ═══════════════════════════════════════════════════════════════
-    const CUSTOM_META_KEY = 'taf_index_custom_meta';
     const AVAILABLE_ICONS = [
       '📡','📊','✈️','📸','🖥️','💼','📇','💰','🏢','⚠️','🧾','🔔',
       '💳','✓','📝','🤝','⚙️','🚀','🔐','🔧','📺','🗓','📋','👥',
@@ -1726,23 +1741,16 @@
       { value: 'admin', label: 'Admin' }
     ];
 
-    let customMeta = loadCustomMeta();
     let iconPickerTarget = null;
 
-    function loadCustomMeta() {
-      try {
-        const s = localStorage.getItem(CUSTOM_META_KEY);
-        return s ? JSON.parse(s) : {};
-      } catch { return {}; }
-    }
-
-    function saveCustomMeta() {
-      localStorage.setItem(CUSTOM_META_KEY, JSON.stringify(customMeta));
+    function getCustomMeta() {
+      return config.customMeta || {};
     }
 
     function getEffectiveMeta(appName) {
       // Custom overrides built-in
-      if (customMeta[appName]) return customMeta[appName];
+      const cm = getCustomMeta();
+      if (cm[appName]) return cm[appName];
       // Try all name variants
       const variants = [
         appName,
@@ -1804,7 +1812,8 @@
       closeIconPicker();
     }
 
-    function saveAppMeta() {
+    async function saveAppMeta() {
+      if (!config.customMeta) config.customMeta = {};
       const items = document.querySelectorAll('#appEditorList .app-edit-item');
       items.forEach(item => {
         const appName = item.dataset.app;
@@ -1816,14 +1825,14 @@
         // Only store if different from built-in default
         const builtIn = getBuiltInMeta(appName);
         if (icon !== builtIn.icon || desc !== builtIn.desc || badge !== builtIn.badge) {
-          customMeta[appName] = { icon, desc, badge, badgeClass };
+          config.customMeta[appName] = { icon, desc, badge, badgeClass };
         } else {
-          delete customMeta[appName]; // Remove override if back to default
+          delete config.customMeta[appName];
         }
       });
-      saveCustomMeta();
-      loadApps(); // Refresh grid
-      alert('✅ Applications enregistrées !');
+      await saveConfig();
+      loadApps();
+      alert('✅ Applications enregistrées sur Firebase !');
     }
 
     function getBuiltInMeta(appName) {
@@ -1834,10 +1843,10 @@
       return { icon: '📄', desc: 'Application TAF', badge: 'tool', badgeClass: 'badge-tool' };
     }
 
-    function resetAppMeta() {
+    async function resetAppMeta() {
       if (confirm('⚠️ Réinitialiser toutes les personnalisations des apps ?')) {
-        customMeta = {};
-        saveCustomMeta();
+        config.customMeta = {};
+        await saveConfig();
         populateAppEditor();
         loadApps();
         alert('✅ Personnalisations réinitialisées !');
@@ -1876,8 +1885,11 @@
     // ═══════════════════════════════════════════════════════════════
     // INIT
     // ═══════════════════════════════════════════════════════════════
-    applyConfig();
-    loadApps();
+    (async function init() {
+      config = await loadConfig();
+      applyConfig();
+      await loadApps();
+    })();
   </script>
 </body>
 </html>
