@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.5</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.6</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -600,7 +600,7 @@ a{color:var(--accent);text-decoration:none}
 
     <div class="sidebar-footer">
       <div><span class="live-dot" id="liveDot"></span><span id="fbStatus">temps réel</span></div>
-      <div style="margin-top:4px">/taf_shared · Opus · v1.5</div>
+      <div style="margin-top:4px">/taf_shared · Opus · v1.6</div>
     </div>
   </aside>
 
@@ -770,6 +770,108 @@ const OPERATEURS = [
 ];
 const TAUX_DD  = [110, 125, 144];
 const TAUX_TVA = [20, 10, 5.5, 0];
+
+// Liste des pays pour le select origine
+const PAYS = [
+  "Afghanistan","Afrique du Sud","Albanie","Algérie","Allemagne","Andorre","Angola","Antigua-et-Barbuda","Arabie Saoudite","Argentine","Arménie","Australie","Autriche","Azerbaïdjan",
+  "Bahamas","Bahreïn","Bangladesh","Barbade","Belgique","Belize","Bénin","Bhoutan","Biélorussie","Birmanie","Bolivie","Bosnie-Herzégovine","Botswana","Brésil","Brunei","Bulgarie","Burkina Faso","Burundi",
+  "Cambodge","Cameroun","Canada","Cap-Vert","Chili","Chine","Chypre","Colombie","Comores","Congo","Corée du Nord","Corée du Sud","Costa Rica","Côte d'Ivoire","Croatie","Cuba",
+  "Danemark","Djibouti","Dominique",
+  "Égypte","Émirats arabes unis","Équateur","Érythrée","Espagne","Estonie","Eswatini","États-Unis","Éthiopie",
+  "Fidji","Finlande","France",
+  "Gabon","Gambie","Géorgie","Ghana","Grèce","Grenade","Guatemala","Guinée","Guinée équatoriale","Guinée-Bissau","Guyana",
+  "Haïti","Honduras","Hongrie",
+  "Îles Marshall","Îles Salomon","Inde","Indonésie","Irak","Iran","Irlande","Islande","Israël","Italie",
+  "Jamaïque","Japon","Jordanie",
+  "Kazakhstan","Kenya","Kirghizistan","Kiribati","Koweït",
+  "Laos","Lesotho","Lettonie","Liban","Liberia","Libye","Liechtenstein","Lituanie","Luxembourg",
+  "Macédoine du Nord","Madagascar","Malaisie","Malawi","Maldives","Mali","Malte","Maroc","Maurice","Mauritanie","Mexique","Micronésie","Moldavie","Monaco","Mongolie","Monténégro","Mozambique",
+  "Namibie","Nauru","Népal","Nicaragua","Niger","Nigeria","Norvège","Nouvelle-Zélande",
+  "Oman","Ouganda","Ouzbékistan",
+  "Pakistan","Palaos","Palestine","Panama","Papouasie-Nouvelle-Guinée","Paraguay","Pays-Bas","Pérou","Philippines","Pologne","Portugal",
+  "Qatar",
+  "République centrafricaine","République démocratique du Congo","République dominicaine","République tchèque","Roumanie","Royaume-Uni","Russie","Rwanda",
+  "Saint-Christophe-et-Niévès","Saint-Marin","Saint-Vincent-et-les-Grenadines","Sainte-Lucie","Salvador","Samoa","Sao Tomé-et-Principe","Sénégal","Serbie","Seychelles","Sierra Leone","Singapour","Slovaquie","Slovénie","Somalie","Soudan","Soudan du Sud","Sri Lanka","Suède","Suisse","Suriname","Syrie",
+  "Tadjikistan","Tanzanie","Tchad","Thaïlande","Timor oriental","Togo","Tonga","Trinité-et-Tobago","Tunisie","Turkménistan","Turquie","Tuvalu",
+  "Ukraine","Uruguay",
+  "Vanuatu","Vatican","Venezuela","Viêt Nam",
+  "Yémen",
+  "Zambie","Zimbabwe"
+];
+
+// Frais d'arrivée par opérateur (basé sur tarifs 2026)
+// Structure: { operateur: { type: [ {max: poids_kg, montant: euros}, ... ] } }
+const FRAIS_ARRIVEE = {
+  CHRONOPOST: {
+    "General cargo": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ],
+    "Fruits & légumes": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ],
+    "Animaux vivants": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ]
+  },
+  DHL: {
+    "General cargo": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ]
+  },
+  FEDEX: {
+    "General cargo": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ]
+  },
+  AERIEN: {
+    "General cargo": [
+      { max: 1000, montant: 180 },
+      { max: 2000, montant: 200 },
+      { max: 3000, montant: 235 },
+      { max: 4000, montant: 280 },
+      { max: 5000, montant: 310 },
+      { max: 6000, montant: 350 },
+      { max: 7000, montant: 390 },
+      { max: Infinity, montant: 440 }
+    ]
+  }
+};
+
 const NATURES_DEFAULT = [
   "Alcool","BOUTEILLE ALCOOL COLLECTION","TEQUILA","BOISSONS SANS ALCOOL","TEPACHE",
   "MEDICAMENTS","MATERIEL MEDICAL","COMPLEMENT ALIMENTAIRE",
@@ -1538,6 +1640,7 @@ const app = {
   tabInfos(d){
     const opOpts=OPERATEURS.map(o=>`<option value="${o.id}" ${d.operateur===o.id?"selected":""}>${o.label}</option>`).join("");
     const stOpts=STATUTS.map(s=>`<option value="${s.id}" ${d.status===s.id?"selected":""}>${s.label}</option>`).join("");
+    const paysOpts=PAYS.map(p=>`<option value="${p}" ${d.origine===p?"selected":""}>${p}</option>`).join("");
     const natChips=state.natures.map(n=>{const sel=(d.natureMarchandise||[]).includes(n)?"selected":""; return `<span class="tag ${sel}" data-nat="${esc(n)}" style="cursor:pointer;${sel?"background:var(--accent);color:#0b0d10;border-color:var(--accent)":""}">${esc(n)}</span>`;}).join("");
     return `
       <div class="form-grid">
@@ -1550,7 +1653,7 @@ const app = {
         <div class="field"><label>Adresse</label><input value="${esc(d.adresse||"")}" data-k="adresse"></div>
         <div class="field"><label>Ville / CP</label><input value="${esc(d.ville||"")}" data-k="ville"></div>
         <div class="field"><label>N° de colis / AWB</label><input value="${esc(d.numColis||"")}" data-k="numColis"></div>
-        <div class="field"><label>Origine</label><input value="${esc(d.origine||"")}" data-k="origine"></div>
+        <div class="field"><label>Pays d'origine</label><select data-k="origine"><option value="">Sélectionner...</option>${paysOpts}</select></div>
         <div class="field"><label>Statut</label><select data-k="status">${stOpts}</select></div>
         <div class="field"><label>Archive</label><select data-k="archive"><option value="actif" ${d.archive==="actif"?"selected":""}>Actif</option><option value="archive" ${d.archive==="archive"?"selected":""}>Archivé</option></select></div>
       </div>
@@ -2975,7 +3078,7 @@ ${CONFIG.company.website}`;
     doc.setFontSize(7); 
     doc.setTextColor(140,140,140);
     doc.text("Document proforma — non valable comme facture", W/2, 285, { align:"center" });
-    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.5`, W/2, 290, { align:"center" });
+    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.6`, W/2, 290, { align:"center" });
 
     return doc;
   },
@@ -3147,7 +3250,7 @@ ${CONFIG.company.email}`;
       toast("Pro Forma PDF créée et sauvegardée ✓","success");
       
       // Rafraîchir l'onglet Documents
-      if (state.currentDossierId) this.renderTab(d);
+      this.renderTab(state.dossiers[dossierId]);
       
     } catch(e) {
       console.error(e);
