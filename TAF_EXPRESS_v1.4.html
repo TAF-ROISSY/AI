@@ -1,0 +1,3212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0d10">
+<title>TAF EXPRESS — Dossiers Chronopost / DHL / Fedex / AERIEN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0d10;--bg-2:#12151a;--bg-3:#181c22;--bg-4:#1f242c;
+  --border:#272d36;--border-2:#343b46;
+  --text:#e7eaf0;--text-2:#9aa3b2;--text-3:#60687a;
+  --accent:#d4a857;--accent-2:#f0c96b;
+  --green:#4caf7a;--green-soft:#2a6f4e;
+  --red:#e05d5d;--red-soft:#5a2a2a;
+  --blue:#5da8e8;--blue-soft:#27445f;
+  --purple:#9b7ad4;--orange:#e59556;--teal:#5fb6b0;
+  --radius:10px;--radius-sm:6px;
+  --shadow:0 8px 28px rgba(0,0,0,.45);
+  --serif:"Instrument Serif","Georgia",serif;
+  --sans:"Geist",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 800px at 15% -10%,#181d26 0%,transparent 55%),radial-gradient(900px 600px at 110% 110%,#1a1612 0%,transparent 55%),var(--bg);
+  color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+a{color:var(--accent);text-decoration:none}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a303a;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#3a4150;background-clip:content-box}
+
+.app{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.sidebar{background:linear-gradient(180deg,#0e1116 0%,#0a0c0f 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:18px 14px;gap:6px}
+.brand{padding:6px 8px 18px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.brand h1{font-family:var(--serif);font-size:28px;font-weight:400;letter-spacing:-.5px;color:var(--accent-2)}
+.brand h1 em{font-style:italic;color:var(--text-2);font-size:22px}
+.brand .sub{font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:2px;text-transform:uppercase;margin-top:4px;display:flex;justify-content:space-between;align-items:center}
+.brand .badge{background:var(--accent);color:#0b0d10;padding:2px 6px;border-radius:4px;font-weight:600;letter-spacing:1px}
+.nav-section{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:2px;padding:12px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--text-2);font-size:13.5px;font-weight:500;transition:all .15s ease;text-align:left;width:100%}
+.nav-btn:hover{background:var(--bg-3);color:var(--text)}
+.nav-btn.active{background:linear-gradient(90deg,rgba(212,168,87,.14),rgba(212,168,87,.02));color:var(--accent-2);box-shadow:inset 2px 0 0 var(--accent)}
+.nav-btn .ico{width:16px;height:16px;flex-shrink:0;opacity:.8}
+.nav-btn .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-3);background:var(--bg-3);padding:1px 7px;border-radius:10px}
+.nav-btn.active .count{color:var(--accent);background:rgba(212,168,87,.12)}
+.sidebar-footer{margin-top:auto;padding:10px 8px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.sidebar-footer a{color:var(--text-2);display:block;padding:4px 0}
+.sidebar-footer a:hover{color:var(--accent)}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--border);background:rgba(11,13,16,.65);backdrop-filter:blur(10px)}
+.topbar h2{font-family:var(--serif);font-weight:400;font-size:24px;color:var(--text);letter-spacing:-.3px}
+.topbar h2 em{color:var(--text-3);font-style:italic}
+.topbar .spacer{flex:1}
+.search{display:flex;align-items:center;gap:8px;background:var(--bg-3);border:1px solid var(--border);padding:7px 12px;border-radius:var(--radius-sm);min-width:280px}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,168,87,.1)}
+.search input{background:none;border:none;outline:none;width:100%;font-size:13px}
+.search .kbd{font-family:var(--mono);font-size:10px;color:var(--text-3);padding:2px 5px;border:1px solid var(--border-2);border-radius:3px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;transition:all .15s ease;border:1px solid transparent}
+.btn.primary{background:var(--accent);color:#0b0d10}
+.btn.primary:hover{background:var(--accent-2);transform:translateY(-1px)}
+.btn.ghost{background:var(--bg-3);color:var(--text);border-color:var(--border)}
+.btn.ghost:hover{background:var(--bg-4);border-color:var(--border-2)}
+.btn.danger{background:var(--red-soft);color:var(--red)}
+.btn.success{background:rgba(76,175,122,.15);color:var(--green);border-color:rgba(76,175,122,.3)}
+.btn.success:hover{background:rgba(76,175,122,.22)}
+.btn.small{padding:5px 10px;font-size:12px}
+.content{flex:1;overflow:auto;padding:22px;position:relative}
+
+.page{animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.kpi{background:linear-gradient(160deg,var(--bg-2) 0%,var(--bg-3) 100%);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border-2),transparent)}
+.kpi .label{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.kpi .value{font-family:var(--serif);font-size:36px;font-weight:400;line-height:1;color:var(--text)}
+.kpi .value em{font-style:italic;color:var(--accent-2)}
+.kpi .sub{font-size:11.5px;color:var(--text-3);margin-top:6px;font-family:var(--mono)}
+.kpi.accent{border-color:rgba(212,168,87,.3)}.kpi.accent .value{color:var(--accent-2)}
+.kpi.green .value{color:var(--green)}.kpi.blue .value{color:var(--blue)}.kpi.red .value{color:var(--red)}
+
+.section-title{font-family:var(--serif);font-size:22px;font-weight:400;margin:28px 0 14px;display:flex;align-items:center;gap:12px;letter-spacing:-.3px}
+.section-title::after{content:"";flex:1;height:1px;background:var(--border)}
+.section-title em{font-style:italic;color:var(--text-3)}
+.grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.panel{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.panel-header h3{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--text)}
+.panel-header .hint{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px;margin-left:auto}
+.panel-body{padding:8px 0}
+
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+.filter{background:var(--bg-2);border:1px solid var(--border);padding:6px 10px;border-radius:var(--radius-sm);font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.filter select,.filter input{background:none;border:none;outline:none;font-size:12.5px;color:var(--text)}
+.filter label{color:var(--text-3);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+
+.table-wrap{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.dossiers-table{width:100%;border-collapse:collapse;font-size:13px}
+.dossiers-table th{text-align:left;padding:11px 12px;background:var(--bg-3);font-weight:500;font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap}
+.dossiers-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dossiers-table tbody tr{cursor:pointer;transition:background .12s}
+.dossiers-table tbody tr:hover{background:var(--bg-3)}
+.dossiers-table .num{font-family:var(--mono);color:var(--accent-2);font-weight:500}
+.dossiers-table .small{font-size:11.5px;color:var(--text-3)}
+.dossiers-table .col-name{font-weight:500}
+.dossiers-table .col-name small{display:block;color:var(--text-3);font-weight:400;font-size:11.5px;margin-top:1px}
+
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--sans);white-space:nowrap;border:1px solid transparent}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.green{background:rgba(76,175,122,.12);color:var(--green);border-color:rgba(76,175,122,.2)}
+.chip.blue{background:rgba(93,168,232,.12);color:var(--blue);border-color:rgba(93,168,232,.2)}
+.chip.orange{background:rgba(229,149,86,.12);color:var(--orange);border-color:rgba(229,149,86,.2)}
+.chip.red{background:rgba(224,93,93,.12);color:var(--red);border-color:rgba(224,93,93,.2)}
+.chip.purple{background:rgba(155,122,212,.12);color:var(--purple);border-color:rgba(155,122,212,.2)}
+.chip.teal{background:rgba(95,182,176,.12);color:var(--teal);border-color:rgba(95,182,176,.2)}
+.chip.gray{background:var(--bg-3);color:var(--text-2);border-color:var(--border)}
+.chip.accent{background:rgba(212,168,87,.15);color:var(--accent-2);border-color:rgba(212,168,87,.3)}
+
+.op-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600;font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
+.op-badge.chronopost{background:rgba(228,125,17,.12);color:#ff9f43}
+.op-badge.dhl{background:rgba(255,204,0,.12);color:#ffcc00}
+.op-badge.fedex{background:rgba(122,64,204,.12);color:#b28dff}
+.op-badge.aerien{background:rgba(95,182,176,.12);color:var(--teal)}
+.op-badge.default{background:var(--bg-3);color:var(--text-2)}
+
+.workflow-dots{display:inline-flex;gap:3px}
+.workflow-dots span{width:7px;height:7px;border-radius:50%;background:var(--border-2)}
+.workflow-dots span.done{background:var(--green)}
+.workflow-dots span.pending{background:var(--orange)}
+
+.drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+.drawer-backdrop.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(720px,92vw);background:var(--bg-2);border-left:1px solid var(--border);z-index:101;transform:translateX(100%);transition:transform .3s cubic-bezier(.3,.9,.3,1);display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.drawer.open{transform:translateX(0)}
+.drawer-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.drawer-head h2{font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:-.3px}
+.drawer-head h2 .num{color:var(--accent-2);font-family:var(--mono);font-size:22px;margin-right:10px}
+.drawer-head .close{width:34px;height:34px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.drawer-head .close:hover{background:var(--bg-4);color:var(--text)}
+.drawer-body{flex:1;overflow:auto;padding:20px 22px}
+
+.tab-strip{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:-20px -22px 18px;padding:0 22px;background:var(--bg-2);position:sticky;top:-20px;z-index:2;overflow-x:auto}
+.tab-strip button{padding:10px 14px;color:var(--text-3);font-size:12.5px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.tab-strip button:hover{color:var(--text-2)}
+.tab-strip button.active{color:var(--accent-2);border-bottom-color:var(--accent)}
+.tab-strip button .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-left:4px;vertical-align:middle}
+
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px}
+.form-grid.full{grid-template-columns:1fr}
+.field label{display:block;font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:var(--bg-3);border:1px solid var(--border);padding:9px 11px;border-radius:var(--radius-sm);font-size:13px;color:var(--text);transition:border-color .15s;outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:var(--bg-4)}
+.field textarea{min-height:80px;resize:vertical;font-family:var(--sans)}
+.field .hint{font-size:11px;color:var(--text-3);margin-top:4px}
+
+.workflow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:24px}
+.wfl-step{background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;user-select:none;transition:all .15s}
+.wfl-step:hover{border-color:var(--border-2)}
+.wfl-step .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border-2);flex-shrink:0;transition:all .15s}
+.wfl-step.active{background:rgba(76,175,122,.08);border-color:rgba(76,175,122,.3)}
+.wfl-step.active .dot{background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(76,175,122,.15)}
+.wfl-step .label{font-weight:500}
+.wfl-step.active .label{color:var(--green)}
+
+.doc-list{display:flex;flex-direction:column;gap:8px}
+.doc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12.5px}
+.doc-item .doc-ico{width:28px;height:28px;background:var(--bg-4);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:600}
+.doc-item .name{flex:1}
+.doc-item .name small{display:block;color:var(--text-3);font-size:10.5px}
+.doc-item .empty{color:var(--text-3);font-style:italic}
+
+.action-bar{display:flex;flex-wrap:wrap;gap:8px;padding:14px 22px;border-top:1px solid var(--border);background:var(--bg-2);flex-shrink:0}
+
+.settings-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px}
+.settings-card h3{font-family:var(--serif);font-weight:400;font-size:18px;margin-bottom:6px}
+.settings-card p{color:var(--text-2);font-size:13px;margin-bottom:14px;line-height:1.55}
+.settings-card code{font-family:var(--mono);font-size:11.5px;background:var(--bg-3);padding:2px 6px;border-radius:3px;color:var(--accent-2)}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+.tag-list .tag{background:var(--bg-3);border:1px solid var(--border);padding:4px 10px;border-radius:20px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px}
+.tag-list .tag button{color:var(--text-3);font-size:13px;line-height:1}
+.tag-list .tag button:hover{color:var(--red)}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg-3);border:1px solid var(--border-2);padding:11px 18px;border-radius:var(--radius-sm);font-size:13px;z-index:1000;box-shadow:var(--shadow);transition:transform .3s;display:flex;align-items:center;gap:10px;max-width:90vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.info{border-color:var(--blue);color:var(--blue)}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-3)}
+.empty-state h3{font-family:var(--serif);font-weight:400;font-size:22px;margin-bottom:6px;color:var(--text-2)}
+.empty-state p{font-size:13.5px;margin-bottom:18px;max-width:420px;margin-left:auto;margin-right:auto}
+
+.loader{display:inline-block;width:14px;height:14px;border:2px solid var(--border-2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.mini-chart{display:flex;align-items:flex-end;gap:3px;height:80px;padding:8px}
+.mini-chart .bar{flex:1;background:linear-gradient(180deg,var(--accent) 0%,rgba(212,168,87,.25) 100%);border-radius:2px 2px 0 0;min-height:3px;transition:opacity .15s}
+.mini-chart .bar:hover{opacity:.75}
+
+.link-apps{display:flex;gap:10px;padding:6px 0;flex-wrap:wrap}
+.link-app{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12.5px;transition:all .15s}
+.link-app:hover{border-color:var(--accent);color:var(--accent-2);transform:translateY(-1px)}
+.link-app .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+/* Facturation panel */
+.fact-card{background:linear-gradient(135deg,rgba(212,168,87,.08) 0%,rgba(212,168,87,.02) 100%);border:1px solid rgba(212,168,87,.25);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.fact-card .fact-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.fact-card .fact-title{font-family:var(--serif);font-size:20px;color:var(--accent-2)}
+.fact-card .fact-amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.fact-card .fact-amount{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.fact-card .fact-amount .lbl{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
+.fact-card .fact-amount .val{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text)}
+.fact-card .fact-amount.total .val{color:var(--accent-2)}
+.fact-meta{display:flex;gap:16px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
+.fact-meta span{font-family:var(--mono)}
+.fact-empty{background:var(--bg-3);border:1px dashed var(--border-2);border-radius:var(--radius);padding:20px;text-align:center;color:var(--text-3);font-size:13px}
+
+/* ====== MODAL ====== */
+.modal-bd{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(3px)}
+.modal-bd.open{opacity:1;pointer-events:all}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-46%);opacity:0;pointer-events:none;z-index:201;background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius);width:min(820px,94vw);max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow);transition:all .25s cubic-bezier(.3,.9,.3,1)}
+.modal.open{opacity:1;pointer-events:all;transform:translate(-50%,-50%)}
+.modal-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.modal-head h3{font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:-.3px;flex:1}
+.modal-head h3 em{font-style:italic;color:var(--text-3)}
+.modal-head .close{width:32px;height:32px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.modal-head .close:hover{background:var(--bg-4);color:var(--text)}
+.modal-body{flex:1;overflow:auto;padding:20px 22px}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0}
+
+/* ====== PROFORMA EDITOR ====== */
+.pf-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.pf-table th{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;text-align:left;padding:8px 8px;border-bottom:1px solid var(--border);font-weight:500}
+.pf-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.pf-table input,.pf-table select{background:var(--bg-3);border:1px solid transparent;padding:7px 9px;border-radius:5px;font-size:13px;color:var(--text);width:100%;outline:none;transition:border-color .12s}
+.pf-table input:focus,.pf-table select:focus{border-color:var(--accent);background:var(--bg-4)}
+.pf-table .qty,.pf-table .tva,.pf-table .pu,.pf-table .total{text-align:right;font-family:var(--mono)}
+.pf-table .col-desc{width:42%}
+.pf-table .col-qty{width:10%}
+.pf-table .col-pu{width:18%}
+.pf-table .col-tva{width:12%}
+.pf-table .col-total{width:14%}
+.pf-table .col-del{width:4%;text-align:center}
+.pf-table .del-btn{color:var(--text-3);font-size:16px;cursor:pointer;padding:4px}
+.pf-table .del-btn:hover{color:var(--red)}
+.pf-totals{display:flex;justify-content:flex-end;margin-top:14px}
+.pf-totals-box{min-width:280px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px}
+.pf-totals-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--text-2)}
+.pf-totals-row.big{font-family:var(--serif);font-size:22px;color:var(--accent-2);border-top:1px solid var(--border);margin-top:6px;padding-top:10px}
+.pf-totals-row span:last-child{font-family:var(--mono);font-weight:500}
+
+/* ====== CLIENT FORM STATUS ====== */
+.cf-card{background:linear-gradient(135deg,rgba(93,168,232,.08) 0%,rgba(93,168,232,.02) 100%);border:1px solid rgba(93,168,232,.25);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.cf-card.done{background:linear-gradient(135deg,rgba(76,175,122,.08) 0%,rgba(76,175,122,.02) 100%);border-color:rgba(76,175,122,.25)}
+.cf-card .cf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+.cf-card .cf-title{font-family:var(--serif);font-size:18px;color:var(--blue)}
+.cf-card.done .cf-title{color:var(--green)}
+.cf-url{display:flex;align-items:center;gap:8px;background:var(--bg-3);border:1px solid var(--border);padding:8px 10px;border-radius:var(--radius-sm);font-family:var(--mono);font-size:11.5px;color:var(--text-2);word-break:break-all;margin:10px 0}
+.cf-url button{color:var(--accent);font-size:11px;white-space:nowrap}
+.cf-received{background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-top:10px}
+.cf-received h4{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.cf-received-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--border);font-size:12.5px}
+.cf-received-row:last-child{border-bottom:none}
+.cf-received-row .k{color:var(--text-3)}
+.cf-received-row .v{color:var(--text);font-family:var(--mono);max-width:60%;text-align:right;word-break:break-word}
+
+.pf-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.pf-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12.5px}
+.pf-item .pf-num{font-family:var(--mono);color:var(--accent-2);font-weight:500}
+.pf-item .pf-desc{flex:1}
+.pf-item .pf-desc small{display:block;color:var(--text-3);font-size:11px;margin-top:2px}
+.pf-item .pf-amt{font-family:var(--mono);color:var(--text);font-weight:500}
+.pf-item .pf-actions{display:flex;gap:4px}
+.pf-item .pf-actions button,.pf-item .pf-actions a{color:var(--text-3);padding:4px 8px;font-size:11px;border-radius:4px}
+.pf-item .pf-actions button:hover,.pf-item .pf-actions a:hover{background:var(--bg-4);color:var(--text)}
+
+/* ====== SYNTHÈSE — vue plein écran 360° ====== */
+.synth-bd{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(4px)}
+.synth-bd.open{opacity:1;pointer-events:all}
+.synth{
+  position:fixed;inset:24px;background:var(--bg-2);
+  border:1px solid var(--border-2);border-radius:14px;
+  z-index:301;display:flex;flex-direction:column;overflow:hidden;
+  opacity:0;pointer-events:none;transform:scale(.98);transition:all .3s cubic-bezier(.3,.9,.3,1);
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+}
+.synth.open{opacity:1;pointer-events:all;transform:scale(1)}
+@media (max-width:900px){.synth{inset:0;border-radius:0;border:none}}
+
+.synth-head{
+  padding:18px 26px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;flex-shrink:0;
+  background:linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 100%);
+}
+.synth-head .sh-client{flex:1;min-width:0}
+.synth-head h2{
+  font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.1;letter-spacing:-.5px;
+  color:var(--text);margin-bottom:4px;
+}
+.synth-head h2 em{font-style:italic;color:var(--accent-2);margin-right:10px;font-family:var(--mono);font-size:22px}
+.synth-head .sh-meta{
+  font-family:var(--mono);font-size:11px;color:var(--text-3);
+  letter-spacing:.5px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.synth-head .sh-meta span{display:inline-flex;align-items:center;gap:6px}
+.synth-head .sh-actions{display:flex;gap:6px;flex-shrink:0}
+.synth-head .close-x{
+  width:36px;height:36px;border-radius:50%;background:var(--bg-3);
+  display:flex;align-items:center;justify-content:center;color:var(--text-2);
+}
+.synth-head .close-x:hover{background:var(--bg-4);color:var(--text)}
+
+.synth-body{
+  flex:1;overflow:auto;padding:22px 26px 30px;
+  display:grid;grid-template-columns:1.2fr 1fr;gap:24px;
+}
+@media (max-width:1100px){.synth-body{grid-template-columns:1fr}}
+
+.synth-col{display:flex;flex-direction:column;gap:18px}
+
+.sb-block{
+  background:var(--bg-3);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;
+}
+.sb-block-head{
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);background:var(--bg-4);
+}
+.sb-block-head h3{
+  font-family:var(--mono);font-size:10.5px;color:var(--text-3);
+  text-transform:uppercase;letter-spacing:2px;font-weight:500;flex:1;
+}
+.sb-block-head .hint{font-family:var(--mono);font-size:10.5px;color:var(--text-3);letter-spacing:1px}
+.sb-block-head button,.sb-block-head a{
+  font-family:var(--mono);font-size:10px;color:var(--accent);
+  letter-spacing:1px;text-transform:uppercase;padding:4px 8px;border-radius:4px;
+}
+.sb-block-head button:hover,.sb-block-head a:hover{background:var(--bg-3);color:var(--accent-2)}
+.sb-block-body{padding:14px 16px}
+
+.sb-kv{display:grid;grid-template-columns:1fr;gap:0}
+.sb-kv-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:7px 0;border-bottom:1px dashed var(--border)}
+.sb-kv-row:last-child{border-bottom:none}
+.sb-kv-row .k{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;flex-shrink:0;padding-top:2px}
+.sb-kv-row .v{text-align:right;color:var(--text);font-size:13px;max-width:65%;word-break:break-word}
+.sb-kv-row .v.mono{font-family:var(--mono);font-size:12.5px;color:var(--accent-2)}
+.sb-kv-row .v.num{font-family:var(--mono);font-size:13px;color:var(--accent-2)}
+.sb-kv-row .v.empty{color:var(--text-3);font-style:italic}
+
+.sb-amounts{display:grid;grid-template-columns:repeat(4, 1fr);gap:10px}
+.sb-amount{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.sb-amount .lbl{font-family:var(--mono);font-size:9.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
+.sb-amount .val{font-family:var(--mono);font-size:16px;color:var(--text);font-weight:500}
+.sb-amount.total .val{color:var(--accent-2);font-size:18px}
+
+/* Timeline */
+.tl{position:relative;padding-left:20px}
+.tl::before{
+  content:"";position:absolute;left:5px;top:8px;bottom:8px;width:1px;background:var(--border-2);
+}
+.tl-item{position:relative;padding:0 0 22px 18px}
+.tl-item:last-child{padding-bottom:4px}
+.tl-item .tl-dot{
+  position:absolute;left:-20px;top:2px;width:11px;height:11px;border-radius:50%;
+  background:var(--bg-3);border:2px solid var(--border-2);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1;transition:all .2s;
+}
+.tl-item.done .tl-dot{background:var(--green);border-color:var(--green);box-shadow:0 0 0 3px rgba(76,175,122,.15)}
+.tl-item.current .tl-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px rgba(212,168,87,.2);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 3px rgba(212,168,87,.2)}50%{box-shadow:0 0 0 6px rgba(212,168,87,.08)}}
+.tl-item.future .tl-dot{opacity:.4}
+.tl-item.manual .tl-dot{background:var(--purple);border-color:var(--purple)}
+.tl-item .tl-title{font-size:13.5px;color:var(--text);font-weight:500;margin-bottom:3px;line-height:1.35}
+.tl-item.future .tl-title{color:var(--text-3);font-weight:400}
+.tl-item .tl-meta{font-family:var(--mono);font-size:10.5px;color:var(--text-3);letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.tl-item .tl-note{margin-top:6px;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-2);line-height:1.5}
+.tl-item .tl-actions{margin-top:4px;display:flex;gap:4px}
+.tl-item .tl-actions button{font-family:var(--mono);font-size:9px;color:var(--text-3);padding:2px 6px;border-radius:3px;letter-spacing:1px;text-transform:uppercase}
+.tl-item .tl-actions button:hover{color:var(--red)}
+.tl-add{margin-top:10px}
+.tl-add-form{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;display:none;margin-top:10px}
+.tl-add-form.open{display:block;animation:fadeIn .2s}
+.tl-add-form input,.tl-add-form textarea,.tl-add-form select{
+  width:100%;background:var(--bg-3);border:1px solid var(--border);
+  padding:7px 10px;border-radius:5px;font-size:12.5px;color:var(--text);outline:none;margin-bottom:8px;
+}
+.tl-add-form textarea{min-height:50px;resize:vertical;font-family:var(--sans)}
+.tl-add-form input:focus,.tl-add-form textarea:focus,.tl-add-form select:focus{border-color:var(--accent)}
+.tl-add-form .actions{display:flex;gap:6px}
+
+.sb-docs-list{display:flex;flex-direction:column;gap:6px}
+.sb-doc{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;font-size:12px}
+.sb-doc .ico{width:26px;height:26px;border-radius:5px;background:var(--bg-4);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;flex-shrink:0}
+.sb-doc .name{flex:1;min-width:0;color:var(--text);word-break:break-word}
+.sb-doc .name small{display:block;color:var(--text-3);font-size:10.5px}
+.sb-doc a{color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase}
+
+.sb-status-bar{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--bg-4);border:1px solid var(--border);border-radius:8px;
+  margin-bottom:14px;
+}
+.sb-status-bar .sbb-k{font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:1.2px;text-transform:uppercase}
+
+/* Dashboard — "À traiter" section */
+.urgent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.urgent-block{background:var(--bg-2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.urgent-block .ub-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg-3)}
+.urgent-block .ub-head h3{font-family:var(--serif);font-size:17px;font-weight:400;flex:1;color:var(--text)}
+.urgent-block .ub-head .count{font-family:var(--mono);font-size:11px;color:var(--text-3);background:var(--bg-2);padding:2px 8px;border-radius:10px;letter-spacing:.5px}
+.urgent-block.red .ub-head{border-left:3px solid var(--red);background:linear-gradient(90deg,rgba(224,93,93,.08) 0%, var(--bg-3) 40%)}
+.urgent-block.blue .ub-head{border-left:3px solid var(--blue);background:linear-gradient(90deg,rgba(93,168,232,.08) 0%, var(--bg-3) 40%)}
+.urgent-block.orange .ub-head{border-left:3px solid var(--orange);background:linear-gradient(90deg,rgba(229,149,86,.08) 0%, var(--bg-3) 40%)}
+.urgent-block.purple .ub-head{border-left:3px solid var(--purple);background:linear-gradient(90deg,rgba(155,122,212,.08) 0%, var(--bg-3) 40%)}
+.urgent-list{max-height:400px;overflow:auto}
+.urgent-row{
+  display:grid;grid-template-columns:60px 1fr 90px;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  font-size:12.5px;cursor:pointer;transition:background .12s;align-items:center;
+}
+.urgent-row:hover{background:var(--bg-3)}
+.urgent-row:last-child{border-bottom:none}
+.urgent-row .ur-num{font-family:var(--mono);color:var(--accent-2);font-weight:500}
+.urgent-row .ur-client{min-width:0}
+.urgent-row .ur-client b{color:var(--text);font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.urgent-row .ur-client small{color:var(--text-3);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.urgent-row .ur-right{text-align:right;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.urgent-empty{padding:20px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic}
+
+/* Click hint on client names */
+.client-clickable{cursor:pointer;transition:color .15s;border-bottom:1px dashed transparent}
+.client-clickable:hover{color:var(--accent-2);border-bottom-color:var(--accent)}
+
+/* ====== BELL / NOTIFICATION (BAE inbox) ====== */
+.topbar-bell{
+  position:relative;width:38px;height:38px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;color:var(--text-2);
+  transition:all .15s;margin-right:4px;
+}
+.topbar-bell:hover{background:var(--bg-4);color:var(--accent-2);border-color:var(--accent)}
+.topbar-bell.has-pending{color:var(--accent-2);border-color:var(--accent);animation:bell-glow 2.4s ease-in-out infinite}
+@keyframes bell-glow{0%,100%{box-shadow:0 0 0 0 rgba(212,168,87,.4)}50%{box-shadow:0 0 0 6px rgba(212,168,87,0)}}
+.topbar-bell .count-pill{
+  position:absolute;top:-3px;right:-3px;
+  min-width:18px;height:18px;padding:0 5px;border-radius:10px;
+  background:var(--red);color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);border:2px solid var(--bg);
+}
+
+/* Inbox panel dropdown */
+.inbox-panel{
+  position:fixed;top:62px;right:22px;
+  width:min(440px,95vw);max-height:70vh;overflow:auto;
+  background:var(--bg-2);border:1px solid var(--border-2);border-radius:12px;
+  box-shadow:var(--shadow);z-index:180;padding:0;
+  opacity:0;pointer-events:none;transform:translateY(-6px);
+  transition:all .2s cubic-bezier(.3,.9,.3,1);
+}
+.inbox-panel.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.inbox-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.inbox-head h3{font-family:var(--serif);font-weight:400;font-size:18px;flex:1}
+.inbox-head h3 em{font-style:italic;color:var(--text-3);font-size:13px;margin-left:8px}
+.inbox-list{padding:6px 0}
+.inbox-empty{padding:30px 18px;text-align:center;color:var(--text-3);font-size:12.5px;font-style:italic}
+.inbox-item{
+  padding:12px 18px;border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background .12s;display:flex;gap:12px;align-items:flex-start;
+}
+.inbox-item:hover{background:var(--bg-3)}
+.inbox-item:last-child{border-bottom:none}
+.inbox-item .ii-ico{
+  width:32px;height:32px;border-radius:50%;background:var(--bg-3);
+  display:flex;align-items:center;justify-content:center;color:var(--accent-2);
+  flex-shrink:0;font-size:14px;
+}
+.inbox-item.matched .ii-ico{background:rgba(76,175,122,.15);color:var(--green)}
+.inbox-item.ambiguous .ii-ico{background:rgba(229,149,86,.15);color:var(--orange)}
+.inbox-item.unmatched .ii-ico{background:rgba(224,93,93,.15);color:var(--red)}
+.inbox-item .ii-body{flex:1;min-width:0}
+.inbox-item .ii-subj{font-size:13px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-item .ii-meta{font-family:var(--mono);font-size:10.5px;color:var(--text-3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+.inbox-item .ii-tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.inbox-item .ii-tag.matched{background:rgba(76,175,122,.15);color:var(--green)}
+.inbox-item .ii-tag.ambiguous{background:rgba(229,149,86,.15);color:var(--orange)}
+.inbox-item .ii-tag.unmatched{background:rgba(224,93,93,.15);color:var(--red)}
+
+/* Candidate list in matching modal */
+.match-cand-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.match-cand{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--bg-3);border:1px solid var(--border);border-radius:8px;
+  cursor:pointer;transition:all .15s;
+}
+.match-cand:hover{border-color:var(--accent);background:var(--bg-4)}
+.match-cand.selected{border-color:var(--accent);background:rgba(212,168,87,.08);box-shadow:0 0 0 2px rgba(212,168,87,.2)}
+.match-cand .mc-num{font-family:var(--mono);color:var(--accent-2);font-weight:500;font-size:14px}
+.match-cand .mc-body{flex:1;min-width:0}
+.match-cand .mc-title{font-size:13px;color:var(--text);font-weight:500}
+.match-cand .mc-meta{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.match-cand .mc-score{font-family:var(--mono);font-size:10.5px;color:var(--text-3);padding:3px 8px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border)}
+.match-cand .mc-score.high{color:var(--green);border-color:rgba(76,175,122,.3)}
+.match-cand .mc-score.med{color:var(--orange);border-color:rgba(229,149,86,.3)}
+
+.mail-preview{background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.55}
+.mail-preview .mp-row{display:flex;gap:10px;padding:3px 0}
+.mail-preview .mp-k{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;min-width:70px;padding-top:2px}
+.mail-preview .mp-v{flex:1;color:var(--text);word-break:break-word}
+.mail-preview .mp-body{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--text-2);white-space:pre-wrap;font-size:12px;max-height:160px;overflow:auto}
+.mail-preview .mp-pdf{display:inline-flex;align-items:center;gap:6px;color:var(--accent-2);font-family:var(--mono);font-size:11px;padding:4px 8px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;margin-top:6px}
+
+/* Toast stack for new BAE */
+.bae-popup{
+  position:fixed;top:20px;right:20px;z-index:190;
+  background:var(--bg-2);border:1px solid var(--accent);border-radius:12px;
+  padding:14px 18px;box-shadow:0 12px 40px rgba(212,168,87,.25);
+  min-width:320px;max-width:440px;
+  transform:translateX(calc(100% + 30px));transition:transform .4s cubic-bezier(.3,.9,.3,1);
+  display:flex;align-items:flex-start;gap:12px;
+}
+.bae-popup.show{transform:translateX(0)}
+.bae-popup .bp-ico{
+  width:40px;height:40px;border-radius:50%;background:rgba(212,168,87,.15);
+  color:var(--accent-2);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:18px;
+}
+.bae-popup .bp-body{flex:1;min-width:0}
+.bae-popup .bp-title{font-family:var(--serif);font-size:16px;color:var(--text);line-height:1.2;margin-bottom:4px}
+.bae-popup .bp-title em{font-style:italic;color:var(--accent-2)}
+.bae-popup .bp-meta{font-family:var(--mono);font-size:10.5px;color:var(--text-3);margin-bottom:8px;letter-spacing:.5px}
+.bae-popup .bp-actions{display:flex;gap:6px;flex-wrap:wrap}
+.bae-popup .bp-close{position:absolute;top:6px;right:10px;color:var(--text-3);font-size:16px;padding:2px 6px}
+.bae-popup .bp-close:hover{color:var(--text)}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .grid-2{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .drawer{width:100%}
+  .fact-card .fact-amounts{grid-template-columns:1fr}
+  .synth-body{padding:16px;gap:14px}
+  .sb-amounts{grid-template-columns:repeat(2, 1fr)}
+}
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>TAF <em>Express</em></h1>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.4</span></div>
+    </div>
+    <button class="nav-btn active" data-page="dashboard">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn" data-page="dossiers">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+      Dossiers <span class="count" id="navCount">—</span>
+    </button>
+    <button class="nav-btn" data-page="facturation">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M9 13h6M9 17h6"/></svg>
+      Facturation <span class="count" id="navFactCount">—</span>
+    </button>
+    <button class="nav-btn" data-page="prestataires">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7a4 4 0 118 0 4 4 0 01-8 0zM3 21a7 7 0 0114 0"/></svg>
+      Opérateurs
+    </button>
+    <button class="nav-btn" data-page="config">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.03 1.56V21a2 2 0 01-4 0v-.1A1.7 1.7 0 009 19.4a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.56-1.03H3a2 2 0 010-4h.1A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 012.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001.03-1.56V3a2 2 0 014 0v.1A1.7 1.7 0 0015 4.6a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 012.83 2.83l-.06.06A1.7 1.7 0 0019.4 9a1.7 1.7 0 001.56 1.03H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1.03z"/></svg>
+      Paramètres
+    </button>
+    <button class="nav-btn" data-page="import">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Import &amp; Sync
+    </button>
+
+    <div class="nav-section">Écosystème TAF</div>
+    <div class="sidebar-footer" style="border-top:none;padding-top:0">
+      <a href="https://taf-roissy.github.io/AI/" target="_blank">↗ Index TAF</a>
+      <a href="#" onclick="window.open(CONFIG.links.perac,'_blank');return false">↗ TAF PERAC · Facturation</a>
+      <a href="#" onclick="window.open(CONFIG.links.hub,'_blank');return false">↗ TAF HUB · Ops</a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div><span class="live-dot" id="liveDot"></span><span id="fbStatus">temps réel</span></div>
+      <div style="margin-top:4px">/taf_shared · Opus · v1.4</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">Dashboard <em>— vue d'ensemble</em></h2>
+      <div class="spacer"></div>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-3)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input id="globalSearch" placeholder="Rechercher un dossier, un nom, un numéro…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="btn primary" onclick="app.openDrawer(null)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        Nouveau dossier
+      </button>
+      <button class="topbar-bell" id="bellBtn" title="Boîte BAE" onclick="app.toggleInboxPanel(event)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M11 21a1 1 0 002 0"/></svg>
+        <span class="count-pill" id="bellCount" style="display:none">0</span>
+      </button>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="app.closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2 id="drawerTitle"><span class="num" id="drawerNum">#—</span><span id="drawerName">Nouveau dossier</span></h2>
+    <button class="close" onclick="app.closeDrawer()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="action-bar" id="drawerActions"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<!-- Modal générique (proforma, client form, etc.) -->
+<div class="modal-bd" id="modalBd" onclick="app.closeModal()"></div>
+<div class="modal" id="modal">
+  <div class="modal-head">
+    <h3 id="modalTitle">—</h3>
+    <button class="close" onclick="app.closeModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+    </button>
+  </div>
+  <div class="modal-body" id="modalBody"></div>
+  <div class="modal-foot" id="modalFoot"></div>
+</div>
+
+<!-- Synthèse — vue 360° plein écran -->
+<div class="synth-bd" id="synthBd" onclick="app.closeSynth()"></div>
+<div class="synth" id="synth">
+  <div class="synth-head">
+    <div class="sh-client">
+      <h2 id="synthTitle"><em id="synthNum">#—</em><span id="synthName">—</span></h2>
+      <div class="sh-meta" id="synthMeta"></div>
+    </div>
+    <div class="sh-actions">
+      <button class="btn ghost small" onclick="app.editFromSynth()">✎ Éditer</button>
+      <button class="close-x" onclick="app.closeSynth()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="synth-body" id="synthBody"></div>
+</div>
+
+<!-- Panneau BAE Inbox (dropdown de la cloche) -->
+<div class="inbox-panel" id="inboxPanel">
+  <div class="inbox-head">
+    <h3>Boîte BAE <em id="inboxSubtitle">— déclarations reçues</em></h3>
+    <button class="btn ghost small" onclick="app.uploadBaeManual()">+ Charger</button>
+  </div>
+  <div class="inbox-list" id="inboxList"></div>
+</div>
+
+<!-- Popup BAE arrivée (top-right) -->
+<div class="bae-popup" id="baePopup">
+  <div class="bp-ico">🛃</div>
+  <div class="bp-body">
+    <div class="bp-title" id="bpTitle">Nouvelle <em>déclaration BAE</em></div>
+    <div class="bp-meta" id="bpMeta">—</div>
+    <div class="bp-actions" id="bpActions"></div>
+  </div>
+  <button class="bp-close" onclick="app.dismissBaePopup()">×</button>
+</div>
+
+<script>
+/* ============================================================================
+   TAF EXPRESS v1.1 — Firebase shared namespace + live sync with TAF PERAC
+
+   Schéma Firebase partagé (/taf_shared/)
+   ---------------------------------------
+   /taf_shared/
+     /dossiers/{dossierId}       ← écrit par TAF EXPRESS, lu par PERAC
+     /factures/{dossierId}       ← écrit par PERAC, lu par TAF EXPRESS
+     /facturation_queue/{id}     ← demandes de facturation en attente
+     /config/natures             ← liste de natures partagée
+     /config/meta                ← métadonnées (schema version, etc.)
+
+   Communication temps réel : Server-Sent Events (Firebase REST streaming)
+   Les 2 apps voient les changements de l'autre en direct, sans refresh.
+   ============================================================================ */
+
+const CONFIG = {
+  firebase: {
+    url: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app",
+    sharedNode: "taf_shared"
+  },
+  drive: {
+    uploadUrl: "https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec",
+    folder: "143DZMp79_EfrVAjyOMquBU0L-JXlKdnF"
+  },
+  airtable: {
+    baseId: "appdwsoDaciqMXkvD",
+    tableDossiers: "tblTAXdBLkEHLlRAI"
+  },
+  links: {
+    perac: "https://taf-roissy.github.io/AI/TAF_PERAC.html",
+    hub:   "https://taf-roissy.github.io/AI/TAF_HUB.html",
+    index: "https://taf-roissy.github.io/AI/",
+    clientForm: "https://taf-roissy.github.io/AI/TAF_CLIENT_FORM.html"
+  },
+  webhooks: {
+    // Webhook Make.com existant pour envoi d'emails (types: proforma, client_form_request, bae_received, facture_payee)
+    email: "https://hook.eu2.make.com/4th5kwceaitf63o1dt5xfac85vkceiwq"
+  },
+  bae: {
+    // Adresse email dédiée à la réception des déclarations BAE par le mailhook Make
+    inboxEmail: "bae@taftrans.fr"
+  },
+  notifications: {
+    // Adresse fixe BCC pour tous les emails "règlement reçu" (configurable dans Paramètres → fb /config/notifications/bccEmail)
+    defaultBcc: "import@taftrans.fr"
+  },
+  company: {
+    name: "TAF ROISSY / TAF TRANS",
+    subtitle: "Spécialiste Fret & Douane CDG — 40 ans d'expertise",
+    address: "CDG / Roissy",
+    email: "import@taftrans.fr",
+    phone: "",
+    website: "taftrans.fr"
+  },
+  moduleId: "express"     // identifie que ce dossier vient de TAF EXPRESS
+};
+
+const STATUTS = [
+  { id:"DEVIS",        label:"Devis",             color:"gray"   },
+  { id:"CONFIRME",     label:"Devis confirmé",    color:"teal"   },
+  { id:"ATTENTE_DOC",  label:"Attente doc",       color:"orange" },
+  { id:"ATTENTE_REG",  label:"Attente règlement", color:"purple" },
+  { id:"EN_LIVRAISON", label:"En livraison",      color:"blue"   },
+  { id:"LIVRE",        label:"Colis livré",       color:"green"  },
+  { id:"REGLE",        label:"Règlement reçu",    color:"green"  },
+  { id:"RETOUR",       label:"Retour colis",      color:"red"    },
+  { id:"TROP_CHER",    label:"Trop cher (refus)", color:"red"    },
+  { id:"ANNULE",       label:"Annulé",            color:"gray"   }
+];
+const OPERATEURS = [
+  { id:"CHRONOPOST", label:"Chronopost", class:"chronopost", email:"sanda.bijloll@chronopost.fr,anthony.pruvost@chronopost.fr,arnaud.toffin@chronopost.fr,hubcdg.ist@chronopost.fr" },
+  { id:"DHL",        label:"DHL",        class:"dhl",        email:"cdghubcstransfer@dhl.com" },
+  { id:"FEDEX",      label:"Fedex",      class:"fedex",      email:"" },
+  { id:"AERIEN",     label:"AERIEN",     class:"aerien",     email:"" }
+];
+const TAUX_DD  = [110, 125, 144];
+const TAUX_TVA = [20, 10, 5.5, 0];
+const NATURES_DEFAULT = [
+  "Alcool","BOUTEILLE ALCOOL COLLECTION","TEQUILA","BOISSONS SANS ALCOOL","TEPACHE",
+  "MEDICAMENTS","MATERIEL MEDICAL","COMPLEMENT ALIMENTAIRE",
+  "VETEMENTS","PRODUITS CHEVEUX","PIECES AUTO","FLUTE",
+  "VANILLE","SEMENCES","PLANTES PHYTO","PASSIFLORE","INSECTES SECS",
+  "MAROQUINERIE","OBJET DE COLLECTION","AUTRE"
+];
+const STATUS_MAP = {
+  "Devis":"DEVIS","Confirmation":"CONFIRME","Attente doc":"ATTENTE_DOC","Attente doc ":"ATTENTE_DOC",
+  "Attente réglement":"ATTENTE_REG","Attente règlement":"ATTENTE_REG",
+  "EN LIVRAISON ":"EN_LIVRAISON","EN LIVRAISON":"EN_LIVRAISON","ENLIVRAISON ":"EN_LIVRAISON","COLIS EN LIVRAISON":"EN_LIVRAISON",
+  "COLIS  LIVRE":"LIVRE","COLIS LIVRE":"LIVRE",
+  "Règlement reçu":"REGLE","Retour Colis ":"RETOUR","Retour Colis":"RETOUR",
+  "trop cher":"TROP_CHER","Annulé":"ANNULE"
+};
+
+/* ---------- Firebase REST + SSE streaming ---------- */
+const fb = {
+  base(){ return `${CONFIG.firebase.url}/${CONFIG.firebase.sharedNode}`; },
+  async get(path=""){ const r=await fetch(`${this.base()}${path}.json`); if(!r.ok) throw new Error(`GET ${path}: ${r.status}`); return r.json(); },
+  async set(path,data){ const r=await fetch(`${this.base()}${path}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}); if(!r.ok) throw new Error(`PUT ${path}: ${r.status}`); return r.json(); },
+  async update(path,patch){ const r=await fetch(`${this.base()}${path}.json`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)}); if(!r.ok) throw new Error(`PATCH ${path}: ${r.status}`); return r.json(); },
+  async del(path){ const r=await fetch(`${this.base()}${path}.json`,{method:"DELETE"}); if(!r.ok) throw new Error(`DELETE ${path}: ${r.status}`); return r.json(); },
+
+  // Streaming via EventSource (REST /.json?... with Accept:text/event-stream → EventSource)
+  subscribe(path, onChange, onError){
+    const url = `${this.base()}${path}.json`;
+    try{
+      const es = new EventSource(url);
+      es.addEventListener("put",(e)=>{
+        try{ const d=JSON.parse(e.data); onChange("put", d.path, d.data); }catch(err){}
+      });
+      es.addEventListener("patch",(e)=>{
+        try{ const d=JSON.parse(e.data); onChange("patch", d.path, d.data); }catch(err){}
+      });
+      es.addEventListener("keep-alive",()=>{ app.setLiveStatus(true); });
+      es.onerror = (e)=>{ app.setLiveStatus(false); if (onError) onError(e); };
+      es.onopen  = ()=>{ app.setLiveStatus(true); };
+      return es;
+    }catch(e){
+      if (onError) onError(e);
+      return null;
+    }
+  }
+};
+
+/* ---------- State ---------- */
+const state = {
+  dossiers: {},       // {id: dossier}
+  factures: {},       // {dossierId: facture}   ← vient de PERAC
+  proformas: {},      // {proformaId: proforma}
+  clientForms: {},    // {token: clientForm}
+  baeInbox: {},       // {baeId: bae entry} — emails reçus du mailhook BAE
+  notifSettings: { bccEmail: "import@taftrans.fr", templates: {} },
+  currentPage: "dashboard",
+  currentDossierId: null,
+  currentTab: "infos",
+  filters: { operateur:"", statut:"", archive:"actif", search:"" },
+  natures: NATURES_DEFAULT.slice(),
+  loaded: false,
+  live: { dossiers:null, factures:null, proformas:null, clientForms:null, baeInbox:null, connected:false },
+  modal: { open:false, context:null },
+  synthDossierId: null,
+  inboxPanelOpen: false,
+  seenBaeIds: new Set()   // pour ne pas re-popup les BAE déjà vus dans cette session
+};
+
+/* ---------- App ---------- */
+const app = {
+
+  async boot(){
+    this.bindNav();
+    this.bindSearch();
+    this.bindKeyboard();
+    await this.loadAll();
+    this.subscribeLive();
+    this.render();
+  },
+
+  async loadAll(){
+    try{
+      const shared = await fb.get("");
+      state.dossiers = (shared && shared.dossiers) || {};
+      state.factures = (shared && shared.factures) || {};
+      state.proformas = (shared && shared.proformas) || {};
+      state.clientForms = (shared && shared.client_forms) || {};
+      state.baeInbox = (shared && shared.bae_inbox) || {};
+      if (shared && shared.config && shared.config.notifications){
+        state.notifSettings = Object.assign(state.notifSettings, shared.config.notifications);
+      }
+      // Marquer tous les BAE existants comme "vus" pour éviter un flot de popups au chargement
+      Object.keys(state.baeInbox).forEach(id=>state.seenBaeIds.add(id));
+      const nat = shared && shared.config && shared.config.natures;
+      if (Array.isArray(nat) && nat.length) state.natures = nat;
+      state.loaded = true;
+      this.updateNavCount();
+      this.updateBellCount();
+    }catch(e){
+      console.error(e);
+      toast("Firebase indisponible","error");
+    }
+  },
+
+  setLiveStatus(ok){
+    state.live.connected = ok;
+    const dot = $("#liveDot"); const txt = $("#fbStatus");
+    if (!dot || !txt) return;
+    if (ok){ dot.style.background="var(--green)"; txt.textContent="temps réel"; }
+    else   { dot.style.background="var(--red)";   txt.textContent="reconnexion…"; }
+  },
+
+  subscribeLive(){
+    // Dossiers : sync multi-utilisateurs (au cas où 2 personnes ouvrent l'app)
+    state.live.dossiers = fb.subscribe("/dossiers", (op, path, data)=>{
+      if (path === "/" || path === null){
+        state.dossiers = data || {};
+      } else {
+        // path = "/{dossierId}" ou "/{dossierId}/{field}"
+        const parts = path.replace(/^\//,"").split("/");
+        const id = parts[0];
+        if (parts.length === 1){
+          if (data === null) delete state.dossiers[id];
+          else state.dossiers[id] = data;
+        } else {
+          state.dossiers[id] = state.dossiers[id] || {};
+          setDeep(state.dossiers[id], parts.slice(1), data);
+        }
+      }
+      this.updateNavCount();
+      if (["dashboard","dossiers","facturation"].includes(state.currentPage)) this.render();
+    });
+    // Factures : les changements côté PERAC se propagent ici
+    state.live.factures = fb.subscribe("/factures", (op, path, data)=>{
+      if (path === "/" || path === null){
+        state.factures = data || {};
+      } else {
+        const parts = path.replace(/^\//,"").split("/");
+        const id = parts[0];
+        if (parts.length === 1){
+          if (data === null) delete state.factures[id];
+          else state.factures[id] = data;
+        } else {
+          state.factures[id] = state.factures[id] || {};
+          setDeep(state.factures[id], parts.slice(1), data);
+        }
+      }
+      this.updateNavCount();
+      // Refresh UI si la facture concerne le dossier ouvert
+      if (state.currentDossierId && state.factures[state.currentDossierId]){
+        if (state.currentTab === "facturation") this.renderTab(state.dossiers[state.currentDossierId]);
+      }
+      if (["dashboard","facturation"].includes(state.currentPage)) this.render();
+      if (state.synthDossierId) this.renderSynth();
+    });
+
+    // Proformas : synchro temps réel des envois/statuts
+    state.live.proformas = fb.subscribe("/proformas", (op, path, data)=>{
+      if (path === "/" || path === null){ state.proformas = data || {}; }
+      else { const parts=path.replace(/^\//,"").split("/"); const id=parts[0];
+        if (parts.length===1){ if (data===null) delete state.proformas[id]; else state.proformas[id]=data; }
+        else { state.proformas[id]=state.proformas[id]||{}; setDeep(state.proformas[id], parts.slice(1), data); }
+      }
+      if (state.currentDossierId && state.currentTab==="facturation") this.renderTab(state.dossiers[state.currentDossierId]);
+      if (state.synthDossierId) this.renderSynth();
+    });
+
+    // Formulaires clients : remonte les saisies + soumissions du client
+    state.live.clientForms = fb.subscribe("/client_forms", (op, path, data)=>{
+      if (path === "/" || path === null){ state.clientForms = data || {}; }
+      else { const parts=path.replace(/^\//,"").split("/"); const id=parts[0];
+        if (parts.length===1){ if (data===null) delete state.clientForms[id]; else state.clientForms[id]=data; }
+        else { state.clientForms[id]=state.clientForms[id]||{}; setDeep(state.clientForms[id], parts.slice(1), data); }
+      }
+      if (state.currentDossierId && state.currentTab==="facturation") this.renderTab(state.dossiers[state.currentDossierId]);
+      if (state.synthDossierId) this.renderSynth();
+      if (data && data.status==="SUBMITTED" && data.dossierId){
+        const num = state.dossiers[data.dossierId]?.numDossier||"?";
+        toast(`✓ Le client a soumis ses infos — #${num}`,"success");
+      }
+    });
+
+    // BAE Inbox : réception des déclarations douane via le mailhook Make
+    state.live.baeInbox = fb.subscribe("/bae_inbox", (op, path, data)=>{
+      const wasInitial = !state.loaded || path === "/" || path === null;
+      if (path === "/" || path === null){ state.baeInbox = data || {}; }
+      else { const parts=path.replace(/^\//,"").split("/"); const id=parts[0];
+        if (parts.length===1){
+          if (data===null) delete state.baeInbox[id];
+          else {
+            state.baeInbox[id] = data;
+            // Popup ET auto-matching UNIQUEMENT pour un BAE qu'on n'a jamais vu
+            if (!wasInitial && !state.seenBaeIds.has(id) && data.status!=="MATCHED" && data.status!=="DISMISSED"){
+              state.seenBaeIds.add(id);
+              this.handleNewBae(id, data);
+            }
+          }
+        }
+        else { state.baeInbox[id]=state.baeInbox[id]||{}; setDeep(state.baeInbox[id], parts.slice(1), data); }
+      }
+      this.updateBellCount();
+      if (state.inboxPanelOpen) this.renderInboxPanel();
+    });
+  },
+
+  updateNavCount(){
+    $("#navCount").textContent = Object.keys(state.dossiers||{}).length;
+    $("#navFactCount").textContent = Object.keys(state.factures||{}).length || "—";
+  },
+
+  bindNav(){
+    $$(".nav-btn[data-page]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        $$(".nav-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        state.currentPage = btn.dataset.page;
+        this.render();
+      });
+    });
+  },
+  bindSearch(){
+    $("#globalSearch").addEventListener("input",(e)=>{
+      state.filters.search = e.target.value.toLowerCase();
+      if (state.currentPage === "dossiers") this.renderDossiers();
+      else if (e.target.value){
+        $$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page==="dossiers"));
+        state.currentPage="dossiers"; this.render();
+      }
+    });
+  },
+  bindKeyboard(){
+    document.addEventListener("keydown",(e)=>{
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); $("#globalSearch").focus(); }
+      if (e.key==="Escape"){
+        if (state.synthDossierId) this.closeSynth();
+        else if (state.modal.open) this.closeModal();
+        else this.closeDrawer();
+      }
+    });
+  },
+
+  render(){
+    const titles = {
+      dashboard:"Dashboard <em>— vue d'ensemble</em>",
+      dossiers:"Dossiers <em>— pilotage</em>",
+      facturation:"Facturation <em>— sync TAF PERAC</em>",
+      prestataires:"Opérateurs <em>— Chronopost · DHL · Fedex · AERIEN</em>",
+      config:"Paramètres <em>— configuration</em>",
+      import:"Import &amp; Sync <em>— migration Airtable</em>"
+    };
+    $("#pageTitle").innerHTML = titles[state.currentPage]||"";
+    const c = $("#content"); c.innerHTML = "";
+    switch(state.currentPage){
+      case "dashboard":    this.renderDashboard(c); break;
+      case "dossiers":     this.renderDossiersPage(c); break;
+      case "facturation":  this.renderFacturationPage(c); break;
+      case "prestataires": this.renderPrestataires(c); break;
+      case "config":       this.renderConfig(c); break;
+      case "import":       this.renderImport(c); break;
+    }
+  },
+
+  /* -------- DASHBOARD -------- */
+  renderDashboard(c){
+    const dossiers = Object.values(state.dossiers||{});
+    const active = dossiers.filter(d=>d.archive!=="archive");
+    const by = (s)=>active.filter(d=>d.status===s).length;
+
+    // --- Dossiers à traiter (les 3 buckets demandés) ---
+    // 1. En cours de dédouanement : OK devis mais pas encore OK douane, ou statut actif non terminé
+    const enDedouanement = active.filter(d => {
+      if (d.okDouane) return false;
+      if (d.status==="REGLE"||d.status==="ANNULE"||d.status==="TROP_CHER"||d.status==="RETOUR") return false;
+      return (d.status==="CONFIRME" || d.status==="DEVIS" || d.status==="ATTENTE_DOC" || d.okDevis);
+    }).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+    // 2. En visite douane : statut ATTENTE_DOC spécifiquement ou flag dédié
+    const enVisite = active.filter(d => d.status==="ATTENTE_DOC" || d.enVisiteDouane).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+    // 3. En attente de règlement : facture émise mais pas encore payée, OU statut ATTENTE_REG
+    const enAttenteRegl = active.filter(d => {
+      const f = state.factures[d.id];
+      if (f && !(f.status==="PAYE"||f.paye)) return true;
+      if (d.status==="ATTENTE_REG") return true;
+      if (d.facturePayee || d.reglementRecu) return false;
+      return false;
+    }).sort((a,b)=>{
+      const fa = state.factures[a.id]?.emittedAt||a.updatedAt||0;
+      const fb = state.factures[b.id]?.emittedAt||b.updatedAt||0;
+      return fb - fa;
+    });
+
+    const urgentRow = (d) => {
+      const op = OPERATEURS.find(o=>o.id===d.operateur) || {label:d.operateur||"—",class:"default"};
+      const f = state.factures[d.id];
+      const amt = f ? (f.totalTTC||f.montantTTC||0) : (d.totalFacture||0);
+      return `
+        <div class="urgent-row" data-synth="${d.id}">
+          <div class="ur-num">#${d.numDossier||"?"}</div>
+          <div class="ur-client"><b>${esc(d.nom||"—")}</b><small>${esc(d.numColis||"")}${d.numColis&&op.label?" · ":""}${op.label}</small></div>
+          <div class="ur-right">${amt?fmtEuro(amt):"—"}<br><small>${fmtRelativeDate(d.updatedAt||d.createdAt)}</small></div>
+        </div>
+      `;
+    };
+
+    // --- Facturation KPI ---
+    const facts = Object.values(state.factures||{});
+    const facturees = facts.length;
+    const payees = facts.filter(f=>f.status==="PAYE"||f.status==="PAID"||f.paye).length;
+    const caFacture = facts.reduce((s,f)=>s+(f.totalTTC||f.montantTTC||0),0);
+    const caPaye = facts.filter(f=>f.status==="PAYE"||f.status==="PAID"||f.paye).reduce((s,f)=>s+(f.totalTTC||f.montantTTC||0),0);
+    const caAttenteTotal = enAttenteRegl.reduce((s,d)=>{ const f=state.factures[d.id]; return s+(f?(f.totalTTC||f.montantTTC||0):(d.totalFacture||0)); },0);
+
+    const recent = [...active].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,8);
+    const now = Date.now(); const DAY=86400000;
+    const buckets = Array(14).fill(0);
+    active.forEach(d=>{ const t=d.createdAt||0; const days=Math.floor((now-t)/DAY); if(days>=0&&days<14) buckets[13-days]++; });
+
+    c.innerHTML = `
+      <div class="page">
+
+        <div class="section-title">À traiter <em>— dossiers nécessitant une action</em></div>
+        <div class="urgent-grid">
+          <div class="urgent-block blue">
+            <div class="ub-head"><h3>En cours de dédouanement</h3><span class="count">${enDedouanement.length}</span></div>
+            <div class="urgent-list">
+              ${enDedouanement.length ? enDedouanement.slice(0,10).map(urgentRow).join("") : `<div class="urgent-empty">Aucun dossier en cours</div>`}
+              ${enDedouanement.length>10?`<div class="urgent-empty" style="font-style:normal"><a href="#" onclick="app.goDossiersWithFilter('EN_LIVRAISON');return false">Voir les ${enDedouanement.length} dossiers →</a></div>`:""}
+            </div>
+          </div>
+          <div class="urgent-block orange">
+            <div class="ub-head"><h3>Visite douane / Attente doc</h3><span class="count">${enVisite.length}</span></div>
+            <div class="urgent-list">
+              ${enVisite.length ? enVisite.slice(0,10).map(urgentRow).join("") : `<div class="urgent-empty">Aucune visite douane en cours</div>`}
+              ${enVisite.length>10?`<div class="urgent-empty" style="font-style:normal"><a href="#" onclick="app.goDossiersWithFilter('ATTENTE_DOC');return false">Voir les ${enVisite.length} →</a></div>`:""}
+            </div>
+          </div>
+          <div class="urgent-block purple">
+            <div class="ub-head"><h3>Attente règlement</h3><span class="count">${enAttenteRegl.length}</span></div>
+            <div class="urgent-list">
+              ${enAttenteRegl.length ? enAttenteRegl.slice(0,10).map(urgentRow).join("") : `<div class="urgent-empty">Tout est réglé ✓</div>`}
+              ${enAttenteRegl.length>10?`<div class="urgent-empty" style="font-style:normal"><a href="#" onclick="app.goDossiersWithFilter('ATTENTE_REG');return false">Voir les ${enAttenteRegl.length} →</a></div>`:""}
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi accent"><div class="label">Dossiers actifs</div><div class="value">${active.length}</div><div class="sub">sur ${dossiers.length} au total</div></div>
+          <div class="kpi blue"><div class="label">En livraison</div><div class="value">${by("EN_LIVRAISON")}</div><div class="sub">chez le transporteur</div></div>
+          <div class="kpi green"><div class="label">Facturés · PERAC</div><div class="value">${facturees}</div><div class="sub">${fmtEuro(caFacture)} émis</div></div>
+          <div class="kpi green"><div class="label">Payés</div><div class="value">${payees}</div><div class="sub">${fmtEuro(caPaye)} encaissés</div></div>
+          <div class="kpi"><div class="label">CA en attente</div><div class="value">${fmtEuro(caAttenteTotal)}</div><div class="sub">factures non soldées</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><h3>Activité — 14 derniers jours</h3><span class="hint">${active.filter(d=>d.createdAt && now-d.createdAt < 14*DAY).length} créés</span></div>
+            <div class="panel-body">
+              <div class="mini-chart">${buckets.map(v=>`<div class="bar" style="height:${Math.max(3,(v/Math.max(...buckets,1))*72)}px" title="${v} dossiers"></div>`).join("")}</div>
+              <div style="padding:0 14px 14px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text-3)"><span>J-14</span><span>Aujourd'hui</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3>Répartition opérateurs</h3><span class="hint">dossiers actifs</span></div>
+            <div class="panel-body" style="padding:14px 18px">
+              ${OPERATEURS.map(op=>{const n=active.filter(d=>d.operateur===op.id).length;const pct=active.length?Math.round(n/active.length*100):0;
+                return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span class="op-badge ${op.class}">${op.label}</span><span style="font-family:var(--mono);color:var(--text-2)">${n} · ${pct}%</span></div><div style="height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);transition:width .4s"></div></div></div>`;}).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Dossiers récents <em>— ${recent.length}</em></div>
+        <div class="table-wrap">
+          <table class="dossiers-table">
+            <thead><tr><th>N°</th><th>Opérateur</th><th>Client</th><th>Marchandise</th><th>Statut</th><th>Facture</th><th>Montant</th></tr></thead>
+            <tbody>${recent.length?recent.map(d=>this.rowHtml(d)).join(""):`<tr><td colspan="7"><div class="empty-state"><h3>Aucun dossier</h3><p>Commence par créer un dossier ou lance l'import depuis Airtable.</p></div></td></tr>`}</tbody>
+          </table>
+        </div>
+
+        <div class="section-title">Écosystème <em>— apps connectées</em></div>
+        <div class="link-apps">
+          <a class="link-app" href="${CONFIG.links.perac}" target="_blank"><span class="dot"></span>TAF PERAC <span style="color:var(--text-3)">· Facturation</span></a>
+          <a class="link-app" href="${CONFIG.links.hub}" target="_blank"><span class="dot"></span>TAF HUB <span style="color:var(--text-3)">· Ops</span></a>
+          <a class="link-app" href="${CONFIG.links.index}" target="_blank"><span class="dot"></span>Index TAF</a>
+        </div>
+      </div>
+    `;
+    // Click on "À traiter" rows → synthèse
+    c.querySelectorAll("[data-synth]").forEach(el=>el.addEventListener("click",()=>this.openSynth(el.dataset.synth)));
+    // Click on client name (col-name) in the rows table → synthèse ; click elsewhere → édit
+    c.querySelectorAll("tr[data-id]").forEach(tr=>{
+      const nameCell = tr.querySelector(".col-name");
+      if (nameCell){
+        nameCell.classList.add("client-clickable");
+        nameCell.addEventListener("click",(e)=>{ e.stopPropagation(); this.openSynth(tr.dataset.id); });
+      }
+      tr.addEventListener("click",()=>this.openDrawer(tr.dataset.id));
+    });
+  },
+
+  goDossiersWithFilter(statut){
+    state.filters.statut = statut;
+    $$(".nav-btn").forEach(b=>b.classList.toggle("active", b.dataset.page==="dossiers"));
+    state.currentPage = "dossiers";
+    this.render();
+  },
+
+  /* -------- DOSSIERS -------- */
+  renderDossiersPage(c){
+    c.innerHTML = `
+      <div class="page">
+        <div class="toolbar">
+          <div class="filter"><label>Opérateur</label><select id="fOperateur"><option value="">Tous</option>${OPERATEURS.map(o=>`<option value="${o.id}">${o.label}</option>`).join("")}</select></div>
+          <div class="filter"><label>Statut</label><select id="fStatut"><option value="">Tous</option>${STATUTS.map(s=>`<option value="${s.id}">${s.label}</option>`).join("")}</select></div>
+          <div class="filter"><label>Archive</label><select id="fArchive"><option value="actif">Actifs</option><option value="archive">Archivés</option><option value="">Tous</option></select></div>
+          <div style="flex:1"></div>
+          <button class="btn ghost small" onclick="app.exportCsv()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export CSV</button>
+        </div>
+        <div id="dossiersTable"></div>
+      </div>
+    `;
+    $("#fOperateur").value = state.filters.operateur;
+    $("#fStatut").value    = state.filters.statut;
+    $("#fArchive").value   = state.filters.archive;
+    ["fOperateur","fStatut","fArchive"].forEach(id=>{
+      $("#"+id).addEventListener("change",(e)=>{ state.filters[id.replace("f","").toLowerCase()]=e.target.value; this.renderDossiers(); });
+    });
+    this.renderDossiers();
+  },
+
+  renderDossiers(){
+    const wrap = $("#dossiersTable"); if (!wrap) return;
+    let list = Object.values(state.dossiers||{});
+    const f = state.filters;
+    if (f.operateur) list = list.filter(d=>d.operateur===f.operateur);
+    if (f.statut)    list = list.filter(d=>d.status===f.statut);
+    if (f.archive==="actif")   list = list.filter(d=>d.archive!=="archive");
+    if (f.archive==="archive") list = list.filter(d=>d.archive==="archive");
+    if (f.search){
+      const q=f.search;
+      list = list.filter(d=>[d.nom,d.prenom,d.numColis,d.numDossier,d.ville,d.mail,(d.natureMarchandise||[]).join(" ")].filter(Boolean).join(" ").toLowerCase().includes(q));
+    }
+    list.sort((a,b)=>(b.numDossier||0)-(a.numDossier||0));
+
+    if (!list.length){
+      wrap.innerHTML = `<div class="table-wrap"><div class="empty-state"><h3>Aucun dossier</h3><p>Aucun résultat. Élargis les filtres ou crée un nouveau dossier.</p><button class="btn primary" onclick="app.openDrawer(null)">+ Nouveau dossier</button></div></div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="table-wrap"><table class="dossiers-table">
+        <thead><tr><th style="width:60px">N°</th><th style="width:90px">Opér.</th><th>Client</th><th>Marchandise</th><th style="width:85px">DD/TVA</th><th>Statut</th><th>Facture</th><th style="width:90px;text-align:right">Montant</th><th style="width:80px">WF</th></tr></thead>
+        <tbody>${list.map(d=>this.rowHtml(d,true)).join("")}</tbody>
+      </table></div>`;
+    wrap.querySelectorAll("tr[data-id]").forEach(tr=>{
+      const nameCell = tr.querySelector(".col-name");
+      if (nameCell){
+        nameCell.classList.add("client-clickable");
+        nameCell.addEventListener("click",(e)=>{ e.stopPropagation(); this.openSynth(tr.dataset.id); });
+      }
+      tr.addEventListener("click",()=>this.openDrawer(tr.dataset.id));
+    });
+  },
+
+  rowHtml(d, full=false){
+    const s = STATUTS.find(x=>x.id===d.status) || {label:d.status||"—",color:"gray"};
+    const op = OPERATEURS.find(o=>o.id===d.operateur) || {label:d.operateur||"—",class:"default"};
+    const total = d.totalFacture || ((d.dd||0)+(d.tva||0)+(d.montantIntervention||0));
+    const f = state.factures[d.id];
+    const factChip = f
+      ? (f.status==="PAYE"||f.paye ? `<span class="chip green">Payée</span>` : `<span class="chip accent">${esc(f.numFacture||"émise")}</span>`)
+      : `<span class="chip gray">—</span>`;
+    return `
+      <tr data-id="${d.id}">
+        <td class="num">#${d.numDossier||"—"}</td>
+        <td><span class="op-badge ${op.class}">${op.label}</span></td>
+        <td class="col-name">${esc(d.nom||"—")}${d.prenom?`<small>${esc(d.prenom)}${d.ville?" · "+esc(d.ville):""}</small>`:(d.ville?`<small>${esc(d.ville)}</small>`:"")}</td>
+        <td class="small">${esc((d.natureMarchandise||[]).join(", ")||"—")}${full&&d.numColis?`<br><span class="small" style="font-family:var(--mono)">${esc(d.numColis)}</span>`:""}</td>
+        ${full?`<td class="small" style="font-family:var(--mono)">${d.tauxDD||"—"}/${d.tauxTVA||"—"}</td>`:""}
+        <td><span class="chip ${s.color}">${s.label}</span></td>
+        <td>${factChip}</td>
+        <td style="text-align:right;font-family:var(--mono)">${total?fmtEuro(total):'<span class="small">—</span>'}</td>
+        ${full?`<td>${this.wflDotsHtml(d)}</td>`:""}
+      </tr>
+    `;
+  },
+  wflDotsHtml(d){
+    const f = state.factures[d.id];
+    const steps = [
+      d.okDevis,
+      (d.status==="ATTENTE_DOC" || !!d.okDouane),
+      !!d.okDouane,
+      !!f,                                // facture émise (par PERAC)
+      (f && (f.status==="PAYE"||f.paye)) || !!d.reglementRecu
+    ];
+    return `<div class="workflow-dots">${steps.map(s=>`<span class="${s?"done":""}"></span>`).join("")}</div>`;
+  },
+
+  /* -------- FACTURATION PAGE -------- */
+  renderFacturationPage(c){
+    const facts = Object.values(state.factures||{}).map(f=>{
+      const d = Object.values(state.dossiers).find(x=>x.id===f.dossierId || (x.numDossier && f.numDossier && x.numDossier===f.numDossier));
+      return { f, d };
+    });
+    const emises = facts.filter(x=>!(x.f.status==="PAYE"||x.f.paye)).sort((a,b)=>(b.f.emittedAt||0)-(a.f.emittedAt||0));
+    const payees = facts.filter(x=>(x.f.status==="PAYE"||x.f.paye)).sort((a,b)=>(b.f.paidAt||0)-(a.f.paidAt||0));
+    const queue = Object.values(state.dossiers||{}).filter(d=>d.facturationRequested && !state.factures[d.id]);
+
+    c.innerHTML = `
+      <div class="page">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="label">Factures émises</div><div class="value">${facts.length}</div><div class="sub">par TAF PERAC</div></div>
+          <div class="kpi orange"><div class="label">En attente paiement</div><div class="value">${emises.length}</div><div class="sub">${fmtEuro(emises.reduce((s,x)=>s+(x.f.totalTTC||x.f.montantTTC||0),0))}</div></div>
+          <div class="kpi green"><div class="label">Payées</div><div class="value">${payees.length}</div><div class="sub">${fmtEuro(payees.reduce((s,x)=>s+(x.f.totalTTC||x.f.montantTTC||0),0))}</div></div>
+          <div class="kpi accent"><div class="label">À facturer (queue)</div><div class="value">${queue.length}</div><div class="sub">demandes en file</div></div>
+        </div>
+
+        ${queue.length ? `
+          <div class="section-title">File d'attente <em>— ${queue.length} dossier(s) prêt(s) pour PERAC</em></div>
+          <div class="table-wrap">
+            <table class="dossiers-table">
+              <thead><tr><th>N°</th><th>Opérateur</th><th>Client</th><th>Demandé le</th><th>Montant prévu</th><th></th></tr></thead>
+              <tbody>${queue.map(d=>{
+                const op = OPERATEURS.find(o=>o.id===d.operateur)||{label:"—",class:"default"};
+                return `<tr data-id="${d.id}"><td class="num">#${d.numDossier||"—"}</td><td><span class="op-badge ${op.class}">${op.label}</span></td><td class="col-name">${esc(d.nom||"—")}${d.ville?`<small>${esc(d.ville)}</small>`:""}</td><td class="small">${d.facturationRequestedAt?fmtDate(d.facturationRequestedAt):"—"}</td><td style="text-align:right;font-family:var(--mono)">${fmtEuro(d.totalFacture||0)}</td><td><a class="btn ghost small" href="${CONFIG.links.perac}#dossier=${d.id}" target="_blank">Ouvrir PERAC ↗</a></td></tr>`;
+              }).join("")}</tbody>
+            </table>
+          </div>
+        `:""}
+
+        <div class="section-title">Factures en attente de paiement <em>— ${emises.length}</em></div>
+        ${emises.length ? `<div class="table-wrap"><table class="dossiers-table"><thead><tr><th>N° Facture</th><th>Dossier</th><th>Client</th><th>Émise le</th><th>Total TTC</th><th></th></tr></thead><tbody>${emises.map(x=>this.factRowHtml(x.f,x.d)).join("")}</tbody></table></div>` : `<div class="fact-empty">Aucune facture en attente.</div>`}
+
+        <div class="section-title">Factures payées <em>— ${payees.length}</em></div>
+        ${payees.length ? `<div class="table-wrap"><table class="dossiers-table"><thead><tr><th>N° Facture</th><th>Dossier</th><th>Client</th><th>Payée le</th><th>Total TTC</th><th></th></tr></thead><tbody>${payees.map(x=>this.factRowHtml(x.f,x.d)).join("")}</tbody></table></div>` : `<div class="fact-empty">Aucune facture payée.</div>`}
+      </div>
+    `;
+    c.querySelectorAll("tr[data-id]").forEach(tr=>tr.addEventListener("click",(e)=>{
+      if (e.target.closest("a")) return;
+      this.openDrawer(tr.dataset.id);
+    }));
+  },
+
+  factRowHtml(f, d){
+    const op = d ? OPERATEURS.find(o=>o.id===d.operateur) : null;
+    const dateKey = (f.status==="PAYE"||f.paye) ? (f.paidAt||f.emittedAt) : f.emittedAt;
+    return `<tr data-id="${f.dossierId||(d&&d.id)||""}"><td class="num">${esc(f.numFacture||"—")}</td><td class="num">#${esc(f.numDossier||(d&&d.numDossier)||"—")}</td><td class="col-name">${d?esc(d.nom||"—"):'<span class="small">dossier lié introuvable</span>'}${op?`<small>${op.label}</small>`:""}</td><td class="small">${dateKey?fmtDate(dateKey):"—"}</td><td style="text-align:right;font-family:var(--mono);color:var(--accent-2)">${fmtEuro(f.totalTTC||f.montantTTC||0)}</td><td>${f.pdfUrl?`<a class="btn ghost small" href="${f.pdfUrl}" target="_blank">PDF ↗</a>`:""}</td></tr>`;
+  },
+
+  /* -------- PRESTATAIRES / CONFIG / IMPORT (identiques v1.0, condensés) -------- */
+  renderPrestataires(c){
+    c.innerHTML = `
+      <div class="page">
+        <div class="kpi-grid">
+          ${OPERATEURS.map(op=>{const n=Object.values(state.dossiers).filter(d=>d.operateur===op.id).length;
+            return `<div class="kpi"><div class="label"><span class="op-badge ${op.class}">${op.label}</span></div><div class="value">${n}</div><div class="sub">${op.email?op.email.split(",").length+" emails ops":"—"}</div></div>`;}).join("")}
+        </div>
+        <div class="settings-card"><h3>Contacts opérationnels</h3><p>Emails utilisés pour les notifications et envois proforma/facture.</p>
+          ${OPERATEURS.map(op=>`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="margin-bottom:4px"><span class="op-badge ${op.class}">${op.label}</span></div><div style="font-family:var(--mono);font-size:11.5px;color:var(--text-2);word-break:break-all">${op.email||"<span style='color:var(--text-3);font-style:italic'>—</span>"}</div></div>`).join("")}
+        </div>
+      </div>`;
+  },
+
+  renderConfig(c){
+    const bcc = state.notifSettings?.bccEmail || CONFIG.notifications.defaultBcc;
+    c.innerHTML = `
+      <div class="page">
+        <div class="settings-card">
+          <h3>✉ Notifications email</h3>
+          <p>Adresse BCC utilisée pour tous les emails "Règlement reçu" envoyés aux clients. Le mail du client est pris directement sur chaque dossier — ce BCC est fixe et te permet de garder une trace dans ta boîte.</p>
+          <div class="field" style="margin-bottom:10px">
+            <label>Email BCC (copie cachée)</label>
+            <input id="settingBcc" value="${esc(bcc)}" placeholder="import@taftrans.fr">
+          </div>
+          <button class="btn primary small" onclick="app.saveNotifSettings()">Enregistrer</button>
+        </div>
+
+        <div class="settings-card">
+          <h3>🛃 Mailhook BAE — réception des déclarations douane</h3>
+          <p>Une adresse email dédiée reçoit automatiquement les déclarations BAE (bon à enlever) en PDF. Le mailhook Make.com extrait le PDF, l'upload sur Drive et le pousse dans la boîte BAE de l'app, qui tente de rapprocher automatiquement avec le dossier correspondant.</p>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text-2);background:var(--bg-3);padding:10px;border-radius:6px;margin-bottom:10px">
+            <span style="color:var(--text-3)">Adresse d'envoi :</span> <span style="color:var(--accent-2)">${esc(CONFIG.bae.inboxEmail)}</span><br>
+            <span style="color:var(--text-3)">Boîte interne :</span> /taf_shared/bae_inbox/<br>
+            <span style="color:var(--text-3)">Déclarations en attente :</span> ${Object.values(state.baeInbox||{}).filter(b=>b.status!=="MATCHED"&&b.status!=="DISMISSED").length} · <span style="color:var(--green)">✓ Traitées :</span> ${Object.values(state.baeInbox||{}).filter(b=>b.status==="MATCHED").length}
+          </div>
+          <details style="background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:12px">
+            <summary style="cursor:pointer;font-family:var(--mono);font-size:11.5px;color:var(--accent-2)">Comment configurer le scénario Make.com ?</summary>
+            <div style="margin-top:12px;font-size:12.5px;color:var(--text-2);line-height:1.7">
+              <p style="margin-bottom:8px"><strong>1. Email Parser Make</strong> : créer une nouvelle adresse email Make (bouton "Add email address") → tu obtiens un email type <code>abc123@mailhook.integromat.com</code>.</p>
+              <p style="margin-bottom:8px"><strong>2. Forward</strong> : configurer une redirection automatique de <code>${esc(CONFIG.bae.inboxEmail)}</code> vers cette adresse Make (depuis Gmail Admin ou ton fournisseur email).</p>
+              <p style="margin-bottom:8px"><strong>3. Scénario Make</strong> :
+                <br>&nbsp;&nbsp;→ Trigger : Email Parser "New email received"
+                <br>&nbsp;&nbsp;→ Iterator sur les attachments
+                <br>&nbsp;&nbsp;→ Filter : seulement les PDF (<code>mime = application/pdf</code>)
+                <br>&nbsp;&nbsp;→ Google Drive "Upload a file" dans le dossier <code>${esc(CONFIG.drive.folder)}</code>
+                <br>&nbsp;&nbsp;→ HTTP POST vers <code>${CONFIG.firebase.url}/${CONFIG.firebase.sharedNode}/bae_inbox/{{uuid}}.json</code> avec le body JSON détaillé dans le fichier <code>taf-express-bae-mailhook.md</code></p>
+              <p>Un fichier de spec complet est fourni à côté de l'app.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="settings-card">
+          <h3>Firebase partagé</h3>
+          <p>Namespace <code>/taf_shared/</code> — lu et écrit par TAF EXPRESS <em>et</em> TAF PERAC. Synchronisation temps réel par Server-Sent Events.</p>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text-2);background:var(--bg-3);padding:10px;border-radius:6px;word-break:break-all">${CONFIG.firebase.url}<br><span style="color:var(--text-3)">node:</span> /${CONFIG.firebase.sharedNode}/<br><span style="color:var(--text-3)">status:</span> <span id="liveStatusTxt">${state.live.connected?"✓ connecté":"✗ déconnecté"}</span></div>
+          <div style="margin-top:10px;display:flex;gap:8px"><button class="btn ghost small" onclick="app.reconnectLive()">Reconnecter</button><button class="btn ghost small" onclick="app.exportJson()">Télécharger backup</button></div>
+        </div>
+
+        <div class="settings-card">
+          <h3>Bridge TAF PERAC</h3>
+          <p>Pour que PERAC écrive les factures au même endroit, il doit lire/écrire sur <code>/taf_shared/factures/{dossierId}</code>. Un snippet JS prêt-à-coller est fourni ci-dessous.</p>
+          <details style="background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:6px"><summary style="cursor:pointer;font-family:var(--mono);font-size:11.5px;color:var(--accent-2)">Voir le code à intégrer côté PERAC</summary>
+            <pre style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--text-2);white-space:pre-wrap;line-height:1.6">${esc(BRIDGE_SNIPPET)}</pre></details>
+        </div>
+
+        <div class="settings-card"><h3>Natures de marchandise</h3>
+          <div class="tag-list" id="naturesList">${state.natures.map(n=>`<span class="tag">${esc(n)}<button onclick="app.removeNature('${esc(n)}')">×</button></span>`).join("")}</div>
+          <div style="display:flex;gap:8px"><input id="newNature" placeholder="Nouvelle nature…" style="flex:1;background:var(--bg-3);border:1px solid var(--border);padding:8px 11px;border-radius:6px;font-size:13px;color:var(--text);outline:none"><button class="btn primary small" onclick="app.addNature()">Ajouter</button></div>
+        </div>
+
+        <div class="settings-card"><h3>Google Drive</h3><div style="font-family:var(--mono);font-size:11px;color:var(--text-2);background:var(--bg-3);padding:10px;border-radius:6px;word-break:break-all"><span style="color:var(--text-3)">proxy :</span> ${CONFIG.drive.uploadUrl}<br><span style="color:var(--text-3)">dossier :</span> ${CONFIG.drive.folder}</div></div>
+
+        <div class="settings-card"><h3 style="color:var(--red)">Zone danger</h3><p>Purger tous les dossiers Firebase (les factures restent).</p><button class="btn danger" onclick="app.purgeAll()">⚠ Purger les dossiers</button></div>
+      </div>`;
+  },
+
+  async saveNotifSettings(){
+    const bcc = $("#settingBcc").value.trim();
+    if (bcc && !bcc.includes("@")){ toast("Email BCC invalide","error"); return; }
+    state.notifSettings.bccEmail = bcc || CONFIG.notifications.defaultBcc;
+    await fb.update("/config/notifications", { bccEmail: state.notifSettings.bccEmail });
+    toast("Paramètres enregistrés ✓","success");
+  },
+
+  reconnectLive(){ if (state.live.dossiers) state.live.dossiers.close(); if (state.live.factures) state.live.factures.close(); this.subscribeLive(); toast("Reconnexion live…","info"); },
+  async addNature(){ const v=$("#newNature").value.trim(); if(!v) return; if(!state.natures.includes(v)) state.natures.push(v); await fb.set("/config/natures",state.natures); toast("Nature ajoutée","success"); this.renderConfig($("#content")); },
+  async removeNature(n){ state.natures=state.natures.filter(x=>x!==n); await fb.set("/config/natures",state.natures); toast("Nature retirée","info"); this.renderConfig($("#content")); },
+  async purgeAll(){ if (!confirm("Supprimer TOUS les dossiers Firebase ?")) return; if (!confirm("Confirmer — "+Object.keys(state.dossiers).length+" dossiers.")) return; await fb.del("/dossiers"); state.dossiers={}; this.updateNavCount(); toast("Base purgée","success"); this.render(); },
+
+  renderImport(c){
+    c.innerHTML = `
+      <div class="page">
+        <div class="settings-card"><h3>Import depuis Airtable</h3><p>Importe l'intégralité des dossiers de <code>Import : Chronopost - DHL</code> dans le nœud partagé Firebase. Statuts et natures normalisés automatiquement.</p>
+          <div class="field" style="margin-bottom:14px"><label>Airtable PAT</label><input id="airtablePAT" type="password" placeholder="pat..." autocomplete="off"><div class="hint">Non stocké.</div></div>
+          <button class="btn primary" onclick="app.runImport()" id="btnImport">Lancer l'import</button>
+          <button class="btn ghost" onclick="app.dryRun()" style="margin-left:8px">Simulation</button>
+          <div id="importLog" style="margin-top:18px;font-family:var(--mono);font-size:11.5px;color:var(--text-2);background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:12px;min-height:60px;max-height:400px;overflow:auto;white-space:pre-wrap;display:none"></div>
+        </div>
+        <div class="settings-card"><h3>Export</h3><p>Backup JSON complet du nœud <code>/taf_shared</code>.</p><button class="btn ghost" onclick="app.exportJson()">💾 Télécharger firebase-backup.json</button></div>
+      </div>`;
+  },
+
+  logImport(msg, cls=""){ const el=$("#importLog"); if(!el) return; el.style.display="block"; const color=cls==="ok"?"var(--green)":cls==="err"?"var(--red)":cls==="warn"?"var(--orange)":"var(--text-2)"; el.insertAdjacentHTML("beforeend",`<div style="color:${color}">${esc(msg)}</div>`); el.scrollTop=el.scrollHeight; },
+  async dryRun(){ const pat=$("#airtablePAT").value.trim(); if(!pat){toast("PAT requis","error");return;} $("#importLog").innerHTML=""; this.logImport("→ Lecture Airtable…"); try{const all=await this.fetchAllAirtableRecords(pat); this.logImport(`✓ ${all.length} dossiers`,"ok"); all.slice(0,3).forEach(r=>this.logImport(JSON.stringify(this.mapAirtable(r),null,2))); this.logImport("✓ Simulation OK","ok");}catch(e){this.logImport("✗ "+e.message,"err");} },
+  async runImport(){ const pat=$("#airtablePAT").value.trim(); if(!pat){toast("PAT requis","error");return;} if(!confirm("Lancer l'import Airtable → Firebase ?")) return; $("#importLog").innerHTML=""; $("#btnImport").innerHTML=`<span class="loader"></span> Import…`;
+    try{ const all=await this.fetchAllAirtableRecords(pat); this.logImport(`✓ ${all.length} dossiers lus`,"ok"); const batch={}; all.forEach(r=>{const d=this.mapAirtable(r); batch[d.id]=d;}); await fb.set("/dossiers",batch); this.logImport(`✓ ${Object.keys(batch).length} écrits`,"ok"); const nat=new Set(state.natures); all.forEach(r=>{(r.fields?.["Nature de Marchandise"]||[]).forEach(n=>nat.add(String(n).trim()));}); state.natures=[...nat].sort(); await fb.set("/config/natures",state.natures); this.logImport(`✓ ${state.natures.length} natures`,"ok"); toast("Import réussi ✓","success"); await this.loadAll(); }
+    catch(e){ this.logImport("✗ "+e.message,"err"); toast("Import échoué","error"); }
+    finally{ $("#btnImport").innerHTML="Lancer l'import"; }
+  },
+  async fetchAllAirtableRecords(pat){
+    const url=`https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${CONFIG.airtable.tableDossiers}`; const records=[]; let offset="";
+    do{ const u=url+"?pageSize=100"+(offset?`&offset=${encodeURIComponent(offset)}`:""); const r=await fetch(u,{headers:{Authorization:`Bearer ${pat}`}}); if(!r.ok) throw new Error("Airtable "+r.status); const j=await r.json(); records.push(...(j.records||[]).map(rec=>({id:rec.id,createdTime:rec.createdTime,fields:rec.fields}))); offset=j.offset||"";}while(offset);
+    return records;
+  },
+  mapAirtable(rec){
+    const f=rec.fields||{};
+    const rawStatus=f["Status"]||""; const statusId=STATUS_MAP[rawStatus]||STATUS_MAP[rawStatus?.trim?.()]||"DEVIS";
+    let opId="CHRONOPOST"; const opName=(f["Opérateur"]||f["Operateur"]||[])[0];
+    if(opName){const n=String(opName).toUpperCase(); if(n.includes("DHL"))opId="DHL";else if(n.includes("CHRONO"))opId="CHRONOPOST";else if(n.includes("FEDEX"))opId="FEDEX";else if(n.includes("AERIEN"))opId="AERIEN";}
+    const natures=Array.isArray(f["Nature de Marchandise"])?f["Nature de Marchandise"].map(s=>s.trim?.()||s):[];
+    const tauxDD=Array.isArray(f["Intervention"])?parseInt(f["Intervention"][0])||null:null;
+    const tauxTVA=Array.isArray(f[" TAUX TVA"])?parseInt(f[" TAUX TVA"][0])||null:(Array.isArray(f["TAUX TVA"])?parseInt(f["TAUX TVA"][0])||null:null);
+    const archiveVal=typeof f["Archivé"]==="string"?f["Archivé"]:"actif";
+    const archive=(archiveVal||"").toLowerCase().includes("archiv")?"archive":"actif";
+    const num=f["Numéro de dossier"]||null;
+    const id=num?`D${String(num).padStart(5,"0")}`:rec.id;
+    const createdAt=rec.createdTime?new Date(rec.createdTime).getTime():Date.now();
+    return {
+      id, numDossier:num, operateur:opId, module:CONFIG.moduleId,
+      nom:(f["Nom"]||"").toString().trim(), prenom:(f["Prénom"]||"").toString().trim(),
+      adresse:(f["Adresse"]||"").toString().trim(), ville:(f["Ville"]||"").toString().trim(),
+      telephone:f["Phone"]||"", mail:(f["Mail"]||"").toString().replace(/^.*<([^>]+)>.*$/,"$1").trim(),
+      numColis:(f["N° de colis"]||"").toString().trim(), origine:(f["Origine"]||"").toString().trim(),
+      natureMarchandise:natures, valeur:num2(f["Valeur"]),
+      montantIntervention:tauxDD||null, tauxDD:Array.isArray(f["Taux De DD"])?parseInt(f["Taux De DD"][0])||null:null, tauxTVA,
+      dd:num2(f["DD"]), tva:num2(f["TVA"]), ima:num2(f["IMA"]),
+      totalFacture:(num2(f["DD"])||0)+(num2(f["TVA"])||0)+(tauxDD||0),
+      status:statusId, archive, numDeclaration:(f["Numéro de Déclaration"]||"").toString().trim(),
+      numCheque:(f["Numéro de Chèque"]||"").toString().trim(), dossierMalta:num2(f["Dossier Malta"]),
+      notes:(f["notes"]||"").toString(),
+      okDouane:!!f["OK douane"], okDevis:!!f["Confirmation de DEVIS"],
+      proformaEnvoyee:!!f["Envoi Proforma "]||!!f["Envoi Proforma"], factureDefEnvoyee:!!f["envoi facture Déf"],
+      chequeDemande:!!f["Chéque démandé"]||!!f["Cheque demande"], facturePayee:!!f["Facture payée"],
+      reglementRecu:!!f["Règlement  reçu"]||!!f["Règlement reçu"], mailOperateur:!!f["Mail Opérateur "]||!!f["Mail Operateur"],
+      airtableId:rec.id, createdAt, updatedAt:createdAt
+    };
+  },
+
+  exportCsv(){
+    const rows=Object.values(state.dossiers); if(!rows.length){toast("Rien à exporter","info");return;}
+    const cols=["numDossier","operateur","nom","prenom","ville","mail","numColis","natureMarchandise","tauxDD","tauxTVA","dd","tva","ima","totalFacture","status","archive","numDeclaration","createdAt"];
+    const body=rows.map(r=>cols.map(c=>{let v=r[c]; if(Array.isArray(v))v=v.join("|"); if(v==null)v=""; return String(v).replace(/"/g,'""').replace(/\n/g," ");}).map(v=>`"${v}"`).join(";")).join("\n");
+    const blob=new Blob(["\uFEFF"+cols.join(";")+"\n"+body],{type:"text/csv;charset=utf-8;"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`taf-express-${new Date().toISOString().slice(0,10)}.csv`; a.click(); toast("Export CSV","success");
+  },
+  async exportJson(){ const data=await fb.get(""); const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`taf-shared-${new Date().toISOString().slice(0,10)}.json`; a.click(); toast("Backup JSON","success"); },
+
+  /* -------- DRAWER -------- */
+  openDrawer(id){
+    state.currentDossierId = id; const isNew=!id;
+    const d = isNew ? this.blankDossier() : state.dossiers[id];
+    if (!d){ toast("Dossier introuvable","error"); return; }
+    this.currentTab = "infos";
+    $("#drawerNum").textContent = `#${d.numDossier||"—"}`;
+    $("#drawerName").textContent = isNew?"Nouveau dossier":(d.nom||"Dossier");
+    $("#drawer").classList.add("open"); $("#drawerBackdrop").classList.add("open");
+    this.renderDrawerBody(d, isNew);
+  },
+  closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawerBackdrop").classList.remove("open"); state.currentDossierId=null; },
+  blankDossier(){
+    const next=(Object.values(state.dossiers).reduce((m,d)=>Math.max(m,d.numDossier||0),0))+1;
+    return { id:`D${String(next).padStart(5,"0")}`, numDossier:next, operateur:"CHRONOPOST", status:"DEVIS", archive:"actif", natureMarchandise:[], nom:"",prenom:"",ville:"",mail:"",telephone:"",numColis:"",adresse:"",origine:"",valeur:0,tauxDD:110,tauxTVA:20,dd:0,tva:0,ima:0,montantIntervention:110,totalFacture:0,notes:"",okDouane:false,okDevis:false,proformaEnvoyee:false,factureDefEnvoyee:false,chequeDemande:false,facturePayee:false,reglementRecu:false,mailOperateur:false,numDeclaration:"",numCheque:"",dossierMalta:null, module:CONFIG.moduleId, createdAt:Date.now(),updatedAt:Date.now() };
+  },
+  renderDrawerBody(d, isNew){
+    const hasFact = !!state.factures[d.id];
+    const body = $("#drawerBody");
+    body.innerHTML = `
+      <div class="tab-strip">
+        <button data-tab="infos" class="${this.currentTab==="infos"?"active":""}">Infos</button>
+        <button data-tab="workflow" class="${this.currentTab==="workflow"?"active":""}">Workflow</button>
+        <button data-tab="facturation" class="${this.currentTab==="facturation"?"active":""}">Facturation${hasFact?`<span class="dot"></span>`:""}</button>
+        <button data-tab="docs" class="${this.currentTab==="docs"?"active":""}">Documents</button>
+        <button data-tab="notes" class="${this.currentTab==="notes"?"active":""}">Notes</button>
+      </div>
+      <div id="tabContent"></div>
+    `;
+    body.querySelectorAll(".tab-strip button").forEach(b=>b.addEventListener("click",()=>{
+      this.currentTab=b.dataset.tab; body.querySelectorAll(".tab-strip button").forEach(x=>x.classList.toggle("active",x===b)); this.renderTab(d);
+    }));
+    this.renderTab(d);
+    $("#drawerActions").innerHTML = `
+      ${!isNew?`<button class="btn danger small" onclick="app.deleteDossier('${d.id}')">Supprimer</button>`:""}
+      <div style="flex:1"></div>
+      <button class="btn ghost" onclick="app.closeDrawer()">Annuler</button>
+      <button class="btn primary" onclick="app.saveDossier()">${isNew?"Créer":"Enregistrer"}</button>
+    `;
+  },
+  renderTab(d){
+    const tc=$("#tabContent");
+    switch(this.currentTab){
+      case "infos":       tc.innerHTML=this.tabInfos(d); break;
+      case "workflow":    tc.innerHTML=this.tabWorkflow(d); break;
+      case "facturation": tc.innerHTML=this.tabFacturation(d); break;
+      case "docs":        tc.innerHTML=this.tabDocs(d); break;
+      case "notes":       tc.innerHTML=this.tabNotes(d); break;
+    }
+    tc.querySelectorAll("input[data-money]").forEach(i=>i.addEventListener("input",()=>this.recomputeTotal()));
+    const nat=tc.querySelector("#natSelect");
+    if (nat) nat.addEventListener("click",(e)=>{const chip=e.target.closest("[data-nat]"); if(!chip)return; chip.classList.toggle("selected"); chip.style.background=chip.classList.contains("selected")?"var(--accent)":""; chip.style.color=chip.classList.contains("selected")?"#0b0d10":""; chip.style.borderColor=chip.classList.contains("selected")?"var(--accent)":""; });
+  },
+  tabInfos(d){
+    const opOpts=OPERATEURS.map(o=>`<option value="${o.id}" ${d.operateur===o.id?"selected":""}>${o.label}</option>`).join("");
+    const stOpts=STATUTS.map(s=>`<option value="${s.id}" ${d.status===s.id?"selected":""}>${s.label}</option>`).join("");
+    const natChips=state.natures.map(n=>{const sel=(d.natureMarchandise||[]).includes(n)?"selected":""; return `<span class="tag ${sel}" data-nat="${esc(n)}" style="cursor:pointer;${sel?"background:var(--accent);color:#0b0d10;border-color:var(--accent)":""}">${esc(n)}</span>`;}).join("");
+    return `
+      <div class="form-grid">
+        <div class="field"><label>N° de dossier</label><input value="${esc(d.numDossier||"")}" data-k="numDossier" type="number" ${d.numDossier?"readonly":""}></div>
+        <div class="field"><label>Opérateur</label><select data-k="operateur">${opOpts}</select></div>
+        <div class="field"><label>Nom / Société</label><input value="${esc(d.nom||"")}" data-k="nom"></div>
+        <div class="field"><label>Prénom / Contact</label><input value="${esc(d.prenom||"")}" data-k="prenom"></div>
+        <div class="field"><label>Email</label><input value="${esc(d.mail||"")}" data-k="mail" type="email"></div>
+        <div class="field"><label>Téléphone</label><input value="${esc(d.telephone||"")}" data-k="telephone"></div>
+        <div class="field"><label>Adresse</label><input value="${esc(d.adresse||"")}" data-k="adresse"></div>
+        <div class="field"><label>Ville / CP</label><input value="${esc(d.ville||"")}" data-k="ville"></div>
+        <div class="field"><label>N° de colis / AWB</label><input value="${esc(d.numColis||"")}" data-k="numColis"></div>
+        <div class="field"><label>Origine</label><input value="${esc(d.origine||"")}" data-k="origine"></div>
+        <div class="field"><label>Statut</label><select data-k="status">${stOpts}</select></div>
+        <div class="field"><label>Archive</label><select data-k="archive"><option value="actif" ${d.archive==="actif"?"selected":""}>Actif</option><option value="archive" ${d.archive==="archive"?"selected":""}>Archivé</option></select></div>
+      </div>
+      <div class="field full" style="margin-bottom:10px"><label>Nature de la marchandise <span style="color:var(--text-3);text-transform:none;letter-spacing:0;font-family:var(--sans)">— clic pour (dé)sélectionner</span></label><div class="tag-list" id="natSelect">${natChips}</div></div>
+    `;
+  },
+  tabWorkflow(d){
+    const steps=[{k:"okDevis",l:"Devis confirmé"},{k:"proformaEnvoyee",l:"Proforma envoyée"},{k:"okDouane",l:"OK douane"},{k:"factureDefEnvoyee",l:"Facture déf. envoyée"},{k:"chequeDemande",l:"Chèque demandé"},{k:"reglementRecu",l:"Règlement reçu"},{k:"facturePayee",l:"Facture payée"},{k:"mailOperateur",l:"Mail opérateur"}];
+    return `<p style="color:var(--text-2);font-size:13px;margin-bottom:16px">Clique une étape pour basculer son état.</p>
+      <div class="workflow">${steps.map(s=>`<div class="wfl-step ${d[s.k]?"active":""}" onclick="app.toggleFlag('${s.k}')"><div class="dot"></div><div class="label">${s.l}</div></div>`).join("")}</div>
+      <div class="form-grid"><div class="field"><label>N° déclaration douane</label><input value="${esc(d.numDeclaration||"")}" data-k="numDeclaration"></div><div class="field"><label>N° de chèque</label><input value="${esc(d.numCheque||"")}" data-k="numCheque"></div><div class="field"><label>Dossier Malta</label><input type="number" value="${d.dossierMalta||""}" data-k="dossierMalta"></div></div>`;
+  },
+  tabFacturation(d){
+    const f = state.factures[d.id];
+    const ddOpt = TAUX_DD.map(t=>`<option value="${t}" ${d.tauxDD==t?"selected":""}>${t}</option>`).join("");
+    const tvaOpt = TAUX_TVA.map(t=>`<option value="${t}" ${d.tauxTVA==t?"selected":""}>${t}%</option>`).join("");
+
+    let factBlock = "";
+    if (f){
+      // Facture existante côté PERAC
+      const paye = f.status==="PAYE"||f.paye;
+      factBlock = `
+        <div class="fact-card">
+          <div class="fact-head">
+            <div class="fact-title">Facture ${esc(f.numFacture||"—")}</div>
+            <div>${paye?`<span class="chip green">Payée</span>`:`<span class="chip accent">En attente paiement</span>`}</div>
+          </div>
+          <div class="fact-amounts">
+            <div class="fact-amount"><div class="lbl">Total HT</div><div class="val">${fmtEuro(f.totalHT||f.montantHT||0)}</div></div>
+            <div class="fact-amount"><div class="lbl">TVA</div><div class="val">${fmtEuro(f.totalTVA||((f.totalTTC||f.montantTTC||0)-(f.totalHT||f.montantHT||0)))}</div></div>
+            <div class="fact-amount total"><div class="lbl">Total TTC</div><div class="val">${fmtEuro(f.totalTTC||f.montantTTC||0)}</div></div>
+          </div>
+          <div class="fact-meta">
+            ${f.emittedAt?`<span>Émise le ${fmtDate(f.emittedAt)}</span>`:""}
+            ${f.paidAt?`<span>Payée le ${fmtDate(f.paidAt)}</span>`:""}
+            ${f.dueDate?`<span>Échéance ${fmtDate(f.dueDate)}</span>`:""}
+            ${f.mode?`<span>Mode: ${esc(f.mode)}</span>`:""}
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            ${f.pdfUrl?`<a class="btn ghost small" href="${f.pdfUrl}" target="_blank">📄 Ouvrir PDF</a>`:""}
+            <a class="btn ghost small" href="${CONFIG.links.perac}#dossier=${d.id}" target="_blank">Ouvrir dans PERAC ↗</a>
+            ${!paye?`<button class="btn success small" onclick="app.markFacturePayee('${d.id}')">Marquer comme payée</button>`:`<button class="btn ghost small" onclick="app.unmarkFacturePayee('${d.id}')">Dépayer</button>`}
+          </div>
+        </div>
+      `;
+    } else if (d.facturationRequested){
+      factBlock = `
+        <div class="fact-card" style="border-color:rgba(229,149,86,.35);background:rgba(229,149,86,.05)">
+          <div class="fact-head">
+            <div class="fact-title" style="color:var(--orange)">Demande envoyée à PERAC</div>
+            <div><span class="chip orange">En attente</span></div>
+          </div>
+          <div class="fact-meta">
+            <span>Envoyée le ${d.facturationRequestedAt?fmtDate(d.facturationRequestedAt):"—"}</span>
+            <span>Montant prévu : ${fmtEuro(d.totalFacture||0)}</span>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn primary small" href="${CONFIG.links.perac}#dossier=${d.id}" target="_blank">Ouvrir PERAC ↗</a>
+            <button class="btn ghost small" onclick="app.cancelFacturationRequest('${d.id}')">Annuler la demande</button>
+          </div>
+        </div>
+      `;
+    } else {
+      factBlock = `
+        <div class="fact-empty">
+          Aucune facture n'a encore été générée pour ce dossier.<br>
+          <span style="font-size:11.5px">Clique sur <strong>« Envoyer à TAF PERAC »</strong> ci-dessous pour demander la facturation. PERAC générera la facture et l'écrira automatiquement ici.</span>
+        </div>
+      `;
+    }
+
+    // Proformas existantes pour ce dossier
+    const dossierProformas = Object.values(state.proformas||{}).filter(p=>p.dossierId===d.id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const pfBlock = dossierProformas.length ? `
+      <div class="pf-list">
+        ${dossierProformas.map(p=>`
+          <div class="pf-item">
+            <div class="pf-num">${esc(p.numProforma||"P—")}</div>
+            <div class="pf-desc">${esc((p.lignes&&p.lignes[0]?.description)||"Prestation douane")}${p.sentAt?`<small>Envoyée le ${fmtDate(p.sentAt)} à ${esc(p.sentTo||"—")}</small>`:`<small>Brouillon — non envoyée</small>`}</div>
+            <div class="pf-amt">${fmtEuro(p.totalTTC||0)}</div>
+            <div class="pf-actions">
+              ${p.pdfUrl?`<a href="${p.pdfUrl}" target="_blank" title="PDF">📄</a>`:""}
+              <button onclick="app.openProformaModal('${d.id}','${p.id}')" title="Éditer">✎</button>
+              <button onclick="app.deleteProforma('${p.id}')" title="Supprimer">×</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    ` : "";
+
+    // Formulaire client
+    const clientForm = Object.values(state.clientForms||{}).find(cf=>cf.dossierId===d.id);
+    let cfBlock = "";
+    if (clientForm){
+      const submitted = clientForm.status === "SUBMITTED";
+      const clientUrl = `${CONFIG.links.clientForm}?token=${clientForm.token}`;
+      cfBlock = `
+        <div class="cf-card ${submitted?"done":""}">
+          <div class="cf-head">
+            <div class="cf-title">${submitted?"✓ Formulaire rempli par le client":"⏳ Formulaire envoyé — en attente"}</div>
+            <div>${submitted?`<span class="chip green">Soumis le ${fmtDate(clientForm.submittedAt)}</span>`:`<span class="chip blue">Envoyé le ${fmtDate(clientForm.sentAt||clientForm.createdAt)}</span>`}</div>
+          </div>
+          <div class="cf-url">
+            <span style="flex:1">${esc(clientUrl)}</span>
+            <button onclick="app.copyToClipboard('${clientUrl}')">Copier</button>
+            <a href="${clientUrl}" target="_blank" style="color:var(--accent);font-size:11px">↗ Ouvrir</a>
+          </div>
+          ${submitted && clientForm.data ? `
+            <div class="cf-received">
+              <h4>Informations reçues du client</h4>
+              ${Object.entries(clientForm.data).filter(([k,v])=>v && k!=="docs" && typeof v!=="object").map(([k,v])=>`<div class="cf-received-row"><span class="k">${esc(this.labelForKey(k))}</span><span class="v">${esc(String(v))}</span></div>`).join("")}
+              ${clientForm.data.docs ? `<div class="cf-received-row"><span class="k">Documents reçus</span><span class="v">${Object.keys(clientForm.data.docs).length} fichier(s)</span></div>` : ""}
+            </div>
+            ${clientForm.data.docs ? `
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                ${Object.entries(clientForm.data.docs).map(([k,doc])=>`<a href="${doc.url}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-2)"><span style="color:var(--accent)">📎</span> ${esc(doc.name||k)}</a>`).join("")}
+              </div>
+            `:""}
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn primary small" onclick="app.importClientData('${d.id}','${clientForm.token}')">↓ Importer dans le dossier</button>
+              <button class="btn ghost small" onclick="app.openClientFormModal('${d.id}')">Renvoyer</button>
+            </div>
+          ` : `
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn ghost small" onclick="app.openClientFormModal('${d.id}')">Renvoyer</button>
+              <button class="btn danger small" onclick="app.cancelClientForm('${clientForm.token}')">Révoquer le lien</button>
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    return `
+      ${factBlock}
+
+      ${cfBlock}
+
+      <div class="section-title" style="font-size:16px;margin:22px 0 10px">Proformas <em>— ${dossierProformas.length}</em></div>
+      ${pfBlock}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+        <button class="btn primary small" onclick="app.openProformaModal('${d.id}')">+ Créer une proforma</button>
+        ${!clientForm ? `<button class="btn ghost small" onclick="app.openClientFormModal('${d.id}')">↗ Demander infos au client</button>` : ""}
+      </div>
+
+      <div class="section-title" style="font-size:16px;margin:22px 0 12px">Calcul du dossier <em>— données de base</em></div>
+      <div class="form-grid">
+        <div class="field"><label>Valeur marchandise (€)</label><input type="number" value="${d.valeur||0}" data-k="valeur" data-money step="0.01"></div>
+        <div class="field"><label>Intervention / frais (€)</label><select data-k="montantIntervention" data-money>${ddOpt}</select></div>
+        <div class="field"><label>Taux douane</label><select data-k="tauxDD">${ddOpt}</select></div>
+        <div class="field"><label>Taux TVA</label><select data-k="tauxTVA">${tvaOpt}</select></div>
+        <div class="field"><label>Droits douane (€)</label><input type="number" value="${d.dd||0}" data-k="dd" data-money step="0.01"></div>
+        <div class="field"><label>TVA (€)</label><input type="number" value="${d.tva||0}" data-k="tva" data-money step="0.01"></div>
+        <div class="field"><label>IMA (€)</label><input type="number" value="${d.ima||0}" data-k="ima" data-money step="0.01"></div>
+        <div class="field"><label>Total facture (€)</label><input type="number" value="${d.totalFacture||0}" data-k="totalFacture" readonly style="background:var(--bg-4);color:var(--accent-2);font-weight:600"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        ${!f && !d.facturationRequested ? `<button class="btn primary" onclick="app.sendToPerac('${d.id}')">↗ Envoyer à TAF PERAC</button>` : ""}
+        <a class="btn ghost" href="${CONFIG.links.perac}" target="_blank">Ouvrir TAF PERAC</a>
+      </div>
+    `;
+  },
+  tabDocs(d){
+    const types=[{k:"proforma",l:"Facture proforma"},{k:"factureDef",l:"Facture définitive"},{k:"bae",l:"BAE"},{k:"declaration",l:"Déclaration douane"},{k:"factureOp",l:"Facture opérateur"},{k:"autre",l:"Autre"}];
+    d.docs=d.docs||{};
+    return `<p style="color:var(--text-2);font-size:13px;margin-bottom:16px">Documents stockés sur Google Drive TAF.</p>
+      <div class="doc-list">${types.map(t=>{const doc=d.docs[t.k]; return `<div class="doc-item"><div class="doc-ico">${t.k.slice(0,3).toUpperCase()}</div><div class="name">${t.l}${doc?`<small><a href="${doc.url}" target="_blank">${esc(doc.name)}</a></small>`:`<small class="empty">aucun fichier</small>`}</div><button class="btn ghost small" onclick="app.uploadDoc('${t.k}')">${doc?"Remplacer":"Charger"}</button>${doc?`<button class="btn danger small" onclick="app.removeDoc('${t.k}')">×</button>`:""}</div>`;}).join("")}</div>`;
+  },
+  tabNotes(d){ return `<div class="field full"><label>Notes internes</label><textarea data-k="notes" rows="12">${esc(d.notes||"")}</textarea></div>`; },
+
+  readDrawer(){
+    const d = state.currentDossierId ? Object.assign({},state.dossiers[state.currentDossierId]) : this.blankDossier();
+    $("#drawerBody").querySelectorAll("[data-k]").forEach(el=>{let v=el.value; if(el.type==="number")v=v===""?null:Number(v); d[el.dataset.k]=v;});
+    const nat=$("#drawerBody").querySelector("#natSelect");
+    if (nat) d.natureMarchandise=Array.from(nat.querySelectorAll(".tag.selected")).map(x=>x.dataset.nat);
+    return d;
+  },
+  recomputeTotal(){ const b=$("#drawerBody"); const g=k=>Number(b.querySelector(`[data-k="${k}"]`)?.value||0); const total=g("dd")+g("tva")+g("ima")+g("montantIntervention"); const tf=b.querySelector('[data-k="totalFacture"]'); if(tf) tf.value=total.toFixed(2); },
+
+  async toggleFlag(k){
+    if(!state.currentDossierId){toast("Enregistre d'abord","info");return;}
+    const d=state.dossiers[state.currentDossierId]; d[k]=!d[k]; d.updatedAt=Date.now();
+    await fb.update(`/dossiers/${d.id}`,{[k]:d[k],updatedAt:d.updatedAt});
+    this.renderTab(d); toast(`${k}: ${d[k]?"✓":"—"}`,"info");
+  },
+
+  async saveDossier(){
+    const d=this.readDrawer(); d.updatedAt=Date.now(); d.module=CONFIG.moduleId;
+    if(!d.nom?.trim()){toast("Le nom est requis","error");return;}
+    try{ await fb.set(`/dossiers/${d.id}`,d); state.dossiers[d.id]=d; this.updateNavCount(); toast("Enregistré ✓","success"); this.closeDrawer(); this.render(); }
+    catch(e){ toast("Erreur : "+e.message,"error"); }
+  },
+
+  async deleteDossier(id){
+    if(!confirm("Supprimer ce dossier ?")) return;
+    try{ await fb.del(`/dossiers/${id}`); delete state.dossiers[id]; this.updateNavCount(); toast("Supprimé","info"); this.closeDrawer(); this.render(); }
+    catch(e){ toast("Erreur : "+e.message,"error"); }
+  },
+
+  /* ---- Intégration TAF PERAC ---- */
+  async sendToPerac(dossierId){
+    const d = state.dossiers[dossierId]; if (!d){toast("Dossier introuvable","error");return;}
+    if (!confirm(`Envoyer le dossier #${d.numDossier} à TAF PERAC ?\n\nMontant prévu : ${fmtEuro(d.totalFacture||0)}\n\nPERAC sera notifié en temps réel.`)) return;
+    d.facturationRequested = true;
+    d.facturationRequestedAt = Date.now();
+    d.facturationSource = CONFIG.moduleId;
+    d.updatedAt = Date.now();
+    await fb.update(`/dossiers/${d.id}`, { facturationRequested:true, facturationRequestedAt:d.facturationRequestedAt, facturationSource:CONFIG.moduleId, updatedAt:d.updatedAt });
+    // Queue entry pour PERAC
+    await fb.set(`/facturation_queue/${d.id}`, {
+      dossierId:d.id, numDossier:d.numDossier, operateur:d.operateur,
+      client:{ nom:d.nom, prenom:d.prenom, mail:d.mail, telephone:d.telephone, adresse:d.adresse, ville:d.ville },
+      marchandise:{ nature:d.natureMarchandise, valeur:d.valeur, numColis:d.numColis, origine:d.origine },
+      montants:{ totalFacture:d.totalFacture, dd:d.dd, tva:d.tva, ima:d.ima, intervention:d.montantIntervention, tauxDD:d.tauxDD, tauxTVA:d.tauxTVA },
+      status:"pending", requestedAt:Date.now(), source:CONFIG.moduleId
+    });
+    toast("Dossier envoyé à TAF PERAC ✓","success");
+    this.renderTab(d);
+  },
+
+  async cancelFacturationRequest(dossierId){
+    if (!confirm("Annuler la demande de facturation ?")) return;
+    const d = state.dossiers[dossierId];
+    d.facturationRequested = false; d.facturationRequestedAt = null; d.updatedAt=Date.now();
+    await fb.update(`/dossiers/${d.id}`, { facturationRequested:false, facturationRequestedAt:null, updatedAt:d.updatedAt });
+    await fb.del(`/facturation_queue/${d.id}`);
+    toast("Demande annulée","info"); this.renderTab(d);
+  },
+
+  async markFacturePayee(dossierId){
+    await fb.update(`/factures/${dossierId}`, { status:"PAYE", paye:true, paidAt:Date.now() });
+    // Mise à jour côté dossier
+    await fb.update(`/dossiers/${dossierId}`, { reglementRecu:true, facturePayee:true, status:"REGLE", updatedAt:Date.now() });
+    toast("Facture marquée payée ✓","success");
+  },
+
+  async unmarkFacturePayee(dossierId){
+    await fb.update(`/factures/${dossierId}`, { status:"EMIS", paye:false, paidAt:null });
+    toast("Facture dépayée","info");
+  },
+
+  async uploadDoc(k){
+    if(!state.currentDossierId){toast("Enregistre d'abord","info");return;}
+    const input=document.createElement("input"); input.type="file";
+    input.onchange=async()=>{ const file=input.files[0]; if(!file) return; toast("Upload…","info");
+      try{ const b64=await fileToBase64(file);
+        const res=await fetch(CONFIG.drive.uploadUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({folderId:CONFIG.drive.folder,filename:`${state.currentDossierId}_${k}_${file.name}`,mimeType:file.type,data:b64})});
+        const j=await res.json(); if(!j.url) throw new Error("Drive");
+        const d=state.dossiers[state.currentDossierId]; d.docs=d.docs||{}; d.docs[k]={url:j.url,name:file.name,uploadedAt:Date.now()};
+        await fb.update(`/dossiers/${d.id}/docs`,{[k]:d.docs[k]}); this.renderTab(d); toast("Document chargé ✓","success");
+      }catch(e){toast("Upload échoué","error");}
+    };
+    input.click();
+  },
+  async removeDoc(k){ if(!confirm("Retirer ?")) return; const d=state.dossiers[state.currentDossierId]; d.docs=d.docs||{}; delete d.docs[k]; await fb.set(`/dossiers/${d.id}/docs`,d.docs); this.renderTab(d); toast("Retiré","info"); },
+
+  /* ==========================================================================
+     SYNTHÈSE — vue 360° plein écran (ouverture sur clic nom client)
+     ========================================================================== */
+  openSynth(dossierId){
+    const d = state.dossiers[dossierId]; if (!d){ toast("Dossier introuvable","error"); return; }
+    state.synthDossierId = dossierId;
+    this.renderSynth();
+    $("#synth").classList.add("open");
+    $("#synthBd").classList.add("open");
+  },
+  closeSynth(){
+    $("#synth").classList.remove("open");
+    $("#synthBd").classList.remove("open");
+    state.synthDossierId = null;
+  },
+  editFromSynth(){
+    const id = state.synthDossierId;
+    this.closeSynth();
+    if (id) this.openDrawer(id);
+  },
+
+  renderSynth(){
+    const d = state.dossiers[state.synthDossierId]; if (!d) return;
+    const op = OPERATEURS.find(o=>o.id===d.operateur) || {label:d.operateur||"—",class:"default"};
+    const s = STATUTS.find(x=>x.id===d.status) || {label:d.status||"—",color:"gray"};
+    const f = state.factures[d.id];
+    const proformasDossier = Object.values(state.proformas||{}).filter(p=>p.dossierId===d.id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const clientForm = Object.values(state.clientForms||{}).find(cf=>cf.dossierId===d.id);
+
+    // Header
+    $("#synthNum").textContent = `#${d.numDossier||"?"}`;
+    $("#synthName").textContent = d.nom || "—";
+    $("#synthMeta").innerHTML = `
+      <span class="op-badge ${op.class}">${esc(op.label)}</span>
+      <span class="chip ${s.color}">${esc(s.label)}</span>
+      ${d.numColis?`<span>📦 ${esc(d.numColis)}</span>`:""}
+      ${d.origine?`<span>🌍 ${esc(d.origine)}</span>`:""}
+      ${d.ville?`<span>📍 ${esc(d.ville)}</span>`:""}
+      ${d.mail?`<span>✉ ${esc(d.mail)}</span>`:""}
+    `;
+
+    // Build Timeline
+    const events = this.buildTimeline(d, f, proformasDossier, clientForm);
+    const timelineHtml = events.map(ev=>`
+      <div class="tl-item ${ev.cls||""}">
+        <div class="tl-dot"></div>
+        <div class="tl-title">${esc(ev.title)}</div>
+        <div class="tl-meta">
+          ${ev.at?`<span>${fmtDateLong(ev.at)}</span>`:`<span>en attente</span>`}
+          ${ev.author?`<span>· ${esc(ev.author)}</span>`:""}
+          ${ev.source?`<span>· ${esc(ev.source)}</span>`:""}
+        </div>
+        ${ev.note?`<div class="tl-note">${esc(ev.note)}</div>`:""}
+        ${ev.id?`<div class="tl-actions"><button onclick="app.deleteHistoryEvent('${ev.id}')" title="Supprimer">Retirer</button></div>`:""}
+      </div>
+    `).join("");
+
+    // Documents
+    const docsClient = (clientForm?.data?.docs) || {};
+    const docsDossier = d.docs || {};
+    const allDocs = { ...docsDossier, ...Object.fromEntries(Object.entries(docsClient).map(([k,v])=>[`client_${k}`,v])) };
+    const docsHtml = Object.keys(allDocs).length ? Object.entries(allDocs).map(([k,doc])=>`
+      <div class="sb-doc">
+        <div class="ico">${k.slice(0,3).toUpperCase()}</div>
+        <div class="name">${esc(doc.name||k)}${doc.uploadedAt?`<small>${fmtDate(doc.uploadedAt)}${k.startsWith("client_")?" · envoyé par le client":""}</small>`:""}</div>
+        <a href="${doc.url}" target="_blank">Ouvrir ↗</a>
+      </div>
+    `).join("") : `<div style="color:var(--text-3);font-size:12px;font-style:italic;padding:8px 0">Aucun document</div>`;
+
+    // Proformas + Facture inline
+    const totalAmount = f?(f.totalTTC||f.montantTTC||0):(d.totalFacture||0);
+    const paye = !!(f && (f.status==="PAYE"||f.paye));
+
+    $("#synthBody").innerHTML = `
+      <!-- Colonne gauche : toutes les infos -->
+      <div class="synth-col">
+
+        <div class="sb-status-bar">
+          <span class="sbb-k">Statut courant</span>
+          <span class="chip ${s.color}">${esc(s.label)}</span>
+          <div style="flex:1"></div>
+          <span class="sbb-k">créé</span>
+          <span style="font-family:var(--mono);font-size:11.5px;color:var(--text)">${fmtDate(d.createdAt)}</span>
+          <span class="sbb-k">maj</span>
+          <span style="font-family:var(--mono);font-size:11.5px;color:var(--text)">${fmtDate(d.updatedAt)}</span>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-block-head"><h3>Client</h3></div>
+          <div class="sb-block-body">
+            <div class="sb-kv">
+              <div class="sb-kv-row"><span class="k">Nom / Société</span><span class="v">${esc(d.nom||"—")}</span></div>
+              ${d.prenom?`<div class="sb-kv-row"><span class="k">Contact</span><span class="v">${esc(d.prenom)}</span></div>`:""}
+              <div class="sb-kv-row"><span class="k">Email</span><span class="v${d.mail?"":" empty"}">${esc(d.mail||"—")}</span></div>
+              <div class="sb-kv-row"><span class="k">Téléphone</span><span class="v${d.telephone?"":" empty"}">${esc(d.telephone||"—")}</span></div>
+              <div class="sb-kv-row"><span class="k">Adresse</span><span class="v">${esc([d.adresse,d.ville].filter(Boolean).join(", ")||"—")}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-block-head"><h3>Envoi · Marchandise</h3></div>
+          <div class="sb-block-body">
+            <div class="sb-kv">
+              <div class="sb-kv-row"><span class="k">Opérateur</span><span class="v"><span class="op-badge ${op.class}">${esc(op.label)}</span></span></div>
+              <div class="sb-kv-row"><span class="k">N° colis / AWB</span><span class="v mono">${esc(d.numColis||"—")}</span></div>
+              <div class="sb-kv-row"><span class="k">Origine</span><span class="v">${esc(d.origine||"—")}</span></div>
+              <div class="sb-kv-row"><span class="k">Nature</span><span class="v">${esc((d.natureMarchandise||[]).join(", ")||"—")}</span></div>
+              <div class="sb-kv-row"><span class="k">Valeur décl.</span><span class="v num">${d.valeur?fmtEuro(d.valeur):"—"}</span></div>
+              ${d.numDeclaration?`<div class="sb-kv-row"><span class="k">N° Déclaration</span><span class="v mono">${esc(d.numDeclaration)}</span></div>`:""}
+              ${d.dossierMalta?`<div class="sb-kv-row"><span class="k">Dossier Malta</span><span class="v mono">${d.dossierMalta}</span></div>`:""}
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-block-head"><h3>Montants</h3>${f?`<span class="chip ${paye?"green":"accent"}">${paye?"Facture payée":"Facture émise"}</span>`:""}</div>
+          <div class="sb-block-body">
+            <div class="sb-amounts">
+              <div class="sb-amount"><div class="lbl">Intervention</div><div class="val">${fmtEuro(d.montantIntervention||0)}</div></div>
+              <div class="sb-amount"><div class="lbl">DD</div><div class="val">${fmtEuro(d.dd||0)}</div></div>
+              <div class="sb-amount"><div class="lbl">TVA</div><div class="val">${fmtEuro(d.tva||0)}</div></div>
+              <div class="sb-amount total"><div class="lbl">Total</div><div class="val">${fmtEuro(totalAmount)}</div></div>
+            </div>
+            ${f?`
+              <div class="sb-kv" style="margin-top:12px">
+                <div class="sb-kv-row"><span class="k">N° Facture</span><span class="v mono">${esc(f.numFacture||"—")}</span></div>
+                ${f.emittedAt?`<div class="sb-kv-row"><span class="k">Émise le</span><span class="v">${fmtDate(f.emittedAt)}</span></div>`:""}
+                ${f.paidAt?`<div class="sb-kv-row"><span class="k">Payée le</span><span class="v" style="color:var(--green)">${fmtDate(f.paidAt)}</span></div>`:""}
+                ${f.dueDate?`<div class="sb-kv-row"><span class="k">Échéance</span><span class="v">${fmtDate(f.dueDate)}</span></div>`:""}
+                ${f.pdfUrl?`<div class="sb-kv-row"><span class="k">PDF</span><span class="v"><a href="${f.pdfUrl}" target="_blank">Ouvrir ↗</a></span></div>`:""}
+              </div>
+            `:""}
+          </div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-block-head"><h3>Actions</h3></div>
+          <div class="sb-block-body" style="display:flex;gap:8px;flex-wrap:wrap">
+            ${!d.okDouane || !d.docs?.bae ? `<button class="btn ghost small" onclick="app.uploadBaeManualForDossier('${d.id}')">📄 Charger BAE (manuel)</button>` : ""}
+            ${d.okDouane && !d.paymentEmailSent && d.mail ? `<button class="btn primary small" onclick="app.sendPaymentReceivedEmail('${d.id}')">💰 Email "Règlement reçu"</button>` : ""}
+            ${d.paymentEmailSent ? `<span class="chip green" style="padding:6px 12px">✓ Email règlement envoyé le ${fmtDate(d.paymentEmailSentAt)}</span>` : ""}
+            <button class="btn ghost small" onclick="app.editFromSynth()">✎ Éditer le dossier</button>
+          </div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-block-head"><h3>Documents <span class="count" style="font-family:var(--mono);font-size:10px;color:var(--text-3)">${Object.keys(allDocs).length}</span></h3></div>
+          <div class="sb-block-body">
+            <div class="sb-docs-list">${docsHtml}</div>
+          </div>
+        </div>
+
+        ${d.notes?`
+          <div class="sb-block">
+            <div class="sb-block-head"><h3>Notes</h3></div>
+            <div class="sb-block-body"><div style="white-space:pre-wrap;font-size:13px;color:var(--text-2);line-height:1.55">${esc(d.notes)}</div></div>
+          </div>
+        `:""}
+      </div>
+
+      <!-- Colonne droite : timeline -->
+      <div class="synth-col">
+        <div class="sb-block">
+          <div class="sb-block-head">
+            <h3>Historique du dossier</h3>
+            <button onclick="app.toggleAddHistoryForm()">+ Événement</button>
+          </div>
+          <div class="sb-block-body">
+            <div class="tl-add">
+              <div class="tl-add-form" id="tlAddForm">
+                <select id="tlType">
+                  <option value="phone">📞 Appel téléphonique</option>
+                  <option value="email">✉ Email reçu / envoyé</option>
+                  <option value="message">💬 Message reçu</option>
+                  <option value="visit">🛃 Visite douane</option>
+                  <option value="bae">📄 BAE (bon à enlever)</option>
+                  <option value="note">📝 Note interne</option>
+                  <option value="other">◆ Autre</option>
+                </select>
+                <input id="tlTitle" placeholder="Titre (ex: Appel de suivi avec le client)">
+                <textarea id="tlNote" placeholder="Détail, contenu du message, résumé de l'appel…"></textarea>
+                <div class="actions">
+                  <button class="btn ghost small" onclick="app.toggleAddHistoryForm()">Annuler</button>
+                  <div style="flex:1"></div>
+                  <button class="btn primary small" onclick="app.addHistoryEvent()">Ajouter</button>
+                </div>
+              </div>
+            </div>
+            <div class="tl">${timelineHtml}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ----- Timeline builder -----
+     Combine les événements automatiques (dérivés des flags/timestamps existants)
+     avec les entrées manuelles stockées dans d.history */
+  buildTimeline(d, f, proformas, clientForm){
+    const events = [];
+
+    // 1. Création du dossier
+    events.push({ at: d.createdAt, title: "Dossier créé — premier contact", source: d.operateur, cls:"done" });
+
+    // 2. Événements manuels stockés dans d.history
+    const hist = d.history ? Object.values(d.history) : [];
+    hist.forEach(h=>{
+      const iconMap = { phone:"📞", email:"✉", message:"💬", visit:"🛃", bae:"📄", note:"📝", other:"◆" };
+      events.push({
+        id: h.id,
+        at: h.at,
+        title: `${iconMap[h.type]||"◆"} ${h.title||"Événement"}`,
+        note: h.note,
+        author: h.author,
+        cls: "manual done"
+      });
+    });
+
+    // 3. Demande d'infos au client
+    if (clientForm){
+      if (clientForm.sentAt || clientForm.createdAt){
+        events.push({ at: clientForm.sentAt || clientForm.createdAt, title: "📨 Formulaire envoyé au client", source: clientForm.clientMail, cls:"done" });
+      }
+      if (clientForm.submittedAt){
+        events.push({ at: clientForm.submittedAt, title: "✅ Client a rempli le formulaire", note: clientForm.data?.description ? clientForm.data.description.slice(0,200) : null, cls:"done" });
+      } else if (clientForm.status === "IN_PROGRESS" && clientForm.updatedAt){
+        events.push({ at: clientForm.updatedAt, title: "⏳ Client remplit le formulaire…", cls:"current" });
+      }
+    }
+
+    // 4. Proformas
+    proformas.forEach(p=>{
+      if (p.createdAt) events.push({ at: p.createdAt, title: `📄 Proforma ${p.numProforma||""} créée`, source: p.totalTTC?fmtEuro(p.totalTTC):"", cls:"done" });
+      if (p.sentAt)    events.push({ at: p.sentAt,    title: `✉ Proforma ${p.numProforma||""} envoyée au client`, source: p.sentTo, cls:"done" });
+    });
+
+    // 5. Devis confirmé
+    if (d.okDevis){
+      events.push({ at: d.updatedAt, title: "✓ Devis confirmé par le client", cls:"done" });
+    }
+
+    // 6. OK douane
+    if (d.okDouane){
+      events.push({ at: d.updatedAt, title: "🛃 OK douane (dédouanement accepté)", cls:"done" });
+    }
+
+    // 7. Statut livraison
+    if (d.status === "EN_LIVRAISON"){
+      events.push({ at: d.updatedAt, title: "🚚 Colis en livraison chez le transporteur", cls:"current" });
+    } else if (d.status === "LIVRE"){
+      events.push({ at: d.updatedAt, title: "📦 Colis livré", cls:"done" });
+    }
+
+    // 8. Envoi à PERAC
+    if (d.facturationRequestedAt){
+      events.push({ at: d.facturationRequestedAt, title: "↗ Dossier envoyé à TAF PERAC pour facturation", cls:"done" });
+    }
+
+    // 9. Facture
+    if (f){
+      if (f.emittedAt) events.push({ at: f.emittedAt, title: `💰 Facture ${f.numFacture||""} émise`, source: fmtEuro(f.totalTTC||f.montantTTC||0), cls:"done" });
+      if (f.paidAt)    events.push({ at: f.paidAt,    title: `🎉 Règlement reçu`, source: fmtEuro(f.totalTTC||f.montantTTC||0), cls:"done" });
+    }
+
+    // 10. Étape future (si pas encore payé)
+    if (!f || !(f.status==="PAYE"||f.paye)){
+      events.push({ at: null, title: "⏳ En attente de règlement", cls:"future" });
+    }
+
+    // Trier par timestamp (null à la fin)
+    events.sort((a,b)=>{
+      if (!a.at && !b.at) return 0;
+      if (!a.at) return 1;
+      if (!b.at) return -1;
+      return a.at - b.at;
+    });
+    return events;
+  },
+
+  toggleAddHistoryForm(){
+    const f = $("#tlAddForm"); if (!f) return;
+    f.classList.toggle("open");
+    if (f.classList.contains("open")){
+      setTimeout(()=>{ const ti=$("#tlTitle"); if(ti) ti.focus(); }, 50);
+    }
+  },
+
+  async addHistoryEvent(){
+    const d = state.dossiers[state.synthDossierId]; if (!d) return;
+    const type  = $("#tlType").value;
+    const title = $("#tlTitle").value.trim();
+    const note  = $("#tlNote").value.trim();
+    if (!title){ toast("Ajoute un titre","error"); return; }
+    const id = "h_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
+    const entry = { id, type, title, note, at: Date.now(), author: "Christophe" };
+    d.history = d.history || {};
+    d.history[id] = entry;
+    d.updatedAt = Date.now();
+    await fb.update(`/dossiers/${d.id}/history`, { [id]: entry });
+    await fb.update(`/dossiers/${d.id}`, { updatedAt: d.updatedAt });
+    toast("Événement ajouté ✓","success");
+    this.renderSynth();
+  },
+
+  async deleteHistoryEvent(eventId){
+    if (!confirm("Retirer cet événement ?")) return;
+    const d = state.dossiers[state.synthDossierId]; if (!d) return;
+    d.history = d.history || {};
+    delete d.history[eventId];
+    d.updatedAt = Date.now();
+    await fb.del(`/dossiers/${d.id}/history/${eventId}`);
+    await fb.update(`/dossiers/${d.id}`, { updatedAt: d.updatedAt });
+    toast("Événement retiré","info");
+    this.renderSynth();
+  },
+
+  /* ==========================================================================
+     BAE INBOX — réception automatique des déclarations douane
+     ========================================================================== */
+
+  updateBellCount(){
+    const pending = Object.values(state.baeInbox||{}).filter(b=>b.status!=="MATCHED" && b.status!=="DISMISSED");
+    const bell = $("#bellBtn"); const count = $("#bellCount");
+    if (pending.length){
+      count.textContent = pending.length;
+      count.style.display = "flex";
+      bell.classList.add("has-pending");
+    } else {
+      count.style.display = "none";
+      bell.classList.remove("has-pending");
+    }
+  },
+
+  toggleInboxPanel(ev){
+    if (ev) ev.stopPropagation();
+    state.inboxPanelOpen = !state.inboxPanelOpen;
+    const panel = $("#inboxPanel");
+    panel.classList.toggle("open", state.inboxPanelOpen);
+    if (state.inboxPanelOpen){
+      this.renderInboxPanel();
+      // click outside to close
+      setTimeout(()=>{
+        const closer = (e)=>{
+          if (!panel.contains(e.target) && e.target.id!=="bellBtn" && !$("#bellBtn").contains(e.target)){
+            panel.classList.remove("open"); state.inboxPanelOpen=false;
+            document.removeEventListener("click", closer);
+          }
+        };
+        document.addEventListener("click", closer);
+      },0);
+    }
+  },
+
+  renderInboxPanel(){
+    const list = Object.values(state.baeInbox||{}).sort((a,b)=>(b.receivedAt||0)-(a.receivedAt||0));
+    const body = $("#inboxList");
+    if (!list.length){
+      body.innerHTML = `<div class="inbox-empty">Aucune déclaration reçue pour l'instant.<br><br>Les PDFs envoyés à <code style="font-family:var(--mono);color:var(--accent-2)">${esc(CONFIG.bae.inboxEmail)}</code> arriveront ici.</div>`;
+      return;
+    }
+    body.innerHTML = list.map(b=>{
+      const cls = b.status==="MATCHED" ? "matched" : (b.candidates && b.candidates.length>1 ? "ambiguous" : (b.candidates && b.candidates.length===1 ? "matched" : "unmatched"));
+      const tag = b.status==="MATCHED" ? `<span class="ii-tag matched">✓ rattachée #${b.matchedNumDossier||"?"}</span>` :
+                  (b.candidates && b.candidates.length>1 ? `<span class="ii-tag ambiguous">${b.candidates.length} correspondances</span>` :
+                  (b.candidates && b.candidates.length===1 ? `<span class="ii-tag ambiguous">à valider #${state.dossiers[b.candidates[0]]?.numDossier||"?"}</span>` :
+                  `<span class="ii-tag unmatched">non rattachée</span>`));
+      return `
+        <div class="inbox-item ${cls}" onclick="app.openBaeMatch('${b.id}')">
+          <div class="ii-ico">📄</div>
+          <div class="ii-body">
+            <div class="ii-subj">${esc(b.subject||"(sans objet)")}</div>
+            <div class="ii-meta">
+              ${tag}
+              ${b.from?`<span>de ${esc(b.from)}</span>`:""}
+              ${b.receivedAt?`<span>· ${fmtRelativeDate(b.receivedAt)}</span>`:""}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  },
+
+  /* Détection automatique à l'arrivée d'un nouveau BAE */
+  handleNewBae(baeId, bae){
+    const candidates = this.findBaeCandidates(bae);
+    bae.candidates = candidates.map(c=>c.dossierId);
+    // Écrit les candidats en base pour cohérence multi-tabs
+    fb.update(`/bae_inbox/${baeId}`, { candidates: bae.candidates }).catch(()=>{});
+
+    if (candidates.length === 1 && candidates[0].score >= 80){
+      // Match certain → popup "auto-rattachée" avec confirmation 1-clic
+      this.showBaePopup(baeId, bae, candidates[0], "auto");
+    } else if (candidates.length >= 1){
+      // Match probable / ambigu → popup choisir
+      this.showBaePopup(baeId, bae, candidates[0], "choose");
+    } else {
+      // Aucun → popup manuel
+      this.showBaePopup(baeId, bae, null, "manual");
+    }
+  },
+
+  /* Cherche des dossiers qui matchent un BAE reçu
+     Score : numDossier exact=100, numColis exact=90, numDeclaration exact=85, nom contient=40, email contient=30 */
+  findBaeCandidates(bae){
+    const searchText = [(bae.subject||""), (bae.bodyText||""), (bae.filename||"")].join(" ").toLowerCase();
+    if (!searchText.trim()) return [];
+    const dossiers = Object.values(state.dossiers||{}).filter(d=>d.archive!=="archive");
+    const scored = [];
+
+    dossiers.forEach(d=>{
+      let score = 0; const reasons = [];
+      // 1. numDossier (le plus fort)
+      const numDossStr = String(d.numDossier||"");
+      if (numDossStr){
+        // Match D00866 / #866 / dossier 866 / ref 866
+        const patterns = [
+          new RegExp(`\\b[dD]0*${numDossStr}\\b`),
+          new RegExp(`#\\s*0*${numDossStr}\\b`),
+          new RegExp(`dossier[\\s:]+0*${numDossStr}\\b`, "i"),
+          new RegExp(`r[eé]f[\\s:.]+0*${numDossStr}\\b`, "i"),
+          new RegExp(`\\b0*${numDossStr}\\b`)
+        ];
+        for (const p of patterns){
+          if (p.test(searchText)){ score = Math.max(score, p.source.includes("\\b0*") ? 60 : 100); reasons.push(`N° dossier #${numDossStr}`); break; }
+        }
+      }
+      // 2. numColis
+      if (d.numColis && d.numColis.length >= 5){
+        const colisLower = d.numColis.trim().toLowerCase();
+        if (searchText.includes(colisLower)){ score = Math.max(score, 90); reasons.push(`N° colis ${d.numColis}`); }
+      }
+      // 3. numDeclaration
+      if (d.numDeclaration && d.numDeclaration.length >= 5){
+        const declLower = d.numDeclaration.trim().toLowerCase();
+        if (searchText.includes(declLower)){ score = Math.max(score, 85); reasons.push(`N° déclaration`); }
+      }
+      // 4. Nom client (si unique)
+      if (d.nom && d.nom.length >= 4){
+        const nomLower = d.nom.trim().toLowerCase();
+        if (searchText.includes(nomLower)){ score = Math.max(score, 40); reasons.push(`Nom "${d.nom}"`); }
+      }
+      // 5. Email
+      if (d.mail && d.mail.length >= 5){
+        const mailLower = d.mail.trim().toLowerCase();
+        if (searchText.includes(mailLower)){ score = Math.max(score, 30); reasons.push("Email"); }
+      }
+      if (score > 0) scored.push({ dossierId:d.id, score, reasons });
+    });
+
+    scored.sort((a,b)=>b.score-a.score);
+    return scored.slice(0, 5);
+  },
+
+  showBaePopup(baeId, bae, topCandidate, kind){
+    $("#bpTitle").innerHTML = `Nouvelle <em>déclaration BAE</em>`;
+    const metaParts = [ bae.subject?esc(bae.subject).slice(0,60):"(sans objet)" ];
+    if (bae.from) metaParts.push(esc(bae.from));
+    $("#bpMeta").textContent = metaParts.join(" · ");
+    const actions = $("#bpActions");
+    if (kind==="auto" && topCandidate){
+      const d = state.dossiers[topCandidate.dossierId];
+      actions.innerHTML = `
+        <button class="btn primary small" onclick="app.confirmBaeAttach('${baeId}','${topCandidate.dossierId}')">✓ Rattacher #${d?.numDossier||"?"} — ${esc((d?.nom||"").slice(0,25))}</button>
+        <button class="btn ghost small" onclick="app.openBaeMatch('${baeId}')">Choisir…</button>
+      `;
+    } else if (kind==="choose" && topCandidate){
+      actions.innerHTML = `<button class="btn primary small" onclick="app.openBaeMatch('${baeId}')">Choisir le dossier</button>`;
+    } else {
+      actions.innerHTML = `<button class="btn primary small" onclick="app.openBaeMatch('${baeId}')">Rattacher manuellement</button>`;
+    }
+    const popup = $("#baePopup");
+    popup.classList.add("show");
+    clearTimeout(this._baePopupTimer);
+    this._baePopupTimer = setTimeout(()=>popup.classList.remove("show"), kind==="auto"?12000:18000);
+  },
+
+  dismissBaePopup(){ $("#baePopup").classList.remove("show"); clearTimeout(this._baePopupTimer); },
+
+  async confirmBaeAttach(baeId, dossierId){
+    this.dismissBaePopup();
+    await this.attachBaeToDossier(baeId, dossierId);
+  },
+
+  /* Modal de rapprochement BAE → dossier */
+  openBaeMatch(baeId){
+    const bae = state.baeInbox[baeId]; if (!bae){ toast("BAE introuvable","error"); return; }
+    this.dismissBaePopup();
+    if (state.inboxPanelOpen) this.toggleInboxPanel();
+
+    // Refresh candidats (au cas où la data a changé)
+    const candidates = this.findBaeCandidates(bae);
+
+    const preview = `
+      <div class="mail-preview">
+        <div class="mp-row"><span class="mp-k">De</span><span class="mp-v">${esc(bae.from||"—")}</span></div>
+        <div class="mp-row"><span class="mp-k">Objet</span><span class="mp-v">${esc(bae.subject||"(sans objet)")}</span></div>
+        <div class="mp-row"><span class="mp-k">Reçu</span><span class="mp-v">${bae.receivedAt?fmtDateLong(bae.receivedAt):"—"}</span></div>
+        ${bae.pdfUrl?`<div class="mp-row"><span class="mp-k">PDF</span><span class="mp-v"><a class="mp-pdf" href="${bae.pdfUrl}" target="_blank">📄 ${esc(bae.filename||"déclaration.pdf")} — ouvrir</a></span></div>`:""}
+        ${bae.bodyText?`<div class="mp-body">${esc(bae.bodyText.slice(0,500))}${bae.bodyText.length>500?"…":""}</div>`:""}
+      </div>
+    `;
+
+    let body;
+    if (candidates.length){
+      body = preview + `
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">Dossiers proposés</div>
+        <div class="match-cand-list" id="matchCandList">
+          ${candidates.map((c,i)=>{
+            const d = state.dossiers[c.dossierId]; if (!d) return "";
+            const scoreCls = c.score>=80?"high":(c.score>=50?"med":"");
+            return `
+              <div class="match-cand ${i===0?"selected":""}" data-id="${c.dossierId}" onclick="app.selectMatchCand('${c.dossierId}')">
+                <div class="mc-num">#${d.numDossier||"?"}</div>
+                <div class="mc-body">
+                  <div class="mc-title">${esc(d.nom||"—")}${d.numColis?` · ${esc(d.numColis)}`:""}</div>
+                  <div class="mc-meta">${esc(c.reasons.join(" · "))}</div>
+                </div>
+                <div class="mc-score ${scoreCls}">${c.score}%</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+          <input id="matchSearch" placeholder="…ou chercher un autre dossier (nom, colis, #)" style="flex:1;background:var(--bg-3);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-size:13px;color:var(--text);outline:none">
+        </div>
+        <div id="matchSearchResults" style="margin-top:10px"></div>
+      `;
+    } else {
+      body = preview + `
+        <div style="padding:18px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;text-align:center;color:var(--text-2);font-size:13px;margin-bottom:14px">
+          Aucune correspondance automatique trouvée. Cherche le bon dossier :
+        </div>
+        <input id="matchSearch" placeholder="Chercher par nom, n° colis, ou #dossier" style="width:100%;background:var(--bg-3);border:1px solid var(--border);padding:10px 12px;border-radius:6px;font-size:13px;color:var(--text);outline:none">
+        <div id="matchSearchResults" style="margin-top:10px"></div>
+      `;
+    }
+
+    state.modal.context = { kind:"baeMatch", baeId, selectedDossierId: candidates[0]?.dossierId || null };
+
+    this.openModal(
+      `Rattacher une <em>déclaration BAE</em>`,
+      body,
+      `
+        <button class="btn ghost small" onclick="app.dismissBae('${baeId}')">Ignorer cette déclaration</button>
+        <div style="flex:1"></div>
+        <button class="btn ghost small" onclick="app.closeModal()">Fermer</button>
+        <button class="btn primary small" onclick="app.confirmBaeMatch()">Rattacher au dossier sélectionné</button>
+      `
+    );
+
+    // Bind search
+    const searchInput = $("#matchSearch");
+    if (searchInput){
+      searchInput.addEventListener("input",(e)=>this.searchDossiersForMatch(e.target.value));
+    }
+  },
+
+  selectMatchCand(dossierId){
+    state.modal.context.selectedDossierId = dossierId;
+    $$("#matchCandList .match-cand").forEach(el=>el.classList.toggle("selected", el.dataset.id===dossierId));
+    // Clear search selection visuals
+    $$("#matchSearchResults .match-cand").forEach(el=>el.classList.toggle("selected", el.dataset.id===dossierId));
+  },
+
+  searchDossiersForMatch(q){
+    const res = $("#matchSearchResults"); if (!res) return;
+    q = (q||"").toLowerCase().trim();
+    if (!q){ res.innerHTML = ""; return; }
+    const matches = Object.values(state.dossiers||{}).filter(d=>{
+      const hay = [d.nom,d.prenom,d.numColis,d.numDossier,d.mail,d.ville,d.numDeclaration].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).slice(0, 8);
+    if (!matches.length){ res.innerHTML = `<div style="padding:12px;color:var(--text-3);font-size:12px;font-style:italic;text-align:center">Aucun dossier trouvé</div>`; return; }
+    res.innerHTML = matches.map(d=>`
+      <div class="match-cand" data-id="${d.id}" onclick="app.selectMatchCand('${d.id}')">
+        <div class="mc-num">#${d.numDossier||"?"}</div>
+        <div class="mc-body">
+          <div class="mc-title">${esc(d.nom||"—")}${d.numColis?` · ${esc(d.numColis)}`:""}</div>
+          <div class="mc-meta">${esc(d.ville||"")}${d.mail?" · "+esc(d.mail):""}</div>
+        </div>
+      </div>
+    `).join("");
+  },
+
+  async confirmBaeMatch(){
+    const ctx = state.modal.context;
+    if (!ctx.selectedDossierId){ toast("Sélectionne un dossier","error"); return; }
+    await this.attachBaeToDossier(ctx.baeId, ctx.selectedDossierId);
+    this.closeModal();
+  },
+
+  async attachBaeToDossier(baeId, dossierId){
+    const bae = state.baeInbox[baeId]; const d = state.dossiers[dossierId];
+    if (!bae || !d){ toast("Données introuvables","error"); return; }
+
+    // 1. Ajoute le PDF aux docs du dossier
+    d.docs = d.docs || {};
+    d.docs.bae = {
+      url: bae.pdfUrl,
+      name: bae.filename || `BAE_${d.numDossier||""}.pdf`,
+      uploadedAt: Date.now(),
+      source: "mailhook_bae",
+      fromEmail: bae.from,
+      subject: bae.subject
+    };
+    // 2. Active le flag OK douane
+    d.okDouane = true;
+    d.updatedAt = Date.now();
+    // 3. Ajoute un événement historique
+    const histId = "h_" + Date.now() + "_bae";
+    d.history = d.history || {};
+    d.history[histId] = {
+      id: histId, type: "bae", at: Date.now(),
+      title: `🛃 BAE reçu — OK douane`,
+      note: `Déclaration "${bae.subject||"(sans objet)"}" reçue de ${bae.from||"—"}`,
+      author: "Mailhook BAE"
+    };
+    // 4. Persist
+    await fb.update(`/dossiers/${d.id}`, { docs: d.docs, okDouane: true, updatedAt: d.updatedAt });
+    await fb.update(`/dossiers/${d.id}/history`, { [histId]: d.history[histId] });
+    // 5. Marque le BAE comme traité
+    await fb.update(`/bae_inbox/${baeId}`, {
+      status: "MATCHED",
+      matchedDossierId: d.id,
+      matchedNumDossier: d.numDossier,
+      matchedAt: Date.now()
+    });
+    state.baeInbox[baeId].status = "MATCHED";
+
+    this.updateBellCount();
+    toast(`✓ BAE rattachée au dossier #${d.numDossier||"?"} — ${d.nom||""}`,"success");
+    if (state.synthDossierId === d.id) this.renderSynth();
+    if (state.inboxPanelOpen) this.renderInboxPanel();
+  },
+
+  async dismissBae(baeId){
+    if (!confirm("Ignorer cette déclaration ? (Elle restera consultable dans la boîte)")) return;
+    await fb.update(`/bae_inbox/${baeId}`, { status:"DISMISSED", dismissedAt: Date.now() });
+    state.baeInbox[baeId].status = "DISMISSED";
+    this.updateBellCount();
+    if (state.inboxPanelOpen) this.renderInboxPanel();
+    this.closeModal();
+    toast("Déclaration ignorée","info");
+  },
+
+  /* ===== Upload manuel d'une déclaration BAE ===== */
+  uploadBaeManual(){
+    if (state.inboxPanelOpen) this.toggleInboxPanel();
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "application/pdf";
+    input.onchange = async ()=>{
+      const file = input.files[0]; if (!file) return;
+      toast("Upload du PDF…","info");
+      try{
+        const b64 = await fileToBase64(file);
+        const res = await fetch(CONFIG.drive.uploadUrl, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `BAE_manual_${Date.now()}_${file.name}`, mimeType:"application/pdf", data:b64 })
+        });
+        const j = await res.json();
+        if (!j.url) throw new Error("Upload échoué");
+        // Crée une entrée bae_inbox comme si elle venait du mailhook
+        const baeId = "bae_" + Date.now() + "_" + Math.random().toString(36).slice(2,6);
+        const entry = {
+          id: baeId, source:"manual_upload",
+          pdfUrl: j.url, filename: file.name,
+          subject: `[Upload manuel] ${file.name}`, from: "Christophe (manuel)",
+          bodyText: "",
+          receivedAt: Date.now(), status:"PENDING"
+        };
+        await fb.set(`/bae_inbox/${baeId}`, entry);
+        state.baeInbox[baeId] = entry;
+        state.seenBaeIds.add(baeId);
+        toast("BAE chargée — choisir le dossier","success");
+        this.updateBellCount();
+        this.openBaeMatch(baeId);
+      }catch(e){ toast("Upload échoué","error"); }
+    };
+    input.click();
+  },
+
+  /* Upload manuel rattaché directement à un dossier (sans passage par l'inbox) */
+  uploadBaeManualForDossier(dossierId){
+    const d = state.dossiers[dossierId]; if (!d) return;
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "application/pdf";
+    input.onchange = async ()=>{
+      const file = input.files[0]; if (!file) return;
+      if (!confirm(`Charger cette déclaration BAE pour le dossier #${d.numDossier||"?"} — ${d.nom||""} ?\nLe dossier passera en "OK douane".`)) return;
+      toast("Upload du PDF…","info");
+      try{
+        const b64 = await fileToBase64(file);
+        const res = await fetch(CONFIG.drive.uploadUrl, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `BAE_${d.numDossier||""}_${file.name}`, mimeType:"application/pdf", data:b64 })
+        });
+        const j = await res.json();
+        if (!j.url) throw new Error("Upload échoué");
+        d.docs = d.docs || {};
+        d.docs.bae = { url: j.url, name: file.name, uploadedAt: Date.now(), source: "manual_upload_direct" };
+        d.okDouane = true;
+        d.updatedAt = Date.now();
+        const histId = "h_" + Date.now() + "_bae";
+        d.history = d.history || {};
+        d.history[histId] = { id:histId, type:"bae", at:Date.now(), title:`🛃 BAE chargée manuellement — OK douane`, note:`Fichier : ${file.name}`, author:"Christophe" };
+        await fb.update(`/dossiers/${d.id}`, { docs: d.docs, okDouane: true, updatedAt: d.updatedAt });
+        await fb.update(`/dossiers/${d.id}/history`, { [histId]: d.history[histId] });
+        toast(`✓ BAE rattachée — OK douane`,"success");
+        if (state.synthDossierId === d.id) this.renderSynth();
+      }catch(e){ toast("Upload échoué","error"); }
+    };
+    input.click();
+  },
+
+  /* ==========================================================================
+     RÈGLEMENT REÇU — envoi email avec BAE + facture au contact du dossier
+     ========================================================================== */
+  async sendPaymentReceivedEmail(dossierId){
+    const d = state.dossiers[dossierId]; if (!d){ toast("Dossier introuvable","error"); return; }
+    if (!d.mail){ toast("Aucun email client sur le dossier","error"); return; }
+
+    const bcc = state.notifSettings?.bccEmail || CONFIG.notifications.defaultBcc;
+    const f = state.factures[d.id];
+    const baePdfUrl = d.docs?.bae?.url;
+    const facturePdfUrl = f?.pdfUrl;
+
+    const subject = `Dossier ${d.numDossier||""} — Règlement reçu · Merci`;
+    const body = this.paymentReceivedEmailBody(d, f);
+    const attachments = [];
+    if (baePdfUrl)     attachments.push({ url: baePdfUrl,     name: d.docs.bae.name || `BAE_${d.numDossier}.pdf` });
+    if (facturePdfUrl) attachments.push({ url: facturePdfUrl, name: `Facture_${f.numFacture||d.numDossier}.pdf` });
+
+    if (!confirm(`Envoyer l'email "Règlement reçu" ?\n\nÀ : ${d.mail}\nBCC : ${bcc}\nPièces jointes : ${attachments.length} (${attachments.map(a=>a.name).join(", ")||"aucune"})`)) return;
+
+    try{
+      await fetch(CONFIG.webhooks.email, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          type: "facture_payee",
+          to: d.mail,
+          bcc,
+          from: CONFIG.company.email,
+          subject,
+          body,
+          attachments,
+          dossier: {
+            id: d.id, numDossier: d.numDossier, nom: d.nom, prenom: d.prenom,
+            numColis: d.numColis, origine: d.origine, ville: d.ville,
+            operateur: d.operateur, numDeclaration: d.numDeclaration
+          },
+          facture: f ? { numFacture: f.numFacture, totalHT: f.totalHT, totalTVA: f.totalTVA, totalTTC: f.totalTTC, paidAt: f.paidAt } : null
+        })
+      });
+      // Ajoute à l'historique
+      const histId = "h_" + Date.now() + "_pay";
+      await fb.update(`/dossiers/${d.id}/history`, {
+        [histId]: { id:histId, type:"email", at:Date.now(), title:`✉ Email "Règlement reçu" envoyé à ${d.mail}`, note:`BCC: ${bcc}. ${attachments.length} pièce(s) jointe(s).`, author:"TAF Express" }
+      });
+      await fb.update(`/dossiers/${d.id}`, { paymentEmailSent: true, paymentEmailSentAt: Date.now(), updatedAt: Date.now() });
+      toast("Email envoyé ✓","success");
+      if (state.synthDossierId === d.id) this.renderSynth();
+    }catch(e){
+      console.error(e); toast("Envoi échoué : "+e.message,"error");
+    }
+  },
+
+  paymentReceivedEmailBody(d, f){
+    const totalTTC = f ? (f.totalTTC||f.montantTTC||0) : (d.totalFacture||0);
+    return `Bonjour${d.prenom?" "+d.prenom:""},
+
+Nous vous confirmons la bonne réception de votre règlement pour le dossier n°${d.numDossier||""}.
+
+Récapitulatif du dossier :
+— Client : ${d.nom||""}${d.prenom?` (${d.prenom})`:""}
+— N° colis / AWB : ${d.numColis||"—"}
+— Origine : ${d.origine||"—"}
+— Transporteur : ${d.operateur||"—"}
+${d.numDeclaration?`— N° de déclaration douane : ${d.numDeclaration}\n`:""}${f?.numFacture?`— N° de facture : ${f.numFacture}\n`:""}— Montant réglé : ${fmtEuro(totalTTC)}
+
+Votre dossier est désormais clos. Vous trouverez en pièces jointes la déclaration douane (BAE) ainsi que la facture acquittée.
+
+Nous vous remercions pour votre confiance et restons à votre disposition pour vos prochains envois.
+
+Cordialement,
+L'équipe TAF ROISSY
+${CONFIG.company.email}
+${CONFIG.company.website}`;
+  },
+
+  /* ==========================================================================
+     MODULE PARAMÈTRES — enrichi pour BCC email + templates
+     ========================================================================== */
+
+  /* ==========================================================================
+     MODAL générique (proforma / client form)
+     ========================================================================== */
+  openModal(title, bodyHtml, footerHtml){
+    $("#modalTitle").innerHTML = title;
+    $("#modalBody").innerHTML = bodyHtml;
+    $("#modalFoot").innerHTML = footerHtml;
+    $("#modal").classList.add("open");
+    $("#modalBd").classList.add("open");
+    state.modal.open = true;
+  },
+  closeModal(){
+    $("#modal").classList.remove("open");
+    $("#modalBd").classList.remove("open");
+    state.modal.open = false;
+    state.modal.context = null;
+  },
+
+  /* ==========================================================================
+     PROFORMA — création, PDF, envoi
+     ========================================================================== */
+  openProformaModal(dossierId, proformaId=null){
+    const d = state.dossiers[dossierId]; if (!d){ toast("Dossier introuvable","error"); return; }
+    // Pré-remplissage : existant ou nouveau à partir du dossier
+    let pf;
+    if (proformaId && state.proformas[proformaId]){
+      pf = JSON.parse(JSON.stringify(state.proformas[proformaId]));
+    } else {
+      const next = Object.values(state.proformas).reduce((m,p)=>{const n=parseInt(String(p.numProforma||"").replace(/\D/g,""))||0; return n>m?n:m;},0)+1;
+      const num = `PF${new Date().getFullYear()}-${String(next).padStart(4,"0")}`;
+      // Lignes pré-remplies selon les données du dossier
+      const lignes = [];
+      if (d.montantIntervention) lignes.push({ description:`Intervention douane — ${(d.natureMarchandise||[]).join(", ")||"marchandise"}`, qty:1, pu:d.montantIntervention||0, tva:d.tauxTVA||20 });
+      if (d.dd) lignes.push({ description:"Avance droits de douane", qty:1, pu:d.dd||0, tva:0 });
+      if (d.tva) lignes.push({ description:"Avance TVA", qty:1, pu:d.tva||0, tva:0 });
+      if (d.ima) lignes.push({ description:"IMA", qty:1, pu:d.ima||0, tva:0 });
+      if (!lignes.length) lignes.push({ description:"Prestation douane", qty:1, pu:0, tva:20 });
+      pf = {
+        id: "pf_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
+        dossierId: d.id, numDossier: d.numDossier, numProforma: num,
+        client: { nom:d.nom||"", prenom:d.prenom||"", mail:d.mail||"", adresse:d.adresse||"", ville:d.ville||"" },
+        lignes, status:"DRAFT",
+        createdAt: Date.now(), updatedAt: Date.now(),
+        numColis:d.numColis, origine:d.origine, operateur:d.operateur
+      };
+    }
+    state.modal.context = { kind:"proforma", dossierId, pf };
+
+    const body = `
+      <div class="form-grid" style="margin-bottom:16px">
+        <div class="field"><label>N° Proforma</label><input value="${esc(pf.numProforma)}" id="pfNum"></div>
+        <div class="field"><label>Date</label><input type="date" value="${new Date(pf.createdAt).toISOString().slice(0,10)}" id="pfDate"></div>
+        <div class="field"><label>Client — Société</label><input value="${esc(pf.client.nom||"")}" id="pfClientNom"></div>
+        <div class="field"><label>Client — Contact</label><input value="${esc(pf.client.prenom||"")}" id="pfClientPrenom"></div>
+        <div class="field"><label>Email client</label><input type="email" value="${esc(pf.client.mail||"")}" id="pfClientMail"></div>
+        <div class="field"><label>Ville</label><input value="${esc(pf.client.ville||"")}" id="pfClientVille"></div>
+      </div>
+
+      <div style="margin-bottom:6px;font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px">Prestations</div>
+      <table class="pf-table">
+        <thead><tr><th class="col-desc">Description</th><th class="col-qty qty">Qté</th><th class="col-pu pu">P.U. HT</th><th class="col-tva tva">TVA %</th><th class="col-total total">Total HT</th><th class="col-del"></th></tr></thead>
+        <tbody id="pfLignes">${pf.lignes.map((l,i)=>this.pfLineHtml(l,i)).join("")}</tbody>
+      </table>
+      <div><button class="btn ghost small" onclick="app.addProformaLine()">+ Ajouter une ligne</button></div>
+
+      <div class="pf-totals"><div class="pf-totals-box" id="pfTotals"></div></div>
+
+      <div class="field full" style="margin-top:16px"><label>Note / conditions</label><textarea id="pfNote" rows="3" placeholder="Règlement sous 8 jours. TVA sur encaissements…">${esc(pf.note||"Règlement sous 8 jours par virement bancaire.")}</textarea></div>
+    `;
+
+    const foot = `
+      <button class="btn ghost small" onclick="app.closeModal()">Fermer</button>
+      <div style="flex:1"></div>
+      <button class="btn ghost small" onclick="app.saveProforma()">💾 Enregistrer brouillon</button>
+      <button class="btn ghost small" onclick="app.downloadProformaPDF()">📥 Télécharger PDF</button>
+      <button class="btn primary small" onclick="app.sendProformaToClient()">✉ Envoyer au client</button>
+    `;
+
+    this.openModal(`Proforma <em>— dossier #${d.numDossier||"?"}</em>`, body, foot);
+
+    // Bind live computation
+    $("#modalBody").addEventListener("input",(e)=>{ if (e.target.closest("#pfLignes")||e.target.closest(".pf-table")) this.recomputeProforma(); });
+    this.recomputeProforma();
+  },
+
+  pfLineHtml(l, idx){
+    return `<tr data-idx="${idx}">
+      <td class="col-desc"><input class="l-desc" value="${esc(l.description||"")}"></td>
+      <td class="col-qty qty"><input class="l-qty" type="number" step="0.01" value="${l.qty||1}"></td>
+      <td class="col-pu pu"><input class="l-pu" type="number" step="0.01" value="${l.pu||0}"></td>
+      <td class="col-tva tva"><input class="l-tva" type="number" step="0.5" value="${l.tva==null?20:l.tva}"></td>
+      <td class="col-total total"><span class="l-total">${fmtEuro((l.qty||0)*(l.pu||0))}</span></td>
+      <td class="col-del"><span class="del-btn" onclick="app.removeProformaLine(${idx})">×</span></td>
+    </tr>`;
+  },
+
+  addProformaLine(){
+    const tb = $("#pfLignes"); const idx = tb.children.length;
+    tb.insertAdjacentHTML("beforeend", this.pfLineHtml({description:"",qty:1,pu:0,tva:20}, idx));
+    this.recomputeProforma();
+  },
+  removeProformaLine(idx){
+    const tr = $("#pfLignes").querySelector(`tr[data-idx="${idx}"]`); if (tr) tr.remove();
+    // Re-index
+    Array.from($("#pfLignes").children).forEach((r,i)=>{ r.dataset.idx=i; r.querySelector(".del-btn").setAttribute("onclick",`app.removeProformaLine(${i})`); });
+    this.recomputeProforma();
+  },
+  readProformaLines(){
+    return Array.from($("#pfLignes").children).map(tr=>({
+      description: tr.querySelector(".l-desc").value,
+      qty: Number(tr.querySelector(".l-qty").value)||0,
+      pu:  Number(tr.querySelector(".l-pu").value)||0,
+      tva: Number(tr.querySelector(".l-tva").value)||0
+    }));
+  },
+  recomputeProforma(){
+    const lignes = this.readProformaLines();
+    let totalHT = 0, totalTVA = 0;
+    lignes.forEach((l,i)=>{
+      const ht = l.qty * l.pu;
+      totalHT += ht;
+      totalTVA += ht * (l.tva/100);
+      const tot = $("#pfLignes").children[i]?.querySelector(".l-total");
+      if (tot) tot.textContent = fmtEuro(ht);
+    });
+    const totalTTC = totalHT + totalTVA;
+    $("#pfTotals").innerHTML = `
+      <div class="pf-totals-row"><span>Total HT</span><span>${fmtEuro(totalHT)}</span></div>
+      <div class="pf-totals-row"><span>TVA</span><span>${fmtEuro(totalTVA)}</span></div>
+      <div class="pf-totals-row big"><span>Total TTC</span><span>${fmtEuro(totalTTC)}</span></div>
+    `;
+    state.modal.context.totals = { totalHT, totalTVA, totalTTC };
+  },
+
+  readProformaFromModal(){
+    const ctx = state.modal.context;
+    const pf = ctx.pf;
+    pf.numProforma = $("#pfNum").value;
+    pf.dateIso = $("#pfDate").value;
+    pf.client = {
+      nom:    $("#pfClientNom").value.trim(),
+      prenom: $("#pfClientPrenom").value.trim(),
+      mail:   $("#pfClientMail").value.trim(),
+      ville:  $("#pfClientVille").value.trim()
+    };
+    pf.lignes = this.readProformaLines();
+    pf.totalHT  = ctx.totals.totalHT;
+    pf.totalTVA = ctx.totals.totalTVA;
+    pf.totalTTC = ctx.totals.totalTTC;
+    pf.note = $("#pfNote").value;
+    pf.updatedAt = Date.now();
+    return pf;
+  },
+
+  async saveProforma(){
+    const pf = this.readProformaFromModal();
+    await fb.set(`/proformas/${pf.id}`, pf);
+    state.proformas[pf.id] = pf;
+    toast("Proforma enregistrée","success");
+    // refresh drawer
+    if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+  },
+
+  generateProformaPDF(pf){
+    // Génère un jsPDF à partir des données
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"mm", format:"a4" });
+    const W = 210, M = 18;
+
+    // Header — bande ambre
+    doc.setFillColor(212,168,87); doc.rect(0,0,W,28,"F");
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(22);
+    doc.text("PROFORMA", M, 17);
+    doc.setFont("helvetica","normal"); doc.setFontSize(11);
+    doc.text(pf.numProforma||"", W-M, 17, { align:"right" });
+
+    // Société
+    doc.setTextColor(40,40,40); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+    doc.text(CONFIG.company.name, M, 38);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100,100,100);
+    doc.text(CONFIG.company.subtitle, M, 43);
+    doc.text(CONFIG.company.address, M, 48);
+    doc.text(CONFIG.company.email, M, 53);
+
+    // Date + destinataire
+    doc.setTextColor(40,40,40); doc.setFontSize(10); doc.setFont("helvetica","bold");
+    doc.text("DESTINATAIRE", W-M-70, 38);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    let y = 43;
+    if (pf.client.nom)    { doc.text(pf.client.nom, W-M-70, y); y+=5; }
+    if (pf.client.prenom) { doc.text(pf.client.prenom, W-M-70, y); y+=5; }
+    if (pf.client.ville)  { doc.text(pf.client.ville, W-M-70, y); y+=5; }
+    if (pf.client.mail)   { doc.setTextColor(120,120,120); doc.text(pf.client.mail, W-M-70, y); y+=5; }
+
+    // Infos dossier
+    doc.setDrawColor(220,220,220); doc.line(M, 65, W-M, 65);
+    doc.setTextColor(100,100,100); doc.setFontSize(9);
+    const infoY = 72;
+    doc.text(`Dossier N°: ${pf.numDossier||"—"}`, M, infoY);
+    doc.text(`Opérateur: ${pf.operateur||"—"}`, M+55, infoY);
+    doc.text(`N° colis/AWB: ${pf.numColis||"—"}`, M+110, infoY);
+    doc.text(`Date: ${pf.dateIso||new Date().toISOString().slice(0,10)}`, W-M, infoY, { align:"right" });
+
+    // Table header
+    const tY = 85;
+    doc.setFillColor(245,243,238); doc.rect(M, tY, W-2*M, 9, "F");
+    doc.setTextColor(60,60,60); doc.setFontSize(9); doc.setFont("helvetica","bold");
+    doc.text("DÉSIGNATION", M+3, tY+6);
+    doc.text("QTÉ", M+102, tY+6, { align:"right" });
+    doc.text("P.U. HT", M+125, tY+6, { align:"right" });
+    doc.text("TVA", M+145, tY+6, { align:"right" });
+    doc.text("TOTAL HT", W-M-3, tY+6, { align:"right" });
+
+    // Lines
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
+    let ly = tY + 15;
+    pf.lignes.forEach(l=>{
+      const ht = (l.qty||0) * (l.pu||0);
+      const lines = doc.splitTextToSize(l.description||"", 85);
+      doc.text(lines, M+3, ly);
+      doc.text(String(l.qty||0), M+102, ly, { align:"right" });
+      doc.text(fmtMoneyPdf(l.pu||0), M+125, ly, { align:"right" });
+      doc.text(`${l.tva||0}%`, M+145, ly, { align:"right" });
+      doc.text(fmtMoneyPdf(ht), W-M-3, ly, { align:"right" });
+      ly += Math.max(7, lines.length*5);
+      doc.setDrawColor(235,235,235); doc.line(M, ly-2, W-M, ly-2);
+    });
+
+    // Totals
+    ly += 6;
+    doc.setFontSize(10); doc.setTextColor(80,80,80);
+    doc.text("Total HT", W-M-50, ly, { align:"right" }); doc.text(fmtMoneyPdf(pf.totalHT||0), W-M-3, ly, { align:"right" }); ly+=6;
+    doc.text("TVA", W-M-50, ly, { align:"right" });      doc.text(fmtMoneyPdf(pf.totalTVA||0), W-M-3, ly, { align:"right" }); ly+=3;
+    doc.setDrawColor(212,168,87); doc.setLineWidth(.5); doc.line(W-M-55, ly, W-M, ly); ly+=7;
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(212,168,87);
+    doc.text("Total TTC", W-M-55, ly, { align:"right" }); doc.text(fmtMoneyPdf(pf.totalTTC||0)+" €", W-M-3, ly, { align:"right" });
+
+    // Note
+    if (pf.note){
+      ly += 18;
+      doc.setFont("helvetica","italic"); doc.setFontSize(9); doc.setTextColor(90,90,90);
+      const noteLines = doc.splitTextToSize(pf.note, W-2*M);
+      doc.text(noteLines, M, ly);
+    }
+
+    // Footer
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(160,160,160);
+    doc.text("Document proforma — non valable comme facture", W/2, 285, { align:"center" });
+    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS`, W/2, 290, { align:"center" });
+
+    return doc;
+  },
+
+  async downloadProformaPDF(){
+    const pf = this.readProformaFromModal();
+    const doc = this.generateProformaPDF(pf);
+    doc.save(`${pf.numProforma}.pdf`);
+    toast("PDF téléchargé","success");
+  },
+
+  async sendProformaToClient(){
+    const pf = this.readProformaFromModal();
+    if (!pf.client.mail){ toast("Email du client requis","error"); return; }
+    if (!confirm(`Envoyer la proforma ${pf.numProforma} à ${pf.client.mail} ?`)) return;
+
+    try{
+      toast("Génération du PDF…","info");
+      const doc = this.generateProformaPDF(pf);
+      const pdfB64 = doc.output("datauristring").split(",")[1];
+
+      // Upload Drive
+      toast("Upload Drive…","info");
+      const up = await fetch(CONFIG.drive.uploadUrl,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `${pf.numProforma}.pdf`, mimeType:"application/pdf", data: pdfB64 })
+      });
+      const upJson = await up.json();
+      if (!upJson.url) throw new Error("Drive upload échoué");
+      pf.pdfUrl = upJson.url;
+
+      // Persister la proforma
+      pf.status = "SENT";
+      pf.sentAt = Date.now();
+      pf.sentTo = pf.client.mail;
+      await fb.set(`/proformas/${pf.id}`, pf);
+      state.proformas[pf.id] = pf;
+
+      // Envoi email via webhook Make.com
+      toast("Envoi email…","info");
+      await fetch(CONFIG.webhooks.email, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          type: "proforma",
+          to: pf.client.mail,
+          subject: `Votre proforma ${pf.numProforma} — TAF ROISSY`,
+          client_name: pf.client.nom || pf.client.prenom || "",
+          numProforma: pf.numProforma,
+          numDossier: pf.numDossier,
+          totalTTC: pf.totalTTC,
+          pdfUrl: pf.pdfUrl,
+          dossierId: pf.dossierId,
+          body: this.proformaEmailBody(pf)
+        })
+      }).catch(e=>console.warn("Webhook email:",e));
+
+      toast("Proforma envoyée au client ✓","success");
+      this.closeModal();
+      if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+    }catch(e){
+      console.error(e); toast("Erreur : "+e.message,"error");
+    }
+  },
+
+  proformaEmailBody(pf){
+    return `Bonjour,
+
+Veuillez trouver ci-joint votre proforma ${pf.numProforma} concernant le dossier ${pf.numDossier||""}.
+
+Montant total TTC : ${fmtEuro(pf.totalTTC||0)}
+
+Le document est également accessible via ce lien : ${pf.pdfUrl||""}
+
+Afin d'accélérer le traitement de votre dossier, merci de nous retourner les documents nécessaires au dédouanement. Vous pouvez les transmettre directement via notre formulaire sécurisé (un lien vous sera envoyé séparément si nécessaire).
+
+Dans l'attente de votre règlement, nous restons à votre disposition.
+
+Cordialement,
+TAF ROISSY / TAF TRANS
+Spécialiste fret & douane CDG
+${CONFIG.company.email}`;
+  },
+
+  async deleteProforma(id){
+    if (!confirm("Supprimer cette proforma ?")) return;
+    await fb.del(`/proformas/${id}`);
+    delete state.proformas[id];
+    toast("Proforma supprimée","info");
+    if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+  },
+
+  /* ==========================================================================
+     CLIENT FORM — demande d'infos au client
+     ========================================================================== */
+  openClientFormModal(dossierId){
+    const d = state.dossiers[dossierId]; if (!d){ return; }
+    const existing = Object.values(state.clientForms||{}).find(cf=>cf.dossierId===d.id);
+    const token = existing?.token || ("cf_" + Math.random().toString(36).slice(2,10) + Date.now().toString(36));
+    const clientUrl = `${CONFIG.links.clientForm}?token=${token}`;
+
+    const defaultSubject = `Dossier ${d.numDossier||""} — Informations nécessaires au dédouanement`;
+    const defaultBody = `Bonjour,
+
+Afin de procéder au dédouanement de votre colis (${d.numColis||"—"}), nous avons besoin de quelques informations complémentaires et de documents justificatifs.
+
+Veuillez compléter le formulaire sécurisé via le lien ci-dessous. Vous pourrez y télécharger vos documents (facture d'achat, passeport, justificatifs…) directement :
+
+${clientUrl}
+
+Le lien reste accessible le temps de votre dossier. Toutes les données saisies sont chiffrées et stockées sur nos serveurs.
+
+Cordialement,
+TAF ROISSY / TAF TRANS
+Spécialiste fret & douane CDG`;
+
+    state.modal.context = { kind:"clientForm", dossierId, token, existing };
+
+    this.openModal(
+      `Demande d'infos client <em>— dossier #${d.numDossier||"?"}</em>`,
+      `
+        <div class="field" style="margin-bottom:14px"><label>Email du client</label><input type="email" id="cfMail" value="${esc(d.mail||"")}"></div>
+        <div class="field" style="margin-bottom:14px"><label>Objet de l'email</label><input id="cfSubject" value="${esc(defaultSubject)}"></div>
+        <div class="field" style="margin-bottom:14px"><label>Message</label><textarea id="cfBody" rows="10">${esc(defaultBody)}</textarea></div>
+
+        <div class="cf-url">
+          <span style="flex:1">${esc(clientUrl)}</span>
+          <button onclick="app.copyToClipboard('${clientUrl}')">Copier</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-top:8px">Le client recevra ce message par email. Il cliquera sur le lien pour remplir le formulaire et téléverser ses documents. Chaque modification remontera en live ici.</p>
+      `,
+      `
+        <button class="btn ghost small" onclick="app.closeModal()">Annuler</button>
+        <div style="flex:1"></div>
+        <button class="btn ghost small" onclick="app.copyClientFormLink('${clientUrl}')">📋 Juste copier le lien</button>
+        <button class="btn primary small" onclick="app.sendClientFormEmail()">✉ Envoyer l'email</button>
+      `
+    );
+  },
+
+  async copyClientFormLink(url){
+    // Crée/maj l'entrée client_forms et copie le lien, sans envoyer de mail
+    const ctx = state.modal.context;
+    const d = state.dossiers[ctx.dossierId];
+    const cf = ctx.existing || {
+      token: ctx.token, dossierId: d.id, numDossier: d.numDossier,
+      createdAt: Date.now(), status: "PENDING",
+      clientMail: d.mail||""
+    };
+    cf.updatedAt = Date.now();
+    await fb.set(`/client_forms/${cf.token}`, cf);
+    state.clientForms[cf.token] = cf;
+    await fb.update(`/dossiers/${d.id}`, { clientFormToken:cf.token, clientFormStatus:"PENDING", updatedAt:Date.now() });
+    this.copyToClipboard(url);
+    this.closeModal();
+    if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+  },
+
+  async sendClientFormEmail(){
+    const ctx = state.modal.context;
+    const d = state.dossiers[ctx.dossierId];
+    const mail = $("#cfMail").value.trim();
+    const subject = $("#cfSubject").value.trim();
+    const body = $("#cfBody").value;
+    if (!mail){ toast("Email requis","error"); return; }
+    const clientUrl = `${CONFIG.links.clientForm}?token=${ctx.token}`;
+
+    // Créer / mettre à jour l'entrée
+    const cf = ctx.existing || {
+      token: ctx.token, dossierId: d.id, numDossier: d.numDossier,
+      createdAt: Date.now()
+    };
+    cf.status = "PENDING";
+    cf.clientMail = mail;
+    cf.sentAt = Date.now();
+    cf.updatedAt = Date.now();
+    cf.clientUrl = clientUrl;
+    await fb.set(`/client_forms/${cf.token}`, cf);
+    state.clientForms[cf.token] = cf;
+    await fb.update(`/dossiers/${d.id}`, { clientFormToken:cf.token, clientFormStatus:"PENDING", updatedAt:Date.now() });
+
+    // Envoi email via webhook Make
+    try{
+      await fetch(CONFIG.webhooks.email, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          type:"client_form_request",
+          to: mail,
+          subject,
+          body,
+          clientUrl,
+          token: cf.token,
+          dossierId: d.id,
+          numDossier: d.numDossier,
+          numColis: d.numColis||""
+        })
+      });
+      toast("Email envoyé ✓","success");
+    }catch(e){
+      console.warn(e); toast("Email : webhook Make échoué, mais le lien est créé","info");
+    }
+    this.closeModal();
+    if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+  },
+
+  async cancelClientForm(token){
+    if (!confirm("Révoquer le lien ? Le client ne pourra plus accéder au formulaire.")) return;
+    await fb.del(`/client_forms/${token}`);
+    delete state.clientForms[token];
+    if (state.currentDossierId){
+      const d = state.dossiers[state.currentDossierId];
+      await fb.update(`/dossiers/${d.id}`,{ clientFormToken:null, clientFormStatus:null });
+      this.renderTab(d);
+    }
+    toast("Lien révoqué","info");
+  },
+
+  async importClientData(dossierId, token){
+    const cf = state.clientForms[token]; if (!cf || !cf.data){ toast("Aucune donnée à importer","error"); return; }
+    if (!confirm("Importer les infos du client dans le dossier ?\n(Les champs existants seront écrasés.)")) return;
+    const d = state.dossiers[dossierId];
+    const patch = {};
+    const m = cf.data;
+    if (m.nom)       patch.nom = m.nom;
+    if (m.prenom)    patch.prenom = m.prenom;
+    if (m.mail)      patch.mail = m.mail;
+    if (m.telephone) patch.telephone = m.telephone;
+    if (m.adresse)   patch.adresse = m.adresse;
+    if (m.ville)     patch.ville = m.ville;
+    if (m.numColis)  patch.numColis = m.numColis;
+    if (m.origine)   patch.origine = m.origine;
+    if (m.valeur)    patch.valeur = Number(m.valeur)||0;
+    if (m.description) patch.notes = (d.notes?d.notes+"\n\n":"") + "Infos client : " + m.description;
+
+    // Documents : ajouter aux docs du dossier
+    if (m.docs && typeof m.docs === "object"){
+      d.docs = d.docs || {};
+      Object.entries(m.docs).forEach(([k,doc])=>{
+        d.docs["client_"+k] = { url: doc.url, name: doc.name, uploadedAt: doc.uploadedAt||Date.now(), source:"client" };
+      });
+      patch.docs = d.docs;
+    }
+    patch.updatedAt = Date.now();
+    await fb.update(`/dossiers/${d.id}`, patch);
+    Object.assign(state.dossiers[d.id], patch);
+    toast("Infos client importées ✓","success");
+    this.renderTab(state.dossiers[d.id]);
+  },
+
+  copyToClipboard(text){
+    navigator.clipboard.writeText(text).then(()=>toast("Copié dans le presse-papier","success")).catch(()=>toast("Impossible de copier","error"));
+  },
+
+  labelForKey(k){
+    const map = { nom:"Nom/Société", prenom:"Contact", mail:"Email", telephone:"Téléphone", adresse:"Adresse", ville:"Ville/CP", numColis:"N° colis/AWB", origine:"Origine", valeur:"Valeur marchandise (€)", description:"Description", submittedAt:"Soumis le", status:"Statut" };
+    return map[k] || k;
+  }
+};
+
+/* Helper pour format money dans jsPDF (sans symbole) */
+function fmtMoneyPdf(n){ return new Intl.NumberFormat("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0); }
+
+/* ---------- Utils ---------- */
+function $(s){return document.querySelector(s);}
+function $$(s){return Array.from(document.querySelectorAll(s));}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function num2(v){if(v==null||v==="")return 0;const n=Number(v);return isNaN(n)?0:n;}
+function fmtEuro(n){if(!n)return"0 €";return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n);}
+function fmtDate(ts){ if(!ts)return"—"; const d=new Date(ts); return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); }
+function fmtDateLong(ts){ if(!ts)return"—"; const d=new Date(ts); return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})+" · "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
+function fmtRelativeDate(ts){
+  if (!ts) return "—";
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff/60000);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${mins} min`;
+  const hrs = Math.floor(mins/60);
+  if (hrs < 24) return `il y a ${hrs}h`;
+  const days = Math.floor(hrs/24);
+  if (days < 7) return `il y a ${days}j`;
+  return fmtDate(ts);
+}
+function toast(msg,type="info"){const t=$("#toast");t.className="toast "+type+" show";t.textContent=msg;clearTimeout(toast._to);toast._to=setTimeout(()=>t.classList.remove("show"),3200);}
+function fileToBase64(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(",")[1]);r.onerror=ko;r.readAsDataURL(f);});}
+function setDeep(obj, path, value){
+  let o = obj;
+  for (let i=0;i<path.length-1;i++){ const k=path[i]; if (!o[k] || typeof o[k]!=="object") o[k]={}; o=o[k]; }
+  if (value===null) delete o[path[path.length-1]]; else o[path[path.length-1]]=value;
+}
+
+/* Bridge snippet à coller dans TAF PERAC */
+const BRIDGE_SNIPPET = `// ============================================================
+// BRIDGE TAF PERAC ↔ TAF EXPRESS (Firebase shared namespace)
+// À inclure dans TAF_PERAC.html
+// ============================================================
+const TAF_SHARED = {
+  url: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_shared",
+
+  // --- Lire un dossier EXPRESS ---
+  async getDossier(dossierId){
+    const r = await fetch(\`\${this.url}/dossiers/\${dossierId}.json\`);
+    return r.json();
+  },
+
+  // --- Lire la file des demandes de facturation ---
+  async getQueue(){
+    const r = await fetch(\`\${this.url}/facturation_queue.json\`);
+    return r.json() || {};
+  },
+
+  // --- Écrire une facture (dossierId = clé) ---
+  async writeFacture(dossierId, facture){
+    // facture = { numFacture, numDossier, totalHT, totalTTC, totalTVA, status, emittedAt, pdfUrl, dueDate, ... }
+    await fetch(\`\${this.url}/factures/\${dossierId}.json\`, {
+      method:"PUT", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ ...facture, dossierId, emittedAt: facture.emittedAt || Date.now() })
+    });
+    // Enlever la demande de la queue
+    await fetch(\`\${this.url}/facturation_queue/\${dossierId}.json\`, { method:"DELETE" });
+    // Mettre à jour le dossier
+    await fetch(\`\${this.url}/dossiers/\${dossierId}.json\`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ facturationRequested:false, factureNumero:facture.numFacture, updatedAt:Date.now() })
+    });
+  },
+
+  // --- Marquer une facture comme payée ---
+  async markPaid(dossierId){
+    await fetch(\`\${this.url}/factures/\${dossierId}.json\`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ status:"PAYE", paye:true, paidAt:Date.now() })
+    });
+    await fetch(\`\${this.url}/dossiers/\${dossierId}.json\`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ status:"REGLE", facturePayee:true, reglementRecu:true, updatedAt:Date.now() })
+    });
+  },
+
+  // --- Écoute temps réel de la queue (SSE) ---
+  subscribeQueue(onChange){
+    const es = new EventSource(\`\${this.url}/facturation_queue.json\`);
+    es.addEventListener("put",   e => { try{ const d=JSON.parse(e.data); onChange("put",   d.path, d.data); }catch{} });
+    es.addEventListener("patch", e => { try{ const d=JSON.parse(e.data); onChange("patch", d.path, d.data); }catch{} });
+    return es;
+  }
+};
+
+// Exemple : auto-ouverture d'un dossier via l'URL (?#dossier=D00866)
+const m = location.hash.match(/dossier=([A-Za-z0-9_-]+)/);
+if (m){
+  TAF_SHARED.getDossier(m[1]).then(d => {
+    if (d) {
+      // Pré-remplir ton formulaire PERAC avec d.nom, d.mail, d.totalFacture, etc.
+      console.log("Dossier reçu depuis EXPRESS :", d);
+    }
+  });
+}
+
+// Exemple : écoute des nouvelles demandes de facturation
+TAF_SHARED.subscribeQueue((op, path, data) => {
+  console.log("Nouvelle demande de facturation :", path, data);
+  // → afficher une notification "N nouveaux dossiers à facturer"
+});
+`;
+
+document.addEventListener("DOMContentLoaded",()=>app.boot());
+</script>
+</body>
+</html>
