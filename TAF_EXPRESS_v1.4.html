@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.4</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.5</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -600,7 +600,7 @@ a{color:var(--accent);text-decoration:none}
 
     <div class="sidebar-footer">
       <div><span class="live-dot" id="liveDot"></span><span id="fbStatus">temps réel</span></div>
-      <div style="margin-top:4px">/taf_shared · Opus · v1.4</div>
+      <div style="margin-top:4px">/taf_shared · Opus · v1.5</div>
     </div>
   </aside>
 
@@ -1476,16 +1476,24 @@ const app = {
 
   /* -------- DRAWER -------- */
   openDrawer(id){
-    state.currentDossierId = id; const isNew=!id;
+    const isNew=!id;
     const d = isNew ? this.blankDossier() : state.dossiers[id];
     if (!d){ toast("Dossier introuvable","error"); return; }
+    // Pour un nouveau dossier, on stocke le dossier temporaire et on met son ID dans currentDossierId
+    if (isNew) {
+      state.tempDossier = d;
+      state.currentDossierId = d.id;
+    } else {
+      state.currentDossierId = id;
+      state.tempDossier = null;
+    }
     this.currentTab = "infos";
     $("#drawerNum").textContent = `#${d.numDossier||"—"}`;
     $("#drawerName").textContent = isNew?"Nouveau dossier":(d.nom||"Dossier");
     $("#drawer").classList.add("open"); $("#drawerBackdrop").classList.add("open");
     this.renderDrawerBody(d, isNew);
   },
-  closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawerBackdrop").classList.remove("open"); state.currentDossierId=null; },
+  closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawerBackdrop").classList.remove("open"); state.currentDossierId=null; state.tempDossier=null; },
   blankDossier(){
     const next=(Object.values(state.dossiers).reduce((m,d)=>Math.max(m,d.numDossier||0),0))+1;
     return { id:`D${String(next).padStart(5,"0")}`, numDossier:next, operateur:"CHRONOPOST", status:"DEVIS", archive:"actif", natureMarchandise:[], nom:"",prenom:"",ville:"",mail:"",telephone:"",numColis:"",adresse:"",origine:"",valeur:0,tauxDD:110,tauxTVA:20,dd:0,tva:0,ima:0,montantIntervention:110,totalFacture:0,notes:"",okDouane:false,okDevis:false,proformaEnvoyee:false,factureDefEnvoyee:false,chequeDemande:false,facturePayee:false,reglementRecu:false,mailOperateur:false,numDeclaration:"",numCheque:"",dossierMalta:null, module:CONFIG.moduleId, createdAt:Date.now(),updatedAt:Date.now() };
@@ -1708,13 +1716,52 @@ const app = {
   tabDocs(d){
     const types=[{k:"proforma",l:"Facture proforma"},{k:"factureDef",l:"Facture définitive"},{k:"bae",l:"BAE"},{k:"declaration",l:"Déclaration douane"},{k:"factureOp",l:"Facture opérateur"},{k:"autre",l:"Autre"}];
     d.docs=d.docs||{};
-    return `<p style="color:var(--text-2);font-size:13px;margin-bottom:16px">Documents stockés sur Google Drive TAF.</p>
-      <div class="doc-list">${types.map(t=>{const doc=d.docs[t.k]; return `<div class="doc-item"><div class="doc-ico">${t.k.slice(0,3).toUpperCase()}</div><div class="name">${t.l}${doc?`<small><a href="${doc.url}" target="_blank">${esc(doc.name)}</a></small>`:`<small class="empty">aucun fichier</small>`}</div><button class="btn ghost small" onclick="app.uploadDoc('${t.k}')">${doc?"Remplacer":"Charger"}</button>${doc?`<button class="btn danger small" onclick="app.removeDoc('${t.k}')">×</button>`:""}</div>`;}).join("")}</div>`;
+    
+    // Trouver la dernière proforma pour ce dossier
+    const proformasDossier = Object.values(state.proformas||{}).filter(p=>p.dossierId===d.id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const latestProforma = proformasDossier[0];
+    
+    let proformaSection = '';
+    if (latestProforma && latestProforma.pdfUrl) {
+      // Afficher la miniature cliquable
+      proformaSection = `
+        <div style="background:linear-gradient(135deg,rgba(212,168,87,.08) 0%,rgba(212,168,87,.02) 100%);border:1px solid rgba(212,168,87,.25);border-radius:var(--radius);padding:14px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div style="font-family:var(--serif);font-size:16px;color:var(--accent-2)">Pro Forma ${esc(latestProforma.numProforma||"")}</div>
+            <div style="flex:1"></div>
+            <button class="btn ghost small" onclick="app.viewPdfPopup('${latestProforma.pdfUrl}','${esc(latestProforma.numProforma||"Pro Forma")}')">👁 Agrandir</button>
+            <a href="${latestProforma.pdfUrl}" target="_blank" class="btn ghost small">↗ Ouvrir</a>
+          </div>
+          <div onclick="app.viewPdfPopup('${latestProforma.pdfUrl}','${esc(latestProforma.numProforma||"Pro Forma")}')" style="cursor:pointer;background:white;border:1px solid var(--border);border-radius:6px;padding:8px;display:flex;align-items:center;justify-content:center;min-height:180px;position:relative;overflow:hidden">
+            <iframe src="${latestProforma.pdfUrl}" style="width:100%;height:180px;border:none;pointer-events:none;transform:scale(0.7);transform-origin:top left"></iframe>
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 0%,rgba(11,13,16,0.05) 100%)"></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:8px;text-align:center">
+            ${latestProforma.totalTTC?fmtEuro(latestProforma.totalTTC):""} · ${fmtDate(latestProforma.createdAt)}
+          </div>
+        </div>
+      `;
+    }
+    
+    return `
+      <p style="color:var(--text-2);font-size:13px;margin-bottom:16px">Documents stockés sur Google Drive TAF.</p>
+      
+      ${!latestProforma||!latestProforma.pdfUrl?`
+        <div style="margin-bottom:18px">
+          <button class="btn primary small" onclick="app.generateAndSaveProformaPDF('${d.id}')">📄 Générer Pro Forma PDF</button>
+          <span style="font-size:11px;color:var(--text-3);margin-left:8px">Génère automatiquement le PDF selon le template et le sauvegarde dans Drive</span>
+        </div>
+      `:''}
+      
+      ${proformaSection}
+      
+      <div class="doc-list">${types.map(t=>{const doc=d.docs[t.k]; return `<div class="doc-item"><div class="doc-ico">${t.k.slice(0,3).toUpperCase()}</div><div class="name">${t.l}${doc?`<small><a href="${doc.url}" target="_blank">${esc(doc.name)}</a></small>`:`<small class="empty">aucun fichier</small>`}</div><button class="btn ghost small" onclick="app.uploadDoc('${t.k}')">${doc?"Remplacer":"Charger"}</button>${doc?`<button class="btn danger small" onclick="app.removeDoc('${t.k}')">×</button>`:""}</div>`;}).join("")}</div>
+    `;
   },
   tabNotes(d){ return `<div class="field full"><label>Notes internes</label><textarea data-k="notes" rows="12">${esc(d.notes||"")}</textarea></div>`; },
 
   readDrawer(){
-    const d = state.currentDossierId ? Object.assign({},state.dossiers[state.currentDossierId]) : this.blankDossier();
+    const d = state.tempDossier ? Object.assign({},state.tempDossier) : (state.currentDossierId ? Object.assign({},state.dossiers[state.currentDossierId]) : this.blankDossier());
     $("#drawerBody").querySelectorAll("[data-k]").forEach(el=>{let v=el.value; if(el.type==="number")v=v===""?null:Number(v); d[el.dataset.k]=v;});
     const nat=$("#drawerBody").querySelector("#natSelect");
     if (nat) d.natureMarchandise=Array.from(nat.querySelectorAll(".tag.selected")).map(x=>x.dataset.nat);
@@ -1732,7 +1779,15 @@ const app = {
   async saveDossier(){
     const d=this.readDrawer(); d.updatedAt=Date.now(); d.module=CONFIG.moduleId;
     if(!d.nom?.trim()){toast("Le nom est requis","error");return;}
-    try{ await fb.set(`/dossiers/${d.id}`,d); state.dossiers[d.id]=d; this.updateNavCount(); toast("Enregistré ✓","success"); this.closeDrawer(); this.render(); }
+    try{ 
+      await fb.set(`/dossiers/${d.id}`,d); 
+      state.dossiers[d.id]=d; 
+      state.tempDossier=null; // Nettoyer le dossier temporaire
+      this.updateNavCount(); 
+      toast("Enregistré ✓","success"); 
+      this.closeDrawer(); 
+      this.render(); 
+    }
     catch(e){ toast("Erreur : "+e.message,"error"); }
   },
 
@@ -2757,91 +2812,170 @@ ${CONFIG.company.website}`;
   },
 
   generateProformaPDF(pf){
-    // Génère un jsPDF à partir des données
+    // Génère un jsPDF selon le template Excel fourni
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:"mm", format:"a4" });
-    const W = 210, M = 18;
+    const W = 210, M = 20;
 
-    // Header — bande ambre
-    doc.setFillColor(212,168,87); doc.rect(0,0,W,28,"F");
-    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(22);
-    doc.text("PROFORMA", M, 17);
-    doc.setFont("helvetica","normal"); doc.setFontSize(11);
-    doc.text(pf.numProforma||"", W-M, 17, { align:"right" });
+    // Header — logo zone
+    doc.setTextColor(40,40,40); 
+    doc.setFont("helvetica","bold"); 
+    doc.setFontSize(11);
+    doc.text("COMMISSIONNAIRE EN TRANSPORT INTERNATIONAL", M, 15);
+    doc.setFontSize(10);
+    doc.text("IMPORT", M, 20);
 
-    // Société
-    doc.setTextColor(40,40,40); doc.setFont("helvetica","bold"); doc.setFontSize(12);
-    doc.text(CONFIG.company.name, M, 38);
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100,100,100);
-    doc.text(CONFIG.company.subtitle, M, 43);
-    doc.text(CONFIG.company.address, M, 48);
-    doc.text(CONFIG.company.email, M, 53);
+    // Titre FACTURE PROFORMA
+    doc.setFillColor(212,168,87); 
+    doc.rect(M+70, 25, 90, 8, "F");
+    doc.setTextColor(255,255,255); 
+    doc.setFont("helvetica","bold"); 
+    doc.setFontSize(12);
+    doc.text("FACTURE PROFORMA | PROFORMA INVOICE n° :", M+72, 30);
+    doc.text(pf.numProforma||"", W-M-5, 30, { align:"right" });
 
-    // Date + destinataire
-    doc.setTextColor(40,40,40); doc.setFontSize(10); doc.setFont("helvetica","bold");
-    doc.text("DESTINATAIRE", W-M-70, 38);
-    doc.setFont("helvetica","normal"); doc.setFontSize(10);
-    let y = 43;
-    if (pf.client.nom)    { doc.text(pf.client.nom, W-M-70, y); y+=5; }
-    if (pf.client.prenom) { doc.text(pf.client.prenom, W-M-70, y); y+=5; }
-    if (pf.client.ville)  { doc.text(pf.client.ville, W-M-70, y); y+=5; }
-    if (pf.client.mail)   { doc.setTextColor(120,120,120); doc.text(pf.client.mail, W-M-70, y); y+=5; }
+    // Date
+    doc.setTextColor(40,40,40); 
+    doc.setFont("helvetica","normal"); 
+    doc.setFontSize(10);
+    const dateStr = pf.dateIso || new Date().toISOString().slice(0,10);
+    doc.text(`Date : ${dateStr}`, M+70, 38);
 
-    // Infos dossier
-    doc.setDrawColor(220,220,220); doc.line(M, 65, W-M, 65);
-    doc.setTextColor(100,100,100); doc.setFontSize(9);
-    const infoY = 72;
-    doc.text(`Dossier N°: ${pf.numDossier||"—"}`, M, infoY);
-    doc.text(`Opérateur: ${pf.operateur||"—"}`, M+55, infoY);
-    doc.text(`N° colis/AWB: ${pf.numColis||"—"}`, M+110, infoY);
-    doc.text(`Date: ${pf.dateIso||new Date().toISOString().slice(0,10)}`, W-M, infoY, { align:"right" });
+    // Coordonnées TAF ROISSY (gauche)
+    doc.setFont("helvetica","normal"); 
+    doc.setFontSize(9);
+    doc.setTextColor(60,60,60);
+    let y = 50;
+    doc.text("4 rue du Té, Zone Cargo 6, Bâtiment 3451 A/B/C", M, y); y+=5;
+    doc.text("93290 Tremblay en France, France", M, y); y+=5;
+    doc.text("+33 1 41 84 04 40", M, y); y+=5;
+    doc.text("contact@taftrans.fr", M, y);
+
+    // Destinataire (droite)
+    doc.setFont("helvetica","bold"); 
+    doc.setFontSize(10);
+    doc.text("MR/MME " + (pf.client.nom||""), W-M-70, 50);
+    doc.setFont("helvetica","normal"); 
+    doc.setFontSize(9);
+    y = 55;
+    if (pf.client.adresse) { doc.text(pf.client.adresse, W-M-70, y); y+=5; }
+    if (pf.client.ville)   { doc.text(pf.client.ville, W-M-70, y); y+=5; }
+
+    // Infos opérateur et colis
+    doc.setDrawColor(200,200,200); 
+    doc.line(M, 75, W-M, 75);
+    doc.setFontSize(9); 
+    doc.setTextColor(80,80,80);
+    doc.text("Opérateur", M, 82);
+    doc.text("Lieu de destination", M+50, 82);
+    doc.text("Numéro de colis", W-M-40, 82);
+    
+    doc.setFont("helvetica","bold");
+    doc.text(pf.operateur||"—", M, 87);
+    doc.text(pf.client.ville||"—", M+50, 87);
+    doc.text(pf.numColis||"—", W-M-40, 87);
+
+    // Taux
+    doc.setFont("helvetica","normal");
+    const dossier = state.dossiers[pf.dossierId];
+    const tauxDD = dossier?.tauxDD || 0;
+    const valeur = dossier?.valeur || 0;
+    const tauxTVA = dossier?.tauxTVA || 20;
+    
+    doc.text(`Taux de Droit de douane: ${tauxDD}%`, M, 95);
+    doc.text(`Valeur: ${fmtMoneyPdf(valeur)} €`, M+60, 95);
+    doc.text(`TVA: ${tauxTVA}%`, M+120, 95);
 
     // Table header
-    const tY = 85;
-    doc.setFillColor(245,243,238); doc.rect(M, tY, W-2*M, 9, "F");
-    doc.setTextColor(60,60,60); doc.setFontSize(9); doc.setFont("helvetica","bold");
-    doc.text("DÉSIGNATION", M+3, tY+6);
-    doc.text("QTÉ", M+102, tY+6, { align:"right" });
-    doc.text("P.U. HT", M+125, tY+6, { align:"right" });
-    doc.text("TVA", M+145, tY+6, { align:"right" });
-    doc.text("TOTAL HT", W-M-3, tY+6, { align:"right" });
+    const tY = 105;
+    doc.setFillColor(240,240,240); 
+    doc.rect(M, tY, W-2*M, 8, "F");
+    doc.setTextColor(40,40,40); 
+    doc.setFontSize(9); 
+    doc.setFont("helvetica","bold");
+    doc.text("Libellé", M+2, tY+5);
+    doc.text("DOUANE", M+90, tY+5, { align:"right" });
+    doc.text("TAXABLE", M+120, tY+5, { align:"right" });
+    doc.text("EXONERE", W-M-2, tY+5, { align:"right" });
 
-    // Lines
-    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
-    let ly = tY + 15;
-    pf.lignes.forEach(l=>{
-      const ht = (l.qty||0) * (l.pu||0);
-      const lines = doc.splitTextToSize(l.description||"", 85);
-      doc.text(lines, M+3, ly);
-      doc.text(String(l.qty||0), M+102, ly, { align:"right" });
-      doc.text(fmtMoneyPdf(l.pu||0), M+125, ly, { align:"right" });
-      doc.text(`${l.tva||0}%`, M+145, ly, { align:"right" });
-      doc.text(fmtMoneyPdf(ht), W-M-3, ly, { align:"right" });
-      ly += Math.max(7, lines.length*5);
-      doc.setDrawColor(235,235,235); doc.line(M, ly-2, W-M, ly-2);
+    // Lignes selon template Excel
+    doc.setFont("helvetica","normal"); 
+    doc.setFontSize(9);
+    let ly = tY + 13;
+    
+    // Calculs automatiques selon template
+    const dd = (valeur * tauxDD) / 100;
+    const tvaDd = (dd + valeur) * tauxTVA / 100;
+    const montantInter = dossier?.montantIntervention || 110;
+    
+    const lignesTemplate = [
+      { lib: "AUTRES TAXES", douane: 0, taxable: 0, exonere: 0 },
+      { lib: "DROITS DE DOUANE", douane: dd, taxable: 0, exonere: 0 },
+      { lib: "TVA DOUANE", douane: tvaDd, taxable: 0, exonere: 0 },
+      { lib: "FRAIS DE TRANSFERT", douane: 0, taxable: 50, exonere: 0 },
+      { lib: "TAXE DOUANE", douane: 0, taxable: 20, exonere: 0 },
+      { lib: "DEDOUANEMENT", douane: 0, taxable: montantInter, exonere: 0 }
+    ];
+
+    lignesTemplate.forEach(l=>{
+      doc.text(l.lib, M+2, ly);
+      if (l.douane) doc.text(fmtMoneyPdf(l.douane), M+90, ly, { align:"right" });
+      if (l.taxable) doc.text(fmtMoneyPdf(l.taxable), M+120, ly, { align:"right" });
+      if (l.exonere) doc.text(fmtMoneyPdf(l.exonere), W-M-2, ly, { align:"right" });
+      ly += 6;
+      doc.setDrawColor(230,230,230); 
+      doc.line(M, ly-1, W-M, ly-1);
     });
 
-    // Totals
+    // Sous-totaux
+    ly += 3;
+    doc.setFont("helvetica","bold");
+    doc.text("SOUS-TOTAL", M+2, ly);
+    const totalDouane = lignesTemplate.reduce((s,l)=>s+l.douane, 0);
+    const totalTaxable = lignesTemplate.reduce((s,l)=>s+l.taxable, 0);
+    const totalExonere = lignesTemplate.reduce((s,l)=>s+l.exonere, 0);
+    
+    doc.text(fmtMoneyPdf(totalDouane), M+90, ly, { align:"right" });
+    doc.text(fmtMoneyPdf(totalTaxable), M+120, ly, { align:"right" });
+    doc.text(fmtMoneyPdf(totalExonere), W-M-2, ly, { align:"right" });
+
+    // TVA sur taxable
+    ly += 10;
+    doc.setFont("helvetica","normal");
+    doc.text("Devise : EUR (€)", M+50, ly);
     ly += 6;
-    doc.setFontSize(10); doc.setTextColor(80,80,80);
-    doc.text("Total HT", W-M-50, ly, { align:"right" }); doc.text(fmtMoneyPdf(pf.totalHT||0), W-M-3, ly, { align:"right" }); ly+=6;
-    doc.text("TVA", W-M-50, ly, { align:"right" });      doc.text(fmtMoneyPdf(pf.totalTVA||0), W-M-3, ly, { align:"right" }); ly+=3;
-    doc.setDrawColor(212,168,87); doc.setLineWidth(.5); doc.line(W-M-55, ly, W-M, ly); ly+=7;
-    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(212,168,87);
-    doc.text("Total TTC", W-M-55, ly, { align:"right" }); doc.text(fmtMoneyPdf(pf.totalTTC||0)+" €", W-M-3, ly, { align:"right" });
+    const tvaSurTaxable = totalTaxable * 0.2;
+    doc.text("T.V.A (€)", M+50, ly);
+    doc.text(fmtMoneyPdf(tvaSurTaxable), W-M-2, ly, { align:"right" });
+
+    // Total final
+    ly += 8;
+    doc.setFont("helvetica","bold"); 
+    doc.setFontSize(12); 
+    doc.setTextColor(212,168,87);
+    doc.setDrawColor(212,168,87); 
+    doc.setLineWidth(0.5); 
+    doc.line(M+40, ly-2, W-M, ly-2);
+    
+    const totalFinal = totalDouane + totalTaxable + totalExonere + tvaSurTaxable;
+    doc.text("TOTAL TTC", M+50, ly);
+    doc.text(fmtMoneyPdf(totalFinal) + " €", W-M-2, ly, { align:"right" });
 
     // Note
-    if (pf.note){
-      ly += 18;
-      doc.setFont("helvetica","italic"); doc.setFontSize(9); doc.setTextColor(90,90,90);
-      const noteLines = doc.splitTextToSize(pf.note, W-2*M);
-      doc.text(noteLines, M, ly);
-    }
+    ly += 15;
+    doc.setFont("helvetica","italic"); 
+    doc.setFontSize(8); 
+    doc.setTextColor(90,90,90);
+    const note = pf.note || "Règlement sous 8 jours par virement bancaire.";
+    const noteLines = doc.splitTextToSize(note, W-2*M);
+    doc.text(noteLines, M, ly);
 
     // Footer
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(160,160,160);
+    doc.setFont("helvetica","normal"); 
+    doc.setFontSize(7); 
+    doc.setTextColor(140,140,140);
     doc.text("Document proforma — non valable comme facture", W/2, 285, { align:"center" });
-    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS`, W/2, 290, { align:"center" });
+    doc.text(`Généré le ${new Date().toLocaleString("fr-FR")} par TAF EXPRESS v1.5`, W/2, 290, { align:"center" });
 
     return doc;
   },
@@ -2931,6 +3065,121 @@ ${CONFIG.company.email}`;
     delete state.proformas[id];
     toast("Proforma supprimée","info");
     if (state.currentDossierId) this.renderTab(state.dossiers[state.currentDossierId]);
+  },
+
+  async generateAndSaveProformaPDF(dossierId){
+    const d = state.dossiers[dossierId];
+    if (!d){ toast("Dossier introuvable","error"); return; }
+    
+    try {
+      toast("Génération du PDF Pro Forma…","info");
+      
+      // Créer une proforma automatique basée sur les données du dossier
+      const next = Object.values(state.proformas||{}).reduce((m,p)=>{const n=parseInt(String(p.numProforma||"").replace(/\D/g,""))||0; return n>m?n:m;},0)+1;
+      const num = `PF${new Date().getFullYear()}-${String(next).padStart(4,"0")}`;
+      
+      const pf = {
+        id: "pf_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
+        dossierId: d.id,
+        numDossier: d.numDossier,
+        numProforma: num,
+        client: {
+          nom: d.nom||"",
+          prenom: d.prenom||"",
+          mail: d.mail||"",
+          adresse: d.adresse||"",
+          ville: d.ville||""
+        },
+        lignes: [],
+        status: "DRAFT",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        numColis: d.numColis,
+        origine: d.origine,
+        operateur: d.operateur,
+        note: "Règlement sous 8 jours par virement bancaire.",
+        dateIso: new Date().toISOString().slice(0,10)
+      };
+      
+      // Calculer les totaux selon template
+      const valeur = d.valeur || 0;
+      const tauxDD = d.tauxDD || 0;
+      const tauxTVA = d.tauxTVA || 20;
+      const montantInter = d.montantIntervention || 110;
+      
+      const dd = (valeur * tauxDD) / 100;
+      const tvaDd = (dd + valeur) * tauxTVA / 100;
+      const totalDouane = dd + tvaDd;
+      const totalTaxable = 50 + 20 + montantInter;
+      const tvaSurTaxable = totalTaxable * 0.2;
+      const totalFinal = totalDouane + totalTaxable + tvaSurTaxable;
+      
+      pf.totalHT = totalDouane + totalTaxable;
+      pf.totalTVA = tvaDd + tvaSurTaxable;
+      pf.totalTTC = totalFinal;
+      
+      // Générer le PDF
+      const doc = this.generateProformaPDF(pf);
+      const pdfB64 = doc.output("datauristring").split(",")[1];
+      
+      // Upload vers Drive
+      toast("Upload vers Drive…","info");
+      const up = await fetch(CONFIG.drive.uploadUrl,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          folderId: CONFIG.drive.folder,
+          filename: `${pf.numProforma}_${d.nom||d.id}.pdf`,
+          mimeType: "application/pdf",
+          data: pdfB64
+        })
+      });
+      
+      const upJson = await up.json();
+      if (!upJson.url) throw new Error("Upload Drive échoué");
+      
+      pf.pdfUrl = upJson.url;
+      
+      // Sauvegarder la proforma dans Firebase
+      await fb.set(`/proformas/${pf.id}`, pf);
+      state.proformas[pf.id] = pf;
+      
+      toast("Pro Forma PDF créée et sauvegardée ✓","success");
+      
+      // Rafraîchir l'onglet Documents
+      if (state.currentDossierId) this.renderTab(d);
+      
+    } catch(e) {
+      console.error(e);
+      toast("Erreur : "+e.message,"error");
+    }
+  },
+
+  viewPdfPopup(url, title){
+    // Créer un popup pour afficher le PDF en grand
+    const popup = document.createElement("div");
+    popup.id = "pdfPopup";
+    popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn .2s;padding:20px";
+    
+    popup.innerHTML = `
+      <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius);width:min(1000px,95vw);height:min(800px,90vh);display:flex;flex-direction:column;box-shadow:var(--shadow)">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+          <h3 style="font-family:var(--serif);font-size:20px;font-weight:400;flex:1">${esc(title)}</h3>
+          <a href="${url}" target="_blank" class="btn ghost small">↗ Ouvrir dans un nouvel onglet</a>
+          <button class="btn ghost small" onclick="document.getElementById('pdfPopup').remove()">✕ Fermer</button>
+        </div>
+        <div style="flex:1;overflow:hidden">
+          <iframe src="${url}" style="width:100%;height:100%;border:none"></iframe>
+        </div>
+      </div>
+    `;
+    
+    // Fermer au clic sur le fond
+    popup.addEventListener("click", (e) => {
+      if (e.target === popup) popup.remove();
+    });
+    
+    document.body.appendChild(popup);
   },
 
   /* ==========================================================================
