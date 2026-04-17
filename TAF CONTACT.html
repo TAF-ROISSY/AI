@@ -736,9 +736,10 @@
   <div class="header-right">
     <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
     <button class="sync-btn" id="scanBtn" onclick="manualScan()">🔍 Scanner</button>
+    <button class="sync-btn" id="reclassBtn" onclick="reclassifyAll()">🏷️ Reclasser</button>
     <button class="sync-btn" id="fbSyncBtn" onclick="reloadFromFirebase()">🔥 Sync Firebase</button>
     <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Backup Drive</button>
-    <div class="version-badge">v2.2</div>
+    <div class="version-badge">v2.3</div>
   </div>
 </header>
 
@@ -1313,23 +1314,80 @@ function toggleScan() {
 }
 
 // ══════════════════════════════════════════════
+// CLASSIFICATION INTELLIGENTE DES CONTACTS
+// ══════════════════════════════════════════════
+function guessCategory(item) {
+  // Classer selon le NOM et l'EMAIL du contact (pas le JSON complet)
+  const nom = (item.nom || item.name || item.client || item.destinataire || item.bureau || '').toLowerCase();
+  const societe = (item.societe || item.company || item.société || item.organisme || '').toLowerCase();
+  const email = (item.email || item.mail || '').toLowerCase();
+  const poste = (item.poste || item.fonction || item.service || '').toLowerCase();
+  const txt = nom + ' ' + societe + ' ' + email + ' ' + poste;
+
+  // ── HANDLERS (compagnies aériennes, assistants en escale) ──
+  const HANDLERS = [
+    'wfs', 'swissport', 'dnata', 'france handling', 'ground', 'menzies',
+    'worldwide flight', 'aviapartner', 'sats', 'celebi',
+    'air france cargo', 'afcargo', 'af cargo',
+    'qatar', 'turkish', 'emirates', 'etihad', 'saudia', 'royal air maroc',
+    'ethiopian', 'kenya airways', 'south african', 'egyptair',
+    'korean air', 'cathay', 'singapore airlines', 'thai cargo',
+    'lufthansa cargo', 'klm cargo', 'british airways', 'virgin',
+    'fedex', 'ups cargo', 'dhl', 'tnt', 'chronopost',
+    'cargolux', 'atlas air', 'kalitta', 'silk way',
+    'china airlines', 'china southern', 'air china', 'china cargo',
+    'japan airlines', 'ana cargo', 'nippon', 'asiana',
+    'aeroflot', 'volga-dnepr', 'airbridgecargo',
+    'latam cargo', 'avianca cargo', 'copa cargo',
+    'hub', 'fret ', 'cargo ', ' cargo', 'freight',
+    'magasin', 'entrepot', 'entrepôt', 'import.cdg', 'export.cdg'
+  ];
+
+  // ── DOUANE (services étatiques, administrations) ──
+  const DOUANE = [
+    'douane', 'customs', 'dgddi', 'dvd', 'bureau de douane',
+    'sivep', 'svi ', 'spf ', 'dgal', 'dreal', 'driaaf',
+    'traces', 'anses', 'phytosanitaire', 'vétérinaire', 'veterinaire',
+    'inspection', 'contrôle', 'controle', 'brigade', 'visite',
+    'agriculture.gouv', 'douane.finances.gouv', 'developpement-durable.gouv',
+    'recette', 'sce ', 'service des douanes', 'piste',
+    'direction générale', 'direction régionale',
+    'préfecture', 'prefecture', 'cites', 'convention washington'
+  ];
+
+  // ── TRANSPORTEURS ──
+  const TRANSPORT = [
+    'transport', 'livraison', 'livreur', 'camion', 'chauffeur',
+    'logisti', 'coursier', 'express', 'messagerie',
+    'geodis', 'db schenker', 'kuehne', 'nagel', 'bollore', 'bolloré',
+    'ceva', 'panalpina', 'agility', 'hellmann', 'rhenus',
+    'norbert dentressangle', 'stef', 'heppner', 'dachser',
+    'transfert', 'navette', 'taxi cargo'
+  ];
+
+  // Priorité : Handler > Douane > Transport > Autres
+  for (const kw of HANDLERS) {
+    if (txt.includes(kw)) return 'handlers';
+  }
+  for (const kw of DOUANE) {
+    if (txt.includes(kw)) return 'douane';
+  }
+  for (const kw of TRANSPORT) {
+    if (txt.includes(kw)) return 'transporteurs';
+  }
+
+  // Fallback par domaine email
+  if (email.includes('.gouv.fr') || email.includes('.gouv.')) return 'douane';
+  if (email.includes('cargo') || email.includes('freight') || email.includes('.aero')) return 'handlers';
+
+  return 'autres';
+}
+
+// ══════════════════════════════════════════════
 // DEEP SCAN — Explorer récursivement Firebase
 // ══════════════════════════════════════════════
 function deepScanContacts(raw, source) {
   const contacts = [];
-
-  // Mots-clés pour détecter les catégories
-  const DOUANE_KW = /douane|customs|bureau|inspection|dvd|dv[0-9]|sce|brigade|recette|cedex|dgddi|piste/i;
-  const HANDLER_KW = /handler|handling|wfs|swissport|dnata|ground|assis|cargo|fedex|dhl|hub/i;
-  const TRANSPORT_KW = /transport|livr|camion|chauffeur|logist/i;
-
-  function guessCategory(item) {
-    const txt = JSON.stringify(item).toLowerCase();
-    if (DOUANE_KW.test(txt)) return 'douane';
-    if (HANDLER_KW.test(txt)) return 'handlers';
-    if (TRANSPORT_KW.test(txt)) return 'transporteurs';
-    return 'autres';
-  }
 
   function tryExtract(obj, depth = 0) {
     if (!obj || depth > 4) return;
@@ -1380,6 +1438,51 @@ function deepScanContacts(raw, source) {
 
   tryExtract(raw);
   return contacts;
+}
+
+async function reclassifyAll() {
+  const btn = document.getElementById('reclassBtn');
+  btn.textContent = '⏳ Tri...';
+  btn.classList.add('saving');
+
+  // Fusionner tous les contacts
+  const all = [];
+  ['douane','handlers','transporteurs','autres'].forEach(tab => {
+    data[tab].forEach(c => {
+      c._oldTab = tab;
+      all.push(c);
+    });
+  });
+
+  if (all.length === 0) {
+    showToast('Aucun contact à reclasser', 'info');
+    btn.textContent = '🏷️ Reclasser';
+    btn.classList.remove('saving');
+    return;
+  }
+
+  // Réinitialiser les catégories
+  data = { douane: [], handlers: [], transporteurs: [], autres: [] };
+
+  // Reclasser chaque contact
+  let moved = 0;
+  all.forEach(c => {
+    const oldTab = c._oldTab;
+    delete c._oldTab;
+    const newTab = guessCategory(c);
+    data[newTab].push(c);
+    if (newTab !== oldTab) moved++;
+  });
+
+  // Sauvegarder
+  await saveData();
+  renderAll();
+
+  const summary = `Douane: ${data.douane.length} · Handlers: ${data.handlers.length} · Transporteurs: ${data.transporteurs.length} · Autres: ${data.autres.length}`;
+  showToast(`✅ ${moved} contacts reclassés ! ${summary}`, 'success');
+
+  btn.textContent = '🏷️ Reclasser';
+  btn.classList.remove('saving');
 }
 
 async function importScanResults() {
