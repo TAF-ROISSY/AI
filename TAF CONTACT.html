@@ -656,8 +656,9 @@
   </div>
   <div class="header-right">
     <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
-    <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Sync Drive</button>
-    <div class="version-badge">v1.1.0</div>
+    <button class="sync-btn" id="fbSyncBtn" onclick="reloadFromFirebase()">🔥 Sync Firebase</button>
+    <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Backup Drive</button>
+    <div class="version-badge">v2.0</div>
   </div>
 </header>
 
@@ -718,8 +719,7 @@
 
   <!-- BRIDGE INFO -->
   <div class="bridge-info">
-    📡 Les données sont accessibles par toutes les apps TAF via :
-    <b id="bridgeUrl">Drive → taf_contacts.json</b>
+    🔥 Source de données : <b>Firebase → taf_contact/data</b> · Backup optionnel sur Drive
     <span class="copy-tag" onclick="copyBridgeSnippet()">📋 Copier snippet intégration</span>
   </div>
 
@@ -839,11 +839,12 @@
 
 <script>
 // ══════════════════════════════════════════════
-// STATE
+// STATE — Firebase Realtime Database
 // ══════════════════════════════════════════════
-const STORAGE_KEY = 'taf_contacts_data';
-const CONFIG_KEY  = 'taf_contacts_config';
-const DRIVE_FILE  = 'taf_contacts.json';
+const FB_BASE = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
+const FB_DATA = 'taf_contact/data';
+const FB_CONFIG = 'taf_contact/config';
+const DRIVE_FILE = 'taf_contacts.json';
 
 let data = {
   douane: [],
@@ -860,44 +861,112 @@ let editState = { tab: null, id: null };
 let currentTab = 'douane';
 
 // ══════════════════════════════════════════════
+// FIREBASE HELPERS
+// ══════════════════════════════════════════════
+async function fbGet(path) {
+  try {
+    const r = await fetch(`${FB_BASE}/${path}.json`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { console.warn('Firebase GET error:', e); return null; }
+}
+
+async function fbSet(path, val) {
+  try {
+    const r = await fetch(`${FB_BASE}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(val)
+    });
+    return r.ok;
+  } catch(e) { console.error('Firebase SET error:', e); return false; }
+}
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
-function init() {
-  loadConfig();
-  loadLocal();
+async function init() {
+  await loadConfig();
+  await loadData();
   renderAll();
   updateStatus();
 }
 
-function loadConfig() {
-  const saved = localStorage.getItem(CONFIG_KEY);
-  if (saved) {
-    try { config = JSON.parse(saved); } catch(e) {}
+async function loadConfig() {
+  const saved = await fbGet(FB_CONFIG);
+  if (saved && saved.proxyUrl) {
+    config = saved;
   }
   document.getElementById('cfgProxy').value = config.proxyUrl || '';
 }
 
-function saveConfig() {
+async function saveConfig() {
   config.proxyUrl = document.getElementById('cfgProxy').value.trim();
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  await fbSet(FB_CONFIG, config);
   updateStatus();
-  showToast('Configuration enregistrée', 'success');
+  showToast('Configuration enregistrée sur Firebase', 'success');
   toggleConfig();
 }
 
-function loadLocal() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    try { data = JSON.parse(saved); } catch(e) {}
+async function loadData() {
+  // 1) Charger depuis Firebase (source principale)
+  const fbData = await fbGet(FB_DATA);
+  if (fbData) {
+    ['douane','handlers','transporteurs','autres'].forEach(k => {
+      if (Array.isArray(fbData[k])) data[k] = fbData[k];
+    });
+    renderAll();
+    showToast(`🔥 ${countAll()} contacts chargés depuis Firebase`, 'success');
+    return;
   }
-  // Ensure all keys exist
-  ['douane','handlers','transporteurs','autres'].forEach(k => {
-    if (!data[k]) data[k] = [];
-  });
+
+  // 2) Fallback : essayer Drive si Firebase est vide
+  if (config.proxyUrl) {
+    try {
+      const url = `${config.proxyUrl}?file=${DRIVE_FILE}`;
+      const res = await fetch(url, { redirect: 'follow' });
+      const json = JSON.parse(await res.text());
+      ['douane','handlers','transporteurs','autres'].forEach(k => {
+        if (Array.isArray(json[k])) data[k] = json[k];
+      });
+      // Remonter sur Firebase
+      await saveData();
+      showToast(`📁 Contacts importés depuis Drive → Firebase`, 'success');
+    } catch(e) { /* Drive vide aussi, on démarre à zéro */ }
+  }
 }
 
-function saveLocal() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+async function saveData() {
+  const payload = {
+    ...data,
+    _updated: new Date().toISOString(),
+    _app: 'TAF_CONTACTS'
+  };
+  const ok = await fbSet(FB_DATA, payload);
+  if (!ok) {
+    showToast('❌ Erreur sauvegarde Firebase', 'error');
+  }
+  return ok;
+}
+
+function countAll() {
+  return Object.values(data).reduce((s, a) => s + a.length, 0);
+}
+
+async function reloadFromFirebase() {
+  const btn = document.getElementById('fbSyncBtn');
+  btn.textContent = '⏳ Sync...';
+  const fbData = await fbGet(FB_DATA);
+  if (fbData) {
+    ['douane','handlers','transporteurs','autres'].forEach(k => {
+      if (Array.isArray(fbData[k])) data[k] = fbData[k];
+    });
+    renderAll();
+    showToast(`🔥 ${countAll()} contacts rechargés depuis Firebase`, 'success');
+  } else {
+    showToast('Firebase vide ou erreur de connexion', 'error');
+  }
+  btn.textContent = '🔥 Sync Firebase';
 }
 
 // ══════════════════════════════════════════════
@@ -1021,7 +1090,7 @@ function closeModal() {
   editState = { tab: null, id: null };
 }
 
-function saveContact() {
+async function saveContact() {
   const nom = document.getElementById('fNom').value.trim();
   if (!nom) { showToast('Le nom est obligatoire', 'error'); return; }
 
@@ -1048,7 +1117,7 @@ function saveContact() {
     data[editState.tab].push(contact);
   }
 
-  saveLocal();
+  await saveData();
   renderAll();
   closeModal();
   showToast(`Contact enregistré — ${nom}`, 'success');
@@ -1063,12 +1132,12 @@ function editContact(tab, id) {
   if (c) openModal(tab, c);
 }
 
-function deleteContact(tab, id) {
+async function deleteContact(tab, id) {
   const c = data[tab].find(x => x.id === id);
   if (!c) return;
   if (!confirm(`Supprimer "${c.nom}" ?`)) return;
   data[tab] = data[tab].filter(x => x.id !== id);
-  saveLocal();
+  await saveData();
   renderAll();
   showToast(`Contact supprimé`, 'info');
   saveToDrive();
@@ -1137,10 +1206,10 @@ async function loadFromDrive() {
     ['douane','handlers','transporteurs','autres'].forEach(k => {
       if (json[k]) data[k] = json[k];
     });
-    saveLocal();
+    await saveData();
     renderAll();
     setDriveStatus('ok', 'Drive : connecté');
-    showToast('Contacts chargés depuis Drive', 'success');
+    showToast('Contacts chargés depuis Drive → Firebase', 'success');
   } catch(e) {
     setDriveStatus('error', 'Drive : erreur chargement');
   }
@@ -1151,11 +1220,13 @@ async function loadFromDrive() {
 // ══════════════════════════════════════════════
 function updateStatus() {
   if (config.proxyUrl) {
-    setDriveStatus('loading', 'Drive : chargement...');
-    loadFromDrive();
+    setDriveStatus('ok', 'Drive : connecté');
   } else {
     setDriveStatus('', 'Drive : non configuré');
   }
+  const now = new Date().toLocaleString('fr-FR');
+  document.getElementById('lastSyncTxt').textContent = `Dernière sync : ${now}`;
+  document.getElementById('lastSyncItem').style.display = 'flex';
 }
 
 function setDriveStatus(state, txt) {
@@ -1168,13 +1239,13 @@ function setDriveStatus(state, txt) {
 // BRIDGE SNIPPET
 // ══════════════════════════════════════════════
 function copyBridgeSnippet() {
-  const snippet = `// ── TAF CONTACTS Bridge ──────────────────────────
+  const snippet = `// ── TAF CONTACTS Bridge (Firebase) ──────────────────
 // Ajouter dans votre app TAF pour accéder aux contacts
-const TAF_CONTACTS_URL = '${config.proxyUrl || 'VOTRE_PROXY_URL'}?file=taf_contacts.json';
+const FB_CONTACTS = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_contact/data.json';
 
 async function loadTAFContacts() {
   try {
-    const res = await fetch(TAF_CONTACTS_URL, { redirect: 'follow' });
+    const res = await fetch(FB_CONTACTS);
     const contacts = await res.json();
     // contacts.douane[] / contacts.handlers[] / contacts.transporteurs[] / contacts.autres[]
     // Chaque contact : { nom, societe, tel, email, adresse, ... }
@@ -1241,121 +1312,33 @@ document.getElementById('modalOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Preload proxy from TAF Config
-const globalConfig = JSON.parse(localStorage.getItem('taf_config') || '{}');
-if (globalConfig.driveProxy && !config.proxyUrl) {
-  config.proxyUrl = globalConfig.driveProxy;
-  document.getElementById('cfgProxy').value = config.proxyUrl;
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-}
-
 // INIT
 init();
 </script>
 
-<!-- ═══ TAF FIREBASE BRIDGE v2.0 — Sync universel toutes apps TAF ═══ -->
+<!-- ═══ TAF FIREBASE STATUS — Indicateur connexion Firebase ═══ -->
 <script>
 (function(){
-'use strict';
-const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
-const MAP={
-"taf_factpro_database_v1":{p:"taf_facturation/database",n:"FACTURATION"},
-"taf_factpro_config":{p:"taf_facturation/config",n:"FACTURATION",x:["airtable_pat","apiKey"]},
-"taf_factpro_pending":{p:"taf_facturation/pending",n:"FACTURATION"},
-"taf:gl":{p:"taf_recouvrement/gl",n:"RECOUVREMENT"},
-"taf:glprev":{p:"taf_recouvrement/glprev",n:"RECOUVREMENT"},
-"taf:contacts":{p:"taf_recouvrement/contacts",n:"RECOUVREMENT"},
-"taf:history":{p:"taf_recouvrement/history",n:"RECOUVREMENT"},
-"taf:config":{p:"taf_recouvrement/config",n:"RECOUVREMENT"},
-"taf:statuts":{p:"taf_recouvrement/statuts",n:"RECOUVREMENT"},
-"taf_commercial_v3":{p:"taf_commercial",n:"COMMERCIAL"},
-"taf_analyse_v3":{p:"taf_stat",n:"STAT"},
-"taf_contacts_data":{p:"taf_contact/data",n:"CONTACT"},
-"taf_contacts_config":{p:"taf_contact/config",n:"CONTACT"},
-"taf_courrier_v3":{p:"taf_courrier/data",n:"COURRIER"},
-"taf_ops_to_courrier":{p:"bridge/ops_to_courrier",n:"BRIDGE OPS→COURRIER"},
-"taf_courrier_to_ops":{p:"bridge/courrier_to_ops",n:"BRIDGE COURRIER→OPS"}
-};
-const B={
-url:FB_URL,tok:"",ok:false,last:null,dt:{},
-_u:function(p){let u=this.url+'/'+p+'.json';if(this.tok)u+='?auth='+this.tok;return u},
-get:async function(p){try{const r=await fetch(this._u(p));if(!r.ok)return null;this.last=new Date();return await r.json();}catch(e){return null}},
-set:async function(p,d){try{const r=await fetch(this._u(p),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){this.last=new Date();this._si('synced');return true}this._si('error');return false}catch(e){this._si('error');return false}},
-init:function(){
-  try{this.tok=localStorage.getItem('taf_firebase_token')||''}catch(e){}
-  this._test();this._hook();this._ci();
-  console.log('[TAF BRIDGE v2] 🔥 Init —',this._app());
-},
-_test:async function(){
-  try{const r=await fetch(this._u('_bridge_ping'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),app:this._app(),v:'2.0'})});this.ok=r.ok;this._si(r.ok?'synced':'error');if(r.ok){console.log('[TAF BRIDGE] ✅ Firebase connecté');this._isync()}}catch(e){this.ok=false;this._si('offline')}
-},
-_app:function(){const t=document.title||'';if(t.includes('FACT')||t.includes('PERAC'))return'FACTURATION';if(t.includes('RECOUV'))return'RECOUVREMENT';if(t.includes('OPS'))return'OPS';if(t.includes('COMMERCIAL'))return'COMMERCIAL';if(t.includes('ANALYSE')||t.includes('STAT'))return'STAT';if(t.includes('TEAM'))return'TEAM';if(t.includes('Contact')||t.includes('CONTACT'))return'CONTACT';if(t.includes('Courrier')||t.includes('COURRIER'))return'COURRIER';return'TAF'},
-_hook:function(){
-  const orig=localStorage.setItem.bind(localStorage);const b=this;
-  localStorage.setItem=function(k,v){
-    orig(k,v);
-    const m=MAP[k];if(m&&b.ok){clearTimeout(b.dt[k]);b.dt[k]=setTimeout(function(){b._sync(k,v,m)},1000)}
+  'use strict';
+  const FB='https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
+  async function check(){
+    try{
+      const r=await fetch(FB+'/_bridge_ping.json');
+      show(r.ok?'synced':'error');
+    }catch(e){show('offline')}
   }
-},
-_sync:async function(k,v,m){
-  if(!this.ok)return;
-  try{let d;try{d=JSON.parse(v)}catch(e){d=v}
-  if(m.x&&typeof d==='object'){const c={...d};m.x.forEach(function(xk){delete c[xk]});d=c}
-  this._si('syncing');const ok=await this.set(m.p,d);
-  if(ok)console.log('[TAF BRIDGE] ⬆️',m.n,'→',m.p)}catch(e){}
-},
-_isync:async function(){
-  if(!this.ok)return;
-  for(const[k,m]of Object.entries(MAP)){
-    try{const l=localStorage.getItem(k);if(l){const r=await this.get(m.p);if(!r){await this._sync(k,l,m)}}}catch(e){}
+  function show(s){
+    if(document.getElementById('taf-fb-ind'))return;
+    const e=document.createElement('div');e.id='taf-fb-ind';
+    const c={offline:'#666',synced:'#22c55e',error:'#ef4444'};
+    const t={offline:'Firebase offline',synced:'🔥 Firebase',error:'❌ Firebase'};
+    const bg={offline:'rgba(100,100,100,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
+    const br={offline:'rgba(100,100,100,.2)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
+    e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:default;user-select:none;background:'+bg[s]+';border:1px solid '+br[s];
+    e.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:'+c[s]+';box-shadow:'+(s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none')+'"></span><span style="color:'+c[s]+'">'+t[s]+'</span>';
+    document.body.appendChild(e);
   }
-},
-readApp:async function(p){return await this.get(p)},
-forceSyncAll:async function(){
-  if(!this.ok){await this._test();if(!this.ok)return false}
-  this._si('syncing');let n=0;
-  for(const[k,m]of Object.entries(MAP)){const l=localStorage.getItem(k);if(l){try{const ok=await this.set(m.p,JSON.parse(l));if(ok)n++}catch(e){}}}
-  this._si('synced');console.log('[TAF BRIDGE] ✅',n,'collections sync');return true
-},
-pullAll:async function(){
-  if(!this.ok)return false;this._si('syncing');let n=0;
-  const origSet=Object.getPrototypeOf(localStorage).setItem.bind(localStorage);
-  for(const[k,m]of Object.entries(MAP)){
-    const d=await this.get(m.p);if(d){try{origSet(k,JSON.stringify(d));n++}catch(e){}}
-  }
-  this._si('synced');return n
-},
-// Bridge OPS ↔ Courrier via Firebase (remplace localStorage)
-sendToOPS:async function(data){return await this.set('bridge/courrier_to_ops',data)},
-sendToCourrier:async function(data){return await this.set('bridge/ops_to_courrier',data)},
-readFromOPS:async function(){return await this.get('bridge/ops_to_courrier')},
-readFromCourrier:async function(){return await this.get('bridge/courrier_to_ops')},
-// Bridge TAF Contact → OPS (partager contacts)
-getContacts:async function(){return await this.get('taf_contact/data')},
-// Bridge TAF Team → OPS (partager équipe)
-getTeam:async function(){return await this.get('team')},
-_ci:function(){
-  if(document.getElementById('taf-bridge-ind'))return;
-  const e=document.createElement('div');e.id='taf-bridge-ind';
-  e.style.cssText='position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all .2s;user-select:none;';
-  e.onclick=function(){B.forceSyncAll().then(function(ok){if(ok){e.querySelector('.bl').textContent='✅ Sync OK'}setTimeout(function(){B._si(B.ok?'synced':'offline')},2000)})};
-  e.innerHTML='<span class="bd" style="width:7px;height:7px;border-radius:50%;transition:all .3s;flex-shrink:0;"></span><span class="bl"></span>';
-  document.body.appendChild(e);this._si(this.ok?'synced':'offline')
-},
-_si:function(s){
-  const e=document.getElementById('taf-bridge-ind');if(!e)return;
-  const d=e.querySelector('.bd'),l=e.querySelector('.bl');
-  const c={offline:'#666',syncing:'#f5a623',synced:'#22c55e',error:'#ef4444'};
-  const t={offline:'Firebase offline',syncing:'⏳ Sync...',synced:'🔥 Firebase',error:'❌ Erreur'};
-  const bg={offline:'rgba(100,100,100,.1)',syncing:'rgba(245,166,35,.1)',synced:'rgba(34,197,94,.08)',error:'rgba(239,68,68,.1)'};
-  const br={offline:'rgba(100,100,100,.2)',syncing:'rgba(245,166,35,.25)',synced:'rgba(34,197,94,.2)',error:'rgba(239,68,68,.25)'};
-  d.style.background=c[s]||c.offline;d.style.boxShadow=s==='synced'?'0 0 6px rgba(34,197,94,.5)':'none';
-  l.textContent=t[s]||'Firebase';l.style.color=c[s]||c.offline;
-  e.style.background=bg[s]||bg.offline;e.style.border='1px solid '+(br[s]||br.offline);
-}
-};
-window.TAFBridge=B;
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){B.init()})}else{B.init()}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',check)}else{check()}
 })();
 </script>
 
