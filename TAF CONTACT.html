@@ -656,9 +656,10 @@
   </div>
   <div class="header-right">
     <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
+    <button class="sync-btn" id="scanBtn" onclick="manualScan()">🔍 Scanner</button>
     <button class="sync-btn" id="fbSyncBtn" onclick="reloadFromFirebase()">🔥 Sync Firebase</button>
     <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Backup Drive</button>
-    <div class="version-badge">v2.0</div>
+    <div class="version-badge">v2.1</div>
   </div>
 </header>
 
@@ -917,10 +918,22 @@ async function loadData() {
     });
     renderAll();
     showToast(`🔥 ${countAll()} contacts chargés depuis Firebase`, 'success');
-    return;
+    if (countAll() > 0) return;
   }
 
-  // 2) Fallback : essayer Drive si Firebase est vide
+  // 2) Si vide → scanner les autres nœuds Firebase pour trouver des contacts
+  if (countAll() === 0) {
+    console.log('[TAF CONTACTS] taf_contact/data vide — scan des autres nœuds...');
+    const imported = await scanAndImport();
+    if (imported > 0) {
+      renderAll();
+      await saveData();
+      showToast(`🔥 ${imported} contacts importés depuis d'autres apps TAF`, 'success');
+      return;
+    }
+  }
+
+  // 3) Fallback : essayer Drive
   if (config.proxyUrl) {
     try {
       const url = `${config.proxyUrl}?file=${DRIVE_FILE}`;
@@ -929,11 +942,140 @@ async function loadData() {
       ['douane','handlers','transporteurs','autres'].forEach(k => {
         if (Array.isArray(json[k])) data[k] = json[k];
       });
-      // Remonter sur Firebase
       await saveData();
       showToast(`📁 Contacts importés depuis Drive → Firebase`, 'success');
     } catch(e) { /* Drive vide aussi, on démarre à zéro */ }
   }
+}
+
+// ══════════════════════════════════════════════
+// SCAN FIREBASE — Importer contacts des autres apps
+// ══════════════════════════════════════════════
+const SCAN_PATHS = [
+  { path: 'taf_courrier/data', name: 'TAF Courrier Douane' },
+  { path: 'taf_recouvrement/contacts', name: 'TAF Recouvrement' },
+  { path: 'taf_commercial', name: 'TAF Commercial' },
+];
+
+async function scanAndImport() {
+  let totalImported = 0;
+
+  for (const source of SCAN_PATHS) {
+    try {
+      const raw = await fbGet(source.path);
+      if (!raw) continue;
+
+      const contacts = extractContacts(raw, source.name);
+      if (contacts.length > 0) {
+        console.log(`[SCAN] ${source.name} → ${contacts.length} contacts trouvés`);
+        // Importer dans la catégorie appropriée
+        for (const c of contacts) {
+          const tab = c._importTab || 'douane';
+          delete c._importTab;
+          // Éviter les doublons par email
+          const exists = data[tab].some(x => x.email && c.email && x.email.toLowerCase() === c.email.toLowerCase());
+          if (!exists) {
+            data[tab].push(c);
+            totalImported++;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn(`[SCAN] Erreur lecture ${source.path}:`, e);
+    }
+  }
+
+  return totalImported;
+}
+
+function extractContacts(raw, sourceName) {
+  const contacts = [];
+  const now = new Date().toISOString();
+
+  // Cas 1 : tableau direct [{nom, email, ...}, ...]
+  if (Array.isArray(raw)) {
+    raw.forEach(item => {
+      const c = normalizeContact(item, sourceName, now);
+      if (c) contacts.push(c);
+    });
+    return contacts;
+  }
+
+  // Cas 2 : objet avec clés = catégories (douane, handlers, etc.)
+  if (typeof raw === 'object') {
+    // Chercher des sous-tableaux de contacts
+    for (const [key, val] of Object.entries(raw)) {
+      if (Array.isArray(val)) {
+        val.forEach(item => {
+          if (item && (item.nom || item.name || item.email || item.societe || item.client)) {
+            const c = normalizeContact(item, sourceName, now);
+            if (c) {
+              // Deviner la catégorie depuis la clé
+              if (/douane|customs/i.test(key)) c._importTab = 'douane';
+              else if (/handler|handling/i.test(key)) c._importTab = 'handlers';
+              else if (/transport|livr/i.test(key)) c._importTab = 'transporteurs';
+              contacts.push(c);
+            }
+          }
+        });
+      }
+      // Chercher dans les objets imbriqués (ex: {destinataires: [{...}]})
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        for (const [subKey, subVal] of Object.entries(val)) {
+          if (Array.isArray(subVal)) {
+            subVal.forEach(item => {
+              if (item && (item.nom || item.name || item.email)) {
+                const c = normalizeContact(item, sourceName, now);
+                if (c) contacts.push(c);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // Cas 3 : l'objet lui-même est un contact ou contient des contacts en valeurs
+    if (raw.nom || raw.name || raw.email) {
+      const c = normalizeContact(raw, sourceName, now);
+      if (c) contacts.push(c);
+    }
+
+    // Cas 4 : objet avec IDs comme clés ({"-abc123": {nom, email}, ...})
+    if (contacts.length === 0) {
+      for (const [key, val] of Object.entries(raw)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && (val.nom || val.name || val.email || val.client)) {
+          const c = normalizeContact(val, sourceName, now);
+          if (c) contacts.push(c);
+        }
+      }
+    }
+  }
+
+  return contacts;
+}
+
+function normalizeContact(item, source, now) {
+  if (!item || typeof item !== 'object') return null;
+  const nom = item.nom || item.name || item.client || item.destinataire || item.contact || '';
+  if (!nom) return null;
+
+  return {
+    id: uid(),
+    nom: nom,
+    societe: item.societe || item.company || item.bureau || item.société || '',
+    poste: item.poste || item.fonction || item.role || '',
+    tel: item.tel || item.telephone || item.phone || item.téléphone || '',
+    email: item.email || item.mail || item.courriel || '',
+    email2: item.email2 || item.emailSecondaire || '',
+    adresse: item.adresse || item.address || item.lieu || '',
+    mobile: item.mobile || item.portable || item.gsm || '',
+    fax: item.fax || item.whatsapp || '',
+    notes: `Importé depuis ${source}` + (item.notes ? ' · ' + item.notes : ''),
+    created: item.created || now,
+    updated: now,
+    _importTab: item._importTab || 'douane',
+    _source: source
+  };
 }
 
 async function saveData() {
@@ -967,6 +1109,52 @@ async function reloadFromFirebase() {
     showToast('Firebase vide ou erreur de connexion', 'error');
   }
   btn.textContent = '🔥 Sync Firebase';
+}
+
+async function manualScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.textContent = '⏳ Scan...';
+  btn.classList.add('saving');
+
+  // D'abord afficher le diagnostic dans la console
+  console.log('═══ DIAGNOSTIC FIREBASE ═══');
+  const allPaths = [
+    'taf_contact/data',
+    'taf_courrier/data',
+    'taf_courrier',
+    'taf_recouvrement/contacts',
+    'taf_commercial',
+    'taf_facturation/database',
+  ];
+
+  let report = [];
+  for (const p of allPaths) {
+    const d = await fbGet(p);
+    const size = d ? JSON.stringify(d).length : 0;
+    const status = size > 10 ? `✅ ${size} chars` : '❌ vide';
+    console.log(`📁 ${p} → ${status}`);
+    if (size > 10) {
+      report.push({ path: p, size, sample: typeof d === 'object' ? Object.keys(d).slice(0, 8) : typeof d });
+    }
+  }
+
+  // Tenter l'import
+  const imported = await scanAndImport();
+  if (imported > 0) {
+    renderAll();
+    await saveData();
+    showToast(`✅ ${imported} contacts importés ! Voir console (F12) pour détails`, 'success');
+  } else {
+    // Afficher le diagnostic
+    const paths = report.map(r => `${r.path} (${r.size} chars, clés: ${r.sample.join(', ')})`).join('\n');
+    const msg = report.length > 0
+      ? `Données trouvées mais pas de contacts extractibles.\n\nNœuds Firebase avec données :\n${paths}\n\nVoir console (F12) pour détails.`
+      : 'Aucune donnée trouvée dans les nœuds Firebase scannés.';
+    alert(`🔍 Résultat du scan\n\n${msg}`);
+  }
+
+  btn.textContent = '🔍 Scanner';
+  btn.classList.remove('saving');
 }
 
 // ══════════════════════════════════════════════
