@@ -3270,10 +3270,10 @@ ${CONFIG.company.website}`;
       const doc = this.generateProformaPDF(pf);
       const pdfB64 = doc.output("datauristring").split(",")[1];
 
-      // Upload Drive
+      // Upload Drive (SANS header Content-Type pour éviter preflight CORS)
       toast("Upload Drive…","info");
       const up = await fetch(CONFIG.drive.uploadUrl,{
-        method:"POST", headers:{"Content-Type":"application/json"},
+        method:"POST",
         body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `${pf.numProforma}.pdf`, mimeType:"application/pdf", data: pdfB64 })
       });
       const upJson = await up.json();
@@ -4144,11 +4144,10 @@ async deleteProforma(id){
       const doc = this.generateProformaPDF(pf);
       const pdfB64 = doc.output("datauristring").split(",")[1];
       
-      // Upload vers Drive
+      // Upload vers Drive (SANS header Content-Type pour éviter preflight CORS)
       toast("Upload vers Drive…","info");
       const up = await fetch(CONFIG.drive.uploadUrl,{
         method:"POST",
-        headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           folderId: CONFIG.drive.folder,
           filename: `${pf.numProforma}_${d.nom||d.id}.pdf`,
