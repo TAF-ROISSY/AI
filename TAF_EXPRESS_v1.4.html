@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.14</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.14 DEBUG</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -992,22 +992,30 @@ const state = {
 const app = {
 
   async boot(){
+    console.log("🚀 TAF EXPRESS v1.14 - Boot starting...");
     this.bindNav();
     this.bindSearch();
     this.bindKeyboard();
+    console.log("✅ Event bindings done");
     await this.loadAll();
+    console.log("✅ Data loaded, subscribing to live updates...");
     this.subscribeLive();
+    console.log("✅ Live subscriptions done, rendering...");
     this.render();
+    console.log("✅ Initial render complete");
   },
 
   async loadAll(){
+    console.log("📦 Loading data from Firebase...");
     try{
       const shared = await fb.get("");
+      console.log("📥 Firebase response:", shared);
       state.dossiers = (shared && shared.dossiers) || {};
       state.factures = (shared && shared.factures) || {};
       state.proformas = (shared && shared.proformas) || {};
       state.clientForms = (shared && shared.client_forms) || {};
       state.baeInbox = (shared && shared.bae_inbox) || {};
+      console.log(`✅ Loaded: ${Object.keys(state.dossiers).length} dossiers, ${Object.keys(state.factures).length} factures`);
       if (shared && shared.config && shared.config.notifications){
         state.notifSettings = Object.assign(state.notifSettings, shared.config.notifications);
       }
@@ -1019,7 +1027,7 @@ const app = {
       this.updateNavCount();
       this.updateBellCount();
     }catch(e){
-      console.error(e);
+      console.error("❌ Firebase loading error:", e);
       toast("Firebase indisponible","error");
     }
   },
@@ -1162,6 +1170,7 @@ const app = {
   },
 
   render(){
+    console.log(`🎨 Rendering page: ${state.currentPage}`);
     const titles = {
       dashboard:"Dashboard <em>— vue d'ensemble</em>",
       dossiers:"Dossiers <em>— pilotage</em>",
@@ -1171,7 +1180,13 @@ const app = {
       import:"Import &amp; Sync <em>— migration Airtable</em>"
     };
     $("#pageTitle").innerHTML = titles[state.currentPage]||"";
-    const c = $("#content"); c.innerHTML = "";
+    const c = $("#content"); 
+    if (!c) {
+      console.error("❌ Element #content not found!");
+      return;
+    }
+    console.log("✅ Content element found, clearing innerHTML");
+    c.innerHTML = "";
     switch(state.currentPage){
       case "dashboard":    this.renderDashboard(c); break;
       case "dossiers":     this.renderDossiersPage(c); break;
@@ -1180,12 +1195,16 @@ const app = {
       case "config":       this.renderConfig(c); break;
       case "import":       this.renderImport(c); break;
     }
+    console.log(`✅ Rendered ${state.currentPage}`);
   },
 
   /* -------- DASHBOARD -------- */
   renderDashboard(c){
+    console.log("📊 renderDashboard() called");
     const dossiers = Object.values(state.dossiers||{});
+    console.log(`📊 Found ${dossiers.length} total dossiers`);
     const active = dossiers.filter(d=>d.archive!=="archive");
+    console.log(`📊 ${active.length} active dossiers`);
     const by = (s)=>active.filter(d=>d.status===s).length;
 
     // --- Dossiers à traiter (les 3 buckets demandés) ---
