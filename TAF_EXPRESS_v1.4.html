@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.15</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.16</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -2997,6 +2997,14 @@ ${CONFIG.company.website}`;
     const doc = new jsPDF({ unit:"mm", format:"a4" });
     const W = 210, M = 15;
     
+    // Récupérer le dossier lié dès le début
+    const dossier = state.dossiers[pf.dossierId];
+    const typeProduit = dossier?.typeProduit || "Autre";
+    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
+    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
+    const valeur = dossier?.valeur || 0;
+    const montantInter = dossier?.montantIntervention || 110;
+    
     // LIGNE 1 : En-tête
     doc.setFont("helvetica","bold");
     doc.setFontSize(11);
@@ -3049,8 +3057,6 @@ ${CONFIG.company.website}`;
     doc.text("N° colis", W-M-30, y);
     y+=5;
     doc.setFont("helvetica","normal");
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
     doc.text(pf.operateur||"—", M, y);
     doc.text(typeProduit, M+50, y);
     doc.text(typeDestinataire, M+100, y);
@@ -3059,19 +3065,14 @@ ${CONFIG.company.website}`;
     // LIGNES 16-17 : Taux
     y+=8;
     doc.line(M, y-2, W-M, y-2);
-    const dossier = state.dossiers[pf.dossierId];
     const tauxDD = dossier?.tauxDD || 0;
-    const valeur = dossier?.valeur || 0;
     const tauxTVA = dossier?.tauxTVA || 20;
-    const montantInter = dossier?.montantIntervention || 110;
     doc.setFont("helvetica","bold");
     doc.text("Taux de Droit de douane", M, y);
     doc.text("Valeur", M+60, y);
     doc.text("TVA", M+100, y);
     y+=5;
     doc.setFont("helvetica","normal");
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
     doc.text(`${tauxConfig.dd}%`, M, y);
     doc.text(`${valeur.toFixed(2)} €`, M+60, y);
     doc.text(`${tauxConfig.tva}%`, M+100, y);
@@ -3092,7 +3093,6 @@ ${CONFIG.company.website}`;
     doc.setFont("helvetica","normal");
     
     // Calculs intelligents selon type produit et type destinataire
-    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
     const tauxDDProduit = tauxConfig.dd;
     const tauxTVAProduit = tauxConfig.tva;
     
