@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmation Devis - TAF EXPRESS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      padding: 40px 30px;
+      text-align: center;
+      color: white;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: #d4a857;
+    }
+    
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    .content {
+      padding: 40px 30px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #d4a857;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .info-box {
+      background: #f8f9fa;
+      border-left: 4px solid #d4a857;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .info-row:last-child { border-bottom: none; }
+    
+    .info-label {
+      font-weight: 600;
+      color: #666;
+    }
+    
+    .info-value {
+      color: #1a1a1a;
+      font-weight: 600;
+    }
+    
+    .action-section {
+      text-align: center;
+      margin-top: 30px;
+    }
+    
+    .action-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+    
+    .btn {
+      padding: 16px 40px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 0 10px;
+      min-width: 150px;
+    }
+    
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+    
+    .btn-accept {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+    }
+    
+    .btn-refuse {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      color: white;
+    }
+    
+    .success {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .success-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    .success h2 {
+      font-size: 24px;
+      color: #28a745;
+      margin-bottom: 15px;
+    }
+    
+    .error {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .error-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    .error h2 {
+      font-size: 24px;
+      color: #dc3545;
+      margin-bottom: 15px;
+    }
+    
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>TAF EXPRESS</h1>
+      <p>Confirmation de Devis</p>
+    </div>
+    
+    <div class="content" id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Vérification en cours...</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const CONFIG = {
+      firebase: {
+        databaseURL: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app"
+      },
+      webhooks: {
+        notification: "https://hook.eu2.make.com/4th5kwceaitf63o1dt5xfac85vkceiwq"
+      }
+    };
+
+    // Récupérer les paramètres URL
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const action = params.get('action'); // 'accept' ou 'refuse'
+
+    async function init() {
+      if (!token || !action) {
+        showError('Lien invalide', 'Le lien que vous avez utilisé est invalide ou incomplet.');
+        return;
+      }
+
+      if (action !== 'accept' && action !== 'refuse') {
+        showError('Action invalide', 'L\'action demandée n\'est pas reconnue.');
+        return;
+      }
+
+      await verifyAndShowDevis();
+    }
+
+    async function verifyAndShowDevis() {
+      try {
+        // Récupérer le token depuis Firebase
+        const tokenRes = await fetch(`${CONFIG.firebase.databaseURL}/devis_tokens/${token}.json`);
+        const tokenData = await tokenRes.json();
+
+        if (!tokenData) {
+          showError('Token invalide', 'Ce lien n\'est plus valide ou a expiré.');
+          return;
+        }
+
+        // Vérifier si le token a déjà été utilisé
+        if (tokenData.used) {
+          showError('Déjà utilisé', 'Ce devis a déjà été confirmé ou refusé.');
+          return;
+        }
+
+        // Vérifier l'expiration (30 jours)
+        const expirationDate = new Date(tokenData.expirationDate);
+        if (expirationDate < new Date()) {
+          showError('Lien expiré', 'Ce lien a expiré. Veuillez contacter TAF EXPRESS.');
+          return;
+        }
+
+        // Récupérer les infos du dossier
+        const dossierRes = await fetch(`${CONFIG.firebase.databaseURL}/dossiers/${tokenData.dossierId}.json`);
+        const dossier = await dossierRes.json();
+
+        if (!dossier) {
+          showError('Dossier introuvable', 'Le dossier associé n\'a pas été trouvé.');
+          return;
+        }
+
+        // Afficher la page de confirmation
+        showConfirmationPage(tokenData, dossier);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        showError('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
+      }
+    }
+
+    function showConfirmationPage(tokenData, dossier) {
+      const nomClient = `${dossier.prenom || ''} ${dossier.nom || ''}`.trim() || 'Client';
+      const actionText = action === 'accept' ? 'ACCEPTER' : 'REFUSER';
+      const actionColor = action === 'accept' ? '#28a745' : '#dc3545';
+
+      document.getElementById('content').innerHTML = `
+        <div class="info-box">
+          <h3 style="margin-bottom:15px; color:#1a1a1a;">📋 Récapitulatif du Devis</h3>
+          <div class="info-row">
+            <span class="info-label">N° Dossier</span>
+            <span class="info-value">${dossier.numDossier || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Client</span>
+            <span class="info-value">${nomClient}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">N° Colis</span>
+            <span class="info-value">${dossier.numColis || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Origine</span>
+            <span class="info-value">${dossier.origine || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Montant</span>
+            <span class="info-value">${dossier.valeur ? dossier.valeur + ' €' : '—'}</span>
+          </div>
+        </div>
+
+        <div class="action-section">
+          <p class="action-title" style="color:${actionColor};">
+            Vous êtes sur le point de <strong>${actionText}</strong> ce devis
+          </p>
+          <p style="color:#666; margin-bottom:30px;">
+            ${action === 'accept' ? 'En acceptant, vous confirmez votre accord pour le traitement de ce dossier.' : 'En refusant, vous indiquez que vous ne souhaitez pas donner suite à ce devis.'}
+          </p>
+          
+          <button class="btn ${action === 'accept' ? 'btn-accept' : 'btn-refuse'}" onclick="confirmAction()">
+            ${action === 'accept' ? '✅ Confirmer l\'acceptation' : '❌ Confirmer le refus'}
+          </button>
+          
+          <div class="warning">
+            ⚠️ Cette action est définitive et ne peut pas être annulée.
+          </div>
+        </div>
+      `;
+
+      // Rendre la fonction disponible globalement
+      window.confirmAction = async () => {
+        await processAction(tokenData, dossier);
+      };
+    }
+
+    async function processAction(tokenData, dossier) {
+      // Afficher le chargement
+      document.getElementById('content').innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Traitement en cours...</p>
+        </div>
+      `;
+
+      try {
+        // Nouveau statut selon l'action
+        const newStatus = action === 'accept' ? 'CONFIRME' : 'TROP_CHER';
+        const actionLabel = action === 'accept' ? 'accepté' : 'refusé';
+
+        // Mettre à jour le statut du dossier
+        await fetch(`${CONFIG.firebase.databaseURL}/dossiers/${tokenData.dossierId}/status.json`, {
+          method: 'PUT',
+          body: JSON.stringify(newStatus)
+        });
+
+        // Marquer le token comme utilisé
+        await fetch(`${CONFIG.firebase.databaseURL}/devis_tokens/${token}/used.json`, {
+          method: 'PUT',
+          body: JSON.stringify(true)
+        });
+
+        await fetch(`${CONFIG.firebase.databaseURL}/devis_tokens/${token}/usedAt.json`, {
+          method: 'PUT',
+          body: JSON.stringify(new Date().toISOString())
+        });
+
+        // Envoyer une notification à TAF
+        await fetch(CONFIG.webhooks.notification, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'devis_response',
+            action: action,
+            dossierId: tokenData.dossierId,
+            numDossier: dossier.numDossier,
+            nomClient: `${dossier.prenom || ''} ${dossier.nom || ''}`.trim(),
+            email: dossier.mail,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        // Afficher le succès
+        showSuccess(actionLabel, dossier);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        showError('Erreur', 'Une erreur est survenue lors du traitement. Veuillez contacter TAF EXPRESS.');
+      }
+    }
+
+    function showSuccess(actionLabel, dossier) {
+      const nomClient = `${dossier.prenom || ''} ${dossier.nom || ''}`.trim() || 'Client';
+      
+      document.getElementById('content').innerHTML = `
+        <div class="success">
+          <div class="success-icon">${action === 'accept' ? '✅' : '❌'}</div>
+          <h2>Devis ${actionLabel} !</h2>
+          <p style="color:#666; margin-top:15px;">
+            ${action === 'accept' 
+              ? 'Merci pour votre confirmation. TAF EXPRESS a été notifié et va procéder au traitement de votre dossier.'
+              : 'Votre refus a été pris en compte. Merci de nous avoir contacté.'}
+          </p>
+          <div class="info-box" style="margin-top:30px; text-align:left;">
+            <div class="info-row">
+              <span class="info-label">N° Dossier</span>
+              <span class="info-value">${dossier.numDossier || '—'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Client</span>
+              <span class="info-value">${nomClient}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Statut</span>
+              <span class="info-value">${action === 'accept' ? 'Devis confirmé ✓' : 'Refusé'}</span>
+            </div>
+          </div>
+          <p style="color:#999; margin-top:30px; font-size:14px;">
+            Vous pouvez fermer cette page.
+          </p>
+        </div>
+      `;
+    }
+
+    function showError(title, message) {
+      document.getElementById('content').innerHTML = `
+        <div class="error">
+          <div class="error-icon">⚠️</div>
+          <h2>${title}</h2>
+          <p style="color:#666; margin-top:15px;">${message}</p>
+          <p style="color:#999; margin-top:30px; font-size:14px;">
+            Pour toute question, contactez TAF EXPRESS :<br>
+            📞 +33 1 41 84 04 40<br>
+            📧 contact@taftrans.fr
+          </p>
+        </div>
+      `;
+    }
+
+    // Lancer l'initialisation
+    init();
+  </script>
+</body>
+</html>
