@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.18</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v2.0</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -715,7 +715,7 @@ const CONFIG = {
     sharedNode: "taf_shared"
   },
   drive: {
-    uploadUrl: "https://script.google.com/macros/s/AKfycbzbvFTMO96jAaQPORH-41Lli1JYLIIirsI6JThXkdgd22yrsk2dhTd78E9552pDfdzzGw/exec",
+    uploadUrl: "https://script.google.com/macros/s/AKfycbw4DjpcVxYJxDPF5AuuGTF_GFgq6tzeYzoahQeoBi7zgatbCJt8kUR_TqcVSlqTHQFWtA/exec",
     folder: "143DZMp79_EfrVAjyOMquBU0L-JXlKdnF"
   },
   
@@ -2992,12 +2992,24 @@ ${CONFIG.company.website}`;
   },
 
   generateProformaPDF(pf){
-    // Clone exact du template Excel Template_Pro_Forma_.xlsx
+    // PDF ultra-professionnel et moderne
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:"mm", format:"a4" });
     const W = 210, M = 15;
     
-    // Récupérer le dossier lié dès le début
+    // PALETTE COULEURS CORPORATE MODERNE
+    const colors = {
+      primary: [25, 58, 92],        // Bleu foncé corporate
+      accent: [212, 168, 87],       // Or TAF
+      lightBlue: [237, 242, 247],   // Bleu très clair
+      lightGray: [248, 250, 252],   // Gris clair
+      mediumGray: [148, 163, 184],  // Gris moyen
+      darkGray: [51, 65, 85],       // Gris foncé
+      success: [16, 185, 129],      // Vert
+      white: [255, 255, 255]
+    };
+    
+    // Récupérer les données
     const dossier = state.dossiers[pf.dossierId];
     const typeProduit = dossier?.typeProduit || "Autre";
     const typeDestinataire = dossier?.typeDestinataire || "Particulier";
@@ -3005,179 +3017,237 @@ ${CONFIG.company.website}`;
     const valeur = dossier?.valeur || 0;
     const montantInter = dossier?.montantIntervention || 110;
     
-    // LIGNE 1 : En-tête
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(11);
-    doc.setTextColor(0,0,0);
-    doc.text("COMMISSIONNAIRE EN TRANSPORT INTERNATIONAL", 105, 12, {align:"center"});
-    doc.setFontSize(10);
-    doc.text("IMPORT - EXPORT", 105, 17, {align:"center"});
-    doc.setFontSize(9);
-    doc.text("FRET AERIEN | MARITIME | DEDOUANEMENT", 105, 22, {align:"center"});
+    // ========== EN-TÊTE MODERNE ==========
+    // Bandeau bleu foncé
+    doc.setFillColor(...colors.primary);
+    doc.rect(0, 0, W, 45, "F");
     
-    // LIGNE 3 : Titre + Numéro
-    doc.setFont("helvetica","bold");
+    // Logo TAF (texte stylé)
+    doc.setTextColor(...colors.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    doc.text("TAF", M, 18);
     doc.setFontSize(12);
-    doc.text("FACTURE PROFORMA | PROFORMA INVOICE n° :", M+45, 35);
-    doc.setFont("helvetica","normal");
-    doc.text(pf.numProforma||"", W-M, 35, {align:"right"});
+    doc.setFont("helvetica", "normal");
+    doc.text("ROISSY / TAF TRANS", M, 25);
     
-    // LIGNE 5 : Date
-    doc.setFont("helvetica","normal");
+    // Ligne de services
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.accent);
+    doc.text("IMPORT · EXPORT · FRET AÉRIEN · DÉDOUANEMENT", M, 32);
+    
+    // FACTURE PROFORMA (grand titre à droite)
+    doc.setTextColor(...colors.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("FACTURE", W-M, 15, {align:"right"});
+    doc.text("PROFORMA", W-M, 23, {align:"right"});
+    
+    // N° Proforma avec fond or
+    doc.setFillColor(...colors.accent);
+    doc.roundedRect(W-55, 28, 40, 10, 2, 2, "F");
+    doc.setTextColor(...colors.primary);
     doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(pf.numProforma||"—", W-M, 35, {align:"right"});
+    
+    let y = 55;
+    
+    // ========== BLOC INFORMATIONS ==========
+    // Fond gris clair
+    doc.setFillColor(...colors.lightGray);
+    doc.roundedRect(M, y, W-2*M, 35, 3, 3, "F");
+    
+    // Coordonnées TAF (colonne gauche)
+    doc.setTextColor(...colors.darkGray);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("TAF ROISSY / TAF TRANS", M+5, y+7);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.mediumGray);
+    doc.text("4 rue du Té, Zone Cargo 6", M+5, y+12);
+    doc.text("Bât. 3451 A/B/C", M+5, y+16);
+    doc.text("93290 Tremblay-en-France", M+5, y+20);
+    doc.text("📞 +33 1 41 84 04 40", M+5, y+25);
+    doc.text("✉ contact@taftrans.fr", M+5, y+30);
+    
+    // Client (colonne droite)
+    doc.setTextColor(...colors.darkGray);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("DESTINATAIRE", W-M-5, y+7, {align:"right"});
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.mediumGray);
+    const nomComplet = `${pf.client.prenom||""} ${pf.client.nom||""}`.trim() || "—";
+    doc.text(nomComplet.toUpperCase(), W-M-5, y+12, {align:"right"});
+    if(pf.client.adresse) doc.text(pf.client.adresse, W-M-5, y+16, {align:"right"});
+    if(pf.client.ville) doc.text(pf.client.ville, W-M-5, y+20, {align:"right"});
+    
+    // Date et validité (bas du bloc)
     const dateStr = pf.dateIso || new Date().toISOString().slice(0,10);
-    doc.text("Date :", M+45, 45);
-    doc.text(dateStr, W-M, 45, {align:"right"});
+    const dateValid = new Date();
+    dateValid.setDate(dateValid.getDate() + 30);
     
-    // LIGNES 8-11 : Coordonnées
-    let y = 58;
-    doc.setFontSize(9);
-    doc.setFont("helvetica","normal");
-    doc.text("4 rue du Té, Zone Cargo 6, Bâtiment 3451 A/B/C", M, y); y+=4;
-    doc.text("93290 Tremblay en France, France", M, y); y+=4;
-    doc.text("+33 1 41 84 04 40", M, y); y+=4;
-    doc.text("contact@taftrans.fr", M, y);
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.mediumGray);
+    doc.text(`Date: ${dateStr}`, M+5, y+35);
+    doc.text(`Valide jusqu'au: ${dateValid.toISOString().slice(0,10)}`, W-M-5, y+35, {align:"right"});
     
-    y = 58;
-    doc.setFont("helvetica","bold");
-    doc.text(`MR/MME ${pf.client.nom||""}`, W-M, y, {align:"right"}); y+=4;
-    doc.setFont("helvetica","normal");
-    if(pf.client.adresse) { doc.text(pf.client.adresse, W-M, y, {align:"right"}); y+=4; }
-    if(pf.client.ville) { doc.text(pf.client.ville, W-M, y, {align:"right"}); }
+    y += 45;
     
-    // LIGNES 13-14 : Opérateur
-    y = 80;
-    doc.setDrawColor(200,200,200);
-    doc.line(M, y-2, W-M, y-2);
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(9);
-    doc.text("Opérateur", M, y);
-    doc.text("Type produit", M+50, y);
-    doc.text("Destinataire", M+100, y);
-    doc.text("N° colis", W-M-30, y);
-    y+=5;
-    doc.setFont("helvetica","normal");
-    doc.text(pf.operateur||"—", M, y);
-    doc.text(typeProduit, M+50, y);
-    doc.text(typeDestinataire, M+100, y);
-    doc.text(pf.numColis||"—", W-M-30, y);
+    // ========== DÉTAILS OPÉRATION ==========
+    // Mini tableau infos rapides
+    doc.setFillColor(...colors.lightBlue);
+    doc.roundedRect(M, y, W-2*M, 15, 2, 2, "F");
     
-    // LIGNES 16-17 : Taux
-    y+=8;
-    doc.line(M, y-2, W-M, y-2);
-    const tauxDD = dossier?.tauxDD || 0;
-    const tauxTVA = dossier?.tauxTVA || 20;
-    doc.setFont("helvetica","bold");
-    doc.text("Taux de Droit de douane", M, y);
-    doc.text("Valeur", M+60, y);
-    doc.text("TVA", M+100, y);
-    y+=5;
-    doc.setFont("helvetica","normal");
-    doc.text(`${tauxConfig.dd}%`, M, y);
-    doc.text(`${valeur.toFixed(2)} €`, M+60, y);
-    doc.text(`${tauxConfig.tva}%`, M+100, y);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.primary);
+    doc.text("OPÉRATEUR", M+5, y+5);
+    doc.text("TYPE PRODUIT", M+50, y+5);
+    doc.text("DESTINATAIRE", M+105, y+5);
+    doc.text("N° COLIS", W-M-25, y+5);
     
-    // LIGNE 19 : Headers tableau
-    y+=10;
-    doc.setFillColor(240,240,240);
-    doc.rect(M, y-4, W-2*M, 7, "F");
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(9);
-    doc.text("Libellé", M+2, y);
-    doc.text("DOUANE", M+90, y, {align:"right"});
-    doc.text("TAXABLE", M+130, y, {align:"right"});
-    doc.text("EXONERE", W-M-2, y, {align:"right"});
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.darkGray);
+    doc.text(pf.operateur||"—", M+5, y+11);
+    doc.text(typeProduit, M+50, y+11);
+    doc.text(typeDestinataire, M+105, y+11);
+    doc.text(pf.numColis||"—", W-M-25, y+11);
     
-    // LIGNES 20-25 : Tableau
-    y+=7;
-    doc.setFont("helvetica","normal");
+    y += 22;
     
-    // Calculs intelligents selon type produit et type destinataire
+    // ========== TABLEAU DES CHARGES ==========
+    // Titre section
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("DÉTAIL DES CHARGES", M, y);
+    y += 8;
+    
+    // En-tête tableau (fond bleu foncé)
+    doc.setFillColor(...colors.primary);
+    doc.roundedRect(M, y, W-2*M, 8, 2, 2, "F");
+    
+    doc.setTextColor(...colors.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("LIBELLÉ", M+3, y+5.5);
+    doc.text("DOUANE", M+90, y+5.5, {align:"right"});
+    doc.text("TAXABLE", M+130, y+5.5, {align:"right"});
+    doc.text("EXONÉRÉ", W-M-3, y+5.5, {align:"right"});
+    
+    y += 10;
+    
+    // Calculs
     const tauxDDProduit = tauxConfig.dd;
     const tauxTVAProduit = tauxConfig.tva;
-    
-    // DD = Valeur × Taux DD produit
     const dd = (valeur * tauxDDProduit) / 100;
-    
-    // TVA douane UNIQUEMENT si Particulier
     const tvaDd = (typeDestinataire === "Particulier") 
       ? ((dd + valeur) * tauxTVAProduit / 100) 
       : 0;
     
     const lignes = [
-      { lib: "AUTRES TAXES", douane: 0, taxable: 0, exonere: 0 },
-      { lib: "DROITS DE DOUANE", douane: dd, taxable: 0, exonere: 0 },
-      { lib: "TVA DOUANE", douane: tvaDd, taxable: 0, exonere: 0 },
-      { lib: "FRAIS DE TRANSFERT", douane: 0, taxable: 50, exonere: 0 },
-      { lib: "TAXE DOUANE", douane: 0, taxable: 20, exonere: 0 },
-      { lib: "DEDOUANEMENT", douane: 0, taxable: montantInter, exonere: 0 }
+      { lib: "Droits de douane", douane: dd, taxable: 0, exonere: 0 },
+      { lib: "TVA douane", douane: tvaDd, taxable: 0, exonere: 0 },
+      { lib: "Frais de transfert", douane: 0, taxable: 50, exonere: 0 },
+      { lib: "Taxe douane", douane: 0, taxable: 20, exonere: 0 },
+      { lib: "Dédouanement", douane: 0, taxable: montantInter, exonere: 0 }
     ];
-    lignes.forEach(l => {
-      doc.text(l.lib, M+2, y);
-      if(l.douane > 0) doc.text(l.douane.toFixed(2), M+90, y, {align:"right"});
-      if(l.taxable > 0) doc.text(l.taxable.toFixed(2), M+130, y, {align:"right"});
-      if(l.exonere > 0) doc.text(l.exonere.toFixed(2), W-M-2, y, {align:"right"});
-      y+=5;
+    
+    // Lignes du tableau (alternance de couleurs)
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.darkGray);
+    
+    lignes.forEach((l, i) => {
+      // Fond alterné
+      if (i % 2 === 0) {
+        doc.setFillColor(...colors.lightGray);
+        doc.rect(M, y-3, W-2*M, 7, "F");
+      }
+      
+      doc.text(l.lib, M+3, y);
+      if(l.douane > 0) doc.text(`${l.douane.toFixed(2)} €`, M+90, y, {align:"right"});
+      if(l.taxable > 0) doc.text(`${l.taxable.toFixed(2)} €`, M+130, y, {align:"right"});
+      if(l.exonere > 0) doc.text(`${l.exonere.toFixed(2)} €`, W-M-3, y, {align:"right"});
+      y += 7;
     });
     
-    // LIGNE 27-28 : SOUS-TOTAL
-    y+=3;
-    doc.setDrawColor(0,0,0);
+    // Sous-totaux
+    y += 3;
+    doc.setDrawColor(...colors.primary);
+    doc.setLineWidth(0.3);
     doc.line(M, y-2, W-M, y-2);
-    doc.setFont("helvetica","bold");
-    doc.text("SOUS-TOTAL", M+2, y);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...colors.primary);
     const totalDouane = lignes.reduce((s,l) => s + l.douane, 0);
     const totalTaxable = lignes.reduce((s,l) => s + l.taxable, 0);
     const totalExonere = lignes.reduce((s,l) => s + l.exonere, 0);
-    doc.text(totalDouane.toFixed(2), M+90, y, {align:"right"});
-    doc.text(totalTaxable.toFixed(2), M+130, y, {align:"right"});
-    doc.text(totalExonere.toFixed(2), W-M-2, y, {align:"right"});
     
-    // LIGNE 29-30 : TVA
-    y+=8;
-    doc.setFont("helvetica","normal");
-    doc.text("Devise : EUR (€)", M+45, y);
-    y+=6;
-    const tvaSurTaxable = totalTaxable * 0.2;
-    doc.text("T.V.A   (€)", M+45, y);
-    doc.text(tvaSurTaxable.toFixed(2), W-M-2, y, {align:"right"});
+    doc.text("SOUS-TOTAL", M+3, y);
+    doc.text(`${totalDouane.toFixed(2)} €`, M+90, y, {align:"right"});
+    doc.text(`${totalTaxable.toFixed(2)} €`, M+130, y, {align:"right"});
+    doc.text(`${totalExonere.toFixed(2)} €`, W-M-3, y, {align:"right"});
     
-    // LIGNE 31 : TOTAL TTC
-    y+=7;
-    doc.setLineWidth(0.5);
-    doc.line(M+40, y-3, W-M, y-3);
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(12);
-    const totalTTC = totalDouane + totalTaxable + totalExonere + tvaSurTaxable;
-    doc.text("TOTAL TTC (€)", M+45, y);
-    doc.text(totalTTC.toFixed(2) + " €", W-M-2, y, {align:"right"});
-    
-    // LIGNE 32 : Date de validité
-    y+=8;
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(9);
-    const dateValid = new Date();
-    dateValid.setDate(dateValid.getDate() + 30);
-    doc.text("Date de validité :", M+45, y);
-    doc.text(dateValid.toISOString().slice(0,10), W-M-2, y, {align:"right"});
-    
-    // LIGNE 34 : Remarques
-    y+=10;
-    doc.setFont("helvetica","bold");
-    doc.text("Remarques :", M, y);
-    y+=5;
-    doc.setFont("helvetica","italic");
+    // TVA sur taxable
+    y += 8;
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
+    doc.setTextColor(...colors.mediumGray);
+    const tvaSurTaxable = totalTaxable * 0.2;
+    doc.text("TVA 20% sur taxable", M+3, y);
+    doc.text(`${tvaSurTaxable.toFixed(2)} €`, W-M-3, y, {align:"right"});
+    
+    // ========== TOTAL TTC (BLOC ACCENTUÉ) ==========
+    y += 8;
+    doc.setFillColor(...colors.accent);
+    doc.roundedRect(M, y-5, W-2*M, 12, 3, 3, "F");
+    
+    const totalTTC = totalDouane + totalTaxable + totalExonere + tvaSurTaxable;
+    
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("TOTAL TTC", M+5, y+2);
+    doc.setFontSize(15);
+    doc.text(`${totalTTC.toFixed(2)} €`, W-M-5, y+2, {align:"right"});
+    
+    y += 18;
+    
+    // ========== REMARQUES ==========
+    doc.setTextColor(...colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("CONDITIONS DE RÈGLEMENT", M, y);
+    y += 6;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.darkGray);
     const note = pf.note || "Règlement sous 8 jours par virement bancaire.";
     const noteLines = doc.splitTextToSize(note, W-2*M);
     doc.text(noteLines, M, y);
     
-    // Footer
-    doc.setFont("helvetica","normal");
+    // ========== FOOTER MODERNE ==========
+    doc.setDrawColor(...colors.mediumGray);
+    doc.setLineWidth(0.5);
+    doc.line(M, 275, W-M, 275);
+    
     doc.setFontSize(7);
-    doc.setTextColor(140,140,140);
-    doc.text("Document proforma — non valable comme facture", W/2, 285, {align:"center"});
-    doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} par TAF EXPRESS v1.13`, W/2, 290, {align:"center"});
+    doc.setTextColor(...colors.mediumGray);
+    doc.setFont("helvetica", "italic");
+    doc.text("Document proforma — Non valable comme facture définitive", W/2, 280, {align:"center"});
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6);
+    doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} · TAF EXPRESS v2.0`, W/2, 285, {align:"center"});
     
     return doc;
   },
