@@ -3277,7 +3277,11 @@ ${CONFIG.company.website}`;
         body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `${pf.numProforma}.pdf`, mimeType:"application/pdf", data: pdfB64 })
       });
       const upJson = await up.json();
-      if (!upJson.url) throw new Error("Drive upload échoué");
+      console.log("🔍 RÉPONSE APPS SCRIPT:", upJson);
+      if (!upJson.success || !upJson.url) {
+        console.error("❌ Erreur upload:", upJson.error || "Pas d'URL retournée");
+        throw new Error(`Drive upload échoué: ${upJson.error || "Pas d'URL"}`);
+      }
       pf.pdfUrl = upJson.url;
 
       // Persister la proforma
@@ -4157,7 +4161,11 @@ async deleteProforma(id){
       });
       
       const upJson = await up.json();
-      if (!upJson.url) throw new Error("Upload Drive échoué");
+      console.log("🔍 RÉPONSE APPS SCRIPT:", upJson);
+      if (!upJson.success || !upJson.url) {
+        console.error("❌ Erreur upload:", upJson.error || "Pas d'URL retournée");
+        throw new Error(`Upload Drive échoué: ${upJson.error || "Pas d'URL"}`);
+      }
       
       pf.pdfUrl = upJson.url;
       
