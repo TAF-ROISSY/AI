@@ -564,7 +564,7 @@ a{color:var(--accent);text-decoration:none}
   <aside class="sidebar">
     <div class="brand">
       <h1>TAF <em>Express</em></h1>
-      <div class="sub"><span>dossiers express</span><span class="badge">v1.18</span></div>
+      <div class="sub"><span>dossiers express</span><span class="badge">v1.13</span></div>
     </div>
     <button class="nav-btn active" data-page="dashboard">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l9-9 9 9M5 13v7a1 1 0 001 1h4m4 0h4a1 1 0 001-1v-7m-10 8v-6h4v6"/></svg>
@@ -711,11 +711,10 @@ a{color:var(--accent);text-decoration:none}
 const CONFIG = {
   firebase: {
     url: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app",
-    databaseURL: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app",
     sharedNode: "taf_shared"
   },
   drive: {
-    uploadUrl: "https://script.google.com/macros/s/AKfycbzDLCSfP3OlWgxRxJ5Fy4li8Df7jzRXGA67VYbTcEaZHiplpc0paXdxnXiN36RjgVyjUw/exec",
+    uploadUrl: "https://script.google.com/macros/s/AKfycbzbvFTMO96jAaQPORH-41Lli1JYLIIirsI6JThXkdgd22yrsk2dhTd78E9552pDfdzzGw/exec",
     folder: "143DZMp79_EfrVAjyOMquBU0L-JXlKdnF"
   },
   
@@ -732,8 +731,8 @@ const CONFIG = {
     clientForm: "https://taf-roissy.github.io/AI/TAF_CLIENT_FORM.html"
   },
   webhooks: {
-    // Webhook Make.com TAF EXPRESS pour envoi d'emails proforma
-    email: "https://hook.eu2.make.com/za039wbs6d4l2xuirhadkb1v23tqpb75"
+    // Webhook Make.com TAF EXPRESS dédié pour envoi d'emails (types: proforma, client_form_request, bae_received, facture_payee)
+    email: "https://hook.eu2.make.com/y18tjs0g449819fh324imsm3q63wq6ru"
   },
   bae: {
     // Adresse email dédiée à la réception des déclarations BAE par le mailhook Make
@@ -2997,14 +2996,6 @@ ${CONFIG.company.website}`;
     const doc = new jsPDF({ unit:"mm", format:"a4" });
     const W = 210, M = 15;
     
-    // Récupérer le dossier lié dès le début
-    const dossier = state.dossiers[pf.dossierId];
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
-    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
-    const valeur = dossier?.valeur || 0;
-    const montantInter = dossier?.montantIntervention || 110;
-    
     // LIGNE 1 : En-tête
     doc.setFont("helvetica","bold");
     doc.setFontSize(11);
@@ -3057,6 +3048,8 @@ ${CONFIG.company.website}`;
     doc.text("N° colis", W-M-30, y);
     y+=5;
     doc.setFont("helvetica","normal");
+    const typeProduit = dossier?.typeProduit || "Autre";
+    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
     doc.text(pf.operateur||"—", M, y);
     doc.text(typeProduit, M+50, y);
     doc.text(typeDestinataire, M+100, y);
@@ -3065,14 +3058,19 @@ ${CONFIG.company.website}`;
     // LIGNES 16-17 : Taux
     y+=8;
     doc.line(M, y-2, W-M, y-2);
+    const dossier = state.dossiers[pf.dossierId];
     const tauxDD = dossier?.tauxDD || 0;
+    const valeur = dossier?.valeur || 0;
     const tauxTVA = dossier?.tauxTVA || 20;
+    const montantInter = dossier?.montantIntervention || 110;
     doc.setFont("helvetica","bold");
     doc.text("Taux de Droit de douane", M, y);
     doc.text("Valeur", M+60, y);
     doc.text("TVA", M+100, y);
     y+=5;
     doc.setFont("helvetica","normal");
+    const typeProduit = dossier?.typeProduit || "Autre";
+    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
     doc.text(`${tauxConfig.dd}%`, M, y);
     doc.text(`${valeur.toFixed(2)} €`, M+60, y);
     doc.text(`${tauxConfig.tva}%`, M+100, y);
@@ -3093,6 +3091,9 @@ ${CONFIG.company.website}`;
     doc.setFont("helvetica","normal");
     
     // Calculs intelligents selon type produit et type destinataire
+    const typeProduit = dossier?.typeProduit || "Autre";
+    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
+    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
     const tauxDDProduit = tauxConfig.dd;
     const tauxTVAProduit = tauxConfig.tva;
     
@@ -3203,7 +3204,7 @@ ${CONFIG.company.website}`;
       // Upload Drive
       toast("Upload Drive…","info");
       const up = await fetch(CONFIG.drive.uploadUrl,{
-        method:"POST",
+        method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `${pf.numProforma}.pdf`, mimeType:"application/pdf", data: pdfB64 })
       });
       const upJson = await up.json();
@@ -3349,7 +3350,7 @@ ${CONFIG.company.email}
         body: JSON.stringify({
           to: d.mail,
           subject: `Facture définitive ${facture.numFacture} - Dossier ${d.numDossier}`,
-          body: finalEmailBody,
+          body: emailBody,
           attachmentUrl: facture.pdfUrl
         })
       });
@@ -3592,61 +3593,7 @@ ${CONFIG.company.email}
     return doc;
   },
 
-  
-  
-  generateSecureToken() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 32; i++) {
-      token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return token + Date.now();
-  },
-
-  async createDevisToken(dossierId) {
-    const token = this.generateSecureToken();
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30); // Expire dans 30 jours
-    
-    const tokenData = {
-      dossierId: dossierId,
-      createdAt: new Date().toISOString(),
-      expirationDate: expirationDate.toISOString(),
-      used: false
-    };
-    
-    // Sauvegarder le token dans Firebase
-    await fetch(`${CONFIG.firebase.databaseURL}/devis_tokens/${token}.json`, {
-      method: 'PUT',
-      body: JSON.stringify(tokenData)
-    });
-    
-    return token;
-  },
-
-applyEmailTemplate(template, dossier, pdfUrl = "", docsUrls = []){
-    const nomClient = ((dossier.prenom||"") + " " + (dossier.nom||"")).trim() || "Client";
-    const documentsListe = docsUrls.length > 0 
-      ? `Documents client :\n${docsUrls.map((url, i) => `${i+1}. ${url}`).join('\n')}`
-      : 'Aucun document uploadé';
-    
-    return template
-      .replace(/\{\{nomClient\}\}/g, nomClient)
-      .replace(/\{\{numDossier\}\}/g, dossier.numDossier || "—")
-      .replace(/\{\{numDeclaration\}\}/g, dossier.numDeclaration || "—")
-      .replace(/\{\{numColis\}\}/g, dossier.numColis || "—")
-      .replace(/\{\{operateur\}\}/g, dossier.operateur || "—")
-      .replace(/\{\{typeDestinataire\}\}/g, dossier.typeDestinataire || "Particulier")
-      .replace(/\{\{email\}\}/g, dossier.mail || "—")
-      .replace(/\{\{telephone\}\}/g, dossier.telephone || "—")
-      .replace(/\{\{typeProduit\}\}/g, dossier.typeProduit || "—")
-      .replace(/\{\{origine\}\}/g, dossier.origine || "—")
-      .replace(/\{\{valeur\}\}/g, dossier.valeur ? fmtEuro(dossier.valeur) : "—")
-      .replace(/\{\{pdfUrl\}\}/g, pdfUrl)
-      .replace(/\{\{documentsListe\}\}/g, documentsListe);
-  },
-
-async sendDeclarationToImport(dossierId){
+  async sendDeclarationToImport(dossierId){
     const d = state.dossiers[dossierId];
     if (!d){ toast("Dossier introuvable","error"); return; }
     
@@ -3678,9 +3625,7 @@ async sendDeclarationToImport(dossierId){
       
       // Préparer l'email
       const nomClient = ((d.prenom||"") + " " + (d.nom||"")).trim() || "Client";
-      const subjectTemplate = localStorage.getItem('taf_template_paye_subject') || 
-        'Déclaration BAE - {{nomClient}} - Dossier {{numDossier}} - N° {{numDeclaration}}';
-      const subject = this.applyEmailTemplate(subjectTemplate, d, pdfUrl);
+      const subject = `Déclaration BAE - ${nomClient} - Dossier ${d.numDossier} - N° ${d.numDeclaration||""}`;
       
       const emailBody = `
 Bonjour,
@@ -3744,7 +3689,7 @@ TAF ROISSY / TAF TRANS
           from: "import@taftrans.fr",
           to: emailOperateur,
           subject: subject,
-          body: finalEmailBody,
+          body: emailBody,
           attachmentUrl: pdfUrl,
           dossierId: d.id,
           numDossier: d.numDossier,
@@ -3762,116 +3707,7 @@ TAF ROISSY / TAF TRANS
   },
 
 
-  
-  async sendAutomatedEmail(dossierId, statusId){
-    const d = state.dossiers[dossierId];
-    if (!d){ toast("Dossier introuvable","error"); return; }
-    
-    // Vérifier si l'automatisme est activé
-    const enabled = localStorage.getItem(`taf_auto_${statusId}_enabled`) === 'true';
-    if (!enabled) {
-      console.log(`Automatisme ${statusId} désactivé, pas d'envoi`);
-      return;
-    }
-    
-    try {
-      console.log(`📧 Envoi email automatique pour statut ${statusId}`);
-      
-      // Récupérer les templates
-      const subject = localStorage.getItem(`taf_auto_${statusId}_subject`) || '';
-      const body = localStorage.getItem(`taf_auto_${statusId}_body`) || '';
-      const sendPDF = localStorage.getItem(`taf_auto_${statusId}_pdf`) === 'true';
-      
-      // Générer le PDF si nécessaire
-      let pdfUrl = '';
-      if (sendPDF) {
-        const doc = this.generateDeclarationPDF(d);
-        const pdfB64 = doc.output("datauristring").split(",")[1];
-        
-        const filename = `${statusId}_${d.numDossier}_${Date.now()}.pdf`;
-        const up = await fetch(CONFIG.drive.uploadUrl,{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({
-            folderId: CONFIG.drive.folder,
-            filename: filename,
-            mimeType: "application/pdf",
-            data: pdfB64
-          })
-        });
-        
-        const upJson = await up.json();
-        pdfUrl = upJson.url || "";
-      }
-      
-      // Appliquer les variables
-      const emailSubject = this.applyEmailTemplate(subject, d, pdfUrl);
-      const emailBody = this.applyEmailTemplate(body, d, pdfUrl);
-      
-      // Si c'est un devis, ajouter les liens de confirmation sécurisés
-      let finalEmailBody = emailBody;
-      if (statusId === 'DEVIS') {
-        console.log('📧 Email DEVIS détecté, génération des liens de confirmation...');
-        const token = await this.createDevisToken(d.id);
-        const baseUrl = 'https://taf-roissy.github.io/AI/TAF_CONFIRM_DEVIS.html';
-        const acceptUrl = `${baseUrl}?token=${token}&action=accept`;
-        const refuseUrl = `${baseUrl}?token=${token}&action=refuse`;
-        
-        // Ajouter les boutons à la fin du message
-        finalEmailBody += `
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ RÉPONDEZ EN 1 CLIC
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Vous pouvez accepter ou refuser ce devis directement :
-
-👍 ACCEPTER LE DEVIS :
-${acceptUrl}
-
-👎 REFUSER LE DEVIS :
-${refuseUrl}
-
-⚠️ Ces liens sont sécurisés et à usage unique.
-   Ils expirent dans 30 jours.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-      }
-      
-      // Destinataire = email du client
-      const to = d.mail || '';
-      if (!to) {
-        console.log("Pas d'email client, annulation envoi");
-        return;
-      }
-      
-      // Envoyer via webhook
-      await fetch(CONFIG.webhooks.email, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          type: `status_${statusId.toLowerCase()}`,
-          from: "import@taftrans.fr",
-          to: to,
-          subject: emailSubject,
-          body: finalEmailBody,
-          attachmentUrl: pdfUrl || "",
-          dossierId: d.id,
-          numDossier: d.numDossier,
-          statusId: statusId
-        })
-      });
-      
-      toast(`Email ${statusId} envoyé ✓`, "success");
-      console.log("✅ Email automatique envoyé");
-      
-    } catch(e) {
-      console.error("❌ Erreur sendAutomatedEmail:", e);
-      toast("Erreur envoi email : " + e.message, "error");
-    }
-  },
-
-async sendToDouaneBureau(dossierId){
+  async sendToDouaneBureau(dossierId){
     const d = state.dossiers[dossierId];
     if (!d){ toast("Dossier introuvable","error"); return; }
     
@@ -3918,9 +3754,7 @@ async sendToDouaneBureau(dossierId){
       
       // Préparer l'objet de l'email
       const nomClient = ((d.prenom||"") + " " + (d.nom||"")).trim() || "Client";
-      const subjectTemplate = localStorage.getItem('taf_template_accepte_subject') || 
-        '{{numDeclaration}} / {{numColis}} / {{nomClient}}';
-      const subject = this.applyEmailTemplate(subjectTemplate, d, pdfUrl);
+      const subject = `${d.numDeclaration||"BAE"} / ${d.numColis||""} / ${nomClient}`;
       
       // Construire le corps de l'email
       const emailBody = `
@@ -3987,7 +3821,7 @@ TAF ROISSY / TAF TRANS
           from: "import@taftrans.fr",
           to: emailDouane,
           subject: subject,
-          body: finalEmailBody,
+          body: emailBody,
           attachmentUrl: pdfUrl,
           documentsUrls: docsUrls,
           dossierId: d.id,
@@ -4443,7 +4277,7 @@ function updateCalcPreview() {
       </div>
     `;
   } else if (preview) {
-    preview.innerHTML = "<div style=\"padding:12px; background:#f8f9fa; border-radius:4px; margin-top:15px; color:#6c757d; font-size:12px;\"><em>Remplissez la valeur pour voir l'estimation</em></div>";
+    preview.innerHTML = '<div style="padding:12px; background:#f8f9fa; border-radius:4px; margin-top:15px; color:#6c757d; font-size:12px;"><em>Remplissez la valeur pour voir l'estimation</em></div>';
   }
 }
 
