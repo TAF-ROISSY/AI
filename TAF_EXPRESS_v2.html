@@ -3199,16 +3199,6 @@ ${CONFIG.company.website}`;
       const doc = this.generateProformaPDF(pf);
       const pdfB64 = doc.output("datauristring").split(",")[1];
 
-      // Upload Drive
-      toast("Upload Drive…","info");
-      const up = await fetch(CONFIG.drive.uploadUrl,{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ folderId: CONFIG.drive.folder, filename: `${pf.numProforma}.pdf`, mimeType:"application/pdf", data: pdfB64 })
-      });
-      const upJson = await up.json();
-      if (!upJson.url) throw new Error("Drive upload échoué");
-      pf.pdfUrl = upJson.url;
-
       // Persister la proforma
       pf.status = "SENT";
       pf.sentAt = Date.now();
@@ -3216,9 +3206,9 @@ ${CONFIG.company.website}`;
       await fb.set(`/proformas/${pf.id}`, pf);
       state.proformas[pf.id] = pf;
 
-      // Envoi email via webhook Make.com
+      // Envoi email via webhook Make.com avec PDF en base64
       toast("Envoi email…","info");
-      await fetch(CONFIG.webhooks.email, {
+      const webhookResponse = await fetch(CONFIG.webhooks.email, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           type: "proforma",
@@ -3228,11 +3218,17 @@ ${CONFIG.company.website}`;
           numProforma: pf.numProforma,
           numDossier: pf.numDossier,
           totalTTC: pf.totalTTC,
-          pdfUrl: pf.pdfUrl,
           dossierId: pf.dossierId,
-          body: this.proformaEmailBody(pf)
+          body: this.proformaEmailBody(pf),
+          // PDF joint en base64
+          pdfBase64: pdfB64,
+          pdfFilename: `${pf.numProforma}.pdf`
         })
-      }).catch(e=>console.warn("Webhook email:",e));
+      });
+      
+      if (!webhookResponse.ok) {
+        throw new Error(`Webhook erreur: ${webhookResponse.status}`);
+      }
 
       toast("Proforma envoyée au client ✓","success");
       this.closeModal();
