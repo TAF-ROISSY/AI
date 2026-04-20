@@ -14,7 +14,7 @@
   <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-const VER = "4.2.2";
+const VER = "4.4.0";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 const COLORS = ["#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#ec4899","#06b6d4","#f97316","#6366f1","#84cc16"];
 
@@ -79,6 +79,7 @@ function App() {
   const [editDemande, setEditDemande] = useState(null);
   const [editSolde, setEditSolde] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [newCollab, setNewCollab] = useState(null);
 
   const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
 
@@ -287,6 +288,115 @@ function App() {
     setEditSolde(null);
   };
 
+  // ═══ ADD PROFILE ═══
+  const handleAddProfile = async () => {
+    if (!newCollab) return;
+    if (!newCollab.nom || !newCollab.prenom) { show("Nom et prénom requis", "err"); return; }
+    
+    const profile = {
+      id: uid(),
+      nom: newCollab.nom,
+      prenom: newCollab.prenom,
+      poste: newCollab.poste || "",
+      email: newCollab.email || "",
+      pin: newCollab.pin || "",
+      color: newCollab.color || COLORS[collabs.length % COLORS.length],
+      soldeCP: parseInt(newCollab.soldeCP) || 25,
+      soldeRTT: parseInt(newCollab.soldeRTT) || 10,
+      actif: true
+    };
+    
+    const newC = [...collabs, profile];
+    await saveCollabs(newC);
+    show(`Profil ${profile.prenom} ${profile.nom} créé`);
+    setNewCollab(null);
+  };
+
+  // ═══ DELETE PROFILE ═══
+  const handleDeleteProfile = async (collabId) => {
+    const collab = collabs.find(c => c.id === collabId);
+    if (!collab) return;
+    
+    // Check if has pending or future requests
+    const hasRequests = demandes.some(d => d.collaborateurId === collabId && (d.statut === "en_attente" || d.statut === "validee"));
+    if (hasRequests) {
+      show("Impossible de supprimer : demandes en cours ou à venir", "err");
+      return;
+    }
+    
+    const newC = collabs.map(c => c.id === collabId ? { ...c, actif: false } : c);
+    await saveCollabs(newC);
+    show(`Profil ${collab.prenom} ${collab.nom} désactivé`);
+    setConfirmAction(null);
+  };
+
+  // ═══ SHARED CALENDAR ═══
+  const renderCalendar = () => {
+    const year = calYear;
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1).getDay() || 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 1; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    const approved = demandes.filter(d => d.statut === "validee");
+    const getAbsents = (day) => {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return approved.filter(d => d.dateDebut <= dateStr && d.dateFin >= dateStr).map(d => {
+        const c = collabs.find(x => x.id === d.collaborateurId);
+        return { ...d, collab: c };
+      });
+    };
+
+    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <Btn onClick={() => { if (month === 0) { setCalMonth(11); setCalYear(year - 1); } else setCalMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2 }}>◀</Btn>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>{monthNames[month]} {year}</span>
+          <Btn onClick={() => { if (month === 11) { setCalMonth(0); setCalYear(year + 1); } else setCalMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
+        </div>
+
+        {/* Légende couleurs */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          {collabs.filter(c => c.actif !== false).map(c => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color || S.blue }} />
+              <span style={{ color: S.text2 }}>{c.prenom}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
+            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: S.text3, padding: "6px 0" }}>{d}</div>
+          ))}
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
+            const absents = getAbsents(day);
+            const isToday = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today();
+            const isWeekend = (i % 7 >= 5);
+            return (
+              <div key={day} style={{ background: isToday ? `${S.blue}20` : isWeekend ? `${S.bg3}` : S.card, border: `1px solid ${isToday ? S.blue : S.border}`, borderRadius: 8, padding: "4px 6px", minHeight: 56 }}>
+                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : isWeekend ? S.text3 : S.text, marginBottom: 2 }}>{day}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                  {absents.map((a, j) => (
+                    <div key={j} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${a.collab?.color || S.blue}30`, color: a.collab?.color || S.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {a.collab?.prenom || "?"} · {a.type}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // ═══ STYLES ═══
   const S = {
     bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828",
@@ -311,27 +421,25 @@ function App() {
         <div style={{ fontSize: 12, color: S.text3, marginBottom: 30 }}>v{VER} — Gestion des congés et RTT</div>
 
         {/* Calendrier public */}
-        <div onClick={() => setScreen("calendar")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 14, cursor: "pointer", transition: "all .15s" }}>
+        <div onClick={() => setScreen("calendar")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 24, cursor: "pointer", transition: "all .15s" }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: S.teal }}>Calendrier partagé</div>
           <div style={{ fontSize: 11, color: S.text3 }}>Voir les congés, RTT et vacations de l'équipe</div>
-        </div>
-
-        {/* Formulaire de demande */}
-        <div onClick={() => window.open("TAF_Formulaire_CP_RTT.html", "_blank")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 24, cursor: "pointer", transition: "all .15s" }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: S.orange }}>Formulaire de demande</div>
-          <div style={{ fontSize: 11, color: S.text3 }}>Remplir et imprimer un formulaire d'absence</div>
         </div>
 
         {/* Profils salariés */}
         <div style={{ fontSize: 13, fontWeight: 700, color: S.text2, marginBottom: 12, textAlign: "left" }}>Choisir un profil</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
           {collabs.filter(c => c.actif !== false).map(c => (
-            <div key={c.id} onClick={() => { setPinTarget(c); setScreen("pin"); setPin(""); }} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "16px", cursor: "pointer", textAlign: "center", transition: "all .15s", borderLeft: `4px solid ${c.color || S.blue}` }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: c.color || S.blue, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", fontSize: 16, fontWeight: 800, color: "#fff" }}>{(c.prenom || "?")[0]}</div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{c.prenom} {c.nom}</div>
-              <div style={{ fontSize: 10, color: S.text3 }}>{c.poste || "—"}</div>
+            <div key={c.id} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "16px", textAlign: "center", transition: "all .15s", borderLeft: `4px solid ${c.color || S.blue}` }}>
+              <div onClick={() => { setPinTarget(c); setScreen("pin"); setPin(""); }} style={{ cursor: "pointer" }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: c.color || S.blue, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", fontSize: 16, fontWeight: 800, color: "#fff" }}>{(c.prenom || "?")[0]}</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{c.prenom} {c.nom}</div>
+                <div style={{ fontSize: 10, color: S.text3 }}>{c.poste || "—"}</div>
+              </div>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${S.border}15` }}>
+                <button onClick={() => window.open(`TAF_Formulaire_CP_RTT.html?nom=${encodeURIComponent(c.nom + ' ' + c.prenom)}&email=${encodeURIComponent(c.email || '')}&service=${encodeURIComponent(c.poste || '')}`, '_blank')} style={{ width: "100%", padding: "6px 12px", border: "none", borderRadius: 6, background: S.orange, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>📝 Formulaire</button>
+              </div>
             </div>
           ))}
         </div>
@@ -583,24 +691,48 @@ function App() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <span style={{ fontSize: 16, fontWeight: 700 }}>Gestion de l'équipe</span>
-                <Btn onClick={async () => {
-                  const team = await fbGet("team");
-                  if (!team) { show("Aucune donnée TAF TEAM", "err"); return; }
-                  const existing = collabs.map(c => c.id);
-                  const newC = [...collabs];
-                  let added = 0;
-                  Object.entries(team).forEach(([id, m]) => {
-                    if (!existing.includes(id)) {
-                      newC.push({ id, nom: m.nom || m.name || "", prenom: m.prenom || m.firstName || "", poste: m.poste || m.role || "", email: m.email || "", pin: "", color: COLORS[newC.length % COLORS.length], soldeCP: 25, soldeRTT: 10, actif: true });
-                      added++;
-                    }
-                  });
-                  if (added > 0) { await saveCollabs(newC); show(`${added} profil(s) importé(s) depuis TAF TEAM`); }
-                  else show("Tous les profils sont déjà synchronisés");
-                }} bg={S.teal} style={{ fontSize: 11 }}>Sync depuis TAF TEAM</Btn>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Btn onClick={() => setNewCollab({ nom: "", prenom: "", poste: "", email: "", pin: "", soldeCP: 25, soldeRTT: 10, color: COLORS[collabs.length % COLORS.length] })} bg={S.green} style={{ fontSize: 11 }}>+ Ajouter un profil</Btn>
+                  <Btn onClick={async () => {
+                    const team = await fbGet("team");
+                    if (!team) { show("Aucune donnée TAF TEAM", "err"); return; }
+                    const existing = collabs.map(c => c.id);
+                    const newC = [...collabs];
+                    let added = 0;
+                    Object.entries(team).forEach(([id, m]) => {
+                      if (!existing.includes(id)) {
+                        newC.push({ id, nom: m.nom || m.name || "", prenom: m.prenom || m.firstName || "", poste: m.poste || m.role || "", email: m.email || "", pin: "", color: COLORS[newC.length % COLORS.length], soldeCP: 25, soldeRTT: 10, actif: true });
+                        added++;
+                      }
+                    });
+                    if (added > 0) { await saveCollabs(newC); show(`${added} profil(s) importé(s) depuis TAF TEAM`); }
+                    else show("Tous les profils sont déjà synchronisés");
+                  }} bg={S.teal} style={{ fontSize: 11 }}>Sync depuis TAF TEAM</Btn>
+                </div>
               </div>
 
-              {collabs.map(c => (
+              {/* Formulaire nouveau profil */}
+              {newCollab && (
+                <Card title="Nouveau profil" style={{ marginBottom: 12, borderLeft: `4px solid ${S.green}` }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <Inp label="Prénom *" value={newCollab.prenom} onChange={e => setNewCollab(p => ({ ...p, prenom: e.target.value }))} placeholder="Jean" />
+                    <Inp label="Nom *" value={newCollab.nom} onChange={e => setNewCollab(p => ({ ...p, nom: e.target.value }))} placeholder="DUPONT" />
+                    <Inp label="Poste" value={newCollab.poste} onChange={e => setNewCollab(p => ({ ...p, poste: e.target.value }))} placeholder="Import" />
+                    <Inp label="Email" value={newCollab.email} onChange={e => setNewCollab(p => ({ ...p, email: e.target.value }))} placeholder="email@taftrans.fr" />
+                    <Inp label="PIN (optionnel)" value={newCollab.pin} onChange={e => setNewCollab(p => ({ ...p, pin: e.target.value }))} placeholder="1234" maxLength="6" />
+                    <div />
+                    <Inp label="Solde CP" type="number" value={newCollab.soldeCP} onChange={e => setNewCollab(p => ({ ...p, soldeCP: +e.target.value }))} />
+                    <Inp label="Solde RTT" type="number" value={newCollab.soldeRTT} onChange={e => setNewCollab(p => ({ ...p, soldeRTT: +e.target.value }))} />
+                    <div><label style={{ fontSize: 10, color: S.text2, fontWeight: 700 }}>COULEUR</label><div style={{ display: "flex", gap: 4, marginTop: 4 }}>{COLORS.map(col => <div key={col} onClick={() => setNewCollab(p => ({ ...p, color: col }))} style={{ width: 24, height: 24, borderRadius: "50%", background: col, cursor: "pointer", border: newCollab.color === col ? "2px solid #fff" : "2px solid transparent" }} />)}</div></div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <Btn onClick={handleAddProfile} bg={S.green} style={{ fontSize: 11 }}>Créer le profil</Btn>
+                    <Btn onClick={() => setNewCollab(null)} bg={S.bg3} style={{ color: S.text2, fontSize: 11 }}>Annuler</Btn>
+                  </div>
+                </Card>
+              )}
+
+              {collabs.filter(c => c.actif !== false).map(c => (
                 <Card key={c.id} style={{ marginBottom: 10, borderLeft: `4px solid ${c.color || S.blue}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
@@ -622,6 +754,7 @@ function App() {
                           show(`PIN ${newPin ? "défini" : "effacé"} pour ${c.prenom}`);
                         }
                       }} bg={S.orange} style={{ fontSize: 11 }}>PIN</Btn>
+                      <Btn onClick={() => setConfirmAction({ type: "delete_profile", id: c.id })} bg={S.red} style={{ fontSize: 11 }}>Supprimer</Btn>
                     </div>
                   </div>
                   {editCollab?.id === c.id && (
@@ -681,6 +814,22 @@ function App() {
           </div>
         )}
 
+        {/* Modal confirmation suppression profil */}
+        {confirmAction && confirmAction.type === "delete_profile" && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
+            <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 24, width: 400 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Supprimer ce profil ?</div>
+              <div style={{ fontSize: 13, color: S.text2, marginBottom: 16 }}>
+                Le profil sera désactivé (pas définitivement supprimé). Il n'apparaîtra plus sur la page d'accueil mais l'historique sera conservé.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <Btn onClick={() => setConfirmAction(null)} bg={S.bg3} style={{ color: S.text2 }}>Annuler</Btn>
+                <Btn onClick={() => handleDeleteProfile(confirmAction.id)} bg={S.red}>Confirmer</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal modification demande */}
         {editDemande && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
@@ -707,74 +856,6 @@ function App() {
     );
   }
 
-  // ═══ SHARED CALENDAR ═══
-  const renderCalendar = () => {
-    const year = calYear;
-    const month = calMonth;
-    const firstDay = new Date(year, month, 1).getDay() || 7;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells = [];
-    for (let i = 1; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-    const approved = demandes.filter(d => d.statut === "validee");
-    const getAbsents = (day) => {
-      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      return approved.filter(d => d.dateDebut <= dateStr && d.dateFin >= dateStr).map(d => {
-        const c = collabs.find(x => x.id === d.collaborateurId);
-        return { ...d, collab: c };
-      });
-    };
-
-    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-    const S = { bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828", border: "#1c2e4a", gold: "#f5a623", teal: "#22d3ee", blue: "#3b82f6", red: "#ef4444", green: "#22c55e", purple: "#8b5cf6", orange: "#f59e0b", text: "#e1e5f0", text2: "#8aa8c4", text3: "#4a6580" };
-    const Btn = ({ children, onClick, c = S.blue, bg: b, style: st = {} }) => <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#fff", background: b || c, fontFamily: "inherit", transition: "all .15s", ...st }}>{children}</button>;
-
-    return (
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <Btn onClick={() => { if (month === 0) { setCalMonth(11); setCalYear(year - 1); } else setCalMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2 }}>◀</Btn>
-          <span style={{ fontSize: 18, fontWeight: 700 }}>{monthNames[month]} {year}</span>
-          <Btn onClick={() => { if (month === 11) { setCalMonth(0); setCalYear(year + 1); } else setCalMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
-        </div>
-
-        {/* Légende couleurs */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-          {collabs.filter(c => c.actif !== false).map(c => (
-            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color || S.blue }} />
-              <span style={{ color: S.text2 }}>{c.prenom}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
-            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: S.text3, padding: "6px 0" }}>{d}</div>
-          ))}
-          {cells.map((day, i) => {
-            if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
-            const absents = getAbsents(day);
-            const isToday = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today();
-            const isWeekend = (i % 7 >= 5);
-            return (
-              <div key={day} style={{ background: isToday ? `${S.blue}20` : isWeekend ? `${S.bg3}` : S.card, border: `1px solid ${isToday ? S.blue : S.border}`, borderRadius: 8, padding: "4px 6px", minHeight: 56 }}>
-                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : isWeekend ? S.text3 : S.text, marginBottom: 2 }}>{day}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                  {absents.map((a, j) => (
-                    <div key={j} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${a.collab?.color || S.blue}30`, color: a.collab?.color || S.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {a.collab?.prenom || "?"} · {a.type}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   if (screen === "calendar") return (
     <div style={{ background: "#06090f", minHeight: "100vh", fontFamily: "system-ui", color: "#e1e5f0", padding: 20 }}>

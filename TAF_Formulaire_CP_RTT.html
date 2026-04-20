@@ -822,6 +822,38 @@ initFirebase();
 const today = new Date().toISOString().split('T')[0];
 document.getElementById('date-debut').min = today;
 document.getElementById('date-fin').min = today;
+
+// Pré-remplissage depuis les paramètres URL
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const nom = params.get('nom');
+  const email = params.get('email');
+  const service = params.get('service');
+  
+  if (nom) {
+    document.getElementById('collab-nom').value = nom;
+  }
+  if (email) {
+    document.getElementById('collab-email').value = email;
+  }
+  if (service) {
+    // Essayer de mapper le poste vers un service
+    const serviceMapping = {
+      'import': 'import',
+      'export': 'export-afr',
+      'moyen-orient': 'moyen-orient',
+      'magasin': 'magasin',
+      'admin': 'admin',
+      'administratif': 'admin'
+    };
+    const serviceSelect = document.getElementById('collab-service');
+    const serviceLower = service.toLowerCase();
+    const mappedService = serviceMapping[serviceLower] || '';
+    if (mappedService) {
+      serviceSelect.value = mappedService;
+    }
+  }
+})();
 </script>
 
 
