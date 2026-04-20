@@ -3036,6 +3036,16 @@ ${CONFIG.company.website}`;
     if(pf.client.adresse) { doc.text(pf.client.adresse, W-M, y, {align:"right"}); y+=4; }
     if(pf.client.ville) { doc.text(pf.client.ville, W-M, y, {align:"right"}); }
     
+    // Récupérer les données du dossier (déclaré UNE SEULE FOIS au début)
+    const dossier = state.dossiers[pf.dossierId];
+    const typeProduit = dossier?.typeProduit || "Autre";
+    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
+    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
+    const tauxDD = dossier?.tauxDD || 0;
+    const valeur = dossier?.valeur || 0;
+    const tauxTVA = dossier?.tauxTVA || 20;
+    const montantInter = dossier?.montantIntervention || 110;
+    
     // LIGNES 13-14 : Opérateur
     y = 80;
     doc.setDrawColor(200,200,200);
@@ -3048,8 +3058,6 @@ ${CONFIG.company.website}`;
     doc.text("N° colis", W-M-30, y);
     y+=5;
     doc.setFont("helvetica","normal");
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
     doc.text(pf.operateur||"—", M, y);
     doc.text(typeProduit, M+50, y);
     doc.text(typeDestinataire, M+100, y);
@@ -3058,19 +3066,12 @@ ${CONFIG.company.website}`;
     // LIGNES 16-17 : Taux
     y+=8;
     doc.line(M, y-2, W-M, y-2);
-    const dossier = state.dossiers[pf.dossierId];
-    const tauxDD = dossier?.tauxDD || 0;
-    const valeur = dossier?.valeur || 0;
-    const tauxTVA = dossier?.tauxTVA || 20;
-    const montantInter = dossier?.montantIntervention || 110;
     doc.setFont("helvetica","bold");
     doc.text("Taux de Droit de douane", M, y);
     doc.text("Valeur", M+60, y);
     doc.text("TVA", M+100, y);
     y+=5;
     doc.setFont("helvetica","normal");
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
     doc.text(`${tauxConfig.dd}%`, M, y);
     doc.text(`${valeur.toFixed(2)} €`, M+60, y);
     doc.text(`${tauxConfig.tva}%`, M+100, y);
@@ -3091,9 +3092,6 @@ ${CONFIG.company.website}`;
     doc.setFont("helvetica","normal");
     
     // Calculs intelligents selon type produit et type destinataire
-    const typeProduit = dossier?.typeProduit || "Autre";
-    const typeDestinataire = dossier?.typeDestinataire || "Particulier";
-    const tauxConfig = TYPES_PRODUITS[typeProduit] || { dd: 0, tva: 20 };
     const tauxDDProduit = tauxConfig.dd;
     const tauxTVAProduit = tauxConfig.tva;
     
