@@ -14,7 +14,7 @@
   <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-const VER = "4.4.0";
+const VER = "5.0.0";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 const COLORS = ["#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#ec4899","#06b6d4","#f97316","#6366f1","#84cc16"];
 
@@ -80,20 +80,28 @@ function App() {
   const [editSolde, setEditSolde] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [newCollab, setNewCollab] = useState(null);
+  
+  // Vacations states
+  const [vacations, setVacations] = useState({});
+  const [vacMonth, setVacMonth] = useState(new Date().getMonth());
+  const [vacYear, setVacYear] = useState(new Date().getFullYear());
+  const [draggedCollab, setDraggedCollab] = useState(null);
 
   const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
 
   // ═══ LOAD FROM FIREBASE ═══
   useEffect(() => {
     (async () => {
-      const [c, d, cf] = await Promise.all([
+      const [c, d, cf, v] = await Promise.all([
         fbGet("taf_cprtt/collaborateurs"),
         fbGet("taf_cprtt/demandes"),
-        fbGet("taf_cprtt/config")
+        fbGet("taf_cprtt/config"),
+        fbGet("taf_cprtt/vacations")
       ]);
       if (c) setCollabs(Array.isArray(c) ? c : Object.values(c));
       if (d) setDemandes(Array.isArray(d) ? d : Object.values(d));
       if (cf) setCfg(prev => ({ ...prev, ...cf }));
+      if (v) setVacations(v);
       // Import from TAF TEAM if no collabs exist
       if (!c || (Array.isArray(c) && c.length === 0)) {
         const team = await fbGet("team");
@@ -330,6 +338,95 @@ function App() {
     setConfirmAction(null);
   };
 
+  // ═══ VACATIONS MANAGEMENT ═══
+  const saveVacations = async (v) => {
+    await fbSet("taf_cprtt/vacations", v);
+    setVacations(v);
+  };
+
+  const handleDrop = async (dateStr) => {
+    if (!draggedCollab) return;
+    const monthKey = `${vacYear}-${String(vacMonth + 1).padStart(2, "0")}`;
+    const newV = { ...vacations };
+    if (!newV[monthKey]) newV[monthKey] = { days: {}, validated: false };
+    if (!newV[monthKey].days[dateStr]) newV[monthKey].days[dateStr] = [];
+    
+    // Toggle: if already assigned, remove; otherwise add
+    const idx = newV[monthKey].days[dateStr].indexOf(draggedCollab.id);
+    if (idx >= 0) {
+      newV[monthKey].days[dateStr].splice(idx, 1);
+    } else {
+      newV[monthKey].days[dateStr].push(draggedCollab.id);
+    }
+    
+    await saveVacations(newV);
+    setDraggedCollab(null);
+  };
+
+  const validateMonthVacations = async () => {
+    const monthKey = `${vacYear}-${String(vacMonth + 1).padStart(2, "0")}`;
+    if (!vacations[monthKey] || !vacations[monthKey].days) {
+      show("Aucune vacation à valider pour ce mois", "err");
+      return;
+    }
+
+    const newV = { ...vacations };
+    newV[monthKey].validated = true;
+    newV[monthKey].validatedAt = new Date().toISOString();
+    await saveVacations(newV);
+
+    // Send emails to each collaborator
+    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+    const assigned = {};
+    
+    Object.entries(newV[monthKey].days).forEach(([date, collabIds]) => {
+      collabIds.forEach(cid => {
+        if (!assigned[cid]) assigned[cid] = [];
+        assigned[cid].push(date);
+      });
+    });
+
+    for (const [collabId, dates] of Object.entries(assigned)) {
+      const c = collabs.find(x => x.id === collabId);
+      if (!c || !c.email) continue;
+
+      const datesList = dates.sort().map(d => fmt(d)).join(", ");
+      const emailData = {
+        to: c.email,
+        from: cfg.emailAdmin || "christophe@taftrans.fr",
+        subject: `Planning vacations ${monthNames[vacMonth]} ${vacYear}`,
+        body: `Bonjour ${c.prenom},\n\nVotre planning de vacations pour ${monthNames[vacMonth]} ${vacYear} :\n\n${datesList}\n\nMerci de prendre note.\n\nCordialement,\nTAF ROISSY`
+      };
+
+      if (cfg.webhookMake) {
+        try {
+          await fetch(cfg.webhookMake, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(emailData)
+          });
+        } catch (e) {
+          console.error("Email error:", e);
+        }
+      }
+    }
+
+    show(`Vacations de ${monthNames[vacMonth]} ${vacYear} validées et emails envoyés`);
+  };
+
+  // ═══ STYLES ═══
+  const S = {
+    bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828",
+    border: "#1c2e4a", gold: "#f5a623", teal: "#22d3ee", blue: "#3b82f6",
+    red: "#ef4444", green: "#22c55e", purple: "#8b5cf6", orange: "#f59e0b",
+    text: "#e1e5f0", text2: "#8aa8c4", text3: "#4a6580"
+  };
+  const Btn = ({ children, onClick, c = S.blue, bg: b, style: st = {} }) => <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#fff", background: b || c, fontFamily: "inherit", transition: "all .15s", ...st }}>{children}</button>;
+  const Card = ({ title, tr, children, style: st = {} }) => <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", ...st }}>{title && <div style={{ padding: "12px 16px", borderBottom: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 14 }}>{title}</span>{tr}</div>}<div style={{ padding: "16px" }}>{children}</div></div>;
+  const Inp = ({ label, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<input {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }} /></div>;
+  const Sel = ({ label, children, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<select {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }}>{children}</select></div>;
+  const Badge = ({ children, c = S.blue }) => <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: `${c}20`, color: c, border: `1px solid ${c}30` }}>{children}</span>;
+
   // ═══ SHARED CALENDAR ═══
   const renderCalendar = () => {
     const year = calYear;
@@ -349,6 +446,18 @@ function App() {
       });
     };
 
+    // Get vacations for this month
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthVacations = vacations[monthKey] || { days: {} };
+    const getVacations = (day) => {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const collabIds = monthVacations.days[dateStr] || [];
+      return collabIds.map(cid => {
+        const c = collabs.find(x => x.id === cid);
+        return { collab: c };
+      }).filter(v => v.collab);
+    };
+
     const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
     return (
@@ -359,14 +468,26 @@ function App() {
           <Btn onClick={() => { if (month === 11) { setCalMonth(0); setCalYear(year + 1); } else setCalMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
         </div>
 
-        {/* Légende couleurs */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-          {collabs.filter(c => c.actif !== false).map(c => (
-            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color || S.blue }} />
-              <span style={{ color: S.text2 }}>{c.prenom}</span>
+        {/* Légende couleurs + types */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+            {collabs.filter(c => c.actif !== false).map(c => (
+              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color || S.blue }} />
+                <span style={{ color: S.text2 }}>{c.prenom}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, fontSize: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 20, height: 12, borderRadius: 3, background: `${S.blue}30`, border: `1px solid ${S.blue}60` }} />
+              <span style={{ color: S.text3 }}>Congés</span>
             </div>
-          ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 20, height: 12, borderRadius: 3, background: S.orange }} />
+              <span style={{ color: S.text3 }}>Vacations</span>
+            </div>
+          </div>
         </div>
 
         {/* Grid */}
@@ -377,15 +498,23 @@ function App() {
           {cells.map((day, i) => {
             if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
             const absents = getAbsents(day);
+            const vacationsList = getVacations(day);
             const isToday = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` === today();
             const isWeekend = (i % 7 >= 5);
             return (
               <div key={day} style={{ background: isToday ? `${S.blue}20` : isWeekend ? `${S.bg3}` : S.card, border: `1px solid ${isToday ? S.blue : S.border}`, borderRadius: 8, padding: "4px 6px", minHeight: 56 }}>
                 <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : isWeekend ? S.text3 : S.text, marginBottom: 2 }}>{day}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {/* Congés validés */}
                   {absents.map((a, j) => (
-                    <div key={j} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${a.collab?.color || S.blue}30`, color: a.collab?.color || S.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div key={`a${j}`} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${a.collab?.color || S.blue}30`, color: a.collab?.color || S.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {a.collab?.prenom || "?"} · {a.type}
+                    </div>
+                  ))}
+                  {/* Vacations */}
+                  {vacationsList.map((v, j) => (
+                    <div key={`v${j}`} style={{ width: "100%", padding: "1px 4px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: S.orange, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {v.collab.prenom} ⚡
                     </div>
                   ))}
                 </div>
@@ -397,18 +526,156 @@ function App() {
     );
   };
 
-  // ═══ STYLES ═══
-  const S = {
-    bg: "#06090f", bg2: "#0c1220", bg3: "#141b28", card: "#0e1828",
-    border: "#1c2e4a", gold: "#f5a623", teal: "#22d3ee", blue: "#3b82f6",
-    red: "#ef4444", green: "#22c55e", purple: "#8b5cf6", orange: "#f59e0b",
-    text: "#e1e5f0", text2: "#8aa8c4", text3: "#4a6580"
+  // ═══ VACATIONS MODULE ═══
+  const renderVacations = () => {
+    const year = vacYear;
+    const month = vacMonth;
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthData = vacations[monthKey] || { days: {}, validated: false };
+    
+    const firstDay = new Date(year, month, 1).getDay() || 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 1; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    // Get holidays and weekends
+    const FERIES = {
+      "2026-01-01": "Jour de l'An", "2026-04-06": "Lundi de Pâques", "2026-05-01": "Fête du Travail",
+      "2026-05-08": "Victoire 1945", "2026-05-14": "Ascension", "2026-05-25": "Lundi de Pentecôte",
+      "2026-07-14": "Fête Nationale", "2026-08-15": "Assomption", "2026-11-01": "Toussaint",
+      "2026-11-11": "Armistice 1918", "2026-12-25": "Noël"
+    };
+
+    const isHolidayOrWeekend = (day) => {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const dayIndex = new Date(year, month, day).getDay();
+      return FERIES[dateStr] || dayIndex === 0 || dayIndex === 6;
+    };
+
+    // Get absences (congés validés) for background
+    const approved = demandes.filter(d => d.statut === "validee");
+    const getAbsents = (day) => {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return approved.filter(d => d.dateDebut <= dateStr && d.dateFin >= dateStr).map(d => {
+        const c = collabs.find(x => x.id === d.collaborateurId);
+        return { ...d, collab: c };
+      });
+    };
+
+    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <Btn onClick={() => { if (month === 0) { setVacMonth(11); setVacYear(year - 1); } else setVacMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2 }}>◀</Btn>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{monthNames[month]} {year}</div>
+            {monthData.validated && (
+              <Badge c={S.green}>✓ Validé le {fmt(monthData.validatedAt)}</Badge>
+            )}
+          </div>
+          <Btn onClick={() => { if (month === 11) { setVacMonth(0); setVacYear(year + 1); } else setVacMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
+        </div>
+
+        {!monthData.validated && (
+          <div style={{ marginBottom: 14, textAlign: "center" }}>
+            <Btn onClick={validateMonthVacations} bg={S.green} style={{ fontSize: 13 }}>✓ Valider les vacations de {monthNames[month]} et envoyer les emails</Btn>
+          </div>
+        )}
+
+        {/* Collaborateurs (drag sources) */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+          {collabs.filter(c => c.actif !== false).map(c => (
+            <div
+              key={c.id}
+              draggable
+              onDragStart={() => setDraggedCollab(c)}
+              onDragEnd={() => setDraggedCollab(null)}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "6px 12px", borderRadius: 8,
+                background: draggedCollab?.id === c.id ? `${c.color}40` : S.bg3,
+                border: `2px solid ${c.color}`,
+                cursor: "grab", fontSize: 12, fontWeight: 600
+              }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: c.color }} />
+              {c.prenom}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 11, color: S.text3, marginBottom: 10 }}>
+          💡 Glissez-déposez les collaborateurs sur les jours fériés et week-ends
+        </div>
+
+        {/* Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
+            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: S.text3, padding: "6px 0" }}>{d}</div>
+          ))}
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
+            
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const assigned = monthData.days[dateStr] || [];
+            const absents = getAbsents(day);
+            const isToday = dateStr === today();
+            const isWeekend = (i % 7 >= 5);
+            const isFerie = FERIES[dateStr];
+            const canDrop = isWeekend || isFerie;
+
+            return (
+              <div
+                key={day}
+                onDragOver={canDrop ? (e) => e.preventDefault() : undefined}
+                onDrop={canDrop ? () => handleDrop(dateStr) : undefined}
+                style={{
+                  background: isToday ? `${S.blue}20` : canDrop ? `${S.orange}15` : S.card,
+                  border: `1px solid ${isToday ? S.blue : canDrop ? S.orange : S.border}`,
+                  borderRadius: 8, padding: "4px 6px", minHeight: 80,
+                  position: "relative",
+                  opacity: canDrop ? 1 : 0.5
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : canDrop ? S.text : S.text3, marginBottom: 2 }}>
+                  {day}
+                  {isFerie && <div style={{ fontSize: 8, color: S.orange }}>Férié</div>}
+                </div>
+
+                {/* Congés en filigrane (background) */}
+                {absents.length > 0 && (
+                  <div style={{ fontSize: 8, color: S.text3, opacity: 0.4, marginBottom: 2 }}>
+                    {absents.map((a, j) => (
+                      <div key={j}>{a.collab?.prenom}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Vacations assignées */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {assigned.map((cid, j) => {
+                    const c = collabs.find(x => x.id === cid);
+                    if (!c) return null;
+                    return (
+                      <div key={j} style={{
+                        padding: "2px 4px", borderRadius: 4, fontSize: 9, fontWeight: 700,
+                        background: c.color, color: "#fff",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                      }}>
+                        {c.prenom}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
-  const Btn = ({ children, onClick, c = S.blue, bg: b, style: st = {} }) => <button onClick={onClick} style={{ border: "none", cursor: "pointer", borderRadius: 8, fontWeight: 600, padding: "8px 16px", fontSize: 12, color: "#fff", background: b || c, fontFamily: "inherit", transition: "all .15s", ...st }}>{children}</button>;
-  const Card = ({ title, tr, children, style: st = {} }) => <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", ...st }}>{title && <div style={{ padding: "12px 16px", borderBottom: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 14 }}>{title}</span>{tr}</div>}<div style={{ padding: "16px" }}>{children}</div></div>;
-  const Inp = ({ label, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<input {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }} /></div>;
-  const Sel = ({ label, children, ...p }) => <div style={{ marginBottom: 12 }}>{label && <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: S.text2, marginBottom: 4, textTransform: "uppercase" }}>{label}</label>}<select {...p} style={{ width: "100%", background: S.bg3, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 12px", color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit", ...p.style }}>{children}</select></div>;
-  const Badge = ({ children, c = S.blue }) => <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: `${c}20`, color: c, border: `1px solid ${c}30` }}>{children}</span>;
 
   // ═══ HOME SCREEN ═══
   if (loading) return <div style={{ background: S.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: S.text, fontFamily: "system-ui" }}>Chargement...</div>;
@@ -600,7 +867,7 @@ function App() {
         </header>
 
         <div style={{ display: "flex", gap: 4, padding: "12px 20px 0", borderBottom: `1px solid ${S.border}` }}>
-          {[["validation", `Validation (${pendingD.length})`], ["historique", "Historique complet"], ["equipe", "Équipe & Soldes"], ["calendrier", "Calendrier"], ["config", "Configuration"]].map(([k, l]) => (
+          {[["validation", `Validation (${pendingD.length})`], ["historique", "Historique complet"], ["equipe", "Équipe & Soldes"], ["vacations", "Vacations"], ["calendrier", "Calendrier"], ["config", "Configuration"]].map(([k, l]) => (
             <button key={k} onClick={() => setSupTab(k)} style={{ padding: "8px 16px", borderRadius: "8px 8px 0 0", border: `1px solid ${supTab === k ? S.border : "transparent"}`, borderBottom: supTab === k ? `1px solid ${S.bg}` : "none", background: supTab === k ? S.card : "transparent", color: supTab === k ? S.text : S.text3, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative", bottom: -1 }}>{l}</button>
           ))}
         </div>
@@ -778,6 +1045,8 @@ function App() {
               ))}
             </div>
           )}
+
+          {supTab === "vacations" && renderVacations()}
 
           {supTab === "calendrier" && renderCalendar()}
 
