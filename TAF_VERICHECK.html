@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.2 — Contrôle & Vérification Factures Handlers</title>
+<title>TAF VERICHECK v3.3 — Contrôle & Vérification Factures Handlers</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -559,7 +559,7 @@ const DEF_PARAMS = {
     lta: 'Documents',
     poidsBrut: 'Poids',
     client: 'Client',
-    compagnie: 'Dep',
+    compagnie: 'Dép',
     date: 'Date',
     skipRows: 3
   }
@@ -846,18 +846,35 @@ function parseMalta(file, mapping) {
         });
 
         // ── Détection automatique de la ligne d'en-tête ──
-        // Cherche la première ligne contenant un terme ressemblant à LTA/Documents/Dossier
+        // On scanne les 15 premières lignes et on retient celle qui MAXIMISE
+        // le score = nb de cellules qui matchent exactement un hint (LTA/Dossier/Client/Poids/Date).
+        // Contrainte : ≥3 cellules non vides et ≥1 match. Les longs titres de rapport
+        // (ex: "BENEFICE BRUT ESTIME PAR DOSSIER DU ...") sont rejetés car le matching
+        // se fait sur la cellule ENTIÈRE (pas via includes), donc un titre long ne match jamais.
         const skipRows = mapping.skipRows ?? 0;
-        const LTA_HINTS = ['documents', 'lta', 'n° lta', 'awb'];
-        const DOS_HINTS = ['dossier', 'dossiers', 'n° dossier'];
+        const HEADER_HINTS = ['documents', 'lta', 'n° lta', 'awb', 'dossier', 'dossiers', 'n° dossier', 'client', 'poids', 'poids brut', 'date', 'dep', 'dép', 'compagnie'];
+        const scoreRow = (rawRow) => {
+          const cells = rawRow.map(v => String(v || '').toLowerCase().trim());
+          const nonEmpty = cells.filter(c => c.length > 0).length;
+          if (nonEmpty < 3) return -1; // ignore les lignes de titre ou presque vides
+          let score = 0;
+          for (const c of cells) {
+            if (c.length === 0 || c.length > 30) continue; // Les cellules longues ne sont pas des libellés de colonne
+            for (const h of HEADER_HINTS) {
+              // match mot entier : la cellule est exactement le hint, ou contient le hint comme mot isolé
+              if (c === h) { score += 2; break; }
+              if (new RegExp('\\b' + h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(c)) { score += 1; break; }
+            }
+          }
+          return score;
+        };
         let headerRowIdx = skipRows;
-        for (let i = 0; i < Math.min(allRaw.length, 10); i++) {
-          const row = allRaw[i].map(v => String(v || '').toLowerCase().trim());
-          const hasLTA = row.some(v => LTA_HINTS.some(h => v.includes(h)));
-          const hasDos = row.some(v => DOS_HINTS.some(h => v.includes(h)));
-          if (hasLTA || hasDos) {
+        let bestScore = 0;
+        for (let i = 0; i < Math.min(allRaw.length, 15); i++) {
+          const s = scoreRow(allRaw[i]);
+          if (s > bestScore) {
+            bestScore = s;
             headerRowIdx = i;
-            break;
           }
         }
         const headers = allRaw[headerRowIdx].map(v => String(v || '').trim());
@@ -866,15 +883,22 @@ function parseMalta(file, mapping) {
         // Correspondance colonne flexible : exact > lowercase sans espaces > contient
         const findCol = key => {
           if (!key) return -1;
-          const kl = key.toLowerCase().replace(/[\s°#]/g, '');
-          // Exact
+          // Normalise : lowercase, sans diacritiques, sans espaces/ponctuation courante
+          const norm = s => String(s || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s°#.,;:'"()-]/g, '');
+          const kl = norm(key);
+          // Exact (brut)
           let idx = headers.findIndex(h => h === key);
           if (idx >= 0) return idx;
-          // Lowercase + sans espaces
-          idx = headers.findIndex(h => h.toLowerCase().replace(/[\s°#]/g, '') === kl);
+          // Normalisé === normalisé
+          idx = headers.findIndex(h => norm(h) === kl);
           if (idx >= 0) return idx;
-          // Contient
-          idx = headers.findIndex(h => h.toLowerCase().replace(/[\s°#]/g, '').includes(kl) || kl.includes(h.toLowerCase().replace(/[\s°#]/g, '')));
+          // Contient (fallback)
+          idx = headers.findIndex(h => {
+            const hn = norm(h);
+            return hn && (hn.includes(kl) || kl.includes(hn));
+          });
           return idx;
         };
         const colIdx = {
@@ -1446,7 +1470,7 @@ function Nav(_ref4) {
     className: "drive-dot"
   }), "Drive"), /*#__PURE__*/React.createElement("span", {
     className: "version-tag"
-  }, "v3.2")));
+  }, "v3.3")));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6842,7 +6866,7 @@ function generateReport(session, litiges) {
     if (r.statut !== 'ok') byType[k].pb++;
   });
   let txt = `════════════════════════════════════════════════\n`;
-  txt += `  TAF VERICHECK v3.2 — RAPPORT D'ANALYSE\n`;
+  txt += `  TAF VERICHECK v3.3 — RAPPORT D'ANALYSE\n`;
   txt += `════════════════════════════════════════════════\n\n`;
   txt += `Date     : ${session.date}\n`;
   txt += `Facture  : ${session.pdfName}\n`;
