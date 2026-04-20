@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.1 — Contrôle & Vérification Factures Handlers</title>
+<title>TAF VERICHECK v3.2 — Contrôle & Vérification Factures Handlers</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -366,6 +366,11 @@ const TARIFF_TYPES = [{
   icon: '📐',
   desc: 'Nombre d\'ULD = ceil(poids / tranche). Montant = nUC × taux.'
 }, {
+  id: 'uc_tranche_fixe',
+  label: 'UC par tranche + montant fixe',
+  icon: '🧮',
+  desc: 'Montant = (nUC × taux) + forfait fixe. Ex: 20€/UC de 150kg + 35€ d\'intervention.'
+}, {
   id: 'magasinage',
   label: 'Magasinage progressif (grille par jours)',
   icon: '📅',
@@ -604,6 +609,15 @@ function calcLigneTarif(lt, poids) {
         const tranche = Number(p.tranche) || 150;
         const nUC = Math.ceil(poids / tranche);
         return nUC * Number(p.taux_uc);
+      }
+    case 'uc_tranche_fixe':
+      {
+        if (p.taux_uc == null && p.montant == null) return null;
+        const tranche = Number(p.tranche) || 150;
+        const nUC = Math.ceil(poids / tranche);
+        const uc = p.taux_uc != null ? nUC * Number(p.taux_uc) : 0;
+        const fixe = p.montant != null ? Number(p.montant) : 0;
+        return uc + fixe;
       }
     case 'magasinage':
       {
@@ -1432,7 +1446,7 @@ function Nav(_ref4) {
     className: "drive-dot"
   }), "Drive"), /*#__PURE__*/React.createElement("span", {
     className: "version-tag"
-  }, "v3.1")));
+  }, "v3.2")));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4007,6 +4021,56 @@ function ParamsEditor(_ref18) {
           marginBottom: 8
         }
       }, "Ex 1000kg : ", Math.ceil(1000 / (p.tranche || 150)), " UCs \xD7 ", p.taux_uc, "\u20AC = ", (Math.ceil(1000 / (p.tranche || 150)) * p.taux_uc).toFixed(2), "\u20AC"));
+    case 'uc_tranche_fixe':
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+        className: "frow"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Tranche poids (kg, ex: 150)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        value: p.tranche ?? 150,
+        onChange: e => upd('tranche', e.target.value)
+      })), /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Taux par UC (\u20AC/UC)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        step: "0.01",
+        value: p.taux_uc ?? '',
+        onChange: e => upd('taux_uc', e.target.value)
+      })), /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Montant fixe (\u20AC)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        step: "0.01",
+        value: p.montant ?? '',
+        onChange: e => upd('montant', e.target.value),
+        placeholder: "Ex: 35"
+      }))), (p.taux_uc || p.montant) && /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: 'var(--amber)',
+          fontFamily: 'var(--mono)',
+          marginTop: -8,
+          marginBottom: 8
+        }
+      }, (() => {
+        const tr = Number(p.tranche) || 150;
+        const nUC = Math.ceil(1000 / tr);
+        const uc = Number(p.taux_uc || 0);
+        const fx = Number(p.montant || 0);
+        const ucPart = nUC * uc;
+        const total = ucPart + fx;
+        return `Ex 1000kg : ${nUC} UC × ${uc}€ = ${ucPart.toFixed(2)}€ + ${fx.toFixed(2)}€ fixe = ${total.toFixed(2)}€`;
+      })()));
     case 'magasinage':
       {
         const grille = p.grille || [];
@@ -4323,6 +4387,14 @@ function LigneTarifPreview(_ref19) {
       break;
     case 'uc_tranche':
       txt = p.taux_uc != null ? `${p.taux_uc}€/UC (${p.tranche || 150}kg)` : '—';
+      break;
+    case 'uc_tranche_fixe':
+      {
+        const parts = [];
+        if (p.taux_uc != null) parts.push(`${p.taux_uc}€/UC(${p.tranche || 150}kg)`);
+        if (p.montant != null) parts.push(`+${p.montant}€ fixe`);
+        txt = parts.length ? parts.join(' ') : '—';
+      }
       break;
     case 'magasinage':
       txt = (p.grille || []).length > 0 ? `${p.grille.length} tranche(s)/jour` : '—';
@@ -6770,7 +6842,7 @@ function generateReport(session, litiges) {
     if (r.statut !== 'ok') byType[k].pb++;
   });
   let txt = `════════════════════════════════════════════════\n`;
-  txt += `  TAF VERICHECK v3.1 — RAPPORT D'ANALYSE\n`;
+  txt += `  TAF VERICHECK v3.2 — RAPPORT D'ANALYSE\n`;
   txt += `════════════════════════════════════════════════\n\n`;
   txt += `Date     : ${session.date}\n`;
   txt += `Facture  : ${session.pdfName}\n`;
