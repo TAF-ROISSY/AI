@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v4.3 — Fix parsing Total HT (avant-dernier montant)</title>
+<title>TAF VERICHECK v4.7 — Auto-ajout client inconnu</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -39,6 +41,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .nbtn{background:none;border:none;color:var(--muted2);cursor:pointer;padding:8px 16px;border-radius:6px;font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.5px;transition:all .15s;display:flex;align-items:center;gap:7px}
 .nbtn:hover{background:var(--surface2);color:var(--text)}
 .nbtn.active{background:var(--surface2);color:var(--amber)}
+.nbadge{background:var(--red);color:#fff;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:10px;min-width:18px;text-align:center;font-weight:700}
 .nav-right{display:flex;align-items:center;gap:12px}
 .version-tag{font-size:10px;font-family:var(--mono);color:var(--amber);background:var(--amber-bg);padding:3px 9px;border-radius:4px;border:1px solid rgba(245,158,11,.3);font-weight:700;letter-spacing:.5px}
 .drive-sync{display:flex;align-items:center;gap:7px;font-size:10px;font-family:var(--mono);color:var(--muted2);padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;letter-spacing:.5px;cursor:pointer;transition:all .15s}
@@ -222,12 +225,97 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:600px;width:100%;max-height:85vh;overflow:auto}
-.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.modal-title{font-size:14px;font-weight:800;letter-spacing:1px}
-.modal-body{padding:20px}
-.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;padding:0;line-height:1}
-.modal-close:hover{color:var(--red)}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column}
+.modal-hdr{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-title{font-size:14px;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:10px}
+.modal-body{padding:20px 22px}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);position:sticky;bottom:0;flex-wrap:wrap}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;padding:4px 8px;line-height:1;border-radius:4px}
+.modal-close:hover{color:var(--red);background:var(--surface2)}
+
+/* DETAIL MODAL SPECIFIC */
+.dm-kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px}
+.dm-kv-item{display:flex;flex-direction:column;gap:3px}
+.dm-kv-lbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.dm-kv-val{font-size:13px;font-weight:700;color:var(--text);font-family:var(--mono)}
+.dm-section{margin-bottom:18px}
+.dm-section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.dm-facture-lines{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;max-height:220px;overflow:auto}
+.dm-facture-line{padding:5px 0;border-bottom:1px dashed var(--border);color:var(--text)}
+.dm-facture-line.dm-recap{color:var(--muted);font-style:italic}
+.dm-facture-line-text{margin-bottom:3px}
+.dm-facture-line-info{font-size:10px;color:var(--muted)}
+.dm-facture-line-info .dm-ht{color:var(--green);font-weight:700}
+
+.dm-calc-line{display:grid;grid-template-columns:26px 1fr 110px 110px 30px;gap:10px;align-items:center;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:6px}
+.dm-calc-line.disabled{opacity:.55}
+.dm-calc-line.disabled .dm-calc-libelle{text-decoration:line-through}
+.dm-calc-libelle{font-size:12px;font-weight:600}
+.dm-calc-type{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.dm-calc-montant{text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)}
+.dm-calc-override-inp{background:var(--surface3);border:1px solid var(--border2);color:var(--amber);padding:5px 8px;border-radius:5px;font-family:var(--mono);font-size:12px;width:100%;text-align:right;font-weight:700}
+.dm-calc-override-inp:focus{outline:none;border-color:var(--amber)}
+
+.dm-totals{background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:14px 18px;margin-top:14px}
+.dm-totals-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:var(--mono)}
+.dm-totals-line.final{border-top:1px solid var(--border2);margin-top:6px;padding-top:10px;font-size:14px;font-weight:800}
+.dm-totals-lbl{font-size:11px;color:var(--muted);font-weight:600}
+.dm-totals-final-lbl{font-size:12px;color:var(--text);text-transform:uppercase;letter-spacing:1.5px;font-weight:800}
+.dm-totals-val{font-size:13px;font-weight:700}
+
+/* PRINT */
+@media print {
+  nav, .steps, .upload-grid, .handler-select-wrap, .btn, .btn-primary, .btn-sec, .btn-ghost, .btn-danger, .btn-green, .btn-save, .btn-exit,
+  .drive-sync, .version-tag, .subtabs, .modal-bg, .rec-table th:last-child, .rec-table td:last-child,
+  .card-title, .debug-box, .upload-clear, .alert, .nbtn, .sel-inline {
+    display: none !important;
+  }
+  body { background: #fff !important; color: #000 !important; font-family: 'Helvetica', sans-serif !important; }
+  .page { max-width: 100% !important; padding: 10px !important; }
+  .page-hdr { margin-bottom: 12px !important; }
+  .page-title { font-size: 18px !important; color: #000 !important; }
+  .card, .stat, .rec-table-wrap { background: #fff !important; border: 1px solid #999 !important; color: #000 !important; box-shadow: none !important; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+  .stat-val, .stat-lbl { color: #000 !important; }
+  .rec-table { background: #fff !important; }
+  .rec-table th, .rec-table td { background: #fff !important; color: #000 !important; border-bottom: 1px solid #ccc !important; }
+  .rec-table tr.ko-row { background: #fee !important; }
+  .rec-table tr.ok-row { background: #efe !important; }
+  .verdict { background: transparent !important; border: 1px solid #666 !important; color: #000 !important; }
+  .td-lta { color: #000 !important; font-weight: 700 !important; }
+  .inp-inline { border: none !important; background: transparent !important; color: #000 !important; }
+  .c-green { color: #060 !important; }
+  .c-red { color: #a00 !important; }
+  .c-amber, .c-orange { color: #000 !important; }
+  .c-muted { color: #666 !important; }
+  .print-header { display: block !important; }
+}
+.print-header{display:none}
+.print-header h1{font-size:20px;margin-bottom:4px;color:#000}
+.print-header .ph-sub{font-size:12px;color:#666;font-family:var(--mono)}
+.print-header .ph-info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;padding:8px;border:1px solid #999;border-radius:4px;font-size:12px}
+.print-header .ph-info div b{display:block;font-size:9px;letter-spacing:1.5px;color:#666;text-transform:uppercase;margin-bottom:2px}
+
+/* LITIGES PAGE */
+.lit-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:12px}
+.lit-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.lit-hdr-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.lit-lta{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--amber)}
+.lit-facture{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);padding:3px 9px;border-radius:4px;border:1px solid var(--border)}
+.lit-statut{font-size:10px;font-weight:700;padding:3px 9px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono)}
+.lit-statut-ouvert{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(249,115,22,.3)}
+.lit-statut-envoye{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.lit-statut-resolu{background:var(--green-bg);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.lit-actions{display:flex;gap:6px;flex-wrap:wrap}
+.lit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:12px;background:var(--surface2);border-radius:7px;border:1px solid var(--border);margin-bottom:10px}
+.lit-kv{display:flex;flex-direction:column;gap:3px}
+.lit-kv-lbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.lit-kv-val{font-size:12px;font-weight:700;font-family:var(--mono)}
+.lit-comm{background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:6px;font-family:var(--sans);font-size:12px;width:100%;resize:vertical;min-height:50px}
+.lit-comm:focus{outline:none;border-color:var(--amber)}
+
+/* MODAL */
+.modal-bg-old{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 
 /* EMPTY */
 .empty{text-align:center;padding:50px 20px;color:var(--muted)}
@@ -269,6 +357,7 @@ if (window.pdfjsLib) {
 // ═══════════════════════════════════════════════════════════════════
 const LS_P = 'taf_vc3_params';
 const LS_SESSION_V4 = 'taf_vc4_session';
+const LS_LITIGES_V4 = 'taf_vc4_litiges';
 
 // ═══════════════════════════════════════════════════════════════════
 // DRIVE — proxy Apps Script de l'écosystème TAF
@@ -276,6 +365,8 @@ const LS_SESSION_V4 = 'taf_vc4_session';
 const PROXY = 'https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec';
 const DRIVE_FOLDER = '143DZMp79_EfrVAjyOMquBU0L-JXlKdnF';
 const DRIVE_PARAMS_FILE = 'vericheck_v4_params.json';
+const DRIVE_ARCHIVES_INDEX = 'vericheck_v4_archives_index.json';
+const DRIVE_ARCHIVE_PREFIX = 'vericheck_v4_archive_';
 
 function safeB64(str) {
   try { return btoa(unescape(encodeURIComponent(str))); }
@@ -388,12 +479,15 @@ function migrateParams(raw) {
   ['cargo','seafood','avi','fl'].forEach(k => {
     if (!p.productTypes[k]) p.productTypes[k] = DEF_PARAMS.productTypes[k];
     if (!Array.isArray(p.productTypes[k].clients)) p.productTypes[k].clients = [];
-    // normalize clients : { code, nom }
+    // normalize clients : { code, nom, exclusions }
     p.productTypes[k].clients = p.productTypes[k].clients
       .filter(c => c && (c.code || c.codeMalta || c.nom))
       .map(c => ({
         code: String(c.code ?? c.codeMalta ?? '').trim().toUpperCase(),
-        nom:  String(c.nom ?? '').trim()
+        nom:  String(c.nom ?? '').trim(),
+        exclusions: Array.isArray(c.exclusions)
+          ? c.exclusions.map(s => String(s).trim()).filter(Boolean)
+          : []
       }))
       .filter(c => c.code || c.nom);
   });
@@ -614,12 +708,15 @@ async function parseFacturePDF(file, handler) {
   const rxLTA = /\b(\d{3})[\s\u00a0\-]?(\d{7,8})\b/g;
   // Regex montant format fr : "116,60" / "1 749,00" / "-1 234,56" / "1234.56"
   const rxMontant = /-?(?:\d{1,3}(?:[\s\u00a0]\d{3})*|\d+)[.,]\d{2}/g;
+  // Regex n° facture : "Facture/Invoice 26030590" ou "FACTURE IMPORT 26030590"
+  const rxNumFacture = /(?:Facture\/?Invoice|FACTURE\s+IMPORT|Facture\s+N[°o]|Invoice\s+N[°o])[^\d]{0,5}(\d{6,12})/i;
 
   const lignesParLTA = new Map();
   let rawText = '';
   let currentLTA = null;
   let pagesSkipped = 0;
   let totalLignesData = 0;
+  let numFacture = null;
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
@@ -642,6 +739,12 @@ async function parseFacturePDF(file, handler) {
     }
 
     const pageText = pageLines.join('\n');
+
+    // ── DÉTECTION N° FACTURE (si pas encore trouvé) ──
+    if (!numFacture) {
+      const m = pageText.match(rxNumFacture);
+      if (m) numFacture = m[1];
+    }
 
     // ── SKIP pages FRAIS ANNEXES (détail qui double les pages LTA) ──
     if (/FRAIS\s+ANNEXES/i.test(pageText)) {
@@ -714,24 +817,550 @@ async function parseFacturePDF(file, handler) {
   }
 
   const debug = `${lignesParLTA.size} LTA détectées · ${totalLignesData} lignes data · ${pagesSkipped} page(s) FRAIS ANNEXES ignorée(s)`;
-  return { lignesParLTA, rawText, debug };
+  return { lignesParLTA, rawText, debug, numFacture };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// APP
+// GÉNÉRATION PDF SYNTHÈSE COMPTA (jsPDF + autotable)
 // ═══════════════════════════════════════════════════════════════════
+function generateSynthesePDF(ctx) {
+  const { rows, stats, handler, factureParsed, facture, malta, params, litiges } = ctx;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marg = 14;
+
+  // ── Helpers ──
+  const nf = factureParsed?.numFacture || '—';
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('fr-FR');
+  const timeStr = today.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  const fmt = v => v == null || isNaN(Number(v)) ? '—' :
+    new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v) + ' €';
+  const fmtKgPdf = v => v == null ? '—' : Number(v).toLocaleString('fr-FR') + ' kg';
+
+  const tva = stats.htFact * 0.20;
+  const ttc = stats.htFact * 1.20;
+  const kos = rows.filter(r => r.verdict === 'ko' || r.isLitigePushed);
+  const miss = rows.filter(r => r.verdict === 'miss');
+  const ok = rows.filter(r => r.verdict === 'ok' && !r.isLitigePushed);
+  const rowsPourImputation = rows.filter(r => r.dossierNum); // lignes avec dossier Malta = à imputer
+
+  // ─── PAGE 1 : RÉCAP POUR SÉGOLÈNE ───────────────────────────────
+  // Header TAF
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, pageW, 18, 'F');
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.text('TAF TRANS AIR FREIGHT', marg, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.text('Service Import · CDG / Roissy', pageW - marg, 12, { align: 'right' });
+
+  // Titre
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.text('SYNTHÈSE FACTURE IMPORT', marg, 30);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Pour imputation comptable par dossier', marg, 36);
+
+  // Destinataire / expéditeur
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  doc.line(marg, 41, pageW - marg, 41);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('À :', marg, 48);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Ségolène — Comptabilité', marg + 8, 48);
+  doc.setFont('helvetica', 'bold');
+  doc.text('De :', marg, 54);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Service Import TAF', marg + 8, 54);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Date :', pageW - marg - 40, 48);
+  doc.setFont('helvetica', 'normal');
+  doc.text(todayStr + ' ' + timeStr, pageW - marg - 40 + 12, 48);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Réf :', pageW - marg - 40, 54);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`VC-${nf}`, pageW - marg - 40 + 12, 54);
+
+  // Bloc FACTURE
+  doc.setFillColor(250, 245, 230);
+  doc.setDrawColor(245, 158, 11);
+  doc.setLineWidth(0.5);
+  doc.rect(marg, 60, pageW - 2 * marg, 32, 'FD');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text('FACTURE À IMPUTER', marg + 3, 66);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  const factInfo = [
+    ['Handler', handler?.nom || '—'],
+    ['N° Facture', nf],
+    ['Fichier PDF', facture?.name || '—']
+  ];
+  let yF = 72;
+  factInfo.forEach(([l, v]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(l + ' :', marg + 3, yF);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(v), marg + 35, yF);
+    yF += 5;
+  });
+  // Totaux facture à droite
+  doc.setFont('helvetica', 'bold');
+  doc.text('Net à payer HT  :', pageW - marg - 55, 72);
+  doc.setFont('helvetica', 'normal');
+  doc.text(fmt(stats.htFact), pageW - marg - 3, 72, { align:'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.text('TVA (20 %)      :', pageW - marg - 55, 77);
+  doc.setFont('helvetica', 'normal');
+  doc.text(fmt(tva), pageW - marg - 3, 77, { align:'right' });
+  doc.setDrawColor(200, 200, 200);
+  doc.line(pageW - marg - 55, 80, pageW - marg - 3, 80);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Net à payer TTC :', pageW - marg - 55, 85);
+  doc.text(fmt(ttc), pageW - marg - 3, 85, { align:'right' });
+
+  // Bloc CONTRÔLE
+  let yC = 100;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('CONTRÔLE VÉRIFICATION', marg, yC);
+  yC += 2;
+  doc.setDrawColor(0, 0, 0);
+  doc.line(marg, yC, pageW - marg, yC);
+  yC += 5;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  const controlGrid = [
+    ['LTA totales', stats.total, null],
+    ['Conformes', ok.length, [0, 130, 0]],
+    ['En écart / litige', kos.length, kos.length ? [180, 20, 20] : null],
+    ['Sans dossier Malta', miss.length, miss.length ? [200, 120, 0] : null]
+  ];
+  const colW = (pageW - 2 * marg) / controlGrid.length;
+  controlGrid.forEach(([lbl, val, col], i) => {
+    const x = marg + i * colW;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setTextColor(110, 110, 110);
+    doc.text(lbl.toUpperCase(), x + 2, yC);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    if (col) doc.setTextColor(col[0], col[1], col[2]);
+    else doc.setTextColor(0, 0, 0);
+    doc.text(String(val), x + 2, yC + 7);
+  });
+  yC += 14;
+
+  // Bloc ÉCART BILAN
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Tarif TAF attendu total :', marg, yC);
+  doc.setFont('helvetica', 'normal');
+  doc.text(fmt(stats.htAtt), marg + 55, yC);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Écart facture vs tarif TAF :', pageW - marg - 55 - 20, yC);
+  const ecartCol = stats.ecart > 5 ? [180, 20, 20] : stats.ecart < -5 ? [0, 130, 0] : [80, 80, 80];
+  doc.setTextColor(ecartCol[0], ecartCol[1], ecartCol[2]);
+  doc.text(fmt(stats.ecart), pageW - marg - 3, yC, { align:'right' });
+  doc.setTextColor(0, 0, 0);
+  yC += 8;
+
+  // Section LITIGES (si des lignes KO)
+  if (kos.length) {
+    doc.setFillColor(252, 235, 235);
+    doc.setDrawColor(200, 40, 40);
+    doc.rect(marg, yC, pageW - 2 * marg, 6, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.setTextColor(180, 20, 20);
+    doc.text(`⚠ ${kos.length} LIGNE(S) EN ÉCART / LITIGE — Détail ci-dessous`, marg + 2, yC + 4);
+    doc.setTextColor(0, 0, 0);
+    yC += 9;
+
+    doc.autoTable({
+      startY: yC,
+      head: [['LTA', 'Dossier', 'Client', 'Poids', 'HT Fact.', 'HT Att.', 'Écart', 'Note']],
+      body: kos.map(r => [
+        r.ltaAffiche,
+        r.dossierNum || '—',
+        r.client || r.codeClient || '—',
+        fmtKgPdf(r.poids),
+        fmt(r.htFacture),
+        fmt(r.tarifAttendu),
+        fmt(r.ecart),
+        r.note || (r.isLitigePushed ? 'En litige' : '')
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [180, 20, 20], textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 22, fontStyle: 'bold' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 16, halign: 'right' },
+        4: { cellWidth: 18, halign: 'right' },
+        5: { cellWidth: 18, halign: 'right' },
+        6: { cellWidth: 18, halign: 'right', textColor: [180, 20, 20], fontStyle: 'bold' },
+        7: { cellWidth: 'auto' }
+      },
+      margin: { left: marg, right: marg },
+      didDrawPage: (data) => { addFooter(doc, pageW, pageH, marg, nf); }
+    });
+    yC = doc.lastAutoTable.finalY + 6;
+  }
+
+  // Note de bas page 1 pour forcer à continuer page 2 sur tableau imputations
+  if (yC < pageH - 30) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(110, 110, 110);
+    doc.text('→ Détail complet des imputations par dossier page suivante.', marg, yC + 4);
+    doc.setTextColor(0, 0, 0);
+  }
+
+  addFooter(doc, pageW, pageH, marg, nf);
+
+  // ─── PAGE 2+ : TABLEAU COMPLET DES IMPUTATIONS ──────────────────
+  doc.addPage();
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, pageW, 10, 'F');
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('TAF TRANS AIR FREIGHT — Synthèse Facture ' + nf, marg, 7);
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('IMPUTATIONS COMPTABLES PAR DOSSIER', marg, 20);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${rowsPourImputation.length} dossier(s) · Handler ${handler?.nom || '—'} · Facture ${nf}`, marg, 25);
+  doc.setTextColor(0, 0, 0);
+
+  // Tri par n° dossier
+  const sortedRows = [...rowsPourImputation].sort((a, b) =>
+    String(a.dossierNum || '').localeCompare(String(b.dossierNum || ''), 'fr', { numeric: true })
+  );
+
+  const body = sortedRows.map(r => {
+    const statut = r.isLitigePushed ? '⚠ LITIGE'
+                 : r.verdict === 'ko' ? '⚠ ÉCART'
+                 : r.verdict === 'ok' ? 'OK'
+                 : r.verdict === 'notarif' ? 'S.TARIF' : '—';
+    return [
+      r.dossierNum || '—',
+      r.codeClient || '—',
+      r.client || '—',
+      r.ltaAffiche,
+      r.productType ? (params.productTypes[r.productType]?.label || r.productType).slice(0, 10) : '—',
+      fmtKgPdf(r.poids),
+      fmt(r.htFacture),
+      fmt(r.tarifAttendu),
+      statut
+    ];
+  });
+
+  // Ligne de total en bas
+  const totalHTFact = sortedRows.reduce((a, r) => a + (r.htFacture || 0), 0);
+  const totalHTAtt = sortedRows.reduce((a, r) => a + (r.tarifAttendu || 0), 0);
+
+  doc.autoTable({
+    startY: 30,
+    head: [['N° Dossier', 'Code Cl.', 'Client', 'LTA', 'Produit', 'Poids', 'HT Facturé', 'HT TAF att.', 'Statut']],
+    body,
+    foot: [[
+      { content: 'TOTAL À IMPUTER', colSpan: 6, styles: { halign: 'right', fillColor: [50, 50, 50], textColor: 255, fontStyle: 'bold' } },
+      { content: fmt(totalHTFact), styles: { halign: 'right', fillColor: [245, 158, 11], textColor: 0, fontStyle: 'bold' } },
+      { content: fmt(totalHTAtt), styles: { halign: 'right', fillColor: [220, 220, 220], textColor: 0, fontStyle: 'bold' } },
+      { content: '', styles: { fillColor: [50, 50, 50] } }
+    ]],
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 1.3, overflow: 'linebreak' },
+    headStyles: { fillColor: [40, 40, 40], textColor: 255, fontSize: 7.5, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 22, fontStyle: 'bold' },
+      1: { cellWidth: 15 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 22 },
+      4: { cellWidth: 16 },
+      5: { cellWidth: 15, halign: 'right' },
+      6: { cellWidth: 20, halign: 'right', fontStyle: 'bold' },
+      7: { cellWidth: 20, halign: 'right' },
+      8: { cellWidth: 'auto' }
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 8) {
+        const v = data.cell.raw;
+        if (v === '⚠ LITIGE' || v === '⚠ ÉCART') {
+          data.cell.styles.textColor = [180, 20, 20];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (v === 'OK') {
+          data.cell.styles.textColor = [0, 130, 0];
+        } else if (v === 'S.TARIF') {
+          data.cell.styles.textColor = [150, 80, 200];
+        }
+      }
+    },
+    margin: { left: marg, right: marg },
+    didDrawPage: () => { addFooter(doc, pageW, pageH, marg, nf); }
+  });
+
+  const yAfter = doc.lastAutoTable.finalY + 8;
+
+  // Signature (si assez de place)
+  if (yAfter < pageH - 35) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vérifié par :', marg, yAfter + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setDrawColor(150, 150, 150);
+    doc.line(marg + 25, yAfter + 5, marg + 80, yAfter + 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bon à payer :', pageW - marg - 55, yAfter + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.line(pageW - marg - 25, yAfter + 5, pageW - marg, yAfter + 5);
+
+    doc.setFontSize(7);
+    doc.setTextColor(110, 110, 110);
+    doc.text('Date : ..... / ..... / .........', marg, yAfter + 12);
+    doc.text('Date : ..... / ..... / .........', pageW - marg - 55, yAfter + 12);
+  }
+
+  addFooter(doc, pageW, pageH, marg, nf);
+
+  // Retourne Blob et infos
+  const blob = doc.output('blob');
+  const base64 = doc.output('datauristring').split(',')[1];
+  return { blob, base64, size: blob.size };
+}
+
+function addFooter(doc, pageW, pageH, marg, nf) {
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+  const totalPages = doc.internal.getNumberOfPages();
+  doc.text(
+    `TAF VERICHECK v4.6 · Facture ${nf} · Généré le ${new Date().toLocaleDateString('fr-FR')} · Page ${pageNum}/${totalPages}`,
+    pageW / 2, pageH - 6, { align: 'center' }
+  );
+  doc.setTextColor(0, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DRIVE BINAIRE — upload d'un PDF
+// ═══════════════════════════════════════════════════════════════════
+async function driveUploadBinary(filename, base64, mimeType) {
+  try {
+    const body = JSON.stringify({
+      action: 'uploadPDF',
+      filename,
+      mimeType: mimeType || 'application/pdf',
+      base64,
+      folder: DRIVE_FOLDER
+    });
+    try {
+      const resp = await fetch(PROXY, { method:'POST', redirect:'follow', body });
+      if (resp.ok || resp.type === 'opaque') return true;
+    } catch (_) {}
+    await fetch(PROXY, { method:'POST', mode:'no-cors', body });
+    return true;
+  } catch (e) {
+    console.warn('[VC4] driveUploadBinary error:', e.message);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ARCHIVES — index + archive complète
+// ═══════════════════════════════════════════════════════════════════
+async function loadArchivesIndex() {
+  const idx = await driveRead(DRIVE_ARCHIVES_INDEX);
+  return (idx && Array.isArray(idx.archives)) ? idx.archives : [];
+}
+
+async function saveArchivesIndex(archives) {
+  return await driveUpload(DRIVE_ARCHIVES_INDEX, { archives, _updatedAt: Date.now() });
+}
+
+async function archiveSynthesePDF(ctx) {
+  // ctx : { rows, stats, handler, factureParsed, facture, malta, params, litiges }
+  const { blob, base64, size } = generateSynthesePDF(ctx);
+  const nf = ctx.factureParsed?.numFacture || 'sansref';
+  const ts = new Date();
+  const tsStr = ts.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const id = `arc_${Date.now()}`;
+  const pdfFilename = `synthese_compta_${nf}_${tsStr}.pdf`;
+  const archiveJsonFile = `${DRIVE_ARCHIVE_PREFIX}${id}.json`;
+
+  // 1. Upload du PDF (fichier binaire séparé visible dans Drive)
+  await driveUploadBinary(pdfFilename, base64, 'application/pdf');
+
+  // 2. Sauvegarde JSON complet avec pdfBase64 embedded + métadonnées rows
+  const archivePayload = {
+    id,
+    version: 'v4.6',
+    dateISO: ts.toISOString(),
+    dateAffichage: ts.toLocaleDateString('fr-FR') + ' ' + ts.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+    factureNum: nf,
+    handlerId: ctx.handler?.id,
+    handlerNom: ctx.handler?.nom,
+    pdfFilename,
+    pdfBase64: base64,
+    pdfSize: size,
+    stats: ctx.stats,
+    rowsCount: ctx.rows.length,
+    koCount: ctx.rows.filter(r => r.verdict === 'ko' || r.isLitigePushed).length,
+    rows: ctx.rows.map(r => ({
+      lta: r.ltaAffiche, dossierNum: r.dossierNum, codeClient: r.codeClient,
+      client: r.client, productType: r.productType, poids: r.poids,
+      htFacture: r.htFacture, tarifAttendu: r.tarifAttendu, ecart: r.ecart,
+      verdict: r.verdict, isLitigePushed: !!r.isLitigePushed, note: r.note || ''
+    })),
+    facture: { name: ctx.facture?.name, numero: nf },
+    malta: { name: ctx.malta?.name, count: ctx.maltaParsed?.dossiers?.length }
+  };
+  await driveUpload(archiveJsonFile, archivePayload);
+
+  // 3. Mise à jour de l'index
+  const indexEntry = {
+    id,
+    dateISO: archivePayload.dateISO,
+    dateAffichage: archivePayload.dateAffichage,
+    factureNum: nf,
+    handlerId: ctx.handler?.id,
+    handlerNom: ctx.handler?.nom,
+    pdfFilename,
+    archiveJsonFile,
+    rowsCount: archivePayload.rowsCount,
+    koCount: archivePayload.koCount,
+    htFacture: ctx.stats.htFact,
+    htAttendu: ctx.stats.htAtt,
+    ecart: ctx.stats.ecart
+  };
+  const current = await loadArchivesIndex();
+  const updated = [indexEntry, ...current.filter(a => a.id !== id)];
+  await saveArchivesIndex(updated);
+
+  // 4. Téléchargement immédiat pour l'user
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = pdfFilename;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return { id, filename: pdfFilename, archiveJsonFile, indexEntry };
+}
+
+async function deleteArchive(archiveId) {
+  // On retire de l'index (les fichiers Drive restent dans le dossier, à supprimer à la main si besoin)
+  const current = await loadArchivesIndex();
+  const updated = current.filter(a => a.id !== archiveId);
+  await saveArchivesIndex(updated);
+  return true;
+}
+
+async function loadArchiveFull(archive) {
+  if (!archive?.archiveJsonFile) return null;
+  return await driveRead(archive.archiveJsonFile);
+}
+
+function downloadArchivePDF(archive, fullData) {
+  const b64 = fullData?.pdfBase64;
+  if (!b64) { alert('PDF non disponible dans cette archive'); return; }
+  // Reconstruit le Blob depuis base64
+  const binStr = atob(b64);
+  const bytes = new Uint8Array(binStr.length);
+  for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = archive.pdfFilename || `synthese_${archive.id}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+
 function App() {
   const [params, setParams] = useState(() => loadParams());
-  const [page, setPage] = useState('verif'); // verif | handlers | clients
+  const [page, setPage] = useState('verif'); // verif | handlers | clients | litiges
   // Drive sync state
-  const [driveStatus, setDriveStatus] = useState('idle'); // idle | loading | saving | ok | error | dirty
+  const [driveStatus, setDriveStatus] = useState('idle');
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [bootLoaded, setBootLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [exitingState, setExitingState] = useState(null); // null | 'saving' | 'done' | 'error'
+  const [exitingState, setExitingState] = useState(null);
   const saveTimerRef = useRef(null);
-  const paramsRef = useRef(params); // ref pour accès dans saveNow
+  const paramsRef = useRef(params);
   useEffect(() => { paramsRef.current = params; }, [params]);
+
+  // ── LITIGES ──
+  const [litiges, setLitiges] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_LITIGES_V4)) || []; }
+    catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LS_LITIGES_V4, JSON.stringify(litiges)); }
+    catch(e){ console.warn(e); }
+  }, [litiges]);
+
+  const addLitige = useCallback((row, context) => {
+    // context: { handler, numFacture, pdfName, xlsName }
+    setLitiges(prev => {
+      // Dédup sur LTA + numFacture
+      const key = `${row.ltaKey}_${context.numFacture || ''}`;
+      if (prev.find(l => `${l.ltaKey}_${l.numFacture || ''}` === key)) {
+        return prev; // déjà présent
+      }
+      const newLitige = {
+        id: `LIT-${Date.now()}`,
+        dateCreation: new Date().toISOString(),
+        dateAffichage: new Date().toLocaleDateString('fr-FR'),
+        ltaKey: row.ltaKey,
+        ltaAffiche: row.ltaAffiche,
+        dossierNum: row.dossierNum || '',
+        codeClient: row.codeClient || '',
+        client: row.client || '',
+        productType: row.productType,
+        poids: row.poids,
+        htFacture: row.htFacture,
+        tarifAttendu: row.tarifAttendu,
+        ecart: row.ecart,
+        handlerId: context.handler?.id,
+        handlerNom: context.handler?.nom,
+        numFacture: context.numFacture || '',
+        pdfName: context.pdfName || '',
+        xlsName: context.xlsName || '',
+        statut: 'ouvert', // ouvert | envoye | resolu
+        commentaire: '',
+        detailCalc: row.detailCalc || [],
+        rawLignes: (row.rawLignes || []).map(l => ({ text: l.text, montants: l.montants, htDetecte: l.htDetecte }))
+      };
+      return [newLitige, ...prev];
+    });
+  }, []);
+
+  const updateLitige = useCallback((id, patch) => {
+    setLitiges(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
+  }, []);
+
+  const removeLitige = useCallback((id) => {
+    setLitiges(prev => prev.filter(l => l.id !== id));
+  }, []);
+
+  const litigesOuverts = litiges.filter(l => l.statut !== 'resolu').length;
 
   // ── Fonction de save Drive bas niveau ──
   const pushToDrive = useCallback(async (payload) => {
@@ -896,13 +1525,24 @@ function App() {
           onClick: () => setPage('verif')
         }, '🔍 Vérification'),
         React.createElement('button', {
+          key:'l', className: 'nbtn' + (page==='litiges'?' active':''),
+          onClick: () => setPage('litiges')
+        }, [
+          '⚖️ Litiges',
+          litigesOuverts > 0 ? React.createElement('span', { key:'b', className:'nbadge' }, litigesOuverts) : null
+        ]),
+        React.createElement('button', {
           key:'h', className: 'nbtn' + (page==='handlers'?' active':''),
           onClick: () => setPage('handlers')
         }, '⚙️ Handlers & Tarifs'),
         React.createElement('button', {
           key:'c', className: 'nbtn' + (page==='clients'?' active':''),
           onClick: () => setPage('clients')
-        }, '👥 Clients & Produits')
+        }, '👥 Clients & Produits'),
+        React.createElement('button', {
+          key:'a', className: 'nbtn' + (page==='archives'?' active':''),
+          onClick: () => setPage('archives')
+        }, '📚 Archives')
       ]),
       React.createElement('div', { key:'right', className:'nav-right' }, [
         React.createElement('div', {
@@ -943,49 +1583,107 @@ function App() {
           : 'Quitter & sauvegarder'
           )
         ]),
-        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.3')
+        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.7')
       ])
     ]),
     // PAGE
     page === 'verif'
-      ? React.createElement(PageVerif, { key:'pv', params, setParams: persistParams, archiveRapprochement })
+      ? React.createElement(PageVerif, { key:'pv', params, setParams: persistParams, archiveRapprochement, addLitige })
     : page === 'handlers'
       ? React.createElement(PageHandlers, { key:'ph', params, setParams: persistParams })
-    : React.createElement(PageClients, { key:'pc', params, setParams: persistParams })
+    : page === 'clients'
+      ? React.createElement(PageClients, { key:'pc', params, setParams: persistParams })
+    : page === 'archives'
+      ? React.createElement(PageArchives, { key:'pa' })
+    : React.createElement(PageLitiges, { key:'pl', litiges, updateLitige, removeLitige, params })
   ]);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // PAGE VÉRIFICATION (workflow principal)
 // ═══════════════════════════════════════════════════════════════════
-function PageVerif({ params, setParams, archiveRapprochement }) {
+function PageVerif({ params, setParams, archiveRapprochement, addLitige }) {
   const [handlerId, setHandlerId] = useState(() => params.handlers[0]?.id || '');
-  const [facture, setFacture] = useState(null);    // File
-  const [factureParsed, setFactureParsed] = useState(null); // { lignesParLTA, rawText, debug }
-  const [malta, setMalta] = useState(null);        // File
-  const [maltaParsed, setMaltaParsed] = useState(null); // { dossiers, indexLTA, nbTotal }
-  const [loading, setLoading] = useState(null); // 'facture' | 'malta' | null
+  const [facture, setFacture] = useState(null);
+  const [factureParsed, setFactureParsed] = useState(null);
+  const [malta, setMalta] = useState(null);
+  const [maltaParsed, setMaltaParsed] = useState(null);
+  const [loading, setLoading] = useState(null);
   const [erreur, setErreur] = useState('');
-  const [rows, setRows] = useState([]);         // rapprochement
+  const [rows, setRows] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveMsg, setArchiveMsg] = useState('');
+  const [detailIdx, setDetailIdx] = useState(null); // index de la row ouverte en modal
+  const [syntheseOpen, setSyntheseOpen] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [toast, toastEl] = useToast();
 
   const handler = useMemo(
     () => params.handlers.find(h => h.id === handlerId) || null,
     [params.handlers, handlerId]
   );
 
-  // ── INDEX CLIENTS : code Malta → { nom, productType } ──
+  // ── INDEX CLIENTS : code Malta → { nom, productType, exclusions } ──
   const clientIndex = useMemo(() => {
     const idx = new Map();
     for (const [pt, pd] of Object.entries(params.productTypes || {})) {
       for (const c of pd.clients || []) {
-        if (c.code) idx.set(String(c.code).toUpperCase(), { nom: c.nom, productType: pt });
+        if (c.code) idx.set(String(c.code).toUpperCase(), {
+          nom: c.nom,
+          productType: pt,
+          exclusions: c.exclusions || []
+        });
       }
     }
     return idx;
   }, [params.productTypes]);
+
+  // ── RESTAURATION SESSION ──
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_SESSION_V4);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.rows?.length) {
+          setRows(s.rows);
+          if (s.handlerId) setHandlerId(s.handlerId);
+          if (s.pdfName) setFacture({ name: s.pdfName });
+          if (s.xlsName) setMalta({ name: s.xlsName });
+          if (s.factureMeta) setFactureParsed({
+            lignesParLTA: new Map(),
+            rawText: s.factureRawText || '(rechargé)',
+            debug: s.factureMeta.debug || '',
+            numFacture: s.factureMeta.numFacture
+          });
+          if (s.maltaMeta) setMaltaParsed({
+            dossiers: [],
+            indexLTA: new Map(),
+            nbTotal: s.maltaMeta.nbTotal
+          });
+        }
+      }
+    } catch(e){ console.warn('session load error', e); }
+    setSessionLoaded(true);
+  }, []);
+
+  // ── PERSISTANCE SESSION ──
+  useEffect(() => {
+    if (!sessionLoaded) return;
+    try {
+      const payload = {
+        handlerId,
+        pdfName: facture?.name || null,
+        xlsName: malta?.name || null,
+        rows,
+        factureMeta: factureParsed ? { debug: factureParsed.debug, numFacture: factureParsed.numFacture } : null,
+        factureRawText: factureParsed?.rawText || '',
+        maltaMeta: maltaParsed ? { nbTotal: maltaParsed.nbTotal } : null,
+        _updatedAt: Date.now()
+      };
+      localStorage.setItem(LS_SESSION_V4, JSON.stringify(payload));
+    } catch(e){ console.warn('session save error', e); }
+  }, [rows, handlerId, facture, malta, factureParsed, maltaParsed, sessionLoaded]);
 
   // ── Upload facture ──
   const onUploadFacture = async (file) => {
@@ -1019,24 +1717,55 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
   };
 
   // ── LANCEMENT RAPPROCHEMENT ──
-  const canRapprocher = factureParsed && maltaParsed && handler;
+  const canRapprocher = factureParsed && maltaParsed && handler
+    && factureParsed.lignesParLTA?.size > 0 && maltaParsed.dossiers?.length > 0;
 
   const lancerRapprochement = () => {
     if (!canRapprocher) return;
     const newRows = [];
     for (const [ltaK, data] of factureParsed.lignesParLTA.entries()) {
       const dossier = maltaParsed.indexLTA.get(ltaK) || null;
-      let client = null, productType = null;
+      let client = null, productType = null, clientExclusions = [];
       if (dossier?.codeClient) {
         const info = clientIndex.get(String(dossier.codeClient).toUpperCase());
-        if (info) { client = info.nom; productType = info.productType; }
+        if (info) {
+          client = info.nom;
+          productType = info.productType;
+          clientExclusions = info.exclusions || [];
+        }
       }
       const poids = dossier?.poids ?? null;
       const calc = (productType && poids != null)
         ? calcTarifAttendu(handler, productType, poids)
         : { total: null, detail: [], diag: dossier ? (productType ? 'pas_de_poids' : 'client_inconnu') : 'dossier_introuvable' };
+
+      // ── APPLIQUER LES EXCLUSIONS CLIENT ──
+      // Les composantes dont le libellé matche (insensitive, partiel) une exclusion
+      // sont désactivées automatiquement via ligneOverrides.
+      const ligneOverrides = {};
+      const exclLC = clientExclusions.map(e => e.toLowerCase().trim()).filter(Boolean);
+      let tarifAtt = calc.total;
+      let detailCalc = calc.detail || [];
+
+      if (exclLC.length && detailCalc.length) {
+        let totalFiltre = 0, any = false;
+        const newDetail = [];
+        for (const d of detailCalc) {
+          const libelleLC = (d.libelle || '').toLowerCase();
+          const matched = exclLC.find(ex => libelleLC.includes(ex));
+          if (matched) {
+            ligneOverrides[d.libelle] = { actif: false, excludedByClient: matched };
+            newDetail.push({ ...d, actif: false });
+          } else {
+            if (d.montant != null && !isNaN(d.montant)) { totalFiltre += d.montant; any = true; }
+            newDetail.push({ ...d, actif: true });
+          }
+        }
+        tarifAtt = any ? Math.round(totalFiltre * 100) / 100 : null;
+        detailCalc = newDetail;
+      }
+
       const htFacture = data.totalHT || 0;
-      const tarifAtt = calc.total;
       let ecart = null, verdict = null;
       if (!dossier) verdict = 'miss';
       else if (tarifAtt == null) verdict = 'notarif';
@@ -1055,14 +1784,15 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
         poids,
         htFacture: Math.round(htFacture * 100) / 100,
         tarifAttendu: tarifAtt != null ? Math.round(tarifAtt * 100) / 100 : null,
+        tarifAttenduOverride: null,
+        ligneOverrides,
         ecart,
         verdict,
         diag: calc.diag,
-        detailCalc: calc.detail,
+        detailCalc,
         rawLignes: data.lignes
       });
     }
-    // Tri : KO d'abord, puis miss, puis notarif, puis OK
     const order = { ko:0, miss:1, notarif:2, ok:3 };
     newRows.sort((a,b) => (order[a.verdict] ?? 9) - (order[b.verdict] ?? 9));
     setRows(newRows);
@@ -1083,34 +1813,124 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
     return s;
   }, [rows]);
 
-  // Édition ligne
+  // Édition ligne avec gestion des overrides + AUTO-AJOUT client
   const updateRow = (i, patch) => {
+    let autoAdd = null; // client à ajouter à la base après le setRows
+
     setRows(prev => {
       const next = [...prev];
       next[i] = { ...next[i], ...patch };
-      // Recalcul verdict après édition
-      if (patch.htFacture !== undefined || patch.productType !== undefined || patch.poids !== undefined) {
-        const r = next[i];
-        if (r.productType && r.poids != null) {
-          const calc = calcTarifAttendu(handler, r.productType, r.poids);
-          r.tarifAttendu = calc.total != null ? Math.round(calc.total*100)/100 : null;
-          r.diag = calc.diag;
-          r.detailCalc = calc.detail;
+      const r = next[i];
+
+      // ── AUTO-AJOUT CLIENT dans la base ──
+      // Si l'user change le productType d'une ligne dont le client
+      // n'existe DANS AUCUNE catégorie → on l'ajoute automatiquement
+      if (patch.productType && r.codeClient) {
+        let foundIn = null;
+        for (const [pt, pd] of Object.entries(params.productTypes || {})) {
+          if ((pd.clients || []).some(c => c.code === r.codeClient)) {
+            foundIn = pt; break;
+          }
         }
-        if (r.tarifAttendu != null) {
-          r.ecart = Math.round((r.htFacture - r.tarifAttendu) * 100) / 100;
-          const tol = Number(handler.toleranceEcart || 0);
-          r.verdict = Math.abs(r.ecart) <= tol ? 'ok' : 'ko';
-        } else {
-          r.verdict = 'notarif';
-          r.ecart = null;
+        if (!foundIn) {
+          autoAdd = { code: r.codeClient, productType: patch.productType };
+          // Affiche le code comme nom provisoire dans la row
+          r.client = r.codeClient;
+          // Propager aux autres rows du même code client (mass update)
+          for (let j = 0; j < next.length; j++) {
+            if (j !== i && next[j].codeClient === r.codeClient && !next[j].client) {
+              next[j] = {
+                ...next[j],
+                client: r.codeClient,
+                productType: patch.productType
+              };
+              // Recalcul tarif pour cette row aussi
+              const rj = next[j];
+              if (handler && rj.poids != null) {
+                const calc = calcTarifAttendu(handler, patch.productType, rj.poids);
+                rj.tarifAttendu = calc.total != null ? Math.round(calc.total * 100) / 100 : null;
+                rj.detailCalc = calc.detail;
+                rj.diag = calc.diag;
+                if (rj.tarifAttendu != null) {
+                  rj.ecart = Math.round((rj.htFacture - rj.tarifAttendu) * 100) / 100;
+                  const tol = Number(handler?.toleranceEcart || 0);
+                  rj.verdict = Math.abs(rj.ecart) <= tol ? 'ok' : 'ko';
+                } else {
+                  rj.verdict = 'notarif';
+                  rj.ecart = null;
+                }
+              }
+            }
+          }
         }
+      }
+
+      // Recalcul tarif attendu selon overrides (pour la row courante)
+      if (r.tarifAttenduOverride != null && !isNaN(Number(r.tarifAttenduOverride))) {
+        r.tarifAttendu = Math.round(Number(r.tarifAttenduOverride) * 100) / 100;
+      } else if (r.productType && r.poids != null && handler) {
+        const calc = calcTarifAttendu(handler, r.productType, r.poids);
+        let total = 0, someOk = false;
+        const detail = [];
+        for (const d of calc.detail) {
+          const ov = r.ligneOverrides?.[d.libelle];
+          const actif = ov?.actif !== false;
+          const mm = (ov?.montantOverride != null && !isNaN(Number(ov.montantOverride)))
+            ? Number(ov.montantOverride) : d.montant;
+          if (actif && mm != null && !isNaN(mm)) { total += mm; someOk = true; }
+          detail.push({ libelle: d.libelle, montant: mm, actif, err: d.err });
+        }
+        r.tarifAttendu = someOk ? Math.round(total * 100) / 100 : null;
+        r.detailCalc = detail;
+      }
+      if (r.tarifAttendu != null) {
+        r.ecart = Math.round((r.htFacture - r.tarifAttendu) * 100) / 100;
+        const tol = Number(handler?.toleranceEcart || 0);
+        r.verdict = Math.abs(r.ecart) <= tol ? 'ok' : 'ko';
+      } else if (!r.dossierNum) {
+        r.verdict = 'miss';
+      } else {
+        r.verdict = 'notarif';
+        r.ecart = null;
       }
       return next;
     });
+
+    // Applique l'auto-ajout client dans params (déclenche auto-save Drive)
+    if (autoAdd) {
+      setParams(prev => {
+        const existing = (prev.productTypes?.[autoAdd.productType]?.clients || [])
+          .some(c => c.code === autoAdd.code);
+        if (existing) return prev;
+        return {
+          ...prev,
+          productTypes: {
+            ...prev.productTypes,
+            [autoAdd.productType]: {
+              ...prev.productTypes[autoAdd.productType],
+              clients: [
+                ...(prev.productTypes[autoAdd.productType].clients || []),
+                { code: autoAdd.code, nom: '', exclusions: [] }
+              ]
+            }
+          }
+        };
+      });
+      const ptLabel = params.productTypes?.[autoAdd.productType]?.label || autoAdd.productType;
+      toast(`✓ Client ${autoAdd.code} ajouté à "${ptLabel}"`, 'success');
+    }
   };
 
-  // Export CSV
+  // ── RESET SESSION ──
+  const resetSession = () => {
+    if (!confirm('Réinitialiser l\'analyse en cours ? Les modifications non archivées seront perdues.')) return;
+    setFacture(null); setFactureParsed(null);
+    setMalta(null); setMaltaParsed(null);
+    setRows([]);
+    try { localStorage.removeItem(LS_SESSION_V4); } catch {}
+  };
+
+  // ── EXPORT CSV ──
   const exportCSV = () => {
     const header = ['LTA','Dossier','Code Client','Client','Produit','Poids (kg)','HT Facturé (€)','Tarif Attendu (€)','Écart (€)','Verdict'];
     const lines = rows.map(r => [
@@ -1127,9 +1947,45 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `verification_${handler?.id || 'handler'}_${Date.now()}.csv`;
+    a.download = `verification_${handler?.id || 'handler'}_${factureParsed?.numFacture || Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // ── IMPRIMER ──
+  const imprimer = () => { window.print(); };
+
+  // ── MAIL SYNTHÈSE ──
+  const mailSynthese = () => {
+    const nf = factureParsed?.numFacture || '—';
+    const subject = `Synthèse vérification facture ${handler?.nom || ''} N°${nf}`;
+    let body = `Synthèse de vérification\n\n`;
+    body += `Handler : ${handler?.nom || '—'}\n`;
+    body += `N° Facture : ${nf}\n`;
+    body += `Fichier PDF : ${facture?.name || '—'}\n`;
+    body += `Date analyse : ${new Date().toLocaleDateString('fr-FR')}\n\n`;
+    body += `── STATISTIQUES ──\n`;
+    body += `LTA totales     : ${stats.total}\n`;
+    body += `✓ OK            : ${stats.ok}\n`;
+    body += `⚠ Écart         : ${stats.ko}\n`;
+    body += `? Sans dossier  : ${stats.miss}\n`;
+    body += `Sans tarif      : ${stats.notarif}\n\n`;
+    body += `HT Facturé total : ${stats.htFact.toFixed(2)} €\n`;
+    body += `HT Attendu total : ${stats.htAtt.toFixed(2)} €\n`;
+    body += `Écart total      : ${stats.ecart.toFixed(2)} €\n\n`;
+    const kos = rows.filter(r => r.verdict === 'ko');
+    if (kos.length) {
+      body += `── LIGNES EN ÉCART (${kos.length}) ──\n`;
+      for (const r of kos) {
+        body += `\n• ${r.ltaAffiche}\n`;
+        body += `  Dossier : ${r.dossierNum || '—'} · Client : ${r.client || '—'}\n`;
+        body += `  Poids : ${r.poids ?? '—'} kg · Produit : ${r.productType ? params.productTypes[r.productType]?.label : '—'}\n`;
+        body += `  HT Facturé : ${(r.htFacture ?? 0).toFixed(2)} € · HT Attendu : ${(r.tarifAttendu ?? 0).toFixed(2)} €\n`;
+        body += `  Écart : ${(r.ecart ?? 0).toFixed(2)} €\n`;
+      }
+    }
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
   };
 
   // STEP status
@@ -1146,8 +2002,34 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
         React.createElement('h1', { key:'t', className:'page-title' }, 'Vérification de facture handler'),
         React.createElement('div', { key:'s', className:'page-sub' }, 'Choix handler → Facture → Malta → Rapprochement')
       ]),
-      React.createElement('div', { key:'r', style:{display:'flex',gap:8} }, [
-        rows.length ? React.createElement('button', { key:'exp', className:'btn btn-green', onClick: exportCSV }, '📥 Export CSV') : null,
+      React.createElement('div', { key:'r', style:{display:'flex',gap:8,flexWrap:'wrap'} }, [
+        rows.length ? React.createElement('button', {
+          key:'pdf', className:'btn btn-primary',
+          disabled: archiving,
+          title: 'Génère un PDF de synthèse pour la compta et l\'archive sur Drive',
+          onClick: async () => {
+            if (!window.jspdf) { alert('Bibliothèque PDF non chargée — rafraîchis la page'); return; }
+            setArchiving(true); setArchiveMsg('');
+            try {
+              const res = await archiveSynthesePDF({
+                rows, stats, handler, factureParsed, facture, malta, params, maltaParsed, litiges: []
+              });
+              setArchiveMsg('✓ PDF archivé dans les archives : ' + res.filename);
+              toast('PDF généré et téléchargé', 'success');
+            } catch(e) {
+              console.error(e);
+              setArchiveMsg('⚠ Erreur : ' + e.message);
+              toast('Erreur PDF : ' + e.message, 'error');
+            }
+            setArchiving(false);
+            setTimeout(() => setArchiveMsg(''), 8000);
+          }
+        }, archiving ? '⏳ Génération...' : '📄 PDF Compta') : null,
+        rows.length ? React.createElement('button', {
+          key:'syn', className:'btn btn-sec',
+          onClick: () => setSyntheseOpen(true)
+        }, '📋 Aperçu') : null,
+        rows.length ? React.createElement('button', { key:'exp', className:'btn btn-green', onClick: exportCSV }, '📥 CSV') : null,
         rows.length ? React.createElement('button', {
           key:'arc',
           className:'btn btn-sec',
@@ -1162,7 +2044,12 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
             setArchiving(false);
             setTimeout(() => setArchiveMsg(''), 6000);
           }
-        }, archiving ? '⏳ Archivage...' : '📦 Archiver sur Drive') : null
+        }, archiving ? '⏳' : '📦 JSON') : null,
+        (facture || malta || rows.length) ? React.createElement('button', {
+          key:'reset', className:'btn btn-ghost',
+          onClick: resetSession,
+          title: 'Effacer la session et repartir de zéro'
+        }, '🔄 Nouveau') : null
       ])
     ]),
 
@@ -1276,9 +2163,42 @@ function PageVerif({ params, setParams, archiveRapprochement }) {
         rows, stats, params, handler,
         onUpdateRow: updateRow,
         showDebug, setShowDebug,
-        factureParsed
+        factureParsed,
+        onRowClick: (i) => setDetailIdx(i)
       })
-    ]) : null
+    ]) : null,
+
+    // MODAL DÉTAIL LTA
+    detailIdx != null && rows[detailIdx] ? React.createElement(DetailModal, {
+      key: 'dm',
+      row: rows[detailIdx],
+      rowIdx: detailIdx,
+      handler,
+      params,
+      factureParsed,
+      facture, malta,
+      onClose: () => setDetailIdx(null),
+      onUpdateRow: updateRow,
+      onPushLitige: (r) => addLitige(r, {
+        handler,
+        numFacture: factureParsed?.numFacture || '',
+        pdfName: facture?.name || '',
+        xlsName: malta?.name || ''
+      }),
+      toast
+    }) : null,
+
+    // MODAL SYNTHÈSE
+    syntheseOpen ? React.createElement(SyntheseModal, {
+      key: 'sm',
+      rows, stats, handler, facture, malta, factureParsed, params,
+      onClose: () => setSyntheseOpen(false),
+      onMail: mailSynthese,
+      toast
+    }) : null,
+
+    // TOAST
+    toastEl
   ]);
 }
 
@@ -1327,8 +2247,8 @@ function UploadZone({ title, subtitle, icon, file, loading, accept, disabled, on
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSANT RÉSULTATS
 // ═══════════════════════════════════════════════════════════════════
-function ResultsSection({ rows, stats, params, handler, onUpdateRow, showDebug, setShowDebug, factureParsed }) {
-  const [expandedRow, setExpandedRow] = useState(null);
+function ResultsSection({ rows, stats, params, handler, onUpdateRow, showDebug, setShowDebug, factureParsed, onRowClick }) {
+  // (expandedRow inline panel retiré — remplacé par le modal détail)
 
   return React.createElement('div', null, [
     // Stats
@@ -1419,19 +2339,14 @@ function ResultsSection({ rows, stats, params, handler, onUpdateRow, showDebug, 
               ),
               React.createElement('td', { key:'10', className:'td-center' },
                 React.createElement('button', {
-                  className:'btn btn-ghost btn-xs',
-                  onClick: () => setExpandedRow(expandedRow === i ? null : i)
-                }, expandedRow === i ? '▲' : '▼')
+                  className: r.verdict === 'ko' || r.verdict === 'miss' ? 'btn btn-sec btn-xs' : 'btn btn-ghost btn-xs',
+                  style: r.isLitigePushed ? { borderColor: 'var(--red)', color: 'var(--red)' } : null,
+                  onClick: () => onRowClick && onRowClick(i),
+                  title: 'Voir le détail et éditer'
+                }, r.isLitigePushed ? '⚖️' : '✏️')
               )
             ]);
-            if (expandedRow !== i) return [row];
-            // Ligne de détail
-            const detailRow = React.createElement('tr', { key: 'rd'+i, style:{background:'var(--surface2)'} },
-              React.createElement('td', { colSpan: 10, style:{padding:'14px 18px'} },
-                React.createElement(DetailPanel, { r, handler })
-              )
-            );
-            return [row, detailRow];
+            return [row];
           })
         )
       ])
@@ -1871,7 +2786,7 @@ function PageClients({ params, setParams }) {
     updateClients(pt, (params.productTypes[pt].clients || []).filter((_, k) => k !== i));
   };
 
-  // Import CSV
+  // Import CSV — format : code;nom;exclusions (séparées par |)
   const fileRef = useRef(null);
   const onImportCSV = async (e, pt) => {
     const f = e.target.files?.[0];
@@ -1880,11 +2795,15 @@ function PageClients({ params, setParams }) {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     const clients = [];
     for (const ln of lines) {
-      // ignore entête si contient "code"
       if (/code/i.test(ln) && clients.length === 0) continue;
-      const parts = ln.split(/[;,\t]/).map(s => s.trim().replace(/^"|"$/g, ''));
-      if (parts.length >= 2) clients.push({ code: parts[0].toUpperCase(), nom: parts[1] });
-      else if (parts.length === 1) clients.push({ code: parts[0].toUpperCase(), nom: '' });
+      const parts = ln.split(/[;\t]/).map(s => s.trim().replace(/^"|"$/g, ''));
+      if (!parts[0]) continue;
+      const c = {
+        code: parts[0].toUpperCase(),
+        nom: parts[1] || '',
+        exclusions: parts[2] ? parts[2].split('|').map(s => s.trim()).filter(Boolean) : []
+      };
+      clients.push(c);
     }
     if (clients.length) updateClients(pt, [...(params.productTypes[pt].clients || []), ...clients]);
     e.target.value = '';
@@ -1900,8 +2819,8 @@ function PageClients({ params, setParams }) {
     React.createElement('div', { key:'info', className:'alert alert-info' }, [
       React.createElement('span', { key:'i', className:'alert-icon' }, 'ℹ️'),
       React.createElement('div', { key:'b', className:'alert-body' }, [
-        React.createElement('div', { key:'t', className:'alert-title' }, 'Import CSV possible'),
-        React.createElement('div', { key:'d' }, 'Format : code;nom (une ligne par client). Tu peux aussi saisir manuellement.')
+        React.createElement('div', { key:'t', className:'alert-title' }, 'Import CSV + Exclusions tarifaires'),
+        React.createElement('div', { key:'d' }, 'CSV : code;nom;exclusions (séparées par |). Exemple : "SEDIS;Sedis SA;TMD|Magasinage". Les exclusions désactivent automatiquement certaines composantes du tarif attendu pour ce client.')
       ])
     ]),
     ...Object.entries(params.productTypes).map(([pt, pd]) =>
@@ -1931,7 +2850,7 @@ function PageClients({ params, setParams }) {
           (pd.clients || []).length === 0
             ? [React.createElement('div', { key:'e', style:{gridColumn:'1/-1',textAlign:'center',color:'var(--muted)',padding:20,fontSize:12} }, 'Aucun client — ajoute-les manuellement ou importe un CSV')]
             : pd.clients.map((c, i) =>
-                React.createElement('div', { key:i, className:'client-row' }, [
+                React.createElement('div', { key:i, className:'client-row', style:{gridTemplateColumns:'90px 1fr 190px auto'} }, [
                   React.createElement('input', {
                     key:'c', placeholder:'CODE',
                     value: c.code || '',
@@ -1941,6 +2860,15 @@ function PageClients({ params, setParams }) {
                     key:'n', className:'client-name-inp', placeholder:'Nom client',
                     value: c.nom || '',
                     onChange: (e) => updateClient(pt, i, { nom: e.target.value })
+                  }),
+                  React.createElement('input', {
+                    key:'x',
+                    placeholder:'Exclusions (ex: TMD, Magasinage)',
+                    title:'Composantes tarifaires à NE PAS compter pour ce client (libellé ou bout de libellé, séparés par virgule). Ex : "TMD" pour exclure TMD/DEP.',
+                    value: (c.exclusions || []).join(', '),
+                    onChange: (e) => updateClient(pt, i, {
+                      exclusions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    })
                   }),
                   React.createElement('button', {
                     key:'r', className:'btn btn-danger btn-xs',
@@ -1952,6 +2880,724 @@ function PageClients({ params, setParams }) {
       ])
     )
   ]);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DETAIL MODAL — Pop-up détail d'une LTA avec édition complète
+// ═══════════════════════════════════════════════════════════════════
+function DetailModal({ row, rowIdx, handler, params, factureParsed, facture, malta, onClose, onUpdateRow, onPushLitige, toast }) {
+  const [localRow, setLocalRow] = useState(() => JSON.parse(JSON.stringify(row)));
+  const [note, setNote] = useState(row.note || '');
+
+  useEffect(() => {
+    setLocalRow(JSON.parse(JSON.stringify(row)));
+    setNote(row.note || '');
+  }, [row]);
+
+  if (!row) return null;
+  const prodInfo = localRow.productType ? params.productTypes[localRow.productType] : null;
+
+  // ── Handlers d'édition locale ──
+  const toggleLigneActive = (libelle) => {
+    setLocalRow(prev => {
+      const next = { ...prev, ligneOverrides: { ...(prev.ligneOverrides || {}) } };
+      const current = next.ligneOverrides[libelle] || {};
+      next.ligneOverrides[libelle] = { ...current, actif: current.actif === false ? true : false };
+      return recomputeLocal(next);
+    });
+  };
+  const setLigneOverride = (libelle, val) => {
+    setLocalRow(prev => {
+      const next = { ...prev, ligneOverrides: { ...(prev.ligneOverrides || {}) } };
+      const current = next.ligneOverrides[libelle] || {};
+      next.ligneOverrides[libelle] = { ...current, montantOverride: val === '' || val == null ? null : Number(val) };
+      return recomputeLocal(next);
+    });
+  };
+  const setHTFacture = (val) => {
+    setLocalRow(prev => recomputeLocal({ ...prev, htFacture: Number(val) || 0 }));
+  };
+  const setTotalOverride = (val) => {
+    setLocalRow(prev => recomputeLocal({
+      ...prev,
+      tarifAttenduOverride: val === '' || val == null ? null : Number(val)
+    }));
+  };
+  const resetOverrides = () => {
+    setLocalRow(prev => recomputeLocal({ ...prev, tarifAttenduOverride: null, ligneOverrides: {} }));
+  };
+
+  // Recalcul local (n'applique pas au state parent tant qu'on ne sauve pas)
+  function recomputeLocal(r) {
+    const out = { ...r };
+    if (out.tarifAttenduOverride != null && !isNaN(Number(out.tarifAttenduOverride))) {
+      out.tarifAttendu = Math.round(Number(out.tarifAttenduOverride) * 100) / 100;
+    } else if (out.productType && out.poids != null && handler) {
+      const calc = calcTarifAttendu(handler, out.productType, out.poids);
+      let total = 0, someOk = false;
+      const detail = [];
+      for (const d of calc.detail) {
+        const ov = out.ligneOverrides?.[d.libelle];
+        const actif = ov?.actif !== false;
+        const mm = (ov?.montantOverride != null && !isNaN(Number(ov.montantOverride))) ? Number(ov.montantOverride) : d.montant;
+        if (actif && mm != null && !isNaN(mm)) { total += mm; someOk = true; }
+        detail.push({ libelle: d.libelle, montant: mm, actif, err: d.err });
+      }
+      out.tarifAttendu = someOk ? Math.round(total * 100) / 100 : null;
+      out.detailCalc = detail;
+    }
+    if (out.tarifAttendu != null) {
+      out.ecart = Math.round((out.htFacture - out.tarifAttendu) * 100) / 100;
+      const tol = Number(handler?.toleranceEcart || 0);
+      out.verdict = Math.abs(out.ecart) <= tol ? 'ok' : 'ko';
+    } else if (!out.dossierNum) {
+      out.verdict = 'miss';
+    } else {
+      out.verdict = 'notarif';
+      out.ecart = null;
+    }
+    return out;
+  }
+
+  const save = () => {
+    onUpdateRow(rowIdx, {
+      htFacture: localRow.htFacture,
+      tarifAttenduOverride: localRow.tarifAttenduOverride,
+      ligneOverrides: localRow.ligneOverrides,
+      note
+    });
+    toast && toast('Modifications enregistrées', 'success');
+    onClose();
+  };
+
+  const pushToLitige = async () => {
+    // Save first
+    const saved = { ...localRow, note };
+    onUpdateRow(rowIdx, {
+      htFacture: saved.htFacture,
+      tarifAttenduOverride: saved.tarifAttenduOverride,
+      ligneOverrides: saved.ligneOverrides,
+      note,
+      isLitigePushed: true
+    });
+    onPushLitige(saved);
+    toast && toast('Ligne ajoutée aux litiges', 'success');
+    onClose();
+  };
+
+  const verdictLabel = {
+    ok: { txt: '✓ OK', cls: 'verdict-ok' },
+    ko: { txt: '⚠ ÉCART', cls: 'verdict-ko' },
+    miss: { txt: '? MALTA', cls: 'verdict-miss' },
+    notarif: { txt: 'SANS TARIF', cls: 'verdict-notarif' }
+  }[localRow.verdict] || { txt: '—', cls: '' };
+
+  return React.createElement('div', {
+    className: 'modal-bg',
+    onClick: (e) => { if (e.target.className === 'modal-bg') onClose(); }
+  }, React.createElement('div', { className: 'modal' }, [
+    // HEADER
+    React.createElement('div', { key:'h', className:'modal-hdr' }, [
+      React.createElement('div', { key:'t', className:'modal-title' }, [
+        React.createElement('span', { key:'l', className:'modal-title-lta' }, localRow.ltaAffiche),
+        React.createElement('span', { key:'v', className: 'verdict ' + verdictLabel.cls }, verdictLabel.txt),
+        localRow.isLitigePushed ? React.createElement('span', { key:'lit', className:'row-litige-badge' }, '⚖️ en litige') : null
+      ]),
+      React.createElement('button', { key:'c', className:'modal-close', onClick: onClose }, '×')
+    ]),
+    // BODY
+    React.createElement('div', { key:'b', className:'modal-body' }, [
+      // Infos Malta
+      React.createElement('div', { key:'info', className:'dm-kv-grid' }, [
+        React.createElement('div', { key:'1', className:'dm-kv-item' }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'N° DOSSIER MALTA'),
+          React.createElement('div', { key:'v', className:'dm-kv-val' }, localRow.dossierNum || '—')
+        ]),
+        React.createElement('div', { key:'2', className:'dm-kv-item' }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'CODE CLIENT'),
+          React.createElement('div', { key:'v', className:'dm-kv-val' }, localRow.codeClient || '—')
+        ]),
+        React.createElement('div', { key:'3', className:'dm-kv-item' }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'CLIENT'),
+          React.createElement('div', { key:'v', className:'dm-kv-val', style:{fontFamily:'var(--sans)'} }, localRow.client || '—')
+        ]),
+        React.createElement('div', { key:'4', className:'dm-kv-item' }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'POIDS'),
+          React.createElement('div', { key:'v', className:'dm-kv-val' }, localRow.poids != null ? fmtKg(localRow.poids) : '—')
+        ]),
+        React.createElement('div', { key:'5', className:'dm-kv-item' }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'TYPE PRODUIT'),
+          React.createElement('div', { key:'v' },
+            React.createElement('select', {
+              className:'sel-inline', style:{width:'100%'},
+              value: localRow.productType || '',
+              onChange: (e) => setLocalRow(prev => recomputeLocal({ ...prev, productType: e.target.value || null }))
+            }, [
+              React.createElement('option', { key:'e', value:'' }, '—'),
+              ...Object.entries(params.productTypes).map(([k, pt]) =>
+                React.createElement('option', { key:k, value:k }, `${pt.icon} ${pt.label}`)
+              )
+            ])
+          )
+        ])
+      ]),
+      // Lignes facture extraites
+      React.createElement('div', { key:'fact', className:'dm-section' }, [
+        React.createElement('div', { key:'t', className:'dm-section-title' }, [
+          React.createElement('span', { key:'a' }, '📄 Lignes extraites de la facture'),
+          React.createElement('span', { key:'b', style:{fontSize:10,color:'var(--muted)',marginLeft:'auto',fontFamily:'var(--mono)'} }, `${(localRow.rawLignes || []).length} ligne(s)`)
+        ]),
+        React.createElement('div', { key:'ll', className:'dm-facture-lines' },
+          (localRow.rawLignes || []).length === 0
+            ? React.createElement('div', { style:{color:'var(--muted)',textAlign:'center',padding:20} }, 'Aucune ligne extraite (session restaurée ?)')
+            : localRow.rawLignes.map((l, k) =>
+                React.createElement('div', { key:k, className: 'dm-facture-line' + (l.isRecap ? ' dm-recap' : '') }, [
+                  React.createElement('div', { key:'t', className:'dm-facture-line-text' }, l.text),
+                  l.montants?.length ? React.createElement('div', { key:'i', className:'dm-facture-line-info' }, [
+                    `Montants: [${l.montants.join(', ')}] → `,
+                    React.createElement('span', { key:'ht', className:'dm-ht' },
+                      l.isRecap ? '(récap ignoré)' : `HT = ${(l.htDetecte || 0).toFixed(2)} €`
+                    )
+                  ]) : null
+                ])
+              )
+        ),
+        React.createElement('div', { key:'ed', style:{display:'flex',gap:10,alignItems:'center',marginTop:10,flexWrap:'wrap'} }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'HT FACTURÉ TOTAL :'),
+          React.createElement('input', {
+            key:'i', type:'number', step:'0.01', className:'dm-calc-override-inp', style:{width:130,color:'var(--text)'},
+            value: localRow.htFacture ?? 0,
+            onChange: (e) => setHTFacture(e.target.value)
+          }),
+          React.createElement('span', { key:'h', style:{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)'} }, '(modifiable si parsing incorrect)')
+        ])
+      ]),
+      // Calcul tarif attendu avec overrides
+      React.createElement('div', { key:'calc', className:'dm-section' }, [
+        React.createElement('div', { key:'t', className:'dm-section-title' }, [
+          React.createElement('span', { key:'a' }, '🎯 Tarif attendu — composantes'),
+          React.createElement('button', {
+            key:'r', className:'btn btn-ghost btn-xs', style:{marginLeft:'auto'},
+            onClick: resetOverrides, title:'Reset tous les overrides'
+          }, '↺ Reset')
+        ]),
+        (localRow.detailCalc || []).length === 0
+          ? React.createElement('div', { style:{color:'var(--muted)',fontSize:12,padding:14,textAlign:'center'} }, diagLabel(localRow.diag))
+          : React.createElement('div', { key:'d' },
+              localRow.detailCalc.map((d, k) => {
+                const ov = localRow.ligneOverrides?.[d.libelle] || {};
+                const actif = ov.actif !== false;
+                const overrideMontant = ov.montantOverride;
+                const isClientRule = !!ov.excludedByClient;
+                return React.createElement('div', { key:k, className: 'dm-calc-line' + (!actif ? ' disabled' : '') }, [
+                  React.createElement('input', {
+                    key:'c', type:'checkbox', checked: actif,
+                    onChange: () => toggleLigneActive(d.libelle),
+                    title: actif ? 'Désactiver cette composante' : 'Activer cette composante'
+                  }),
+                  React.createElement('div', { key:'n' }, [
+                    React.createElement('div', { key:'l', className:'dm-calc-libelle' }, [
+                      d.libelle,
+                      isClientRule ? React.createElement('span', {
+                        key:'b',
+                        style:{marginLeft:8,fontSize:9,padding:'1px 6px',background:'var(--blue-bg)',color:'var(--blue)',border:'1px solid rgba(59,130,246,.3)',borderRadius:3,fontFamily:'var(--mono)',letterSpacing:'.3px',textTransform:'uppercase',fontWeight:700}
+                      }, '🚫 règle client') : null
+                    ]),
+                    React.createElement('div', { key:'t', className:'dm-calc-type' },
+                      d.err ? `⚠ ${d.err}`
+                    : isClientRule ? `Exclu automatiquement (match "${ov.excludedByClient}")`
+                    : overrideMontant != null ? 'Montant forcé manuellement'
+                    : 'Calcul auto'
+                    )
+                  ]),
+                  React.createElement('div', { key:'m', className:'dm-calc-montant' },
+                    d.montant != null ? fmtEur(d.montant) : '—'
+                  ),
+                  React.createElement('input', {
+                    key:'ov', type:'number', step:'0.01', className:'dm-calc-override-inp',
+                    placeholder: 'override',
+                    value: overrideMontant ?? '',
+                    onChange: (e) => setLigneOverride(d.libelle, e.target.value)
+                  }),
+                  React.createElement('button', {
+                    key:'d', className:'btn btn-ghost btn-xs',
+                    onClick: () => setLigneOverride(d.libelle, ''),
+                    title:'Reset override montant'
+                  }, '↺')
+                ]);
+              })
+            ),
+        // Override total direct
+        React.createElement('div', { key:'ovtot', style:{marginTop:12,padding:'10px 12px',background:'var(--surface3)',border:'1px solid var(--border2)',borderRadius:7,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'} }, [
+          React.createElement('div', { key:'l', className:'dm-kv-lbl' }, 'OU FORCER LE TOTAL :'),
+          React.createElement('input', {
+            key:'i', type:'number', step:'0.01', className:'dm-calc-override-inp', style:{width:130},
+            placeholder:'auto',
+            value: localRow.tarifAttenduOverride ?? '',
+            onChange: (e) => setTotalOverride(e.target.value)
+          }),
+          React.createElement('span', { key:'h', style:{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)'} }, '(prime sur les composantes)')
+        ]),
+        // Totaux
+        React.createElement('div', { key:'tot', className:'dm-totals' }, [
+          React.createElement('div', { key:'1', className:'dm-totals-line' }, [
+            React.createElement('span', { key:'l', className:'dm-totals-lbl' }, 'HT FACTURÉ'),
+            React.createElement('span', { key:'v', className:'dm-totals-val c-amber' }, fmtEur(localRow.htFacture ?? 0))
+          ]),
+          React.createElement('div', { key:'2', className:'dm-totals-line' }, [
+            React.createElement('span', { key:'l', className:'dm-totals-lbl' }, 'HT ATTENDU'),
+            React.createElement('span', { key:'v', className:'dm-totals-val c-green' },
+              localRow.tarifAttendu != null ? fmtEur(localRow.tarifAttendu) : '—'
+            )
+          ]),
+          React.createElement('div', { key:'3', className:'dm-totals-line final' }, [
+            React.createElement('span', { key:'l', className:'dm-totals-final-lbl' }, 'ÉCART'),
+            React.createElement('span', { key:'v', className: 'dm-totals-val ' + (
+              localRow.ecart == null ? 'c-muted'
+              : localRow.ecart > 0 ? 'c-red'
+              : localRow.ecart < 0 ? 'c-green' : 'c-muted'
+            ) }, localRow.ecart != null ? fmtEur(localRow.ecart) : '—')
+          ])
+        ])
+      ]),
+      // Note libre
+      React.createElement('div', { key:'note', className:'dm-section' }, [
+        React.createElement('div', { key:'t', className:'dm-section-title' }, '📝 Note / Commentaire'),
+        React.createElement('textarea', {
+          className:'lit-comm', rows: 3,
+          placeholder:'Motif de l\'écart, précision pour le litige, etc.',
+          value: note,
+          onChange: (e) => setNote(e.target.value)
+        })
+      ])
+    ]),
+    // FOOTER
+    React.createElement('div', { key:'f', className:'modal-footer' }, [
+      React.createElement('button', { key:'c', className:'btn btn-ghost', onClick: onClose }, 'Annuler'),
+      React.createElement('div', { key:'r', style:{display:'flex',gap:8,marginLeft:'auto'} }, [
+        (localRow.verdict === 'ko' || localRow.verdict === 'miss') ? React.createElement('button', {
+          key:'lit', className:'btn btn-danger', style:{padding:'9px 16px',fontSize:13},
+          onClick: pushToLitige,
+          disabled: localRow.isLitigePushed,
+          title: localRow.isLitigePushed ? 'Déjà dans les litiges' : 'Créer un litige pour cette ligne'
+        }, localRow.isLitigePushed ? '⚖️ Déjà en litige' : '⚖️ Mettre en litige') : null,
+        React.createElement('button', {
+          key:'s', className:'btn btn-primary',
+          onClick: save
+        }, '💾 Enregistrer')
+      ])
+    ])
+  ]));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SYNTHESE MODAL — Aperçu imprimable + mail
+// ═══════════════════════════════════════════════════════════════════
+function SyntheseModal({ rows, stats, handler, facture, malta, factureParsed, params, onClose, onMail, toast }) {
+  const kos = rows.filter(r => r.verdict === 'ko');
+  const miss = rows.filter(r => r.verdict === 'miss');
+  const nf = factureParsed?.numFacture || '—';
+  const today = new Date().toLocaleDateString('fr-FR');
+  const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const copyText = () => {
+    let txt = `TAF TRANS — Synthèse vérification facture ${handler?.nom || ''} N°${nf}\n`;
+    txt += `Date : ${today} ${now}\n\n`;
+    txt += `LTA totales : ${stats.total}  (OK: ${stats.ok}, Écart: ${stats.ko}, Sans dossier: ${stats.miss}, Sans tarif: ${stats.notarif})\n`;
+    txt += `HT Facturé : ${stats.htFact.toFixed(2)} €\n`;
+    txt += `HT Attendu : ${stats.htAtt.toFixed(2)} €\n`;
+    txt += `Écart total : ${stats.ecart.toFixed(2)} €\n\n`;
+    if (kos.length) {
+      txt += `=== LIGNES EN ÉCART (${kos.length}) ===\n`;
+      for (const r of kos) {
+        txt += `\n• ${r.ltaAffiche}\n  Dossier: ${r.dossierNum || '—'} · Client: ${r.client || '—'}\n  Poids: ${r.poids ?? '—'} kg · HT Fact: ${(r.htFacture ?? 0).toFixed(2)} € · HT Att: ${(r.tarifAttendu ?? 0).toFixed(2)} € · Écart: ${(r.ecart ?? 0).toFixed(2)} €\n`;
+        if (r.note) txt += `  Note: ${r.note}\n`;
+      }
+    }
+    navigator.clipboard.writeText(txt).then(
+      () => toast && toast('Synthèse copiée dans le presse-papier', 'success'),
+      () => toast && toast('Copie échouée', 'error')
+    );
+  };
+
+  return React.createElement('div', {
+    className: 'modal-bg',
+    onClick: (e) => { if (e.target.className === 'modal-bg') onClose(); }
+  }, React.createElement('div', { className:'modal', style:{maxWidth:900} }, [
+    React.createElement('div', { key:'h', className:'modal-hdr' }, [
+      React.createElement('div', { key:'t', className:'modal-title' }, '📋 Synthèse — Impression & Mail'),
+      React.createElement('button', { key:'c', className:'modal-close', onClick: onClose }, '×')
+    ]),
+    React.createElement('div', { key:'b', className:'modal-body' },
+      React.createElement('div', { className:'syn-preview' }, [
+        React.createElement('h1', { key:'t1' }, `Vérification facture handler — N°${nf}`),
+        React.createElement('div', { key:'m', className:'meta' }, `${handler?.nom || ''} · ${today} ${now} · PDF : ${facture?.name || '—'} · Malta : ${malta?.name || '—'}`),
+        React.createElement('div', { key:'kpi', style:{marginTop:14,paddingTop:10,borderTop:'1px solid #ccc'} }, [
+          React.createElement('div', { key:'1', className:'kpi' }, ['LTA totales ', React.createElement('b', {key:'b'}, stats.total)]),
+          React.createElement('div', { key:'2', className:'kpi' }, ['OK ', React.createElement('b', {key:'b', style:{color:'#060'}}, stats.ok)]),
+          React.createElement('div', { key:'3', className:'kpi' }, ['Écart ', React.createElement('b', {key:'b', style:{color:'#a00'}}, stats.ko)]),
+          React.createElement('div', { key:'4', className:'kpi' }, ['Sans dossier ', React.createElement('b', {key:'b', style:{color:'#d07000'}}, stats.miss)]),
+          React.createElement('div', { key:'5', className:'kpi' }, ['Sans tarif ', React.createElement('b', {key:'b'}, stats.notarif)])
+        ]),
+        React.createElement('div', { key:'fin', style:{marginTop:10,padding:10,background:'#f5f5f5',border:'1px solid #ccc'} }, [
+          React.createElement('div', { key:'1' }, [React.createElement('b', {key:'a'}, 'HT Facturé : '), stats.htFact.toFixed(2) + ' €']),
+          React.createElement('div', { key:'2' }, [React.createElement('b', {key:'a'}, 'HT Attendu : '), stats.htAtt.toFixed(2) + ' €']),
+          React.createElement('div', { key:'3', style:{fontSize:14,marginTop:4} }, [
+            React.createElement('b', {key:'a'}, 'Écart total : '),
+            React.createElement('span', { key:'v', style:{color: stats.ecart > 0 ? '#a00' : (stats.ecart < 0 ? '#060' : '#000'), fontWeight:700} }, stats.ecart.toFixed(2) + ' €')
+          ])
+        ]),
+        // Tableau des écarts
+        kos.length ? React.createElement('div', { key:'ko' }, [
+          React.createElement('h2', { key:'t' }, `Lignes en écart (${kos.length})`),
+          React.createElement('table', { key:'tb' }, [
+            React.createElement('thead', { key:'h' }, React.createElement('tr', null, [
+              React.createElement('th', { key:'1' }, 'LTA'),
+              React.createElement('th', { key:'2' }, 'Dossier'),
+              React.createElement('th', { key:'3' }, 'Client'),
+              React.createElement('th', { key:'4' }, 'Poids'),
+              React.createElement('th', { key:'5', style:{textAlign:'right'} }, 'HT Fact.'),
+              React.createElement('th', { key:'6', style:{textAlign:'right'} }, 'HT Att.'),
+              React.createElement('th', { key:'7', style:{textAlign:'right'} }, 'Écart')
+            ])),
+            React.createElement('tbody', { key:'b' },
+              kos.map((r, i) => React.createElement('tr', { key:i, className:'ko-row' }, [
+                React.createElement('td', { key:'1' }, r.ltaAffiche),
+                React.createElement('td', { key:'2' }, r.dossierNum || '—'),
+                React.createElement('td', { key:'3' }, r.client || '—'),
+                React.createElement('td', { key:'4' }, (r.poids ?? '—') + ' kg'),
+                React.createElement('td', { key:'5', style:{textAlign:'right'} }, (r.htFacture ?? 0).toFixed(2) + ' €'),
+                React.createElement('td', { key:'6', style:{textAlign:'right'} }, (r.tarifAttendu ?? 0).toFixed(2) + ' €'),
+                React.createElement('td', { key:'7', style:{textAlign:'right',fontWeight:700,color:'#a00'} }, (r.ecart ?? 0).toFixed(2) + ' €')
+              ]))
+            )
+          ])
+        ]) : null,
+        // Sans dossier
+        miss.length ? React.createElement('div', { key:'ms' }, [
+          React.createElement('h2', { key:'t' }, `Sans dossier Malta (${miss.length})`),
+          React.createElement('table', { key:'tb' }, [
+            React.createElement('thead', { key:'h' }, React.createElement('tr', null, [
+              React.createElement('th', { key:'1' }, 'LTA'),
+              React.createElement('th', { key:'2', style:{textAlign:'right'} }, 'HT Facturé')
+            ])),
+            React.createElement('tbody', { key:'b' },
+              miss.map((r, i) => React.createElement('tr', { key:i, className:'miss-row' }, [
+                React.createElement('td', { key:'1' }, r.ltaAffiche),
+                React.createElement('td', { key:'2', style:{textAlign:'right'} }, (r.htFacture ?? 0).toFixed(2) + ' €')
+              ]))
+            )
+          ])
+        ]) : null,
+        React.createElement('div', { key:'sig', style:{marginTop:20,fontSize:11,color:'#666',borderTop:'1px solid #ccc',paddingTop:8} },
+          `Document généré par TAF VERICHECK v4.4 — TAF TRANS AIR FREIGHT`
+        )
+      ])
+    ),
+    React.createElement('div', { key:'f', className:'modal-footer' }, [
+      React.createElement('button', { key:'c', className:'btn btn-ghost', onClick: onClose }, 'Fermer'),
+      React.createElement('div', { key:'r', style:{display:'flex',gap:8,marginLeft:'auto'} }, [
+        React.createElement('button', { key:'cp', className:'btn btn-sec', onClick: copyText }, '📋 Copier texte'),
+        React.createElement('button', { key:'ml', className:'btn btn-sec', onClick: onMail }, '📧 Mail'),
+        React.createElement('button', { key:'pr', className:'btn btn-primary', onClick: () => window.print() }, '🖨️ Imprimer')
+      ])
+    ])
+  ]));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PAGE LITIGES — Liste des litiges avec édition
+// ═══════════════════════════════════════════════════════════════════
+function PageLitiges({ litiges, updateLitige, removeLitige, params }) {
+  const [filter, setFilter] = useState('all'); // all | ouvert | envoye | resolu
+
+  const filtered = litiges.filter(l => filter === 'all' ? true : l.statut === filter);
+
+  const copyEmailTemplate = (lit) => {
+    const txt = `Objet : Litige facture N°${lit.numFacture} — AWB ${lit.ltaAffiche}
+
+Madame, Monsieur,
+
+Suite à notre vérification de la facture ${lit.numFacture} du ${lit.dateAffichage}, nous contestons le montant facturé sur l'AWB ${lit.ltaAffiche}.
+
+Détails :
+  • Dossier TAF : ${lit.dossierNum || '—'}
+  • Client : ${lit.client || '—'}
+  • Poids : ${lit.poids ?? '—'} kg
+  • Montant facturé HT : ${(lit.htFacture ?? 0).toFixed(2)} €
+  • Montant attendu HT (grille TAF) : ${(lit.tarifAttendu ?? 0).toFixed(2)} €
+  • Écart constaté : ${(lit.ecart ?? 0).toFixed(2)} €
+
+${lit.commentaire ? 'Note : ' + lit.commentaire + '\n\n' : ''}Nous vous prions de bien vouloir vérifier ce point et de nous adresser un avoir correspondant.
+
+Cordialement,
+Service Import — TAF Trans Air Freight
+import@taftrans.fr`;
+    navigator.clipboard.writeText(txt).then(
+      () => alert('Email copié dans le presse-papier'),
+      () => alert('Copie échouée')
+    );
+  };
+
+  return React.createElement('div', { className:'page' }, [
+    React.createElement('div', { key:'hdr', className:'page-hdr' }, [
+      React.createElement('div', { key:'l' }, [
+        React.createElement('h1', { key:'t', className:'page-title' }, 'Litiges en cours'),
+        React.createElement('div', { key:'s', className:'page-sub' }, `${litiges.length} litige(s) · ${litiges.filter(l => l.statut !== 'resolu').length} non résolu(s)`)
+      ])
+    ]),
+    // Filtres
+    React.createElement('div', { key:'filt', className:'subtabs' }, [
+      ['all','Tous'],['ouvert','Ouverts'],['envoye','Envoyés'],['resolu','Résolus']
+    ].map(([k, lbl]) =>
+      React.createElement('button', {
+        key:k, className: 'subtab' + (filter === k ? ' active' : ''),
+        onClick: () => setFilter(k)
+      }, [
+        lbl,
+        React.createElement('span', { key:'c', className:'subtab-badge' },
+          k === 'all' ? litiges.length : litiges.filter(l => l.statut === k).length
+        )
+      ])
+    )),
+    // Liste
+    filtered.length === 0
+      ? React.createElement('div', { key:'e', className:'empty' }, [
+          React.createElement('div', { key:'i', className:'empty-icon' }, '⚖️'),
+          React.createElement('div', { key:'t', className:'empty-txt' }, filter === 'all' ? 'Aucun litige' : `Aucun litige ${filter}`),
+          React.createElement('div', { key:'s', className:'empty-sub' }, 'Les litiges sont créés depuis l\'onglet Vérification en cliquant sur "Mettre en litige"')
+        ])
+      : React.createElement('div', { key:'list' },
+          filtered.map(lit => React.createElement('div', { key: lit.id, className:'lit-card' }, [
+            React.createElement('div', { key:'h', className:'lit-hdr' }, [
+              React.createElement('div', { key:'l', className:'lit-hdr-left' }, [
+                React.createElement('span', { key:'lta', className:'lit-lta' }, lit.ltaAffiche),
+                React.createElement('span', { key:'f', className:'lit-facture' }, `Facture N°${lit.numFacture || '—'}`),
+                React.createElement('span', { key:'d', style:{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)'} }, lit.dateAffichage),
+                React.createElement('select', {
+                  key:'st', className:'sel-inline',
+                  value: lit.statut,
+                  onChange: (e) => updateLitige(lit.id, { statut: e.target.value })
+                }, [
+                  React.createElement('option', { key:'1', value:'ouvert' }, '🟠 Ouvert'),
+                  React.createElement('option', { key:'2', value:'envoye' }, '🔵 Envoyé'),
+                  React.createElement('option', { key:'3', value:'resolu' }, '🟢 Résolu')
+                ])
+              ]),
+              React.createElement('div', { key:'a', className:'lit-actions' }, [
+                React.createElement('button', {
+                  key:'m', className:'btn btn-sec btn-sm',
+                  onClick: () => copyEmailTemplate(lit)
+                }, '📋 Copier email'),
+                React.createElement('button', {
+                  key:'d', className:'btn btn-danger btn-sm',
+                  onClick: () => { if (confirm('Supprimer ce litige ?')) removeLitige(lit.id); }
+                }, '🗑 Supprimer')
+              ])
+            ]),
+            React.createElement('div', { key:'g', className:'lit-grid' }, [
+              { lbl: 'HANDLER',      val: lit.handlerNom || lit.handlerId || '—' },
+              { lbl: 'DOSSIER',      val: lit.dossierNum || '—' },
+              { lbl: 'CLIENT',       val: lit.client || '—' },
+              { lbl: 'PRODUIT',      val: lit.productType ? (params.productTypes[lit.productType]?.label || lit.productType) : '—' },
+              { lbl: 'POIDS',        val: lit.poids != null ? lit.poids + ' kg' : '—' },
+              { lbl: 'HT FACTURÉ',   val: fmtEur(lit.htFacture), color: 'var(--amber)' },
+              { lbl: 'HT ATTENDU',   val: fmtEur(lit.tarifAttendu), color: 'var(--green)' },
+              { lbl: 'ÉCART',        val: fmtEur(lit.ecart), color: lit.ecart > 0 ? 'var(--red)' : 'var(--green)' }
+            ].map((k, i) =>
+              React.createElement('div', { key:i, className:'lit-kv' }, [
+                React.createElement('div', { key:'l', className:'lit-kv-lbl' }, k.lbl),
+                React.createElement('div', { key:'v', className:'lit-kv-val', style: k.color ? {color:k.color} : null }, k.val)
+              ])
+            )),
+            React.createElement('textarea', {
+              key:'c', className:'lit-comm', rows: 2,
+              placeholder: 'Commentaire, statut de la relance, etc.',
+              value: lit.commentaire || '',
+              onChange: (e) => updateLitige(lit.id, { commentaire: e.target.value })
+            })
+          ]))
+        )
+  ]);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PAGE ARCHIVES — Liste des synthèses PDF archivées
+// ═══════════════════════════════════════════════════════════════════
+function PageArchives() {
+  const [archives, setArchives] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(null); // id en cours de download
+  const [filterHandler, setFilterHandler] = useState('all');
+
+  const load = async () => {
+    setLoading(true); setErr('');
+    try {
+      const list = await loadArchivesIndex();
+      setArchives(list);
+    } catch (e) { setErr('Erreur chargement index : ' + e.message); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const download = async (arc) => {
+    setBusy(arc.id);
+    try {
+      const full = await loadArchiveFull(arc);
+      if (!full) { alert('Archive introuvable sur Drive'); setBusy(null); return; }
+      downloadArchivePDF(arc, full);
+    } catch (e) { alert('Erreur : ' + e.message); }
+    setBusy(null);
+  };
+
+  const remove = async (arc) => {
+    if (!confirm(`Supprimer l'archive "${arc.pdfFilename}" de l'index ?\n(Le fichier PDF reste sur Drive, à supprimer manuellement si besoin)`)) return;
+    setBusy(arc.id);
+    try {
+      await deleteArchive(arc.id);
+      await load();
+    } catch (e) { alert('Erreur : ' + e.message); }
+    setBusy(null);
+  };
+
+  // Filter
+  const handlers = useMemo(() => {
+    const s = new Set();
+    archives.forEach(a => a.handlerId && s.add(a.handlerId));
+    return ['all', ...s];
+  }, [archives]);
+  const filtered = filterHandler === 'all' ? archives : archives.filter(a => a.handlerId === filterHandler);
+
+  // Stats globales
+  const totalHT = archives.reduce((a, b) => a + (b.htFacture || 0), 0);
+  const totalEcart = archives.reduce((a, b) => a + (b.ecart || 0), 0);
+
+  return React.createElement('div', { className:'page' }, [
+    React.createElement('div', { key:'hdr', className:'page-hdr' }, [
+      React.createElement('div', { key:'l' }, [
+        React.createElement('h1', { key:'t', className:'page-title' }, 'Archives des synthèses PDF'),
+        React.createElement('div', { key:'s', className:'page-sub' },
+          `${archives.length} archive(s) stockée(s) sur Drive · Dossier TAF ops`
+        )
+      ]),
+      React.createElement('button', {
+        key:'r', className:'btn btn-sec',
+        onClick: load, disabled: loading
+      }, loading ? '⏳ Chargement...' : '🔄 Rafraîchir')
+    ]),
+
+    // Stats globales
+    archives.length ? React.createElement('div', { key:'st', className:'stats-grid', style:{marginBottom:18} }, [
+      React.createElement('div', { key:'1', className:'stat' }, [
+        React.createElement('div', { key:'l', className:'stat-lbl' }, 'TOTAL ARCHIVES'),
+        React.createElement('div', { key:'v', className:'stat-val c-amber' }, archives.length)
+      ]),
+      React.createElement('div', { key:'2', className:'stat' }, [
+        React.createElement('div', { key:'l', className:'stat-lbl' }, 'HT TOTAL FACTURÉ'),
+        React.createElement('div', { key:'v', className:'stat-val c-green' }, fmtEur(totalHT))
+      ]),
+      React.createElement('div', { key:'3', className:'stat' }, [
+        React.createElement('div', { key:'l', className:'stat-lbl' }, 'ÉCART CUMULÉ'),
+        React.createElement('div', { key:'v', className: 'stat-val ' + (totalEcart > 0 ? 'c-red' : 'c-green') }, fmtEur(totalEcart))
+      ])
+    ]) : null,
+
+    // Filter
+    handlers.length > 2 ? React.createElement('div', { key:'f', className:'subtabs' },
+      handlers.map(h =>
+        React.createElement('button', {
+          key: h,
+          className: 'subtab' + (filterHandler === h ? ' active' : ''),
+          onClick: () => setFilterHandler(h)
+        }, h === 'all' ? 'Tous' : h.toUpperCase())
+      )
+    ) : null,
+
+    err ? React.createElement('div', { key:'e', className:'alert alert-err' },
+      React.createElement('div', { className:'alert-body' }, err)
+    ) : null,
+
+    loading ? React.createElement('div', { key:'ld', className:'loader' }, [
+      React.createElement('div', { key:'s', className:'spinner' }),
+      React.createElement('div', { key:'t', style:{color:'var(--muted)',fontSize:12} }, 'Lecture des archives Drive...')
+    ]) : null,
+
+    !loading && filtered.length === 0
+      ? React.createElement('div', { key:'em', className:'empty' }, [
+          React.createElement('div', { key:'i', className:'empty-icon' }, '📚'),
+          React.createElement('div', { key:'t', className:'empty-txt' }, 'Aucune archive'),
+          React.createElement('div', { key:'s', className:'empty-sub' }, 'Génère un PDF depuis l\'onglet Vérification')
+        ])
+      : null,
+
+    !loading && filtered.length ? React.createElement('div', { key:'list' },
+      filtered.map(arc => React.createElement('div', {
+        key: arc.id,
+        style:{
+          background:'var(--surface)',border:'1px solid var(--border)',
+          borderRadius:10,padding:'16px 18px',marginBottom:10,
+          display:'grid',gridTemplateColumns:'1fr auto',gap:14,alignItems:'center'
+        }
+      }, [
+        React.createElement('div', { key:'l' }, [
+          React.createElement('div', { key:'h', style:{display:'flex',gap:12,alignItems:'center',marginBottom:8,flexWrap:'wrap'} }, [
+            React.createElement('span', { key:'f', style:{fontFamily:'var(--mono)',fontSize:15,fontWeight:800,color:'var(--amber)'} },
+              'Facture ' + (arc.factureNum || '—')
+            ),
+            React.createElement('span', { key:'h', style:{fontSize:11,padding:'3px 9px',background:'var(--surface2)',border:'1px solid var(--border2)',borderRadius:4,fontFamily:'var(--mono)'} },
+              arc.handlerNom || arc.handlerId || '—'
+            ),
+            React.createElement('span', { key:'d', style:{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)'} }, arc.dateAffichage),
+            arc.koCount > 0 ? React.createElement('span', {
+              key:'ko',
+              style:{fontSize:10,padding:'2px 8px',background:'var(--red-bg)',color:'var(--red)',border:'1px solid rgba(239,68,68,.3)',borderRadius:3,fontWeight:700,letterSpacing:.5}
+            }, `${arc.koCount} LITIGE`) : null
+          ]),
+          React.createElement('div', { key:'g', style:{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:12,fontSize:11} }, [
+            { l:'LTA', v: arc.rowsCount },
+            { l:'HT FACTURÉ', v: fmtEur(arc.htFacture), color:'var(--amber)' },
+            { l:'HT ATTENDU', v: fmtEur(arc.htAttendu), color:'var(--green)' },
+            { l:'ÉCART', v: fmtEur(arc.ecart), color: (arc.ecart||0) > 0 ? 'var(--red)' : 'var(--green)' }
+          ].map((k, i) => React.createElement('div', { key:i }, [
+            React.createElement('div', { key:'l', style:{fontSize:9,color:'var(--muted)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:700} }, k.l),
+            React.createElement('div', { key:'v', style:{fontFamily:'var(--mono)',fontSize:12,fontWeight:700,color: k.color || 'var(--text)'} }, k.v)
+          ]))),
+          React.createElement('div', { key:'fn', style:{fontSize:10,color:'var(--muted)',fontFamily:'var(--mono)',marginTop:8} },
+            '📄 ' + arc.pdfFilename
+          )
+        ]),
+        React.createElement('div', { key:'r', style:{display:'flex',flexDirection:'column',gap:6} }, [
+          React.createElement('button', {
+            key:'d', className:'btn btn-primary btn-sm',
+            disabled: busy === arc.id,
+            onClick: () => download(arc)
+          }, busy === arc.id ? '⏳ ...' : '📥 Télécharger PDF'),
+          React.createElement('button', {
+            key:'x', className:'btn btn-ghost btn-sm',
+            disabled: busy === arc.id,
+            onClick: () => remove(arc),
+            title:'Retirer de l\'index'
+          }, '🗑 Retirer')
+        ])
+      ]))
+    ) : null
+  ]);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// TOAST hook
+// ═══════════════════════════════════════════════════════════════════
+function useToast() {
+  const [t, setT] = useState(null);
+  const show = useCallback((msg, type) => {
+    setT({ msg, type: type || 'info' });
+    setTimeout(() => setT(null), 3000);
+  }, []);
+  const render = t ? React.createElement('div', { className: 'toast ' + (t.type || '') }, t.msg) : null;
+  return [show, render];
 }
 
 // ═══════════════════════════════════════════════════════════════════
