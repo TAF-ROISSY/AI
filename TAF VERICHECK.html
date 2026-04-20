@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.0 — Contrôle & Vérification Factures Handlers</title>
+<title>TAF VERICHECK v3.3 — Contrôle & Vérification Factures Handlers</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -366,6 +366,11 @@ const TARIFF_TYPES = [{
   icon: '📐',
   desc: 'Nombre d\'ULD = ceil(poids / tranche). Montant = nUC × taux.'
 }, {
+  id: 'uc_tranche_fixe',
+  label: 'UC par tranche + montant fixe',
+  icon: '🧮',
+  desc: 'Montant = (nUC × taux) + forfait fixe. Ex: 20€/UC de 150kg + 35€ d\'intervention.'
+}, {
   id: 'magasinage',
   label: 'Magasinage progressif (grille par jours)',
   icon: '📅',
@@ -394,6 +399,61 @@ const TARIFF_TYPES = [{
 const TARIFF_TYPE_MAP = Object.fromEntries(TARIFF_TYPES.map(t => [t.id, t]));
 
 // ═══════════════════════════════════════════════════════════════════
+// MODULES TARIFAIRES (par type de marchandise)
+// ═══════════════════════════════════════════════════════════════════
+const MODULES = [
+  { id: 'cargo',   label: 'Cargo Général',          icon: '📦', cls: 'pt-cargo'   },
+  { id: 'seafood', label: 'Seafood / Poisson frais', icon: '🐟', cls: 'pt-seafood' },
+  { id: 'avi',     label: 'Animaux Vivants',         icon: '🐾', cls: 'pt-avi'     },
+  { id: 'fl',      label: 'Fruits & Légumes',        icon: '🍎', cls: 'pt-fl'      }
+];
+const MODULE_IDS = MODULES.map(m => m.id);
+const MODULE_MAP = Object.fromEntries(MODULES.map(m => [m.id, m]));
+
+// Garantit qu'un handler possède la structure `modules` (migration depuis `lignesT` legacy)
+function migrateHandler(h) {
+  if (!h) return h;
+  if (!h.modules || typeof h.modules !== 'object') {
+    const mods = { cargo: [], seafood: [], avi: [], fl: [] };
+    // Migration : toutes les lignes legacy vers le module cargo par défaut
+    if (Array.isArray(h.lignesT) && h.lignesT.length) {
+      mods.cargo = h.lignesT.map(lt => ({ ...lt }));
+    }
+    h.modules = mods;
+  } else {
+    // S'assurer que tous les modules existent
+    for (const id of MODULE_IDS) {
+      if (!Array.isArray(h.modules[id])) h.modules[id] = [];
+    }
+  }
+  return h;
+}
+
+// Migration de tous les handlers d'un objet params
+function migrateParams(params) {
+  if (!params || !Array.isArray(params.handlers)) return params;
+  params.handlers = params.handlers.map(h => migrateHandler({ ...h }));
+  return params;
+}
+
+// Compte total de lignes tarifaires sur tous les modules
+function countHandlerLignes(h) {
+  if (!h) return 0;
+  if (h.modules) return MODULE_IDS.reduce((s, id) => s + (h.modules[id]?.length || 0), 0);
+  return (h.lignesT || []).length;
+}
+
+// Récupère les lignes tarifaires du module correspondant au type produit
+function getLignesForProductType(handler, productType) {
+  if (!handler) return [];
+  if (handler.modules) {
+    const mod = productType && MODULE_IDS.includes(productType) ? productType : 'cargo';
+    return handler.modules[mod] || [];
+  }
+  return handler.lignesT || [];
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // PARAMS PAR DÉFAUT
 // ═══════════════════════════════════════════════════════════════════
 const DEF_PARAMS = {
@@ -409,54 +469,43 @@ const DEF_PARAMS = {
     email: 'claims@wfs.aero',
     prefixesAWB: ['074', '020'],
     toleranceEcart: 2,
-    lignesT: [{
-      id: 'wfs_af',
-      libelle: 'AF HANDLING',
-      libellesPDF: ['AF HANDLING', 'HANDLING', 'HDLG', 'AF HDL'],
-      type: 'kg_brut',
-      params: {
-        taux: 0.115,
-        mini: 0
-      },
-      obligatoire: true,
-      actif: true
-    }, {
-      id: 'wfs_mad',
-      libelle: 'MISE À DISPOSITION',
-      libellesPDF: ['MISE A DISPO', 'MAD', 'MISE À DISPO', 'DISPO'],
-      type: 'mise_dispo',
-      params: {
-        grille: [{
-          min: 0,
-          max: 500,
-          montant: 24
-        }, {
-          min: 501,
-          max: 1000,
-          montant: 39
-        }, {
-          min: 1001,
-          max: 2000,
-          montant: 69
-        }, {
-          min: 2001,
-          max: 99999,
-          montant: 69
-        }]
-      },
-      obligatoire: true,
-      actif: true
-    }, {
-      id: 'wfs_fix',
-      libelle: 'FRAIS FIXES WFS',
-      libellesPDF: ['FRAIS FIXES', 'FIXED CHARGES', 'FORFAIT'],
-      type: 'fixe',
-      params: {
-        montant: 118
-      },
-      obligatoire: true,
-      actif: true
-    }],
+    modules: {
+      cargo: [{
+        id: 'wfs_af',
+        libelle: 'AF HANDLING',
+        libellesPDF: ['AF HANDLING', 'HANDLING', 'HDLG', 'AF HDL'],
+        type: 'kg_brut',
+        params: { taux: 0.115, mini: 0 },
+        obligatoire: true,
+        actif: true
+      }, {
+        id: 'wfs_mad',
+        libelle: 'MISE À DISPOSITION',
+        libellesPDF: ['MISE A DISPO', 'MAD', 'MISE À DISPO', 'DISPO'],
+        type: 'mise_dispo',
+        params: {
+          grille: [
+            { min: 0, max: 500, montant: 24 },
+            { min: 501, max: 1000, montant: 39 },
+            { min: 1001, max: 2000, montant: 69 },
+            { min: 2001, max: 99999, montant: 69 }
+          ]
+        },
+        obligatoire: true,
+        actif: true
+      }, {
+        id: 'wfs_fix',
+        libelle: 'FRAIS FIXES WFS',
+        libellesPDF: ['FRAIS FIXES', 'FIXED CHARGES', 'FORFAIT'],
+        type: 'fixe',
+        params: { montant: 118 },
+        obligatoire: true,
+        actif: true
+      }],
+      seafood: [],
+      avi: [],
+      fl: []
+    },
     learning: {
       multiLigne: false,
       colPoids: null,
@@ -471,49 +520,31 @@ const DEF_PARAMS = {
     email: 'litiges.cargo@airfrance.fr',
     prefixesAWB: ['125'],
     toleranceEcart: 1,
-    lignesT: [{
-      id: 'afch_arr',
-      libelle: 'FRAIS ARRIVÉE',
-      libellesPDF: ['FRAIS ARRIVEE', 'FRAIS ARRIVÉE', 'ARRIVAL CHARGES', 'ARR'],
-      type: 'mise_dispo',
-      params: {
-        grille: [{
-          min: 0,
-          max: 1000,
-          montant: 180
-        }, {
-          min: 1001,
-          max: 2000,
-          montant: 235
-        }, {
-          min: 2001,
-          max: 3000,
-          montant: 280
-        }, {
-          min: 3001,
-          max: 4000,
-          montant: 310
-        }, {
-          min: 4001,
-          max: 5000,
-          montant: 350
-        }, {
-          min: 5001,
-          max: 6000,
-          montant: 390
-        }, {
-          min: 6001,
-          max: 7000,
-          montant: 440
-        }, {
-          min: 7001,
-          max: 99999,
-          montant: 440
-        }]
-      },
-      obligatoire: true,
-      actif: true
-    }],
+    modules: {
+      cargo: [{
+        id: 'afch_arr',
+        libelle: 'FRAIS ARRIVÉE',
+        libellesPDF: ['FRAIS ARRIVEE', 'FRAIS ARRIVÉE', 'ARRIVAL CHARGES', 'ARR'],
+        type: 'mise_dispo',
+        params: {
+          grille: [
+            { min: 0,    max: 1000,  montant: 180 },
+            { min: 1001, max: 2000,  montant: 235 },
+            { min: 2001, max: 3000,  montant: 280 },
+            { min: 3001, max: 4000,  montant: 310 },
+            { min: 4001, max: 5000,  montant: 350 },
+            { min: 5001, max: 6000,  montant: 390 },
+            { min: 6001, max: 7000,  montant: 440 },
+            { min: 7001, max: 99999, montant: 440 }
+          ]
+        },
+        obligatoire: true,
+        actif: true
+      }],
+      seafood: [],
+      avi: [],
+      fl: []
+    },
     learning: {
       multiLigne: false,
       colPoids: null,
@@ -528,7 +559,7 @@ const DEF_PARAMS = {
     lta: 'Documents',
     poidsBrut: 'Poids',
     client: 'Client',
-    compagnie: 'Dep',
+    compagnie: 'Dép',
     date: 'Date',
     skipRows: 3
   }
@@ -579,6 +610,15 @@ function calcLigneTarif(lt, poids) {
         const nUC = Math.ceil(poids / tranche);
         return nUC * Number(p.taux_uc);
       }
+    case 'uc_tranche_fixe':
+      {
+        if (p.taux_uc == null && p.montant == null) return null;
+        const tranche = Number(p.tranche) || 150;
+        const nUC = Math.ceil(poids / tranche);
+        const uc = p.taux_uc != null ? nUC * Number(p.taux_uc) : 0;
+        const fixe = p.montant != null ? Number(p.montant) : 0;
+        return uc + fixe;
+      }
     case 'magasinage':
       {
         // Grille progressive par tranches de jours
@@ -614,19 +654,31 @@ function calcLigneTarif(lt, poids) {
 }
 function calcTarif(handler, poids) {
   let jours = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
+  let productType = arguments.length > 3 ? arguments[3] : null;
   if (!handler || !poids || poids <= 0) return null;
 
-  // ── Format NOUVEAU (lignesT) ──
+  // ── Format NOUVEAU (modules par type de marchandise) ──
+  if (handler.modules) {
+    const lignes = getLignesForProductType(handler, productType);
+    if (lignes.length) {
+      let total = 0, hasCalc = false;
+      for (const lt of lignes) {
+        if (!lt.actif) continue;
+        const v = calcLigneTarif(lt, poids, jours);
+        if (v != null) { total += v; hasCalc = true; }
+      }
+      return hasCalc ? Math.round(total * 100) / 100 : null;
+    }
+    return null;
+  }
+
+  // ── Format intermédiaire (lignesT) — rétrocompatibilité ──
   if (handler.lignesT?.length) {
-    let total = 0,
-      hasCalc = false;
+    let total = 0, hasCalc = false;
     for (const lt of handler.lignesT) {
       if (!lt.actif) continue;
       const v = calcLigneTarif(lt, poids, jours);
-      if (v != null) {
-        total += v;
-        hasCalc = true;
-      }
+      if (v != null) { total += v; hasCalc = true; }
     }
     return hasCalc ? Math.round(total * 100) / 100 : null;
   }
@@ -794,18 +846,35 @@ function parseMalta(file, mapping) {
         });
 
         // ── Détection automatique de la ligne d'en-tête ──
-        // Cherche la première ligne contenant un terme ressemblant à LTA/Documents/Dossier
+        // On scanne les 15 premières lignes et on retient celle qui MAXIMISE
+        // le score = nb de cellules qui matchent exactement un hint (LTA/Dossier/Client/Poids/Date).
+        // Contrainte : ≥3 cellules non vides et ≥1 match. Les longs titres de rapport
+        // (ex: "BENEFICE BRUT ESTIME PAR DOSSIER DU ...") sont rejetés car le matching
+        // se fait sur la cellule ENTIÈRE (pas via includes), donc un titre long ne match jamais.
         const skipRows = mapping.skipRows ?? 0;
-        const LTA_HINTS = ['documents', 'lta', 'n° lta', 'awb'];
-        const DOS_HINTS = ['dossier', 'dossiers', 'n° dossier'];
+        const HEADER_HINTS = ['documents', 'lta', 'n° lta', 'awb', 'dossier', 'dossiers', 'n° dossier', 'client', 'poids', 'poids brut', 'date', 'dep', 'dép', 'compagnie'];
+        const scoreRow = (rawRow) => {
+          const cells = rawRow.map(v => String(v || '').toLowerCase().trim());
+          const nonEmpty = cells.filter(c => c.length > 0).length;
+          if (nonEmpty < 3) return -1; // ignore les lignes de titre ou presque vides
+          let score = 0;
+          for (const c of cells) {
+            if (c.length === 0 || c.length > 30) continue; // Les cellules longues ne sont pas des libellés de colonne
+            for (const h of HEADER_HINTS) {
+              // match mot entier : la cellule est exactement le hint, ou contient le hint comme mot isolé
+              if (c === h) { score += 2; break; }
+              if (new RegExp('\\b' + h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(c)) { score += 1; break; }
+            }
+          }
+          return score;
+        };
         let headerRowIdx = skipRows;
-        for (let i = 0; i < Math.min(allRaw.length, 10); i++) {
-          const row = allRaw[i].map(v => String(v || '').toLowerCase().trim());
-          const hasLTA = row.some(v => LTA_HINTS.some(h => v.includes(h)));
-          const hasDos = row.some(v => DOS_HINTS.some(h => v.includes(h)));
-          if (hasLTA || hasDos) {
+        let bestScore = 0;
+        for (let i = 0; i < Math.min(allRaw.length, 15); i++) {
+          const s = scoreRow(allRaw[i]);
+          if (s > bestScore) {
+            bestScore = s;
             headerRowIdx = i;
-            break;
           }
         }
         const headers = allRaw[headerRowIdx].map(v => String(v || '').trim());
@@ -814,15 +883,22 @@ function parseMalta(file, mapping) {
         // Correspondance colonne flexible : exact > lowercase sans espaces > contient
         const findCol = key => {
           if (!key) return -1;
-          const kl = key.toLowerCase().replace(/[\s°#]/g, '');
-          // Exact
+          // Normalise : lowercase, sans diacritiques, sans espaces/ponctuation courante
+          const norm = s => String(s || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s°#.,;:'"()-]/g, '');
+          const kl = norm(key);
+          // Exact (brut)
           let idx = headers.findIndex(h => h === key);
           if (idx >= 0) return idx;
-          // Lowercase + sans espaces
-          idx = headers.findIndex(h => h.toLowerCase().replace(/[\s°#]/g, '') === kl);
+          // Normalisé === normalisé
+          idx = headers.findIndex(h => norm(h) === kl);
           if (idx >= 0) return idx;
-          // Contient
-          idx = headers.findIndex(h => h.toLowerCase().replace(/[\s°#]/g, '').includes(kl) || kl.includes(h.toLowerCase().replace(/[\s°#]/g, '')));
+          // Contient (fallback)
+          idx = headers.findIndex(h => {
+            const hn = norm(h);
+            return hn && (hn.includes(kl) || kl.includes(hn));
+          });
           return idx;
         };
         const colIdx = {
@@ -913,12 +989,12 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
 
       // Référence calcul : FACTURATION en priorité, sinon grille VERICHECK
       const bridgeEntry = bridgeByLTA[line.awb] ?? null;
-      const montantCalcule = bridgeEntry ? bridgeEntry.debours_total : malta && handler ? calcTarif(handler, malta.poidsBrut) : null;
+      const prodType = productTypes && malta ? findProductType(malta.client, productTypes) : null;
+      const montantCalcule = bridgeEntry ? bridgeEntry.debours_total : malta && handler ? calcTarif(handler, malta.poidsBrut, 1, prodType?.key) : null;
       const sourceRef = bridgeEntry ? 'facturation' : malta && handler ? 'vericheck' : null;
       const ecart = line.montant != null && montantCalcule != null ? Math.round((line.montant - montantCalcule) * 100) / 100 : null;
       const tol = handler?.toleranceEcart ?? 2;
       const statut = !malta && !bridgeEntry ? 'non_trouve' : montantCalcule == null ? 'calcul_imp' : Math.abs(ecart) <= tol ? 'ok' : 'erreur';
-      const prodType = productTypes && malta ? findProductType(malta.client, productTypes) : null;
       results.push({
         id: `${line.awb}_p${page.pageNum}`,
         pageNum: page.pageNum,
@@ -1150,9 +1226,10 @@ function App() {
   const [page, setPage] = useState('analyse');
   const [params, setParams] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(LS_P)) || DEF_PARAMS;
+      const raw = JSON.parse(localStorage.getItem(LS_P)) || DEF_PARAMS;
+      return migrateParams(raw);
     } catch {
-      return DEF_PARAMS;
+      return migrateParams(JSON.parse(JSON.stringify(DEF_PARAMS)));
     }
   });
   const [litiges, setLitiges] = useState(() => {
@@ -1393,7 +1470,7 @@ function Nav(_ref4) {
     className: "drive-dot"
   }), "Drive"), /*#__PURE__*/React.createElement("span", {
     className: "version-tag"
-  }, "v3.0")));
+  }, "v3.3")));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3202,7 +3279,7 @@ function PageParams(_ref15) {
       email: '',
       prefixesAWB: [],
       toleranceEcart: 2,
-      lignesT: [],
+      modules: { cargo: [], seafood: [], avi: [], fl: [] },
       learning: {
         multiLigne: false,
         colPoids: null,
@@ -3221,7 +3298,7 @@ function PageParams(_ref15) {
     className: "hcard-name"
   }, h.nom || h.id), /*#__PURE__*/React.createElement("div", {
     className: "hcard-meta"
-  }, "\uD83D\uDCE7 ", h.email || '—', " \xB7 Tol\xE9rance ", h.toleranceEcart || 2, "\u20AC \xB7 ", (h.lignesT || h.grille || []).length, " ligne(s) tarifaire(s)")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCE7 ", h.email || '—', " \xB7 Tol\xE9rance ", h.toleranceEcart || 2, "\u20AC \xB7 ", countHandlerLignes(h), " ligne(s) tarifaire(s)")), /*#__PURE__*/React.createElement("div", {
     className: "flex-gap"
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sec btn-sm",
@@ -3240,7 +3317,16 @@ function PageParams(_ref15) {
       color: 'var(--muted)',
       marginLeft: 4
     }
-  }, "pr\xE9fixes AWB"))))), tab === 'malta' && /*#__PURE__*/React.createElement(MaltaMapping, {
+  }, "pr\xE9fixes AWB")), /*#__PURE__*/React.createElement("div", {
+    style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }
+  }, MODULES.map(m => {
+    const n = h.modules?.[m.id]?.length || 0;
+    return /*#__PURE__*/React.createElement("span", {
+      key: m.id,
+      className: `pt-badge ${m.cls}`,
+      style: { opacity: n > 0 ? 1 : 0.4, fontSize: 10 }
+    }, `${m.icon} ${m.label} · ${n}`);
+  }))))), tab === 'malta' && /*#__PURE__*/React.createElement(MaltaMapping, {
     params: params,
     setParams: setParams,
     toast: toast
@@ -3260,7 +3346,7 @@ function HandlerModal(_ref16) {
   } = _ref16;
   const [h, setH] = useState(() => {
     const base = JSON.parse(JSON.stringify(init));
-    if (!base.lignesT) base.lignesT = [];
+    migrateHandler(base);
     if (!base.learning) base.learning = {
       multiLigne: false,
       colPoids: null,
@@ -3272,27 +3358,29 @@ function HandlerModal(_ref16) {
   });
   const [prefStr, setPrefStr] = useState(h.prefixesAWB?.join(', ') || '');
   const [tabH, setTabH] = useState('tarifs');
+  const [modActif, setModActif] = useState('cargo');
   const [nomErr, setNomErr] = useState(false);
+  const lignesM = h.modules?.[modActif] || [];
   const upd = (f, v) => setH(p => ({
     ...p,
     [f]: v
   }));
   const updL = (id, f, v) => setH(p => ({
     ...p,
-    lignesT: p.lignesT.map(lt => lt.id === id ? {
-      ...lt,
-      [f]: v
-    } : lt)
+    modules: {
+      ...p.modules,
+      [modActif]: p.modules[modActif].map(lt => lt.id === id ? { ...lt, [f]: v } : lt)
+    }
   }));
   const updLParam = (id, f, v) => setH(p => ({
     ...p,
-    lignesT: p.lignesT.map(lt => lt.id === id ? {
-      ...lt,
-      params: {
-        ...lt.params,
-        [f]: v
-      }
-    } : lt)
+    modules: {
+      ...p.modules,
+      [modActif]: p.modules[modActif].map(lt => lt.id === id ? {
+        ...lt,
+        params: { ...lt.params, [f]: v }
+      } : lt)
+    }
   }));
   const updLearning = (f, v) => setH(p => ({
     ...p,
@@ -3305,41 +3393,62 @@ function HandlerModal(_ref16) {
     const id = `lt_${Date.now()}`;
     setH(p => ({
       ...p,
-      lignesT: [...p.lignesT, {
-        id,
-        libelle: 'Nouvelle ligne',
-        libellesPDF: [],
-        type: 'fixe',
-        params: {
-          montant: 0
-        },
-        obligatoire: false,
-        actif: true
-      }]
+      modules: {
+        ...p.modules,
+        [modActif]: [...(p.modules[modActif] || []), {
+          id,
+          libelle: 'Nouvelle ligne',
+          libellesPDF: [],
+          type: 'fixe',
+          params: { montant: 0 },
+          obligatoire: false,
+          actif: true
+        }]
+      }
     }));
   };
   const delLigne = id => setH(p => ({
     ...p,
-    lignesT: p.lignesT.filter(lt => lt.id !== id)
+    modules: {
+      ...p.modules,
+      [modActif]: p.modules[modActif].filter(lt => lt.id !== id)
+    }
   }));
   const moveLigne = (id, dir) => setH(p => {
-    const arr = [...p.lignesT],
-      i = arr.findIndex(lt => lt.id === id);
+    const arr = [...(p.modules[modActif] || [])];
+    const i = arr.findIndex(lt => lt.id === id);
     if (i < 0 || dir < 0 && i === 0 || dir > 0 && i === arr.length - 1) return p;
     [arr[i], arr[i + dir]] = [arr[i + dir], arr[i]];
     return {
       ...p,
-      lignesT: arr
+      modules: { ...p.modules, [modActif]: arr }
     };
   });
+  // Copie toutes les lignes du module actif vers un autre module
+  const copyModule = destId => {
+    if (destId === modActif) return;
+    setH(p => ({
+      ...p,
+      modules: {
+        ...p.modules,
+        [destId]: (p.modules[modActif] || []).map(lt => ({
+          ...lt,
+          id: `lt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          params: JSON.parse(JSON.stringify(lt.params))
+        }))
+      }
+    }));
+  };
   const save = () => {
     if (!h.nom?.trim()) {
       setNomErr(true);
       return;
     }
     const prefixes = prefStr.split(/[,;\s]+/).map(p => p.trim()).filter(p => /^\d{3}$/.test(p));
+    // On retire le champ lignesT legacy si encore présent, modules est désormais la source de vérité
+    const { lignesT, ...hClean } = h;
     onSave({
-      ...h,
+      ...hClean,
       prefixesAWB: prefixes
     });
   };
@@ -3433,7 +3542,68 @@ function HandlerModal(_ref16) {
   }, "\uD83D\uDDC2 Config parsing"), /*#__PURE__*/React.createElement("button", {
     className: `tbtn ${tabH === 'email' ? 'active' : ''}`,
     onClick: () => setTabH('email')
-  }, "\u2709\uFE0F Template litige")), tabH === 'tarifs' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "\u2709\uFE0F Template litige")), tabH === 'tarifs' && /*#__PURE__*/React.createElement("div", null,
+    // ── Sous-barre de sélection du module marchandise ──
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        flexWrap: 'wrap',
+        marginBottom: 10,
+        padding: 6,
+        background: 'var(--surface2)',
+        borderRadius: 8,
+        border: '1px solid var(--border)'
+      }
+    }, MODULES.map(m => {
+      const count = h.modules?.[m.id]?.length || 0;
+      const isActive = modActif === m.id;
+      return /*#__PURE__*/React.createElement("button", {
+        key: m.id,
+        onClick: () => setModActif(m.id),
+        className: `pt-badge ${m.cls}`,
+        style: {
+          cursor: 'pointer',
+          padding: '6px 12px',
+          fontSize: 12,
+          opacity: isActive ? 1 : 0.55,
+          outline: isActive ? '2px solid currentColor' : 'none',
+          outlineOffset: 1,
+          fontWeight: isActive ? 800 : 600
+        }
+      }, `${m.icon} ${m.label}`, /*#__PURE__*/React.createElement("span", {
+        style: {
+          marginLeft: 6,
+          padding: '1px 6px',
+          borderRadius: 8,
+          background: 'rgba(0,0,0,.18)',
+          fontSize: 10
+        }
+      }, count));
+    })),
+    // Bouton copier vers… (si le module actif contient des lignes)
+    lignesM.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 10,
+        fontSize: 11,
+        color: 'var(--muted)',
+        fontFamily: 'var(--mono)'
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Dupliquer ces lignes vers :"),
+      MODULES.filter(m => m.id !== modActif).map(m => /*#__PURE__*/React.createElement("button", {
+        key: m.id,
+        className: "btn btn-ghost btn-sm",
+        style: { fontSize: 11, padding: '3px 8px' },
+        onClick: () => {
+          if (confirm(`Copier les ${lignesM.length} ligne(s) du module ${MODULE_MAP[modActif].label} vers ${m.label} ?\nLes lignes existantes de ${m.label} seront remplacées.`)) {
+            copyModule(m.id);
+          }
+        }
+      }, `${m.icon} ${m.label}`))),
+    /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--muted)',
@@ -3441,11 +3611,11 @@ function HandlerModal(_ref16) {
       marginBottom: 12,
       lineHeight: 1.6
     }
-  }, "D\xE9finissez chaque ligne de tarif. L'application calculera la somme de toutes les lignes actives et obligatoires.", /*#__PURE__*/React.createElement("br", null), "Les libell\xE9s PDF permettront d'identifier ces lignes sur la facture pour une v\xE9rification plus pr\xE9cise."), h.lignesT.map((lt, i) => /*#__PURE__*/React.createElement(LigneTarifEditor, {
+  }, "D\xE9finissez chaque ligne de tarif pour le module ", /*#__PURE__*/React.createElement("strong", { style: { color: 'var(--text)' } }, MODULE_MAP[modActif].label), ". L'application calculera la somme des lignes actives du module correspondant au type de marchandise du client.", /*#__PURE__*/React.createElement("br", null), "Les libell\xE9s PDF permettront d'identifier ces lignes sur la facture pour une v\xE9rification plus pr\xE9cise."), lignesM.map((lt, i) => /*#__PURE__*/React.createElement(LigneTarifEditor, {
     key: lt.id,
     lt: lt,
     idx: i,
-    total: h.lignesT.length,
+    total: lignesM.length,
     onUpd: (f, v) => updL(lt.id, f, v),
     onUpdParam: (f, v) => updLParam(lt.id, f, v),
     onDel: () => delLigne(lt.id),
@@ -3453,7 +3623,7 @@ function HandlerModal(_ref16) {
   })), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sec btn-sm mt-8",
     onClick: addLigne
-  }, "+ Ajouter une ligne tarifaire"), h.lignesT.length === 0 && /*#__PURE__*/React.createElement("div", {
+  }, `+ Ajouter une ligne tarifaire — ${MODULE_MAP[modActif].label}`), lignesM.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'center',
       padding: '20px',
@@ -3464,7 +3634,7 @@ function HandlerModal(_ref16) {
       borderRadius: 8,
       marginTop: 8
     }
-  }, "Aucune ligne tarifaire. Cliquez sur \"+ Ajouter\" pour commencer.")), tabH === 'config' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, `Aucune ligne tarifaire pour ${MODULE_MAP[modActif].label}. Cliquez sur \"+ Ajouter\" pour commencer.`)), tabH === 'config' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--muted)',
@@ -3875,6 +4045,56 @@ function ParamsEditor(_ref18) {
           marginBottom: 8
         }
       }, "Ex 1000kg : ", Math.ceil(1000 / (p.tranche || 150)), " UCs \xD7 ", p.taux_uc, "\u20AC = ", (Math.ceil(1000 / (p.tranche || 150)) * p.taux_uc).toFixed(2), "\u20AC"));
+    case 'uc_tranche_fixe':
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+        className: "frow"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Tranche poids (kg, ex: 150)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        value: p.tranche ?? 150,
+        onChange: e => upd('tranche', e.target.value)
+      })), /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Taux par UC (\u20AC/UC)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        step: "0.01",
+        value: p.taux_uc ?? '',
+        onChange: e => upd('taux_uc', e.target.value)
+      })), /*#__PURE__*/React.createElement("div", {
+        className: "fg"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flabel"
+      }, "Montant fixe (\u20AC)"), /*#__PURE__*/React.createElement("input", {
+        className: "finput",
+        type: "number",
+        step: "0.01",
+        value: p.montant ?? '',
+        onChange: e => upd('montant', e.target.value),
+        placeholder: "Ex: 35"
+      }))), (p.taux_uc || p.montant) && /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: 'var(--amber)',
+          fontFamily: 'var(--mono)',
+          marginTop: -8,
+          marginBottom: 8
+        }
+      }, (() => {
+        const tr = Number(p.tranche) || 150;
+        const nUC = Math.ceil(1000 / tr);
+        const uc = Number(p.taux_uc || 0);
+        const fx = Number(p.montant || 0);
+        const ucPart = nUC * uc;
+        const total = ucPart + fx;
+        return `Ex 1000kg : ${nUC} UC × ${uc}€ = ${ucPart.toFixed(2)}€ + ${fx.toFixed(2)}€ fixe = ${total.toFixed(2)}€`;
+      })()));
     case 'magasinage':
       {
         const grille = p.grille || [];
@@ -4191,6 +4411,14 @@ function LigneTarifPreview(_ref19) {
       break;
     case 'uc_tranche':
       txt = p.taux_uc != null ? `${p.taux_uc}€/UC (${p.tranche || 150}kg)` : '—';
+      break;
+    case 'uc_tranche_fixe':
+      {
+        const parts = [];
+        if (p.taux_uc != null) parts.push(`${p.taux_uc}€/UC(${p.tranche || 150}kg)`);
+        if (p.montant != null) parts.push(`+${p.montant}€ fixe`);
+        txt = parts.length ? parts.join(' ') : '—';
+      }
       break;
     case 'magasinage':
       txt = (p.grille || []).length > 0 ? `${p.grille.length} tranche(s)/jour` : '—';
@@ -5017,7 +5245,7 @@ function PageLearning(_ref26) {
     style: {
       color: 'var(--text)'
     }
-  }, handler.lignesT?.length || 0), " configur\xE9es"), /*#__PURE__*/React.createElement("div", null, "Multi-ligne : ", /*#__PURE__*/React.createElement("strong", {
+  }, countHandlerLignes(handler)), " configur\xE9es"), /*#__PURE__*/React.createElement("div", null, "Multi-ligne : ", /*#__PURE__*/React.createElement("strong", {
     style: {
       color: 'var(--text)'
     }
@@ -5285,7 +5513,7 @@ function PageLearning(_ref26) {
         fontWeight: tag === t ? 700 : 400
       }
     }, t === 'poids' ? '⚖️ Poids' : t === 'montant' ? '💶 Total' : '👻 Ignorer'))));
-  })), handler?.lignesT?.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  })), (countHandlerLignes(handler) > 0) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10,
       color: 'var(--muted)',
@@ -5293,25 +5521,31 @@ function PageLearning(_ref26) {
       marginBottom: 6,
       letterSpacing: 1
     }
-  }, "CHARGES IDENTIFI\xC9ES SUR CETTE LIGNE"), /*#__PURE__*/React.createElement("div", {
+  }, "CHARGES IDENTIFI\xC9ES SUR CETTE LIGNE (tous modules)"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,
       flexWrap: 'wrap'
     }
-  }, handler.lignesT.map(lt => {
-    const found = (lt.libellesPDF || []).some(lbl => line.lineText.toUpperCase().includes(lbl.toUpperCase()));
-    return found ? /*#__PURE__*/React.createElement("span", {
-      key: lt.id,
-      className: "badge b-ok"
-    }, lt.libelle) : null;
-  }).filter(Boolean), handler.lignesT.every(lt => !(lt.libellesPDF || []).some(lbl => line.lineText.toUpperCase().includes(lbl.toUpperCase()))) && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: 'var(--muted)',
-      fontFamily: 'var(--mono)'
+  }, (() => {
+    // Parcours des 4 modules pour identifier les charges
+    const allLignes = MODULE_IDS.flatMap(mid => (handler?.modules?.[mid] || []).map(lt => ({ ...lt, _mod: mid })));
+    const matched = allLignes.filter(lt => (lt.libellesPDF || []).some(lbl => line.lineText.toUpperCase().includes(lbl.toUpperCase())));
+    if (matched.length === 0) {
+      return /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11,
+          color: 'var(--muted)',
+          fontFamily: 'var(--mono)'
+        }
+      }, "Aucune charge identifi\xE9e \u2014 v\xE9rifiez les libell\xE9s PDF dans la config tarifs");
     }
-  }, "Aucune charge identifi\xE9e \u2014 v\xE9rifiez les libell\xE9s PDF dans la config tarifs")))))))), /*#__PURE__*/React.createElement("div", {
+    return matched.map(lt => /*#__PURE__*/React.createElement("span", {
+      key: `${lt._mod}_${lt.id}`,
+      className: "badge b-ok",
+      title: `Module : ${MODULE_MAP[lt._mod]?.label || lt._mod}`
+    }, `${MODULE_MAP[lt._mod]?.icon || ''} ${lt.libelle}`));
+  })()))))))), /*#__PURE__*/React.createElement("div", {
     className: "flex-gap mt-14"
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary",
@@ -5453,7 +5687,7 @@ function PageLearning(_ref26) {
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "card-title"
-  }, "\uD83D\uDCCB Configuration appliqu\xE9e"), [['Handler', handler?.nom], ['Col. poids', handler?.learning?.colPoids != null ? `Index ${handler.learning.colPoids}` : 'Auto-détection'], ['Col. montant', handler?.learning?.colMontant != null ? `Index ${handler.learning.colMontant}` : 'Auto-détection'], ['Multi-ligne', handler?.learning?.multiLigne ? 'Oui' : 'Non'], ['Lignes tarifaires actives', handler?.lignesT?.filter(lt => lt.actif).length || 0]].map(_ref32 => {
+  }, "\uD83D\uDCCB Configuration appliqu\xE9e"), [['Handler', handler?.nom], ['Col. poids', handler?.learning?.colPoids != null ? `Index ${handler.learning.colPoids}` : 'Auto-détection'], ['Col. montant', handler?.learning?.colMontant != null ? `Index ${handler.learning.colMontant}` : 'Auto-détection'], ['Multi-ligne', handler?.learning?.multiLigne ? 'Oui' : 'Non'], ['Lignes tarifaires actives', handler?.modules ? MODULE_IDS.reduce((s, mid) => s + (handler.modules[mid] || []).filter(lt => lt.actif).length, 0) : (handler?.lignesT?.filter(lt => lt.actif).length || 0)]].map(_ref32 => {
     let [k, v] = _ref32;
     return /*#__PURE__*/React.createElement("div", {
       key: k,
@@ -6632,7 +6866,7 @@ function generateReport(session, litiges) {
     if (r.statut !== 'ok') byType[k].pb++;
   });
   let txt = `════════════════════════════════════════════════\n`;
-  txt += `  TAF VERICHECK v3.0 — RAPPORT D'ANALYSE\n`;
+  txt += `  TAF VERICHECK v3.3 — RAPPORT D'ANALYSE\n`;
   txt += `════════════════════════════════════════════════\n\n`;
   txt += `Date     : ${session.date}\n`;
   txt += `Facture  : ${session.pdfName}\n`;
