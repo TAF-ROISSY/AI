@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v4.0 — Rapprochement Facture / Malta</title>
+<title>TAF VERICHECK v4.1 — Rapprochement Facture / Malta + Drive Sync</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -41,6 +41,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .nbtn.active{background:var(--surface2);color:var(--amber)}
 .nav-right{display:flex;align-items:center;gap:12px}
 .version-tag{font-size:10px;font-family:var(--mono);color:var(--amber);background:var(--amber-bg);padding:3px 9px;border-radius:4px;border:1px solid rgba(245,158,11,.3);font-weight:700;letter-spacing:.5px}
+.drive-sync{display:flex;align-items:center;gap:7px;font-size:10px;font-family:var(--mono);color:var(--muted2);padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;letter-spacing:.5px}
+.drive-sync.ok{color:var(--green);border-color:rgba(16,185,129,.3)}
+.drive-sync.saving{color:var(--amber);border-color:rgba(245,158,11,.35)}
+.drive-sync.error{color:var(--red);border-color:rgba(239,68,68,.3)}
+.drive-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor}
+.drive-sync.saving .drive-dot{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* LAYOUT */
 .page{padding:24px 32px;max-width:1500px;margin:0 auto}
@@ -255,6 +262,64 @@ const LS_P = 'taf_vc3_params';
 const LS_SESSION_V4 = 'taf_vc4_session';
 
 // ═══════════════════════════════════════════════════════════════════
+// DRIVE — proxy Apps Script de l'écosystème TAF
+// ═══════════════════════════════════════════════════════════════════
+const PROXY = 'https://script.google.com/macros/s/AKfycbyi-yM6BSllYmM9Kmb21-C935rXPrIcwbUCXDAKIP6sADk9XwnezSTmwGmKHSAL7GH2/exec';
+const DRIVE_FOLDER = '143DZMp79_EfrVAjyOMquBU0L-JXlKdnF';
+const DRIVE_PARAMS_FILE = 'vericheck_v4_params.json';
+
+function safeB64(str) {
+  try { return btoa(unescape(encodeURIComponent(str))); }
+  catch { return btoa(str.replace(/[^\x00-\xFF]/g, '?')); }
+}
+
+async function driveUpload(filename, data) {
+  try {
+    const json = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    const b64 = safeB64(json);
+    const body = JSON.stringify({
+      action: 'uploadPDF', filename, mimeType: 'application/json',
+      base64: b64, folder: DRIVE_FOLDER
+    });
+    try {
+      const resp = await fetch(PROXY, { method:'POST', redirect:'follow', body });
+      if (resp.ok || resp.type === 'opaque') return true;
+    } catch (_) {}
+    await fetch(PROXY, { method:'POST', mode:'no-cors', body });
+    return true;
+  } catch (e) {
+    console.warn('[VC4] driveUpload error:', e.message);
+    return false;
+  }
+}
+
+async function driveRead(filename) {
+  const folder = DRIVE_FOLDER;
+  const strategies = [
+    () => fetch(`${PROXY}?action=read&file=${encodeURIComponent(filename)}&folder=${folder}`, { method:'GET', redirect:'follow' }),
+    () => fetch(`${PROXY}?action=read&filename=${encodeURIComponent(filename)}&folder=${folder}`, { method:'GET', redirect:'follow' }),
+    () => fetch(`${PROXY}?action=getFile&file=${encodeURIComponent(filename)}&folder=${folder}`, { method:'GET', redirect:'follow' }),
+    () => fetch(PROXY, { method:'POST', redirect:'follow', body: JSON.stringify({ action:'read', file: filename, folder }) })
+  ];
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const resp = await strategies[i]();
+      const text = resp.type === 'opaque' ? null : await resp.text().catch(() => null);
+      if (!text || text.trim().length < 5) continue;
+      if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) continue;
+      try {
+        const data = JSON.parse(text);
+        if (data?.error) continue;
+        console.log(`[VC4] driveRead OK "${filename}"`);
+        return data;
+      } catch (_) { continue; }
+    } catch (e) { /* next */ }
+  }
+  console.warn(`[VC4] driveRead: fichier "${filename}" introuvable ou inaccessible`);
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // PARAMS PAR DÉFAUT (seed si vide)
 // ═══════════════════════════════════════════════════════════════════
 const DEF_PARAMS = {
@@ -352,8 +417,12 @@ function loadParams() {
     return migrateParams(DEF_PARAMS);
   }
 }
-function saveParams(p) {
-  try { localStorage.setItem(LS_P, JSON.stringify(p)); } catch(e){ console.warn(e); }
+function saveParamsLocal(p) {
+  try {
+    const stamped = { ...p, _updatedAt: Date.now() };
+    localStorage.setItem(LS_P, JSON.stringify(stamped));
+    return stamped;
+  } catch(e){ console.warn(e); return p; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -632,14 +701,111 @@ async function parseFacturePDF(file, handler) {
 function App() {
   const [params, setParams] = useState(() => loadParams());
   const [page, setPage] = useState('verif'); // verif | handlers | clients
+  // Drive sync state
+  const [driveStatus, setDriveStatus] = useState('idle'); // idle | loading | saving | ok | error
+  const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [bootLoaded, setBootLoaded] = useState(false);
+  const saveTimerRef = useRef(null);
 
+  // ── BOOT : essayer de charger depuis Drive ──
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setDriveStatus('loading');
+      try {
+        const remote = await driveRead(DRIVE_PARAMS_FILE);
+        if (cancelled) return;
+        if (remote && typeof remote === 'object' && remote.handlers) {
+          const local = loadParams();
+          const localTs  = Number(local?._updatedAt)  || 0;
+          const remoteTs = Number(remote?._updatedAt) || 0;
+          // On prend Drive SAUF si local est strictement plus récent
+          if (remoteTs >= localTs) {
+            const migrated = migrateParams(remote);
+            setParams(migrated);
+            saveParamsLocal(migrated);
+            console.log('[VC4] Params chargés depuis Drive (version ' + new Date(remoteTs).toLocaleString('fr-FR') + ')');
+          } else {
+            console.log('[VC4] localStorage plus récent → on garde local');
+          }
+          setDriveStatus('ok');
+          setLastSyncAt(Date.now());
+        } else {
+          // Pas encore de fichier sur Drive → on va en créer un au premier save
+          console.log('[VC4] Pas de fichier Drive existant, sera créé au 1er save');
+          setDriveStatus('idle');
+        }
+      } catch (e) {
+        console.warn('[VC4] Boot load failed:', e);
+        setDriveStatus('error');
+      } finally {
+        setBootLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── SAVE : localStorage immédiat + Drive debounced (2s) ──
   const persistParams = useCallback((updater) => {
     setParams(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveParams(next);
-      return next;
+      const stamped = saveParamsLocal(next);
+      // Debounce Drive save
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (bootLoaded) {
+        setDriveStatus('saving');
+        saveTimerRef.current = setTimeout(async () => {
+          const ok = await driveUpload(DRIVE_PARAMS_FILE, stamped);
+          setDriveStatus(ok ? 'ok' : 'error');
+          if (ok) setLastSyncAt(Date.now());
+        }, 2000);
+      }
+      return stamped;
     });
-  }, []);
+  }, [bootLoaded]);
+
+  // ── SAVE MANUEL (forcer) ──
+  const forceSave = async () => {
+    setDriveStatus('saving');
+    const ok = await driveUpload(DRIVE_PARAMS_FILE, params);
+    setDriveStatus(ok ? 'ok' : 'error');
+    if (ok) setLastSyncAt(Date.now());
+  };
+
+  // ── Archive un rapprochement (appelé depuis PageVerif) ──
+  const archiveRapprochement = async (handler, rows, stats) => {
+    const ts = new Date();
+    const tsFile = ts.toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const filename = `vericheck_v4_archive_${handler.id}_${tsFile}.json`;
+    const payload = {
+      version: 'v4.1',
+      date: ts.toISOString(),
+      handlerId: handler.id,
+      handlerNom: handler.nom,
+      stats,
+      rows: rows.map(r => ({
+        lta: r.ltaAffiche,
+        dossier: r.dossierNum,
+        codeClient: r.codeClient,
+        client: r.client,
+        productType: r.productType,
+        poids: r.poids,
+        htFacture: r.htFacture,
+        tarifAttendu: r.tarifAttendu,
+        ecart: r.ecart,
+        verdict: r.verdict
+      }))
+    };
+    const ok = await driveUpload(filename, payload);
+    return { ok, filename };
+  };
+
+  const driveLabel =
+    driveStatus === 'loading' ? 'Drive · chargement...'
+  : driveStatus === 'saving'  ? 'Drive · sync...'
+  : driveStatus === 'ok'      ? (lastSyncAt ? 'Drive · ' + new Date(lastSyncAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : 'Drive · OK')
+  : driveStatus === 'error'   ? 'Drive · erreur'
+  :                              'Drive · local';
 
   return React.createElement('div', null, [
     // NAV
@@ -666,12 +832,21 @@ function App() {
         }, '👥 Clients & Produits')
       ]),
       React.createElement('div', { key:'right', className:'nav-right' }, [
-        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.0')
+        React.createElement('button', {
+          key:'drv',
+          className: 'drive-sync ' + (['ok','saving','error'].includes(driveStatus) ? driveStatus : ''),
+          title: 'Cliquer pour forcer la sauvegarde Drive',
+          onClick: forceSave
+        }, [
+          React.createElement('span', { key:'d', className:'drive-dot' }),
+          React.createElement('span', { key:'l' }, driveLabel)
+        ]),
+        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.1')
       ])
     ]),
     // PAGE
     page === 'verif'
-      ? React.createElement(PageVerif, { key:'pv', params, setParams: persistParams })
+      ? React.createElement(PageVerif, { key:'pv', params, setParams: persistParams, archiveRapprochement })
     : page === 'handlers'
       ? React.createElement(PageHandlers, { key:'ph', params, setParams: persistParams })
     : React.createElement(PageClients, { key:'pc', params, setParams: persistParams })
@@ -681,7 +856,7 @@ function App() {
 // ═══════════════════════════════════════════════════════════════════
 // PAGE VÉRIFICATION (workflow principal)
 // ═══════════════════════════════════════════════════════════════════
-function PageVerif({ params, setParams }) {
+function PageVerif({ params, setParams, archiveRapprochement }) {
   const [handlerId, setHandlerId] = useState(() => params.handlers[0]?.id || '');
   const [facture, setFacture] = useState(null);    // File
   const [factureParsed, setFactureParsed] = useState(null); // { lignesParLTA, rawText, debug }
@@ -691,6 +866,8 @@ function PageVerif({ params, setParams }) {
   const [erreur, setErreur] = useState('');
   const [rows, setRows] = useState([]);         // rapprochement
   const [showDebug, setShowDebug] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveMsg, setArchiveMsg] = useState('');
 
   const handler = useMemo(
     () => params.handlers.find(h => h.id === handlerId) || null,
@@ -872,7 +1049,22 @@ function PageVerif({ params, setParams }) {
         React.createElement('div', { key:'s', className:'page-sub' }, 'Choix handler → Facture → Malta → Rapprochement')
       ]),
       React.createElement('div', { key:'r', style:{display:'flex',gap:8} }, [
-        rows.length ? React.createElement('button', { key:'exp', className:'btn btn-green', onClick: exportCSV }, '📥 Export CSV') : null
+        rows.length ? React.createElement('button', { key:'exp', className:'btn btn-green', onClick: exportCSV }, '📥 Export CSV') : null,
+        rows.length ? React.createElement('button', {
+          key:'arc',
+          className:'btn btn-sec',
+          disabled: archiving,
+          onClick: async () => {
+            setArchiving(true);
+            setArchiveMsg('');
+            try {
+              const res = await archiveRapprochement(handler, rows, stats);
+              setArchiveMsg(res.ok ? `✓ Archivé sur Drive : ${res.filename}` : '⚠ Échec archivage Drive');
+            } catch(e) { setArchiveMsg('⚠ Erreur : ' + e.message); }
+            setArchiving(false);
+            setTimeout(() => setArchiveMsg(''), 6000);
+          }
+        }, archiving ? '⏳ Archivage...' : '📦 Archiver sur Drive') : null
       ])
     ]),
 
@@ -972,13 +1164,23 @@ function PageVerif({ params, setParams }) {
     ) : null,
 
     // RÉSULTATS
-    rows.length ? React.createElement(ResultsSection, {
-      key:'res',
-      rows, stats, params, handler,
-      onUpdateRow: updateRow,
-      showDebug, setShowDebug,
-      factureParsed
-    }) : null
+    rows.length ? React.createElement('div', { key:'res-wrap' }, [
+      archiveMsg ? React.createElement('div', {
+        key:'arcmsg',
+        className: 'alert ' + (archiveMsg.startsWith('✓') ? 'alert-info' : 'alert-warn'),
+        style: { marginBottom: 12 }
+      }, [
+        React.createElement('span', { key:'i', className:'alert-icon' }, archiveMsg.startsWith('✓') ? '✓' : '⚠'),
+        React.createElement('div', { key:'b', className:'alert-body' }, archiveMsg)
+      ]) : null,
+      React.createElement(ResultsSection, {
+        key:'res',
+        rows, stats, params, handler,
+        onUpdateRow: updateRow,
+        showDebug, setShowDebug,
+        factureParsed
+      })
+    ]) : null
   ]);
 }
 
