@@ -14,7 +14,7 @@
   <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-const VER = "5.0.0";
+const VER = "5.2.0";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 const COLORS = ["#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#ec4899","#06b6d4","#f97316","#6366f1","#84cc16"];
 
@@ -146,7 +146,16 @@ function App() {
   const notify = async (type, collab, demande, sendCC = false) => {
     const tpl = EMAILS[type]?.(collab, demande);
     if (!tpl) return;
-    // Email via Make
+    
+    // Helper function with timeout
+    const fetchWithTimeout = (url, options, timeout = 5000) => {
+      return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+      ]);
+    };
+    
+    // Email via Make - non-blocking
     if (cfg.webhookMake) {
       const payload = { 
         from: cfg.emailAdmin, 
@@ -156,17 +165,41 @@ function App() {
         body: tpl.body, 
         type: "cp_rtt_" + type 
       };
-      try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch {}
+      
+      // Send email without blocking
+      fetchWithTimeout(cfg.webhookMake, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(payload) 
+      }, 5000).catch(err => console.log("Email error (non-blocking):", err));
+      
       // Confirmation RH on validation ONLY if sendCC
       if (type === "validee" && sendCC) {
         const rh = EMAILS.confirmationRH(collab, demande);
-        try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: cfg.emailAdmin, to: "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr", subject: rh.subject, body: rh.body, type: "cp_rtt_confirmation_rh" }) }); } catch {}
+        fetchWithTimeout(cfg.webhookMake, { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ 
+            from: cfg.emailAdmin, 
+            to: "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr", 
+            subject: rh.subject, 
+            body: rh.body, 
+            type: "cp_rtt_confirmation_rh" 
+          }) 
+        }, 5000).catch(err => console.log("RH email error (non-blocking):", err));
       }
     }
-    // Slack
+    
+    // Slack - non-blocking
     if (cfg.webhookSlack) {
       const icon = type === "validee" ? "✅" : type === "refusee" ? "❌" : "📋";
-      try { await fetch(cfg.webhookSlack, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: `${icon} *${tpl.subject}*\n${collab.prenom} ${collab.nom} — ${demande.type} du ${fmtS(demande.dateDebut)} au ${fmtS(demande.dateFin)} (${demande.nbJours}j)` }) }); } catch {}
+      fetchWithTimeout(cfg.webhookSlack, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          text: `${icon} *${tpl.subject}*\n${collab.prenom} ${collab.nom} — ${demande.type} du ${fmtS(demande.dateDebut)} au ${fmtS(demande.dateFin)} (${demande.nbJours}j)` 
+        }) 
+      }, 5000).catch(err => console.log("Slack error (non-blocking):", err));
     }
   };
 
@@ -189,9 +222,9 @@ function App() {
     const dem = { id: uid(), collaborateurId: user.id, type: formData.type, dateDebut: formData.dateDebut, dateFin: formData.dateFin, nbJours, motif: formData.motif, statut: "en_attente", dateDemande: new Date().toISOString() };
     const newD = [...demandes, dem];
     await saveDemandes(newD);
-    await notify("demandeReçue", user, dem);
+    notify("demandeReçue", user, dem); // Non-blocking
     setFormData({ type: "CP", dateDebut: "", dateFin: "", motif: "" });
-    show("Demande envoyée — notification envoyée au superviseur");
+    show("Demande envoyée — notification en cours d'envoi au superviseur");
   };
 
   // ═══ VALIDATE / REFUSE ═══
@@ -209,8 +242,9 @@ function App() {
       await saveCollabs(newC);
     }
     await saveDemandes(newD);
-    await notify(newStatut === "validee" ? "validee" : "refusee", collab, dem, sendCC);
-    show(action === "valider" ? `Congé validé${sendCC ? " — notifications envoyées (+ CC Seb & JB)" : " — notification envoyée"}` : "Demande refusée — salarié notifié");
+    // Send notifications without blocking UI
+    notify(newStatut === "validee" ? "validee" : "refusee", collab, dem, sendCC);
+    show(action === "valider" ? `Congé validé${sendCC ? " — notifications en cours d'envoi (+ CC Seb & JB)" : " — notification en cours d'envoi"}` : "Demande refusée — notification en cours d'envoi");
   };
 
   // ═══ CANCEL VALIDATED REQUEST ═══
@@ -231,7 +265,7 @@ function App() {
     const newD = demandes.map(d => d.id === demId ? { ...d, statut: "annulee", dateAnnulation: new Date().toISOString(), annulePar: "Christophe Hermann" } : d);
     await saveDemandes(newD);
     
-    // Notify
+    // Notify - non-blocking with timeout
     const emailData = {
       from: cfg.emailAdmin,
       to: collab.email,
@@ -241,10 +275,13 @@ function App() {
       type: "cp_rtt_annulation"
     };
     if (cfg.webhookMake) {
-      try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(emailData) }); } catch {}
+      Promise.race([
+        fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(emailData) }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]).catch(err => console.log("Email annulation error (non-blocking):", err));
     }
     
-    show("Demande annulée — solde restauré et salarié notifié");
+    show("Demande annulée — solde restauré et notification en cours d'envoi");
     setConfirmAction(null);
   };
 
@@ -280,10 +317,10 @@ function App() {
     } : d);
     await saveDemandes(newD);
 
-    // Notify
-    await notify("modification", collab, { ...dem, dateDebut: editDemande.dateDebut, dateFin: editDemande.dateFin, nbJours: newNbJours, motif: editDemande.motif });
+    // Notify - non-blocking
+    notify("modification", collab, { ...dem, dateDebut: editDemande.dateDebut, dateFin: editDemande.dateFin, nbJours: newNbJours, motif: editDemande.motif });
     
-    show("Demande modifiée — salarié notifié");
+    show("Demande modifiée — notification en cours d'envoi");
     setEditDemande(null);
   };
 
@@ -363,6 +400,19 @@ function App() {
     setDraggedCollab(null);
   };
 
+  const removeVacation = async (dateStr, collabId) => {
+    const monthKey = `${vacYear}-${String(vacMonth + 1).padStart(2, "0")}`;
+    const newV = { ...vacations };
+    if (!newV[monthKey] || !newV[monthKey].days[dateStr]) return;
+    
+    const idx = newV[monthKey].days[dateStr].indexOf(collabId);
+    if (idx >= 0) {
+      newV[monthKey].days[dateStr].splice(idx, 1);
+      await saveVacations(newV);
+      show("Vacation retirée");
+    }
+  };
+
   const validateMonthVacations = async () => {
     const monthKey = `${vacYear}-${String(vacMonth + 1).padStart(2, "0")}`;
     if (!vacations[monthKey] || !vacations[monthKey].days) {
@@ -412,6 +462,221 @@ function App() {
     }
 
     show(`Vacations de ${monthNames[vacMonth]} ${vacYear} validées et emails envoyés`);
+  };
+
+  // ═══ MONTHLY SYNTHESIS ═══
+  const sendMonthlySynthesis = async (year, month) => {
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+    
+    // Get all CP/RTT for the month
+    const monthDemandes = demandes.filter(d => {
+      if (d.statut !== "validee") return false;
+      const dMonth = new Date(d.dateDebut).getMonth();
+      const dYear = new Date(d.dateDebut).getFullYear();
+      return dYear === year && dMonth === month;
+    });
+    
+    const cpDemandes = monthDemandes.filter(d => d.type === "CP");
+    const rttDemandes = monthDemandes.filter(d => d.type === "RTT");
+    
+    // Get vacations
+    const monthVacations = vacations[monthKey] || { days: {} };
+    const vacationsList = [];
+    Object.entries(monthVacations.days || {}).forEach(([date, collabIds]) => {
+      collabIds.forEach(cid => {
+        const c = collabs.find(x => x.id === cid);
+        if (c) vacationsList.push({ date, collab: c });
+      });
+    });
+    
+    // Calculate stats
+    const totalCP = cpDemandes.reduce((sum, d) => sum + d.nbJours, 0);
+    const totalRTT = rttDemandes.reduce((sum, d) => sum + d.nbJours, 0);
+    const totalVacations = vacationsList.length;
+    
+    // Generate HTML email
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%); padding: 40px; text-align: center; color: white; }
+    .header h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+    .header p { font-size: 16px; opacity: 0.9; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 30px; background: #f8fafc; }
+    .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .stat-card .number { font-size: 36px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+    .stat-card .label { font-size: 14px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card.cp .number { color: #3b82f6; }
+    .stat-card.rtt .number { color: #8b5cf6; }
+    .stat-card.vacation .number { color: #f59e0b; }
+    .section { padding: 30px; }
+    .section-title { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .section-title::before { content: ''; width: 4px; height: 24px; border-radius: 2px; }
+    .section-title.cp::before { background: #3b82f6; }
+    .section-title.rtt::before { background: #8b5cf6; }
+    .section-title.vacation::before { background: #f59e0b; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8fafc; }
+    th { padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .badge.cp { background: #dbeafe; color: #1e40af; }
+    .badge.rtt { background: #ede9fe; color: #6b21a8; }
+    .badge.vacation { background: #fef3c7; color: #92400e; }
+    .empty { text-align: center; padding: 40px; color: #94a3b8; font-style: italic; }
+    .footer { background: #f8fafc; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 Synthèse Mensuelle</h1>
+      <p>${monthNames[month]} ${year} — TAF ROISSY</p>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-card cp">
+        <div class="number">${totalCP}</div>
+        <div class="label">Jours CP</div>
+      </div>
+      <div class="stat-card rtt">
+        <div class="number">${totalRTT}</div>
+        <div class="label">Jours RTT</div>
+      </div>
+      <div class="stat-card vacation">
+        <div class="number">${totalVacations}</div>
+        <div class="label">Vacations</div>
+      </div>
+    </div>
+    
+    ${cpDemandes.length > 0 ? `
+    <div class="section">
+      <div class="section-title cp">Congés Payés (CP)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Collaborateur</th>
+            <th>Période</th>
+            <th>Durée</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${cpDemandes.map(d => {
+            const c = collabs.find(x => x.id === d.collaborateurId);
+            return `
+              <tr>
+                <td><strong>${c?.prenom || '?'} ${c?.nom || ''}</strong></td>
+                <td>${fmt(d.dateDebut)} → ${fmt(d.dateFin)}</td>
+                <td>${d.nbJours} jour${d.nbJours > 1 ? 's' : ''}</td>
+                <td><span class="badge cp">Validé</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : '<div class="empty">Aucun congé payé ce mois-ci</div>'}
+    
+    ${rttDemandes.length > 0 ? `
+    <div class="section">
+      <div class="section-title rtt">RTT</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Collaborateur</th>
+            <th>Période</th>
+            <th>Durée</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rttDemandes.map(d => {
+            const c = collabs.find(x => x.id === d.collaborateurId);
+            return `
+              <tr>
+                <td><strong>${c?.prenom || '?'} ${c?.nom || ''}</strong></td>
+                <td>${fmt(d.dateDebut)} → ${fmt(d.dateFin)}</td>
+                <td>${d.nbJours} jour${d.nbJours > 1 ? 's' : ''}</td>
+                <td><span class="badge rtt">Validé</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : '<div class="empty">Aucun RTT ce mois-ci</div>'}
+    
+    ${vacationsList.length > 0 ? `
+    <div class="section">
+      <div class="section-title vacation">Vacations (Week-ends & Jours fériés)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Collaborateur</th>
+            <th>Date</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${vacationsList.sort((a, b) => a.date.localeCompare(b.date)).map(v => {
+            const dayIndex = new Date(v.date).getDay();
+            const type = dayIndex === 0 || dayIndex === 6 ? 'Week-end' : 'Férié';
+            return `
+              <tr>
+                <td><strong>${v.collab.prenom} ${v.collab.nom}</strong></td>
+                <td>${fmt(v.date)}</td>
+                <td><span class="badge vacation">${type}</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : '<div class="empty">Aucune vacation ce mois-ci</div>'}
+    
+    <div class="footer">
+      Généré automatiquement le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}<br>
+      TAF ROISSY — Système de gestion CP/RTT v${VER}
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    
+    // Send email
+    if (cfg.webhookMake) {
+      const emailData = {
+        from: "christophe@taftrans.fr",
+        to: "christophe@taftrans.fr",
+        subject: `📊 Synthèse ${monthNames[month]} ${year} — CP, RTT & Vacations`,
+        body: html,
+        type: "cp_rtt_synthese",
+        isHtml: true
+      };
+      
+      try {
+        await fetch(cfg.webhookMake, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emailData)
+        });
+        show(`Synthèse de ${monthNames[month]} ${year} envoyée à christophe@taftrans.fr`);
+      } catch (e) {
+        show("Erreur lors de l'envoi de la synthèse", "err");
+        console.error("Synthesis error:", e);
+      }
+    } else {
+      show("Webhook Make non configuré", "err");
+    }
   };
 
   // ═══ STYLES ═══
@@ -567,53 +832,93 @@ function App() {
 
     return (
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <Btn onClick={() => { if (month === 0) { setVacMonth(11); setVacYear(year - 1); } else setVacMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2 }}>◀</Btn>
+        <style>{`
+          @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+          @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+          .collab-chip { transition: all 0.2s ease; transform: scale(1); }
+          .collab-chip:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+          .collab-chip:active { cursor: grabbing !important; transform: scale(0.95); }
+          .vacation-item { position: relative; transition: all 0.15s ease; }
+          .vacation-item:hover { transform: translateX(-2px); }
+          .vacation-remove { opacity: 0; transition: opacity 0.2s; }
+          .vacation-item:hover .vacation-remove { opacity: 1; }
+          .day-cell { transition: all 0.2s ease; }
+          .day-cell.droppable:hover { transform: scale(1.02); box-shadow: 0 0 0 2px ${S.orange}; }
+          .day-cell.dragging-over { animation: pulse 1s infinite; box-shadow: 0 0 16px ${S.orange}80; }
+        `}</style>
+
+        {/* Header avec navigation */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, padding: "0 4px" }}>
+          <Btn onClick={() => { if (month === 0) { setVacMonth(11); setVacYear(year - 1); } else setVacMonth(month - 1); }} bg={S.bg3} style={{ color: S.text2, padding: "10px 18px" }}>◀ Précédent</Btn>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{monthNames[month]} {year}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4, background: `linear-gradient(135deg, ${S.teal}, ${S.blue})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              {monthNames[month]} {year}
+            </div>
             {monthData.validated && (
-              <Badge c={S.green}>✓ Validé le {fmt(monthData.validatedAt)}</Badge>
+              <div style={{ display: "inline-block", padding: "4px 12px", borderRadius: 20, background: `${S.green}20`, border: `1px solid ${S.green}`, color: S.green, fontSize: 11, fontWeight: 700 }}>
+                ✓ Validé le {fmt(monthData.validatedAt)}
+              </div>
             )}
           </div>
-          <Btn onClick={() => { if (month === 11) { setVacMonth(0); setVacYear(year + 1); } else setVacMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2 }}>▶</Btn>
+          <Btn onClick={() => { if (month === 11) { setVacMonth(0); setVacYear(year + 1); } else setVacMonth(month + 1); }} bg={S.bg3} style={{ color: S.text2, padding: "10px 18px" }}>Suivant ▶</Btn>
         </div>
 
         {!monthData.validated && (
-          <div style={{ marginBottom: 14, textAlign: "center" }}>
-            <Btn onClick={validateMonthVacations} bg={S.green} style={{ fontSize: 13 }}>✓ Valider les vacations de {monthNames[month]} et envoyer les emails</Btn>
+          <div style={{ marginBottom: 20, textAlign: "center", animation: "slideIn 0.3s ease" }}>
+            <Btn onClick={validateMonthVacations} bg={S.green} style={{ fontSize: 14, padding: "12px 24px", boxShadow: `0 4px 12px ${S.green}40` }}>
+              ✓ Valider les vacations de {monthNames[month]} et envoyer les emails
+            </Btn>
           </div>
         )}
 
-        {/* Collaborateurs (drag sources) */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-          {collabs.filter(c => c.actif !== false).map(c => (
-            <div
-              key={c.id}
-              draggable
-              onDragStart={() => setDraggedCollab(c)}
-              onDragEnd={() => setDraggedCollab(null)}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "6px 12px", borderRadius: 8,
-                background: draggedCollab?.id === c.id ? `${c.color}40` : S.bg3,
-                border: `2px solid ${c.color}`,
-                cursor: "grab", fontSize: 12, fontWeight: 600
-              }}
-            >
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: c.color }} />
-              {c.prenom}
-            </div>
-          ))}
+        {/* Synthèse mensuelle */}
+        <div style={{ marginBottom: 20, textAlign: "center" }}>
+          <Btn onClick={() => sendMonthlySynthesis(year, month)} bg={S.purple} style={{ fontSize: 13, padding: "10px 20px", boxShadow: `0 4px 12px ${S.purple}40` }}>
+            📊 Envoyer la synthèse de {monthNames[month]} à Sébastien
+          </Btn>
         </div>
 
-        <div style={{ fontSize: 11, color: S.text3, marginBottom: 10 }}>
-          💡 Glissez-déposez les collaborateurs sur les jours fériés et week-ends
+        {/* Collaborateurs draggables */}
+        <div style={{ background: S.bg3, borderRadius: 12, padding: 16, marginBottom: 20, border: `1px solid ${S.border}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: S.text3, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            👥 Collaborateurs disponibles
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {collabs.filter(c => c.actif !== false).map(c => (
+              <div
+                key={c.id}
+                draggable={!monthData.validated}
+                onDragStart={() => setDraggedCollab(c)}
+                onDragEnd={() => setDraggedCollab(null)}
+                className="collab-chip"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 14px", borderRadius: 10,
+                  background: draggedCollab?.id === c.id ? `${c.color}50` : `${c.color}20`,
+                  border: `2px solid ${c.color}`,
+                  cursor: monthData.validated ? "not-allowed" : "grab",
+                  fontSize: 13, fontWeight: 700,
+                  color: c.color,
+                  opacity: monthData.validated ? 0.5 : 1,
+                  boxShadow: draggedCollab?.id === c.id ? `0 4px 12px ${c.color}60` : "none"
+                }}
+              >
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: c.color, boxShadow: `0 0 8px ${c.color}80` }} />
+                {c.prenom.toUpperCase()}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: S.text3, marginBottom: 16, padding: "10px 14px", background: `${S.orange}15`, borderRadius: 8, border: `1px solid ${S.orange}30` }}>
+          <span style={{ fontSize: 16 }}>💡</span>
+          <span>Glissez-déposez les collaborateurs sur les jours <strong style={{ color: S.orange }}>fériés et week-ends</strong></span>
+        </div>
+
+        {/* Grille du calendrier */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
           {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
-            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: S.text3, padding: "6px 0" }}>{d}</div>
+            <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 800, color: S.text3, padding: "8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>{d}</div>
           ))}
           {cells.map((day, i) => {
             if (!day) return <div key={`e${i}`} style={{ padding: 6 }} />;
@@ -624,29 +929,39 @@ function App() {
             const isToday = dateStr === today();
             const isWeekend = (i % 7 >= 5);
             const isFerie = FERIES[dateStr];
-            const canDrop = isWeekend || isFerie;
+            const canDrop = (isWeekend || isFerie) && !monthData.validated;
 
             return (
               <div
                 key={day}
-                onDragOver={canDrop ? (e) => e.preventDefault() : undefined}
-                onDrop={canDrop ? () => handleDrop(dateStr) : undefined}
+                className={`day-cell ${canDrop ? 'droppable' : ''}`}
+                onDragOver={canDrop ? (e) => { e.preventDefault(); e.currentTarget.classList.add('dragging-over'); } : undefined}
+                onDragLeave={canDrop ? (e) => { e.currentTarget.classList.remove('dragging-over'); } : undefined}
+                onDrop={canDrop ? (e) => { e.currentTarget.classList.remove('dragging-over'); handleDrop(dateStr); } : undefined}
                 style={{
-                  background: isToday ? `${S.blue}20` : canDrop ? `${S.orange}15` : S.card,
-                  border: `1px solid ${isToday ? S.blue : canDrop ? S.orange : S.border}`,
-                  borderRadius: 8, padding: "4px 6px", minHeight: 80,
+                  background: isToday ? `linear-gradient(135deg, ${S.blue}30, ${S.teal}30)` : canDrop ? `${S.orange}12` : `${S.bg3}80`,
+                  border: `2px solid ${isToday ? S.blue : canDrop ? S.orange : S.border}`,
+                  borderRadius: 10, padding: "8px", minHeight: 100,
                   position: "relative",
-                  opacity: canDrop ? 1 : 0.5
+                  opacity: canDrop ? 1 : 0.6,
+                  cursor: canDrop ? "copy" : "not-allowed",
+                  boxShadow: isToday ? `0 0 12px ${S.blue}40` : "none"
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 400, color: isToday ? S.blue : canDrop ? S.text : S.text3, marginBottom: 2 }}>
-                  {day}
-                  {isFerie && <div style={{ fontSize: 8, color: S.orange }}>Férié</div>}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: isToday ? 800 : 600, color: isToday ? S.blue : canDrop ? S.orange : S.text3 }}>
+                    {day}
+                  </div>
+                  {isFerie && (
+                    <div style={{ fontSize: 8, color: S.orange, background: `${S.orange}20`, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>
+                      FÉRIÉ
+                    </div>
+                  )}
                 </div>
 
-                {/* Congés en filigrane (background) */}
+                {/* Congés en filigrane */}
                 {absents.length > 0 && (
-                  <div style={{ fontSize: 8, color: S.text3, opacity: 0.4, marginBottom: 2 }}>
+                  <div style={{ fontSize: 8, color: S.text3, opacity: 0.3, marginBottom: 4, fontStyle: "italic" }}>
                     {absents.map((a, j) => (
                       <div key={j}>{a.collab?.prenom}</div>
                     ))}
@@ -654,17 +969,30 @@ function App() {
                 )}
 
                 {/* Vacations assignées */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {assigned.map((cid, j) => {
                     const c = collabs.find(x => x.id === cid);
                     if (!c) return null;
                     return (
-                      <div key={j} style={{
-                        padding: "2px 4px", borderRadius: 4, fontSize: 9, fontWeight: 700,
+                      <div key={j} className="vacation-item" style={{
+                        padding: "4px 6px", borderRadius: 6, fontSize: 10, fontWeight: 800,
                         background: c.color, color: "#fff",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        boxShadow: `0 2px 6px ${c.color}60`,
+                        display: "flex", justifyContent: "space-between", alignItems: "center"
                       }}>
-                        {c.prenom}
+                        <span>{c.prenom.toUpperCase()}</span>
+                        {!monthData.validated && (
+                          <button
+                            className="vacation-remove"
+                            onClick={() => removeVacation(dateStr, cid)}
+                            style={{
+                              background: "rgba(0,0,0,0.3)", border: "none", borderRadius: 4,
+                              cursor: "pointer", padding: "2px 4px", fontSize: 9, color: "#fff",
+                              fontWeight: 700, marginLeft: 4
+                            }}
+                          >×</button>
+                        )}
                       </div>
                     );
                   })}
