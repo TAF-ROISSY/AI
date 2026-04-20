@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v4.1 — Rapprochement Facture / Malta + Drive Sync</title>
+<title>TAF VERICHECK v4.2 — Rapprochement Facture / Malta + Drive Sync Complète</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -41,13 +41,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .nbtn.active{background:var(--surface2);color:var(--amber)}
 .nav-right{display:flex;align-items:center;gap:12px}
 .version-tag{font-size:10px;font-family:var(--mono);color:var(--amber);background:var(--amber-bg);padding:3px 9px;border-radius:4px;border:1px solid rgba(245,158,11,.3);font-weight:700;letter-spacing:.5px}
-.drive-sync{display:flex;align-items:center;gap:7px;font-size:10px;font-family:var(--mono);color:var(--muted2);padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;letter-spacing:.5px}
+.drive-sync{display:flex;align-items:center;gap:7px;font-size:10px;font-family:var(--mono);color:var(--muted2);padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;letter-spacing:.5px;cursor:pointer;transition:all .15s}
+.drive-sync:hover{border-color:var(--border3)}
 .drive-sync.ok{color:var(--green);border-color:rgba(16,185,129,.3)}
 .drive-sync.saving{color:var(--amber);border-color:rgba(245,158,11,.35)}
 .drive-sync.error{color:var(--red);border-color:rgba(239,68,68,.3)}
+.drive-sync.dirty{color:var(--orange);border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.08)}
 .drive-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor}
 .drive-sync.saving .drive-dot{animation:pulse 1s infinite}
+.drive-sync.dirty .drive-dot{animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-save{background:var(--green);color:#000;padding:7px 14px;font-size:12px;border:none;border-radius:6px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--sans);letter-spacing:.5px}
+.btn-save:hover{background:#0f9d72;transform:translateY(-1px)}
+.btn-save:disabled{background:var(--border2);color:var(--muted);cursor:not-allowed;transform:none}
+.btn-exit{background:var(--surface2);color:var(--text);padding:7px 14px;font-size:12px;border:1px solid var(--border2);border-radius:6px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--sans);letter-spacing:.5px}
+.btn-exit:hover{border-color:var(--red);color:var(--red)}
+.btn-exit:disabled{opacity:.5;cursor:not-allowed}
 
 /* LAYOUT */
 .page{padding:24px 32px;max-width:1500px;margin:0 auto}
@@ -702,10 +711,37 @@ function App() {
   const [params, setParams] = useState(() => loadParams());
   const [page, setPage] = useState('verif'); // verif | handlers | clients
   // Drive sync state
-  const [driveStatus, setDriveStatus] = useState('idle'); // idle | loading | saving | ok | error
+  const [driveStatus, setDriveStatus] = useState('idle'); // idle | loading | saving | ok | error | dirty
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [bootLoaded, setBootLoaded] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [exitingState, setExitingState] = useState(null); // null | 'saving' | 'done' | 'error'
   const saveTimerRef = useRef(null);
+  const paramsRef = useRef(params); // ref pour accès dans saveNow
+  useEffect(() => { paramsRef.current = params; }, [params]);
+
+  // ── Fonction de save Drive bas niveau ──
+  const pushToDrive = useCallback(async (payload) => {
+    setDriveStatus('saving');
+    const ok = await driveUpload(DRIVE_PARAMS_FILE, payload);
+    if (ok) {
+      setDriveStatus('ok');
+      setLastSyncAt(Date.now());
+      setIsDirty(false);
+    } else {
+      setDriveStatus('error');
+    }
+    return ok;
+  }, []);
+
+  // ── Save immédiat (sans debounce) ──
+  const saveNow = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    return await pushToDrive(paramsRef.current);
+  }, [pushToDrive]);
 
   // ── BOOT : essayer de charger depuis Drive ──
   useEffect(() => {
@@ -719,20 +755,18 @@ function App() {
           const local = loadParams();
           const localTs  = Number(local?._updatedAt)  || 0;
           const remoteTs = Number(remote?._updatedAt) || 0;
-          // On prend Drive SAUF si local est strictement plus récent
           if (remoteTs >= localTs) {
             const migrated = migrateParams(remote);
             setParams(migrated);
             saveParamsLocal(migrated);
-            console.log('[VC4] Params chargés depuis Drive (version ' + new Date(remoteTs).toLocaleString('fr-FR') + ')');
+            console.log('[VC4] Params chargés depuis Drive (' + new Date(remoteTs).toLocaleString('fr-FR') + ')');
           } else {
             console.log('[VC4] localStorage plus récent → on garde local');
           }
           setDriveStatus('ok');
           setLastSyncAt(Date.now());
         } else {
-          // Pas encore de fichier sur Drive → on va en créer un au premier save
-          console.log('[VC4] Pas de fichier Drive existant, sera créé au 1er save');
+          console.log('[VC4] Pas de fichier Drive existant');
           setDriveStatus('idle');
         }
       } catch (e) {
@@ -745,34 +779,58 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // ── SAVE : localStorage immédiat + Drive debounced (2s) ──
+  // ── BEFOREUNLOAD : avertir si modifs pending ──
+  useEffect(() => {
+    const handler = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'Modifications non sauvegardées. Quitter quand même ?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // ── SAVE : localStorage immédiat + Drive debounced (1s) ──
   const persistParams = useCallback((updater) => {
     setParams(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       const stamped = saveParamsLocal(next);
-      // Debounce Drive save
+      setIsDirty(true);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (bootLoaded) {
-        setDriveStatus('saving');
-        saveTimerRef.current = setTimeout(async () => {
-          const ok = await driveUpload(DRIVE_PARAMS_FILE, stamped);
-          setDriveStatus(ok ? 'ok' : 'error');
-          if (ok) setLastSyncAt(Date.now());
-        }, 2000);
+        setDriveStatus('dirty');
+        saveTimerRef.current = setTimeout(() => {
+          pushToDrive(stamped);
+        }, 1000);
       }
       return stamped;
     });
-  }, [bootLoaded]);
+  }, [bootLoaded, pushToDrive]);
 
-  // ── SAVE MANUEL (forcer) ──
-  const forceSave = async () => {
-    setDriveStatus('saving');
-    const ok = await driveUpload(DRIVE_PARAMS_FILE, params);
-    setDriveStatus(ok ? 'ok' : 'error');
-    if (ok) setLastSyncAt(Date.now());
-  };
+  // ── BOUTON QUITTER & SAUVEGARDER ──
+  const saveAndExit = useCallback(async () => {
+    setExitingState('saving');
+    const ok = await saveNow();
+    if (ok) {
+      setExitingState('done');
+      // Attendre 600ms pour montrer le "Sauvegardé ✓" puis quitter
+      setTimeout(() => {
+        // Tente window.close (ne marche que pour onglets ouverts par JS)
+        try { window.close(); } catch {}
+        // Fallback : redirige vers la page d'accueil TAF (GitHub Pages)
+        setTimeout(() => {
+          window.location.href = 'https://taf-roissy.github.io/AI/';
+        }, 300);
+      }, 600);
+    } else {
+      setExitingState('error');
+      setTimeout(() => setExitingState(null), 3000);
+    }
+  }, [saveNow]);
 
-  // ── Archive un rapprochement (appelé depuis PageVerif) ──
+  // ── Archive un rapprochement ──
   const archiveRapprochement = async (handler, rows, stats) => {
     const ts = new Date();
     const tsFile = ts.toISOString().replace(/[:.]/g,'-').slice(0,19);
@@ -800,12 +858,14 @@ function App() {
     return { ok, filename };
   };
 
+  // ── Label du badge Drive ──
   const driveLabel =
     driveStatus === 'loading' ? 'Drive · chargement...'
-  : driveStatus === 'saving'  ? 'Drive · sync...'
-  : driveStatus === 'ok'      ? (lastSyncAt ? 'Drive · ' + new Date(lastSyncAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : 'Drive · OK')
-  : driveStatus === 'error'   ? 'Drive · erreur'
-  :                              'Drive · local';
+  : driveStatus === 'saving'  ? 'Sauvegarde...'
+  : driveStatus === 'dirty'   ? 'Modifs non sauvées*'
+  : driveStatus === 'ok'      ? (lastSyncAt ? 'Sauvé · ' + new Date(lastSyncAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : 'Sauvé ✓')
+  : driveStatus === 'error'   ? 'Erreur Drive'
+  :                              'Local uniquement';
 
   return React.createElement('div', null, [
     // NAV
@@ -832,16 +892,45 @@ function App() {
         }, '👥 Clients & Produits')
       ]),
       React.createElement('div', { key:'right', className:'nav-right' }, [
-        React.createElement('button', {
+        React.createElement('div', {
           key:'drv',
-          className: 'drive-sync ' + (['ok','saving','error'].includes(driveStatus) ? driveStatus : ''),
-          title: 'Cliquer pour forcer la sauvegarde Drive',
-          onClick: forceSave
+          className: 'drive-sync ' + (isDirty ? 'dirty' : (['ok','saving','error'].includes(driveStatus) ? driveStatus : '')),
+          title: 'État de la sauvegarde Drive'
         }, [
           React.createElement('span', { key:'d', className:'drive-dot' }),
           React.createElement('span', { key:'l' }, driveLabel)
         ]),
-        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.1')
+        React.createElement('button', {
+          key:'save',
+          className: 'btn-save',
+          disabled: driveStatus === 'saving' || exitingState === 'saving',
+          onClick: saveNow,
+          title: 'Forcer la sauvegarde sur Drive maintenant'
+        }, [
+          React.createElement('span', { key:'i' }, '💾'),
+          React.createElement('span', { key:'l' }, 'Sauvegarder')
+        ]),
+        React.createElement('button', {
+          key:'exit',
+          className: 'btn-exit',
+          disabled: exitingState === 'saving',
+          onClick: saveAndExit,
+          title: 'Sauvegarder puis quitter l\'application'
+        }, [
+          React.createElement('span', { key:'i' },
+            exitingState === 'saving' ? '⏳'
+          : exitingState === 'done'   ? '✓'
+          : exitingState === 'error'  ? '⚠'
+          : '🚪'
+          ),
+          React.createElement('span', { key:'l' },
+            exitingState === 'saving' ? 'Sauvegarde...'
+          : exitingState === 'done'   ? 'Quitter...'
+          : exitingState === 'error'  ? 'Erreur save'
+          : 'Quitter & sauvegarder'
+          )
+        ]),
+        React.createElement('span', { key:'v', className:'version-tag' }, 'v4.2')
       ])
     ]),
     // PAGE
