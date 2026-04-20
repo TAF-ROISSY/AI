@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TAF CP/RTT v4.0 — Gestion des Congés</title>
+  <title>TAF CP/RTT v4.2 — Gestion des Congés</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.min.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/compat/dist/compat.min.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Configure Preact as React replacement
+    window.React = window.preactCompat;
+    window.ReactDOM = window.preactCompat;
+  </script>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
+const { useState, useEffect, useCallback, useRef } = window.preactHooks || window.React;
 
-const VER = "4.0.0";
+const VER = "4.2.2";
 const FB = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 const COLORS = ["#3b82f6","#8b5cf6","#ef4444","#f59e0b","#10b981","#ec4899","#06b6d4","#f97316","#6366f1","#84cc16"];
 
@@ -28,7 +34,7 @@ const diffDays = (a, b) => Math.max(1, Math.ceil((new Date(b) - new Date(a)) / 8
 
 const defaultCfg = () => ({
   supervisorPin: "2709",
-  webhookMake: "",
+  webhookMake: "https://hook.eu2.make.com/4th5kwceaitf63o1dt5xfac85vkceiwq",
   webhookSlack: "",
   emailAdmin: "christophe@taftrans.fr",
   emailCC: "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr",
@@ -76,6 +82,9 @@ function App() {
   const [editCollab, setEditCollab] = useState(null);
   const [empTab, setEmpTab] = useState("demande");
   const [supTab, setSupTab] = useState("validation");
+  const [editDemande, setEditDemande] = useState(null);
+  const [editSolde, setEditSolde] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const show = (m, t = "ok") => { setToast({ m, t }); setTimeout(() => setToast(null), 3000); };
 
@@ -131,17 +140,24 @@ function App() {
   };
 
   // ═══ WEBHOOK NOTIFICATIONS ═══
-  const notify = async (type, collab, demande) => {
+  const notify = async (type, collab, demande, sendCC = false) => {
     const tpl = EMAILS[type]?.(collab, demande);
     if (!tpl) return;
     // Email via Make
     if (cfg.webhookMake) {
-      const payload = { from: cfg.emailAdmin, to: type === "demandeReçue" || type === "modification" ? cfg.emailAdmin : collab.email, cc: type === "validee" ? cfg.emailCC : "", subject: tpl.subject, body: tpl.body, type: "cp_rtt_" + type };
+      const payload = { 
+        from: cfg.emailAdmin, 
+        to: type === "demandeReçue" || type === "modification" ? cfg.emailAdmin : collab.email, 
+        cc: sendCC && (type === "validee" || type === "refusee") ? "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr" : "", 
+        subject: tpl.subject, 
+        body: tpl.body, 
+        type: "cp_rtt_" + type 
+      };
       try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch {}
-      // Confirmation RH on validation
-      if (type === "validee") {
+      // Confirmation RH on validation ONLY if sendCC
+      if (type === "validee" && sendCC) {
         const rh = EMAILS.confirmationRH(collab, demande);
-        try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: cfg.emailAdmin, to: cfg.emailCC, subject: rh.subject, body: rh.body, type: "cp_rtt_confirmation_rh" }) }); } catch {}
+        try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: cfg.emailAdmin, to: "sebastien@taftrans.fr,jeanbaptiste@taftrans.fr", subject: rh.subject, body: rh.body, type: "cp_rtt_confirmation_rh" }) }); } catch {}
       }
     }
     // Slack
@@ -176,7 +192,7 @@ function App() {
   };
 
   // ═══ VALIDATE / REFUSE ═══
-  const handleValidation = async (demId, action) => {
+  const handleValidation = async (demId, action, sendCC = false) => {
     const dem = demandes.find(d => d.id === demId);
     if (!dem) return;
     const collab = collabs.find(c => c.id === dem.collaborateurId);
@@ -190,8 +206,91 @@ function App() {
       await saveCollabs(newC);
     }
     await saveDemandes(newD);
-    await notify(newStatut === "validee" ? "validee" : "refusee", collab, dem);
-    show(action === "valider" ? "Congé validé — notifications envoyées" : "Demande refusée — salarié notifié");
+    await notify(newStatut === "validee" ? "validee" : "refusee", collab, dem, sendCC);
+    show(action === "valider" ? `Congé validé${sendCC ? " — notifications envoyées (+ CC Seb & JB)" : " — notification envoyée"}` : "Demande refusée — salarié notifié");
+  };
+
+  // ═══ CANCEL VALIDATED REQUEST ═══
+  const handleCancelDemande = async (demId) => {
+    const dem = demandes.find(d => d.id === demId);
+    if (!dem) return;
+    const collab = collabs.find(c => c.id === dem.collaborateurId);
+    if (!collab) return;
+    
+    // Restore solde if it was validated
+    if (dem.statut === "validee") {
+      const field = dem.type === "RTT" ? "soldeRTT" : "soldeCP";
+      const newC = collabs.map(c => c.id === collab.id ? { ...c, [field]: (c[field] || 0) + dem.nbJours } : c);
+      await saveCollabs(newC);
+    }
+    
+    // Mark as cancelled
+    const newD = demandes.map(d => d.id === demId ? { ...d, statut: "annulee", dateAnnulation: new Date().toISOString(), annulePar: "Christophe Hermann" } : d);
+    await saveDemandes(newD);
+    
+    // Notify
+    const emailData = {
+      from: cfg.emailAdmin,
+      to: collab.email,
+      cc: "",
+      subject: `Congé annulé — ${collab.prenom} ${collab.nom}`,
+      body: `Bonjour ${collab.prenom},\n\nVotre congé du ${fmt(dem.dateDebut)} au ${fmt(dem.dateFin)} (${dem.type}) a été annulé.\n\nSi besoin, n'hésitez pas à soumettre une nouvelle demande.\n\nCordialement,\nChristophe Hermann\nTrans Air Freight CDG`,
+      type: "cp_rtt_annulation"
+    };
+    if (cfg.webhookMake) {
+      try { await fetch(cfg.webhookMake, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(emailData) }); } catch {}
+    }
+    
+    show("Demande annulée — solde restauré et salarié notifié");
+    setConfirmAction(null);
+  };
+
+  // ═══ MODIFY REQUEST ═══
+  const handleModifyDemande = async () => {
+    if (!editDemande) return;
+    const dem = demandes.find(d => d.id === editDemande.id);
+    if (!dem) return;
+    const collab = collabs.find(c => c.id === dem.collaborateurId);
+    if (!collab) return;
+
+    // Calculate difference in days
+    const oldNbJours = dem.nbJours;
+    const newNbJours = diffDays(editDemande.dateDebut, editDemande.dateFin);
+    const diff = newNbJours - oldNbJours;
+
+    // Adjust solde if validated
+    if (dem.statut === "validee" && diff !== 0) {
+      const field = dem.type === "RTT" ? "soldeRTT" : "soldeCP";
+      const newC = collabs.map(c => c.id === collab.id ? { ...c, [field]: Math.max(0, (c[field] || 0) - diff) } : c);
+      await saveCollabs(newC);
+    }
+
+    // Update demande
+    const newD = demandes.map(d => d.id === editDemande.id ? { 
+      ...d, 
+      dateDebut: editDemande.dateDebut, 
+      dateFin: editDemande.dateFin, 
+      nbJours: newNbJours,
+      motif: editDemande.motif,
+      dateModification: new Date().toISOString(),
+      modifiePar: "Christophe Hermann"
+    } : d);
+    await saveDemandes(newD);
+
+    // Notify
+    await notify("modification", collab, { ...dem, dateDebut: editDemande.dateDebut, dateFin: editDemande.dateFin, nbJours: newNbJours, motif: editDemande.motif });
+    
+    show("Demande modifiée — salarié notifié");
+    setEditDemande(null);
+  };
+
+  // ═══ ADJUST SOLDE ═══
+  const handleAdjustSolde = async () => {
+    if (!editSolde) return;
+    const newC = collabs.map(c => c.id === editSolde.id ? editSolde : c);
+    await saveCollabs(newC);
+    show("Soldes mis à jour");
+    setEditSolde(null);
   };
 
   // ═══ STYLES ═══
@@ -218,10 +317,17 @@ function App() {
         <div style={{ fontSize: 12, color: S.text3, marginBottom: 30 }}>v{VER} — Gestion des congés et RTT</div>
 
         {/* Calendrier public */}
-        <div onClick={() => setScreen("calendar")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 24, cursor: "pointer", transition: "all .15s" }}>
+        <div onClick={() => setScreen("calendar")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 14, cursor: "pointer", transition: "all .15s" }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: S.teal }}>Calendrier partagé</div>
           <div style={{ fontSize: 11, color: S.text3 }}>Voir les congés, RTT et vacations de l'équipe</div>
+        </div>
+
+        {/* Formulaire de demande */}
+        <div onClick={() => window.open("TAF_Formulaire_CP_RTT.html", "_blank")} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "20px", marginBottom: 24, cursor: "pointer", transition: "all .15s" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: S.orange }}>Formulaire de demande</div>
+          <div style={{ fontSize: 11, color: S.text3 }}>Remplir et imprimer un formulaire d'absence</div>
         </div>
 
         {/* Profils salariés */}
@@ -232,10 +338,6 @@ function App() {
               <div style={{ width: 40, height: 40, borderRadius: "50%", background: c.color || S.blue, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", fontSize: 16, fontWeight: 800, color: "#fff" }}>{(c.prenom || "?")[0]}</div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{c.prenom} {c.nom}</div>
               <div style={{ fontSize: 10, color: S.text3 }}>{c.poste || "—"}</div>
-              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 6 }}>
-                <Badge c={S.blue}>CP: {c.soldeCP || 0}j</Badge>
-                <Badge c={S.purple}>RTT: {c.soldeRTT || 0}j</Badge>
-              </div>
             </div>
           ))}
         </div>
@@ -396,7 +498,7 @@ function App() {
         </header>
 
         <div style={{ display: "flex", gap: 4, padding: "12px 20px 0", borderBottom: `1px solid ${S.border}` }}>
-          {[["validation", `Validation (${pendingD.length})`], ["equipe", "Équipe & PINs"], ["calendrier", "Calendrier"], ["config", "Configuration"]].map(([k, l]) => (
+          {[["validation", `Validation (${pendingD.length})`], ["historique", "Historique complet"], ["equipe", "Équipe & Soldes"], ["calendrier", "Calendrier"], ["config", "Configuration"]].map(([k, l]) => (
             <button key={k} onClick={() => setSupTab(k)} style={{ padding: "8px 16px", borderRadius: "8px 8px 0 0", border: `1px solid ${supTab === k ? S.border : "transparent"}`, borderBottom: supTab === k ? `1px solid ${S.bg}` : "none", background: supTab === k ? S.card : "transparent", color: supTab === k ? S.text : S.text3, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", position: "relative", bottom: -1 }}>{l}</button>
           ))}
         </div>
@@ -416,11 +518,67 @@ function App() {
                         {d.motif && <div style={{ fontSize: 11, color: S.text3, marginTop: 4 }}>Motif : {d.motif}</div>}
                         <div style={{ fontSize: 10, color: S.text3, marginTop: 4 }}>Demandé le {fmt(d.dateDemande)}</div>
                       </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Btn onClick={() => handleValidation(d.id, "valider")} bg={S.green}>Valider</Btn>
-                        <Btn onClick={() => handleValidation(d.id, "refuser")} bg={S.red}>Refuser</Btn>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <Btn onClick={() => handleValidation(d.id, "valider", false)} bg={S.green} style={{ fontSize: 11 }}>Valider</Btn>
+                          <Btn onClick={() => handleValidation(d.id, "valider", true)} bg={S.teal} style={{ fontSize: 11 }}>+ CC Seb&JB</Btn>
+                        </div>
+                        <Btn onClick={() => handleValidation(d.id, "refuser")} bg={S.red} style={{ fontSize: 11 }}>Refuser</Btn>
                       </div>
                     </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {supTab === "historique" && (
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ fontSize: 16, fontWeight: 700 }}>Toutes les demandes</span>
+              </div>
+              
+              {collabs.map(collab => {
+                const collabDemandes = demandes.filter(d => d.collaborateurId === collab.id).sort((a, b) => (b.dateDemande || "").localeCompare(a.dateDemande || ""));
+                if (collabDemandes.length === 0) return null;
+                
+                return (
+                  <Card key={collab.id} title={`${collab.prenom} ${collab.nom} — ${collabDemandes.length} demande(s)`} style={{ marginBottom: 14, borderLeft: `4px solid ${collab.color || S.blue}` }}>
+                    <div style={{ fontSize: 11, color: S.text3, marginBottom: 10 }}>
+                      Soldes actuels : CP {collab.soldeCP}j · RTT {collab.soldeRTT}j
+                    </div>
+                    
+                    {collabDemandes.map(d => (
+                      <div key={d.id} style={{ padding: "10px 0", borderBottom: `1px solid ${S.border}15` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                              <Badge c={d.statut === "validee" ? S.green : d.statut === "refusee" ? S.red : d.statut === "annulee" ? S.text3 : S.orange}>
+                                {d.statut === "validee" ? "✓ Validé" : d.statut === "refusee" ? "✗ Refusé" : d.statut === "annulee" ? "Annulé" : "En attente"}
+                              </Badge>
+                              <Badge c={S.blue}>{d.type}</Badge>
+                            </div>
+                            <div style={{ fontSize: 12, color: S.text2 }}>
+                              {fmt(d.dateDebut)} → {fmt(d.dateFin)} ({d.nbJours}j)
+                            </div>
+                            {d.motif && <div style={{ fontSize: 11, color: S.text3, marginTop: 2 }}>Motif : {d.motif}</div>}
+                            <div style={{ fontSize: 10, color: S.text3, marginTop: 2 }}>
+                              Demandé le {fmt(d.dateDemande)}
+                              {d.dateValidation && ` · Validé le ${fmt(d.dateValidation)}`}
+                              {d.dateAnnulation && ` · Annulé le ${fmt(d.dateAnnulation)}`}
+                              {d.dateModification && ` · Modifié le ${fmt(d.dateModification)}`}
+                            </div>
+                          </div>
+                          
+                          {d.statut === "validee" && (
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <Btn onClick={() => setEditDemande({ ...d })} bg={S.orange} style={{ fontSize: 10, padding: "4px 8px" }}>Modifier</Btn>
+                              <Btn onClick={() => setConfirmAction({ type: "cancel", id: d.id })} bg={S.red} style={{ fontSize: 10, padding: "4px 8px" }}>Annuler</Btn>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </Card>
                 );
               })}
@@ -512,6 +670,44 @@ function App() {
             </div>
           )}
         </div>
+        
+        {/* Modal confirmation annulation */}
+        {confirmAction && confirmAction.type === "cancel" && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
+            <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 24, width: 400 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Confirmer l'annulation</div>
+              <div style={{ fontSize: 13, color: S.text2, marginBottom: 16 }}>
+                Êtes-vous sûr de vouloir annuler cette demande ? Le solde sera restauré et le collaborateur sera notifié.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <Btn onClick={() => setConfirmAction(null)} bg={S.bg3} style={{ color: S.text2 }}>Annuler</Btn>
+                <Btn onClick={() => handleCancelDemande(confirmAction.id)} bg={S.red}>Confirmer l'annulation</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal modification demande */}
+        {editDemande && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
+            <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 24, width: 500 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Modifier la demande</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <Inp label="Date début" type="date" value={editDemande.dateDebut} onChange={e => setEditDemande(p => ({ ...p, dateDebut: e.target.value }))} />
+                <Inp label="Date fin" type="date" value={editDemande.dateFin} onChange={e => setEditDemande(p => ({ ...p, dateFin: e.target.value }))} />
+              </div>
+              <Inp label="Motif" value={editDemande.motif || ""} onChange={e => setEditDemande(p => ({ ...p, motif: e.target.value }))} />
+              <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, background: `${S.blue}10`, border: `1px solid ${S.blue}30`, fontSize: 12, color: S.blue }}>
+                Nouvelle durée : {diffDays(editDemande.dateDebut, editDemande.dateFin)} jour(s)
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <Btn onClick={() => setEditDemande(null)} bg={S.bg3} style={{ color: S.text2 }}>Annuler</Btn>
+                <Btn onClick={handleModifyDemande} bg={S.orange}>Enregistrer</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+
         {toast && <div style={{ position: "fixed", bottom: 20, right: 20, padding: "10px 16px", background: S.card, border: `1px solid ${toast.t === "ok" ? `${S.green}30` : `${S.red}30`}`, borderRadius: 8, fontSize: 12, zIndex: 200 }}>{toast.t === "ok" ? "✅" : "❌"} {toast.m}</div>}
       </div>
     );
@@ -602,107 +798,5 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
-
-<!-- TAF_MONITOR_DB_INJECT -->
-<script>window.TAF_MONITOR_DB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';</script>
-<!-- ===== TAF MONITOR v1.0 TRACKER (auto-injected) ===== -->
-<script>
-(function () {
-  'use strict';
-  if (window.__TAF_MONITOR__) return; // évite double injection
-  var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
-  var APP_NAME  = 'TAF CP-RTT';
-  var APP_VER   = 'v4.0';
-  var HB_MS     = 30000;
-  if (!DB_URL) {
-    console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
-    return;
-  }
-  var PC_KEY = 'taf_monitor_pc_id';
-  var pcId = null;
-  try { pcId = localStorage.getItem(PC_KEY); } catch(e) {}
-  if (!pcId) {
-    pcId = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
-    try { localStorage.setItem(PC_KEY, pcId); } catch(e) {}
-  }
-  var ua = navigator.userAgent;
-  var os = /Windows NT 10/.test(ua) ? 'Windows 10/11'
-         : /Windows/.test(ua) ? 'Windows'
-         : /Mac OS X/.test(ua) ? 'macOS'
-         : /Android/.test(ua) ? 'Android'
-         : /iPhone|iPad|iPod/.test(ua) ? 'iOS'
-         : /Linux/.test(ua) ? 'Linux' : 'OS ?';
-  var br = /Edg\//.test(ua) ? 'Edge'
-         : /OPR\//.test(ua) ? 'Opera'
-         : /Chrome\//.test(ua) ? 'Chrome'
-         : /Firefox\//.test(ua) ? 'Firefox'
-         : /Safari\//.test(ua) ? 'Safari' : 'Navigateur ?';
-  var detected = os + ' · ' + br;
-  function fb(method, path, data, keepalive) {
-    var opts = { method: method };
-    if (data !== undefined) {
-      opts.body = JSON.stringify(data);
-      opts.headers = { 'Content-Type': 'application/json' };
-    }
-    if (keepalive) opts.keepalive = true;
-    return fetch(DB_URL + '/' + path + '.json', opts).catch(function(){});
-  }
-  var sid   = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
-  var start = Date.now();
-  var visible = !document.hidden;
-  var lastChk = start;
-  var active = 0;
-  function tick() {
-    var n = Date.now();
-    if (visible) active += (n - lastChk);
-    lastChk = n;
-  }
-  fb('PATCH', 'monitor/pcs/' + pcId, {
-    uuid: pcId, detectedName: detected, os: os, browser: br,
-    userAgent: ua, language: navigator.language || '',
-    timezone: (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
-    screen: (screen.width||0) + 'x' + (screen.height||0),
-    lastSeen: start
-  });
-  fb('PUT', 'monitor/sessions/' + sid, {
-    pcId: pcId, detectedName: detected,
-    app: APP_NAME, appVersion: APP_VER,
-    startTime: start, lastHeartbeat: start,
-    endTime: null, duration: 0, active: true
-  });
-  document.addEventListener('visibilitychange', function () {
-    tick(); visible = !document.hidden;
-  });
-  var hb = setInterval(function () {
-    tick();
-    var n = Date.now();
-    fb('PATCH', 'monitor/sessions/' + sid, {
-      lastHeartbeat: n,
-      duration: Math.round(active/1000),
-      active: true
-    });
-    fb('PATCH', 'monitor/pcs/' + pcId, { lastSeen: n });
-  }, HB_MS);
-  function endSession() {
-    tick();
-    clearInterval(hb);
-    fb('PATCH', 'monitor/sessions/' + sid, {
-      endTime: Date.now(),
-      lastHeartbeat: Date.now(),
-      duration: Math.round(active/1000),
-      active: false
-    }, true);
-  }
-  window.addEventListener('beforeunload', endSession);
-  window.addEventListener('pagehide', endSession);
-  window.__TAF_MONITOR__ = {
-    pcId: pcId, sessionId: sid, app: APP_NAME, version: APP_VER,
-    detectedName: detected,
-    getActiveSec: function(){ tick(); return Math.round(active/1000); }
-  };
-  console.log('[TAF Monitor v1.0] ' + APP_NAME + ' ' + APP_VER + ' | ' + detected + ' | ' + pcId);
-})();
-</script>
-<!-- ===== /TAF MONITOR v1.0 TRACKER ===== -->
 </body>
 </html>
