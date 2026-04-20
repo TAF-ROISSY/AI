@@ -3197,7 +3197,7 @@ ${CONFIG.company.website}`;
     try{
       toast("Génération du PDF…","info");
       const doc = this.generateProformaPDF(pf);
-      const pdfB64 = doc.output("datauristring").split(",")[1];
+      const pdfDataUri = doc.output("datauristring"); // DATA URI complet: data:application/pdf;base64,JVBERi0x...
 
       // Persister la proforma
       pf.status = "SENT";
@@ -3206,7 +3206,7 @@ ${CONFIG.company.website}`;
       await fb.set(`/proformas/${pf.id}`, pf);
       state.proformas[pf.id] = pf;
 
-      // Envoi email via webhook Make.com avec PDF en base64
+      // Envoi email via webhook Make.com avec PDF en data URI
       toast("Envoi email…","info");
       const webhookResponse = await fetch(CONFIG.webhooks.email, {
         method:"POST", headers:{"Content-Type":"application/json"},
@@ -3220,8 +3220,8 @@ ${CONFIG.company.website}`;
           totalTTC: pf.totalTTC,
           dossierId: pf.dossierId,
           body: this.proformaEmailBody(pf),
-          // PDF joint en base64
-          pdfBase64: pdfB64,
+          // PDF joint en data URI (Make.com le convertira automatiquement)
+          pdfDataUri: pdfDataUri,
           pdfFilename: `${pf.numProforma}.pdf`
         })
       });
