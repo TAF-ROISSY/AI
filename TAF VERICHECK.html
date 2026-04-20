@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.3 — Contrôle & Vérification Factures Handlers</title>
+<title>TAF VERICHECK v3.5 — Contrôle & Vérification Factures Handlers</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -694,6 +694,48 @@ function calcTarif(handler, poids) {
   return Math.round(total * 100) / 100;
 }
 
+// Diagnostic : pourquoi calcTarif a-t-il retourné null ?
+// Retourne une raison textuelle courte pour l'UI.
+function diagnoseCalcTarif(handler, poids, productType) {
+  if (!handler) return 'handler_inconnu';
+  if (!poids || poids <= 0) return 'poids_invalide';
+  if (handler.modules) {
+    const moduleUsed = productType && MODULE_IDS.includes(productType) ? productType : 'cargo';
+    const lignes = handler.modules[moduleUsed] || [];
+    if (!lignes.length) return `module_vide:${moduleUsed}`;
+    const actives = lignes.filter(lt => lt.actif);
+    if (!actives.length) return `module_aucune_active:${moduleUsed}`;
+    // Une ou plusieurs lignes mais aucune ne sait calculer (params manquants)
+    return `module_params_incomplets:${moduleUsed}`;
+  }
+  if (handler.lignesT?.length) return 'lignesT_params_incomplets';
+  return 'aucune_config_tarif';
+}
+
+// Libellé humain des raisons de calcul impossible
+const CALC_REASON_LABELS = {
+  'handler_inconnu': 'Handler non identifié',
+  'poids_invalide': 'Poids manquant ou nul',
+  'aucune_config_tarif': 'Aucune grille tarifaire configurée',
+  'lignesT_params_incomplets': 'Paramètres tarifaires incomplets'
+};
+function formatCalcReason(reason) {
+  if (!reason) return '—';
+  if (reason.startsWith('module_vide:')) {
+    const mod = reason.split(':')[1];
+    return `Module ${MODULE_MAP[mod]?.label || mod} vide`;
+  }
+  if (reason.startsWith('module_aucune_active:')) {
+    const mod = reason.split(':')[1];
+    return `Module ${MODULE_MAP[mod]?.label || mod} — aucune ligne active`;
+  }
+  if (reason.startsWith('module_params_incomplets:')) {
+    const mod = reason.split(':')[1];
+    return `Module ${MODULE_MAP[mod]?.label || mod} — paramètres incomplets`;
+  }
+  return CALC_REASON_LABELS[reason] || reason;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // PRODUCT TYPE CLASSIFICATION
 // ═══════════════════════════════════════════════════════════════════
@@ -976,6 +1018,37 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
   const results = [];
   const matchedAWBs = new Set();
 
+  // ── Détermination des préfixes "actifs" pour cette facture ──
+  // Union des préfixes configurés sur les handlers identifiés dans le PDF,
+  // PLUS les préfixes observés réellement sur chaque ligne de facture
+  // (pour capter les LTAs hors-préfixes standards, ex: 157, 810 dans une facture WFS).
+  const activePrefixes = new Set();
+  for (const page of pdfPages) {
+    const handler = handlers.find(h => h.id === page.handler) ?? null;
+    if (handler?.prefixesAWB) {
+      for (const p of handler.prefixesAWB) activePrefixes.add(p);
+    }
+    if (page.prefix) activePrefixes.add(page.prefix);
+    for (const line of page.invoiceLines) {
+      const m = String(line.awb || '').match(/^(\d{3})/);
+      if (m) activePrefixes.add(m[1]);
+    }
+  }
+
+  // ── Filtrage Malta par préfixes ──
+  // Ne garder que les LTAs Malta dont le préfixe (3 premiers chiffres) est actif.
+  // Si aucun préfixe actif (cas pathologique), on garde tout par sécurité.
+  const maltaTotalBefore = maltaRows.length;
+  let maltaScoped;
+  if (activePrefixes.size === 0) {
+    maltaScoped = maltaRows;
+  } else {
+    maltaScoped = maltaRows.filter(r => {
+      const m = String(r.lta || '').match(/^(\d{3})/);
+      return m ? activePrefixes.has(m[1]) : false;
+    });
+  }
+
   // Index bridge par LTA pour lookup O(1)
   const bridgeByLTA = {};
   for (const d of bridgeDossiers || []) {
@@ -984,7 +1057,7 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
   for (const page of pdfPages) {
     const handler = handlers.find(h => h.id === page.handler) ?? null;
     for (const line of page.invoiceLines) {
-      const malta = maltaRows.find(r => r.lta === line.awb) ?? null;
+      const malta = maltaScoped.find(r => r.lta === line.awb) ?? null;
       if (malta) matchedAWBs.add(line.awb);
 
       // Référence calcul : FACTURATION en priorité, sinon grille VERICHECK
@@ -995,6 +1068,10 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
       const ecart = line.montant != null && montantCalcule != null ? Math.round((line.montant - montantCalcule) * 100) / 100 : null;
       const tol = handler?.toleranceEcart ?? 2;
       const statut = !malta && !bridgeEntry ? 'non_trouve' : montantCalcule == null ? 'calcul_imp' : Math.abs(ecart) <= tol ? 'ok' : 'erreur';
+      // Diagnostic pour les calcul_imp : pourquoi le calcul a échoué ?
+      const calcReason = statut === 'calcul_imp' && !bridgeEntry
+        ? diagnoseCalcTarif(handler, malta?.poidsBrut, prodType?.key)
+        : null;
       results.push({
         id: `${line.awb}_p${page.pageNum}`,
         pageNum: page.pageNum,
@@ -1014,6 +1091,7 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
         ecart,
         statut,
         sourceRef,
+        calcReason,
         bridgeDetail: bridgeEntry?.debours_detail ?? null,
         bridgeId: bridgeEntry?.id ?? null,
         rawLine: line.lineText,
@@ -1021,10 +1099,17 @@ function matchAndVerify(pdfPages, maltaRows, handlers) {
       });
     }
   }
-  const maltaOrphelins = maltaRows.filter(r => !matchedAWBs.has(r.lta));
+  // Orphelins = LTAs Malta (du scope filtré) non matchées par la facture
+  const maltaOrphelins = maltaScoped.filter(r => !matchedAWBs.has(r.lta));
   return {
     results,
-    maltaOrphelins
+    maltaOrphelins,
+    scopeInfo: {
+      maltaTotalBefore,
+      maltaAfterScope: maltaScoped.length,
+      maltaIgnored: maltaTotalBefore - maltaScoped.length,
+      activePrefixes: Array.from(activePrefixes).sort()
+    }
   };
 }
 
@@ -1470,7 +1555,7 @@ function Nav(_ref4) {
     className: "drive-dot"
   }), "Drive"), /*#__PURE__*/React.createElement("span", {
     className: "version-tag"
-  }, "v3.3")));
+  }, "v3.5")));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1494,6 +1579,7 @@ function PageAnalyse(_ref5) {
   const [progStep, setProgStep] = useState('');
   const [results, setResults] = useState(session?.results || []);
   const [maltaOrphelins, setMaltaOrphelins] = useState(session?.maltaOrphelins || []);
+  const [scopeInfo, setScopeInfo] = useState(session?.scopeInfo || null);
   const [tab, setTab] = useState('resultats');
   const [filterH, setFilterH] = useState('all');
   const [filterS, setFilterS] = useState('all');
@@ -1584,7 +1670,8 @@ function PageAnalyse(_ref5) {
       setProgStep('Matching & vérification tarifs...');
       const {
         results: res,
-        maltaOrphelins: orphs
+        maltaOrphelins: orphs,
+        scopeInfo
       } = matchAndVerify(pages, malta, params.handlers, bridgeData?.dossiers || [], params.productTypes);
       setProgress(80);
       setProgStep('Sauvegarde Drive...');
@@ -1594,20 +1681,28 @@ function PageAnalyse(_ref5) {
       await driveUpload(`vericheck_${ts}_resultats.json`, {
         date: ts,
         results: res,
-        maltaOrphelins: orphs
+        maltaOrphelins: orphs,
+        scopeInfo
       });
       setProgress(100);
       setResults(res);
       setMaltaOrphelins(orphs);
+      setScopeInfo(scopeInfo);
       const sess = {
         date: new Date().toLocaleString('fr-FR'),
         pdfName: pdfFile.name,
         xlsName: xlsFile.name,
         results: res,
-        maltaOrphelins: orphs
+        maltaOrphelins: orphs,
+        scopeInfo
       };
       setSession(sess);
       saveToArchive(sess, res, orphs);
+
+      // Notification sur le filtrage Malta par handler
+      if (scopeInfo && scopeInfo.maltaIgnored > 0) {
+        toast(`🎯 Malta filtré par handler : ${scopeInfo.maltaAfterScope} LTA(s) retenue(s) / ${scopeInfo.maltaTotalBefore} (${scopeInfo.maltaIgnored} hors scope, préfixes : ${scopeInfo.activePrefixes.join(', ')})`, 'info');
+      }
 
       // Afficher l'onglet le plus pertinent
       const nf = res.filter(r => r.statut === 'non_trouve').length;
@@ -1956,6 +2051,14 @@ function PageAnalyse(_ref5) {
   }, "\u26A0\uFE0F Non trouv\xE9es Malta"), /*#__PURE__*/React.createElement("div", {
     className: "stat-val c-orange"
   }, stats.nf)), /*#__PURE__*/React.createElement("div", {
+    className: "stat",
+    style: { borderColor: stats.imp > 0 ? 'rgba(245,158,11,.3)' : 'var(--border)' }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-lbl"
+  }, "\uD83D\uDD0D Calcul impossible"), /*#__PURE__*/React.createElement("div", {
+    className: "stat-val",
+    style: { color: stats.imp > 0 ? 'var(--amber)' : 'var(--muted2)' }
+  }, stats.imp)), /*#__PURE__*/React.createElement("div", {
     className: "stat"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stat-lbl"
@@ -1985,7 +2088,115 @@ function PageAnalyse(_ref5) {
     }
   }, stats.bridgeCoverage, "%"), /*#__PURE__*/React.createElement("div", {
     className: "stat-sub"
-  }, results.filter(r => r.sourceRef === 'facturation').length, " / ", stats.total))), /*#__PURE__*/React.createElement(AlertPanels, {
+  }, results.filter(r => r.sourceRef === 'facturation').length, " / ", stats.total))),
+  // ── Bandeau filtrage Malta par handler ──
+  scopeInfo && scopeInfo.maltaTotalBefore > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 14px',
+      marginBottom: 14,
+      background: 'rgba(59,130,246,.08)',
+      border: '1px solid rgba(59,130,246,.25)',
+      borderRadius: 8,
+      fontSize: 12,
+      fontFamily: 'var(--mono)',
+      color: 'var(--text)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, "🎯"),
+    /*#__PURE__*/React.createElement("span", null,
+      "Malta filtr\xE9 par handler : ",
+      /*#__PURE__*/React.createElement("strong", { style: { color: 'var(--green)' } }, scopeInfo.maltaAfterScope),
+      " LTA(s) retenue(s) sur ",
+      /*#__PURE__*/React.createElement("strong", null, scopeInfo.maltaTotalBefore),
+      scopeInfo.maltaIgnored > 0 ? /*#__PURE__*/React.createElement("span", null,
+        " — ",
+        /*#__PURE__*/React.createElement("strong", { style: { color: 'var(--muted)' } }, scopeInfo.maltaIgnored),
+        " ignor\xE9es (autres handlers)"
+      ) : null),
+    scopeInfo.activePrefixes && scopeInfo.activePrefixes.length > 0 && /*#__PURE__*/React.createElement("span", {
+      style: { display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }
+    }, /*#__PURE__*/React.createElement("span", { style: { color: 'var(--muted)', fontSize: 11 } }, "Préfixes :"),
+      scopeInfo.activePrefixes.map(p => /*#__PURE__*/React.createElement("span", {
+        key: p,
+        className: "ptag",
+        style: { fontSize: 11 }
+      }, p)))),
+  // ── Panel diagnostic calcul_imp ──
+  stats.imp > 0 && (() => {
+    // Grouper les résultats calcul_imp par raison
+    const byReason = {};
+    for (const r of results) {
+      if (r.statut !== 'calcul_imp') continue;
+      const reason = r.calcReason || 'raison_inconnue';
+      if (!byReason[reason]) byReason[reason] = { count: 0, handlers: new Set(), samples: [] };
+      byReason[reason].count++;
+      byReason[reason].handlers.add(r.handlerNom || r.handlerId || '—');
+      if (byReason[reason].samples.length < 3) byReason[reason].samples.push(r);
+    }
+    const entries = Object.entries(byReason).sort((a, b) => b[1].count - a[1].count);
+    const reasonCards = entries.map(([reason, info]) => {
+      const isModuleIssue = reason.startsWith('module_');
+      const children = [
+        React.createElement("div", {
+          key: 'hdr',
+          style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }
+        }, [
+          React.createElement("span", { key: 'r', style: { fontSize: 12, color: 'var(--text)', fontWeight: 600 } }, formatCalcReason(reason)),
+          React.createElement("span", { key: 'c', style: { fontSize: 11, color: 'var(--amber)', fontWeight: 700 } }, `${info.count} ligne(s)`)
+        ]),
+        React.createElement("div", {
+          key: 'h',
+          style: { fontSize: 10, color: 'var(--muted)', marginTop: 4 }
+        }, `Handler(s) concerné(s) : ${Array.from(info.handlers).join(', ')}`),
+        React.createElement("div", {
+          key: 's',
+          style: { fontSize: 10, color: 'var(--muted2)', marginTop: 2 }
+        }, `Ex : ${info.samples.map(s => `${s.awb} (${s.client || '—'}${s.productLabel ? ' / ' + s.productLabel : ''})`).join(' · ')}`)
+      ];
+      if (isModuleIssue) {
+        children.push(React.createElement("div", {
+          key: 'hint',
+          style: { fontSize: 10, color: 'var(--amber)', marginTop: 6, fontStyle: 'italic' }
+        }, "→ Allez dans Paramètres → Handlers & Tarifs → éditez le handler et ajoutez des lignes tarifaires dans ce module."));
+      }
+      return React.createElement("div", {
+        key: reason,
+        style: {
+          padding: '8px 10px',
+          background: 'rgba(0,0,0,.15)',
+          borderRadius: 6,
+          borderLeft: `3px solid ${isModuleIssue ? 'var(--amber)' : 'var(--red)'}`
+        }
+      }, children);
+    });
+    return React.createElement("div", {
+      style: {
+        padding: '12px 14px',
+        marginBottom: 14,
+        background: 'rgba(245,158,11,.08)',
+        border: '1px solid rgba(245,158,11,.35)',
+        borderRadius: 8,
+        fontFamily: 'var(--mono)'
+      }
+    }, [
+      React.createElement("div", {
+        key: 'title',
+        style: { fontSize: 13, fontWeight: 700, color: 'var(--amber)', marginBottom: 8 }
+      }, `🔍 ${stats.imp} ligne(s) en calcul impossible — diagnostic`),
+      React.createElement("div", {
+        key: 'desc',
+        style: { fontSize: 11, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 10 }
+      }, "Ces lignes ont un dossier Malta mais l'application n'a pas pu calculer le montant attendu. Répartition par cause :"),
+      React.createElement("div", {
+        key: 'cards',
+        style: { display: 'flex', flexDirection: 'column', gap: 6 }
+      }, reasonCards)
+    ]);
+  })(),
+  /*#__PURE__*/React.createElement(AlertPanels, {
     stats: stats,
     maltaOrphelins: maltaOrphelins,
     results: results
@@ -6866,7 +7077,7 @@ function generateReport(session, litiges) {
     if (r.statut !== 'ok') byType[k].pb++;
   });
   let txt = `════════════════════════════════════════════════\n`;
-  txt += `  TAF VERICHECK v3.3 — RAPPORT D'ANALYSE\n`;
+  txt += `  TAF VERICHECK v3.5 — RAPPORT D'ANALYSE\n`;
   txt += `════════════════════════════════════════════════\n\n`;
   txt += `Date     : ${session.date}\n`;
   txt += `Facture  : ${session.pdfName}\n`;
