@@ -2013,7 +2013,7 @@
           style="padding:11px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;color:var(--cyan);font-family:var(--font-main);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;"
           onmouseover="this.style.background='rgba(0,212,255,0.2)'"
           onmouseout="this.style.background='rgba(0,212,255,0.1)'">
-          📮 Envoyer depuis <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dfb6b2afb0adab9fabbeb9abadbeb1acf1b9ad">[email&#160;protected]</a>
+          📮 Envoyer depuis import@taftrans.fr
         </button>
 
         <div id="courrierStatus" style="font-size:11px;text-align:center;height:16px;"></div>
@@ -2121,12 +2121,12 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.2.0
+  v2.2.1
 </div>
 
 <!-- Firebase SDK -->
 <!-- PDF.js pour extraction page 1 -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -5094,9 +5094,9 @@ function renderVolTracking(dossier) {
     } catch(e) { return iso; }
   };
 
-  const scheduled = fmtDate(dossier._fa_scheduled);
-  const estimated = fmtDate(dossier._fa_estimated);
-  const actual    = fmtDate(dossier._fa_actual);
+  const scheduled = fmtHeure(dossier._fa_scheduled);
+  const estimated = fmtHeure(dossier._fa_estimated);
+  const actual    = fmtHeure(dossier._fa_actual);
   const delay     = dossier._fa_delay || 0;
   const status    = dossier._fa_status || '';
 
@@ -5174,27 +5174,30 @@ async function refreshFlightAware() {
     const compagnie=flight.operator_iata||flight.operator||'';
     const delay=flight.arrival_delay?Math.round(flight.arrival_delay/60):0;
     const progress=flight.progress_percent||0;
-    let eta_display='—';
+    let eta_display='—';   // date JJ/MM/YY (pour affichage résumé)
+    let heure_display='—'; // heure HH:MM   (pour vol_eta, WhatsApp, Outlook, alertes BAE)
     if(eta_raw){
       const dt=new Date(eta_raw);
       const pad = n => String(n).padStart(2,'0');
       eta_display = pad(dt.getDate()) + '/' + pad(dt.getMonth()+1) + '/' + String(dt.getFullYear()).slice(-2);
+      heure_display = pad(dt.getHours()) + ':' + pad(dt.getMinutes());
     }
     if(eta_raw) currentDossier.eta=eta_display;
     if(compagnie) currentDossier.compagnie=compagnie;
-    currentDossier.vol_eta=eta_display; currentDossier.vol_status=flight.status||''; currentDossier.vol_delay=delay;
+    currentDossier.vol_eta=heure_display; currentDossier.vol_date=eta_display; currentDossier.vol_status=flight.status||''; currentDossier.vol_delay=delay;
     const piEta=document.querySelector('[id^="pop-dyn-eta"]');
     if(piEta&&eta_display!=='—') piEta.textContent=eta_display;
     const piVol=document.getElementById('pi-vol');
     if(piVol) piVol.textContent=vol+(compagnie?' — '+compagnie:'');
     if(window.__firebaseReady&&currentDossier.id){
       const k=currentDossier.id.replace(/[^a-zA-Z0-9_]/g,'_');
-      writeFirebase('demandes/'+k+'/vol_eta',eta_display).catch(()=>{});
+      writeFirebase('demandes/'+k+'/vol_eta',heure_display).catch(()=>{});
+      writeFirebase('demandes/'+k+'/vol_date',eta_display).catch(()=>{});
       if(compagnie) writeFirebase('demandes/'+k+'/compagnie',compagnie).catch(()=>{});
     }
     const delayTxt=delay>0?` <span style="color:var(--red)">⚠️ +${delay}min</span>`:`<span style="color:var(--green)">✓</span>`;
-    if(status) status.innerHTML=`${dep} → ${arr} · ETA <strong>${eta_display}</strong> ${delayTxt}${progress?' · '+progress+'%':''}`;
-    notify(`✈️ ${vol} — ETA ${eta_display}${delay>0?' (+'+delay+'min)':' ✓'}`,'green');
+    if(status) status.innerHTML=`${dep} → ${arr} · ${eta_display} <strong>${heure_display}</strong> ${delayTxt}${progress?' · '+progress+'%':''}`;
+    notify(`✈️ ${vol} — ${eta_display} ${heure_display}${delay>0?' (+'+delay+'min)':' ✓'}`,'green');
     if(typeof saveDossierFull==='function') saveDossierFull(currentDossier).catch(()=>{});
     // Stocker les données de tracking et afficher dans la sidebar
     currentDossier._fa_scheduled = flight.scheduled_in || '';
@@ -8538,7 +8541,7 @@ const SC_TEMPLATES = [
         <span style="font-size:16px;">✅</span>
         <div>
           <strong style="color:var(--green);">Scénario Make actif (9035538)</strong>
-          <span style="color:var(--text3);margin-left:8px;">· Envoi via <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c8a1a5b8a7babc88bca9aebcbaa9a6bbe6aeba">[email&#160;protected]</a> · Avec ou sans PDF déclaration</span>
+          <span style="color:var(--text3);margin-left:8px;">· Envoi via import@taftrans.fr · Avec ou sans PDF déclaration</span>
         </div>
       </div>
 
@@ -9560,7 +9563,7 @@ const SC_TEMPLATES = [
     </div>
   </div>
 </div>
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ══════════════════════════════════════════════════
 //  NOUVELLE ENTRÉE
 // ══════════════════════════════════════════════════
@@ -15201,107 +15204,5 @@ console.log('[TAF OPS] 🔔 Module alertes sonores chargé');
 })();
 </script>
 
-
-<!-- TAF_MONITOR_DB_INJECT -->
-<script>window.TAF_MONITOR_DB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';</script>
-<!-- ===== TAF MONITOR v1.0 TRACKER (auto-injected) ===== -->
-<script>
-(function () {
-  'use strict';
-  if (window.__TAF_MONITOR__) return; // évite double injection
-  var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
-  var APP_NAME  = 'TAF OPS';
-  var APP_VER   = 'v1.0';
-  var HB_MS     = 30000;
-  if (!DB_URL) {
-    console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
-    return;
-  }
-  var PC_KEY = 'taf_monitor_pc_id';
-  var pcId = null;
-  try { pcId = localStorage.getItem(PC_KEY); } catch(e) {}
-  if (!pcId) {
-    pcId = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
-    try { localStorage.setItem(PC_KEY, pcId); } catch(e) {}
-  }
-  var ua = navigator.userAgent;
-  var os = /Windows NT 10/.test(ua) ? 'Windows 10/11'
-         : /Windows/.test(ua) ? 'Windows'
-         : /Mac OS X/.test(ua) ? 'macOS'
-         : /Android/.test(ua) ? 'Android'
-         : /iPhone|iPad|iPod/.test(ua) ? 'iOS'
-         : /Linux/.test(ua) ? 'Linux' : 'OS ?';
-  var br = /Edg\//.test(ua) ? 'Edge'
-         : /OPR\//.test(ua) ? 'Opera'
-         : /Chrome\//.test(ua) ? 'Chrome'
-         : /Firefox\//.test(ua) ? 'Firefox'
-         : /Safari\//.test(ua) ? 'Safari' : 'Navigateur ?';
-  var detected = os + ' · ' + br;
-  function fb(method, path, data, keepalive) {
-    var opts = { method: method };
-    if (data !== undefined) {
-      opts.body = JSON.stringify(data);
-      opts.headers = { 'Content-Type': 'application/json' };
-    }
-    if (keepalive) opts.keepalive = true;
-    return fetch(DB_URL + '/' + path + '.json', opts).catch(function(){});
-  }
-  var sid   = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
-  var start = Date.now();
-  var visible = !document.hidden;
-  var lastChk = start;
-  var active = 0;
-  function tick() {
-    var n = Date.now();
-    if (visible) active += (n - lastChk);
-    lastChk = n;
-  }
-  fb('PATCH', 'monitor/pcs/' + pcId, {
-    uuid: pcId, detectedName: detected, os: os, browser: br,
-    userAgent: ua, language: navigator.language || '',
-    timezone: (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
-    screen: (screen.width||0) + 'x' + (screen.height||0),
-    lastSeen: start
-  });
-  fb('PUT', 'monitor/sessions/' + sid, {
-    pcId: pcId, detectedName: detected,
-    app: APP_NAME, appVersion: APP_VER,
-    startTime: start, lastHeartbeat: start,
-    endTime: null, duration: 0, active: true
-  });
-  document.addEventListener('visibilitychange', function () {
-    tick(); visible = !document.hidden;
-  });
-  var hb = setInterval(function () {
-    tick();
-    var n = Date.now();
-    fb('PATCH', 'monitor/sessions/' + sid, {
-      lastHeartbeat: n,
-      duration: Math.round(active/1000),
-      active: true
-    });
-    fb('PATCH', 'monitor/pcs/' + pcId, { lastSeen: n });
-  }, HB_MS);
-  function endSession() {
-    tick();
-    clearInterval(hb);
-    fb('PATCH', 'monitor/sessions/' + sid, {
-      endTime: Date.now(),
-      lastHeartbeat: Date.now(),
-      duration: Math.round(active/1000),
-      active: false
-    }, true);
-  }
-  window.addEventListener('beforeunload', endSession);
-  window.addEventListener('pagehide', endSession);
-  window.__TAF_MONITOR__ = {
-    pcId: pcId, sessionId: sid, app: APP_NAME, version: APP_VER,
-    detectedName: detected,
-    getActiveSec: function(){ tick(); return Math.round(active/1000); }
-  };
-  console.log('[TAF Monitor v1.0] ' + APP_NAME + ' ' + APP_VER + ' | ' + detected + ' | ' + pcId);
-})();
-</script>
-<!-- ===== /TAF MONITOR v1.0 TRACKER ===== -->
 </body>
 </html>
