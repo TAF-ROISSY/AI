@@ -250,6 +250,7 @@
     color: var(--text3);
   }
   @keyframes pulse-green { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.6;transform:scale(1.15);} }
 
   /* ─── KPI BAR ─── */
   .kpi-bar {
@@ -1618,6 +1619,7 @@
     <button class="btn-new-entry" onclick="openNE()" title="Créer un nouveau dossier manuellement">
       <span style="font-size:18px;line-height:1;">✚</span> Nouvelle entrée
     </button>
+    <button class="btn" onclick="showAutomationModal()" title="Automatisation des emails">🤖 Automatisation</button>
     <button class="btn" onclick="showParamsModal()">⚙️ Paramètres</button>
   </div>
 </header>
@@ -1765,7 +1767,15 @@
         title="Cliquer pour voir le profil client (solde, factures)">—</span>
       <span class="popup-lta" id="popLTA">—</span>
       <span id="popRef" style="font-size:10px;font-family:var(--font-mono);color:rgba(0,212,255,0.5);padding:2px 7px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.15);border-radius:4px;font-weight:700;display:none;"></span>
-      <span class="status-badge" id="popStatus">—</span>
+      <div class="statut-dropdown-wrap">
+        <span class="status-badge" id="popStatus" 
+          onclick="toggleStatutDropdownPopup()" 
+          title="Cliquer pour changer le statut"
+          style="cursor:pointer;">—</span>
+        <div class="statut-dropdown" id="popStatutDropdown">
+          <!-- rempli dynamiquement -->
+        </div>
+      </div>
     </div>
     <div id="factu-client-badge" style="display:none;margin-top:5px;"></div>
     <div class="popup-actions">
@@ -2219,6 +2229,7 @@
           const item = {
             id, ...d,
             lta,
+            source:   d.source || (d.doc_douane_url || d.form_id ? 'formulaire' : 'manuel'), // Détection auto
             statut:   d.statut || 'Demande reçue',
             bm:       d.bm || false,
             poids:    d.poids_brut ? d.poids_brut + ' kg' : (d.kgb ? d.kgb + ' kg' : (d.poids || '—')),
@@ -3010,6 +3021,19 @@ function renderModule(type, items) {
     const bmIcon = d.bm
       ? `<span class="bm-icon bm-received" title="BM reçu">✅</span>`
       : `<span class="bm-icon bm-waiting" title="BM en attente">📄</span>`;
+    
+    // Icône d'alerte 30 minutes pour demandes non prises en charge
+    let alertIcon = '';
+    if (d.statut === 'Demande reçue' && d.source === 'formulaire') {
+      const createdTime = new Date(d.created_at || d.date).getTime();
+      const now = Date.now();
+      const diffMinutes = (now - createdTime) / (1000 * 60);
+      if (diffMinutes >= 30) {
+        alertIcon = `<span class="alert-30min-icon" title="⚠️ Non prise en charge depuis ${Math.floor(diffMinutes)} min" 
+          style="color:var(--red);font-size:16px;animation:pulse 2s infinite;">🔔</span>`;
+      }
+    }
+    
     const ltaDisplay = d.lta ? `<span class="dossier-lta">${d.lta}</span>` : `<span class="dossier-lta" style="color:var(--text3)">Cotation</span>`;
     const urgentNote = d.urgent ? `<span style="color:var(--red);font-size:10px;font-weight:700;">● URGENT</span>` : '';
 
@@ -3052,6 +3076,7 @@ function renderModule(type, items) {
           ${urgentNote}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
+          ${alertIcon}
           ${bmIcon}
           <span class="dossier-time">${timeStr || dateStr}</span>
         </div>
@@ -4032,17 +4057,18 @@ const DEFAULT_POPUP_LAYOUT = [
   { id:'pop_declaration',label:'N° Déclaration',     key:'declaration',  span:2, size:'large',  visible:true,  editable:true, type:'field' },
   { id:'pop_eur1',     label:'EUR1',                 key:'eur1',         span:1, size:'normal', visible:true,  editable:true, type:'field' },
   { id:'pop_num',      label:'N° Dossier',           key:'num_dossier',  span:1, size:'small',  visible:true,  editable:true, type:'field' },
+  // ── Documents Douaniers (AVANT Notes) ──
+  { id:'pop_doc',      label:'📄 Document douanier', key:'doc_douane',   span:4, size:'normal', visible:true,  editable:true, type:'field' },
   // ── Notes ──
   { id:'pop_notes',    label:'Notes internes',       key:'notes',        span:4, size:'normal', visible:true,  editable:true, type:'field' },
   // ── Masqués par défaut ──
   { id:'pop_email',    label:'Email client',          key:'email',        span:2, size:'small',  visible:false, editable:true, type:'field' },
   { id:'pop_created',  label:'Date soumission',       key:'created_at',   span:1, size:'small',  visible:false, editable:false, type:'field' },
-  { id:'pop_doc',      label:'Documents douaniers',   key:'doc_douane',   span:4, size:'normal', visible:false, editable:true, type:'field' },
 ];
 
 // Déclaration sur window pour accès global robuste
 // Version du layout — incrémenter à chaque changement de DEFAULT_POPUP_LAYOUT
-const POPUP_LAYOUT_VERSION = 5; // v5 : layout compact, docs douaniers masqués (gérés en rightSidebar)
+const POPUP_LAYOUT_VERSION = 6; // v6 : Document douanier visible et placé avant Notes
 
 window.popupLayout = (function() {
   try {
@@ -4825,6 +4851,11 @@ async function setStatut(type, id, newStatut) {
   }
 
   notify('Statut mis à jour : ' + newStatut, 'green');
+  
+  // Émettre un événement pour le système d'alertes 30min
+  window.dispatchEvent(new CustomEvent('demande-statut-changed', { 
+    detail: { id, newStatut, type } 
+  }));
 
   // Sync FACTURATION
   const updatedDossier2 = DEMO_DATA[type]?.find(x => x.id === id);
@@ -4844,6 +4875,62 @@ async function setStatut(type, id, newStatut) {
       triggerNotificationsForStatut(updatedDossier2, newStatut).catch(()=>{});
     }
   }
+}
+
+
+// ══════════════════════════════════════════════════
+//  DROPDOWN STATUT DANS LE POPUP
+// ══════════════════════════════════════════════════
+function toggleStatutDropdownPopup() {
+  const drop = document.getElementById('popStatutDropdown');
+  if (!drop || !currentDossier) return;
+  
+  const isOpen = drop.classList.contains('open');
+  
+  if (!isOpen) {
+    const statuts = opsConfig?.statuts || DEFAULT_CONFIG.statuts;
+    const current = currentDossier.statut || '';
+    
+    drop.innerHTML = statuts.map(st => {
+      const sl = STATUS_LABELS[st] || { label: st, cls: 's-attente' };
+      const isCurrent = st === current;
+      return `<div class="statut-dropdown-item ${isCurrent?'current':''}"
+        onclick="event.stopPropagation();setStatutFromPopup('${st.replace(/'/g, "'")}')"
+        title="${st}">
+        <span class="status-badge ${sl.cls}" style="font-size:10px;padding:2px 6px;${statusBadgeStyle(sl)}">${sl.label}</span>
+        ${isCurrent ? '✓' : ''}
+      </div>`;
+    }).join('');
+    
+    drop.classList.add('open');
+    
+    // Fermer en cliquant ailleurs
+    setTimeout(() => {
+      const closeHandler = (e) => {
+        if (!drop.contains(e.target) && !document.getElementById('popStatus').contains(e.target)) {
+          drop.classList.remove('open');
+          document.removeEventListener('click', closeHandler);
+        }
+      };
+      document.addEventListener('click', closeHandler);
+    }, 10);
+  } else {
+    drop.classList.remove('open');
+  }
+}
+
+async function setStatutFromPopup(newStatut) {
+  if (!currentDossier) return;
+  
+  const type = currentDossier.module;
+  const id = currentDossier.id;
+  
+  // Fermer le dropdown
+  const drop = document.getElementById('popStatutDropdown');
+  if (drop) drop.classList.remove('open');
+  
+  // Mettre à jour via la fonction existante
+  await setStatut(type, id, newStatut);
 }
 
 
@@ -15342,6 +15429,603 @@ window.__tafCheckNewDemandes = function(data) {
 };
 
 console.log('[TAF OPS] 🔔 Module alertes sonores chargé');
+
+// ══════════════════════════════════════════════════
+//  SYSTÈME D'ALERTE 30 MINUTES - DEMANDES NON PRISES EN CHARGE
+// ══════════════════════════════════════════════════
+(function() {
+  // Webhooks
+  const WEBHOOK_MAKE_ALERT = 'https://hook.eu2.make.com/VOTRE_WEBHOOK_ALERTE_30MIN'; // À configurer
+  const WEBHOOK_SLACK = 'https://hooks.slack.com/services/VOTRE_WEBHOOK_SLACK'; // À configurer
+  
+  // Stockage des demandes déjà alertées (pour ne pas spammer)
+  const alertedDemandes = new Set();
+  
+  async function sendMakeAlert(demande) {
+    try {
+      const payload = {
+        dossier_id: demande.id,
+        client: demande.client,
+        lta: demande.lta || 'Cotation',
+        created_at: demande.created_at || demande.date,
+        minutes_elapsed: Math.floor((Date.now() - new Date(demande.created_at || demande.date).getTime()) / (1000 * 60)),
+        email_to: 'import@taftrans.fr',
+        type: demande.type || '',
+        flux: demande.flux || ''
+      };
+      
+      await fetch(WEBHOOK_MAKE_ALERT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('[ALERTE 30MIN] 📧 Email envoyé via Make pour:', demande.client);
+    } catch(e) {
+      console.warn('[ALERTE 30MIN] Erreur envoi Make:', e);
+    }
+  }
+  
+  async function sendSlackAlert(demande) {
+    try {
+      const minutesElapsed = Math.floor((Date.now() - new Date(demande.created_at || demande.date).getTime()) / (1000 * 60));
+      const message = {
+        text: `⚠️ ALERTE DEMANDE NON PRISE EN CHARGE`,
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: '🔔 Demande en attente depuis plus de 30 minutes'
+            }
+          },
+          {
+            type: 'section',
+            fields: [
+              { type: 'mrkdwn', text: `*Client:*\n${demande.client}` },
+              { type: 'mrkdwn', text: `*LTA:*\n${demande.lta || 'Cotation'}` },
+              { type: 'mrkdwn', text: `*Type:*\n${demande.type || '—'}` },
+              { type: 'mrkdwn', text: `*Temps écoulé:*\n${minutesElapsed} minutes` }
+            ]
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: `Dossier: ${demande.id} | Créé: ${(demande.created_at || demande.date || '').slice(0,16)}`
+              }
+            ]
+          }
+        ]
+      };
+      
+      await fetch(WEBHOOK_SLACK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message)
+      });
+      
+      console.log('[ALERTE 30MIN] 📱 Slack notifié pour:', demande.client);
+    } catch(e) {
+      console.warn('[ALERTE 30MIN] Erreur envoi Slack:', e);
+    }
+  }
+  
+  function checkAlertes30Min() {
+    if (!window.DEMO_DATA) return;
+    
+    const now = Date.now();
+    const allDemandes = [
+      ...(window.DEMO_DATA.export || []),
+      ...(window.DEMO_DATA.import || []),
+      ...(window.DEMO_DATA.perishable || []),
+      ...(window.DEMO_DATA.cotation || [])
+    ];
+    
+    allDemandes.forEach(d => {
+      // Vérifier seulement les demandes venant de formulaires
+      if (d.source !== 'formulaire') return;
+      if (d.statut !== 'Demande reçue') return;
+      if (alertedDemandes.has(d.id)) return; // Déjà alerté
+      
+      const createdTime = new Date(d.created_at || d.date).getTime();
+      const diffMinutes = (now - createdTime) / (1000 * 60);
+      
+      if (diffMinutes >= 30) {
+        console.log('[ALERTE 30MIN] ⚠️ Demande non prise en charge:', d.client, '—', Math.floor(diffMinutes), 'min');
+        
+        // Marquer comme alerté
+        alertedDemandes.add(d.id);
+        
+        // Envoyer les alertes
+        sendMakeAlert(d);
+        sendSlackAlert(d);
+        
+        // Marquer dans Firebase qu'une alerte a été envoyée
+        if (window.__firebaseReady) {
+          writeFirebase(`demandes/${d.id}/alert_30min_sent`, new Date().toISOString()).catch(()=>{});
+        }
+        
+        // Notification visuelle
+        if (typeof notify === 'function') {
+          notify(`⚠️ ALERTE: ${d.client} non pris en charge depuis ${Math.floor(diffMinutes)} min`, 'red');
+        }
+      }
+    });
+  }
+  
+  // Nettoyer le set des alertes quand le statut change
+  window.addEventListener('demande-statut-changed', (e) => {
+    if (e.detail && e.detail.id && e.detail.newStatut !== 'Demande reçue') {
+      alertedDemandes.delete(e.detail.id);
+    }
+  });
+  
+  // Vérifier toutes les minutes
+  setInterval(checkAlertes30Min, 60 * 1000);
+  
+  // Première vérification après 10 secondes
+  setTimeout(checkAlertes30Min, 10000);
+  
+  console.log('[TAF OPS] ⏱️ Système d\'alerte 30 minutes activé');
+})();
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!--  MODAL AUTOMATISATION -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="params-modal" id="automationModal" style="display:none;">
+  <div class="params-inner">
+    
+    <!-- HEADER -->
+    <div class="params-header">
+      <div class="params-header-left">
+        <div class="params-header-icon">🤖</div>
+        <div>
+          <div class="params-title">Automatisation des Emails</div>
+          <div class="params-subtitle">Configuration des envois automatiques de mails selon les règles métier</div>
+        </div>
+      </div>
+      <div class="params-header-actions">
+        <button class="params-btn-save params-save-btn" onclick="saveAutomationRules()">
+          💾 Sauvegarder
+        </button>
+        <button class="params-btn-close" onclick="closeAutomationModal()" title="Fermer">✕</button>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="params-body" style="padding:32px;">
+      
+      <!-- INTRODUCTION -->
+      <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:20px;margin-bottom:32px;">
+        <div style="font-size:14px;font-weight:600;color:var(--cyan);margin-bottom:8px;">💡 Comment ça marche ?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6;">
+          Créez des règles d'automatisation pour envoyer automatiquement des emails personnalisés (bon de magasinage, documents douane, etc.) 
+          selon le client, le type de dossier, le statut, ou tout autre critère. Chaque règle est évaluée automatiquement quand un dossier change de statut.
+        </div>
+      </div>
+
+      <!-- LISTE DES RÈGLES -->
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="font-size:16px;font-weight:600;color:var(--text);">Règles actives</h3>
+          <button onclick="addAutomationRule()" 
+            style="padding:8px 16px;background:var(--cyan);color:#000;border:none;border-radius:8px;font-family:var(--font-main);font-size:13px;font-weight:600;cursor:pointer;">
+            ✚ Nouvelle règle
+          </button>
+        </div>
+        
+        <div id="automationRulesList">
+          <!-- Rempli dynamiquement -->
+        </div>
+      </div>
+
+      <!-- TEMPLATES D'EMAILS -->
+      <div style="margin-top:48px;padding-top:32px;border-top:1px solid var(--border);">
+        <h3 style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;">Templates d'emails</h3>
+        <div id="emailTemplatesList">
+          <!-- Rempli dynamiquement -->
+        </div>
+        <button onclick="addEmailTemplate()" 
+          style="margin-top:16px;padding:8px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;font-weight:600;cursor:pointer;">
+          ✚ Nouveau template
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  MODULE AUTOMATISATION
+// ══════════════════════════════════════════════════
+(function() {
+  let automationRules = [];
+  let emailTemplates = [];
+  
+  // Charger depuis Firebase
+  async function loadAutomationConfig() {
+    try {
+      const rules = await readFirebase('automation/rules');
+      const templates = await readFirebase('automation/templates');
+      
+      // Si aucune règle n'existe, créer les règles par défaut SEDIS
+      if (!rules || rules.length === 0) {
+        automationRules = [
+          {
+            id: 'rule_sedis_bonmag',
+            name: '📦 Bon Mag SEDIS — Réceptions',
+            active: true,
+            conditions: {
+              client: 'SEDIS',
+              type: '',
+              flux: 'import',
+              statut: 'Livré'
+            },
+            action: {
+              type: 'send_email',
+              template_id: 'tpl_bonmag_sedis',
+              email_to: '{{client_email}}',
+              cc: '',
+              webhook: 'https://hook.eu2.make.com/WEBHOOK_BONMAG_SEDIS'
+            }
+          },
+          {
+            id: 'rule_sedis_weekend',
+            name: '🗓️ SEDIS — Alerte Week-end & Jours Fériés',
+            active: false, // À activer manuellement
+            conditions: {
+              client: 'SEDIS',
+              type: '',
+              flux: 'import',
+              statut: 'Arrivé'
+            },
+            action: {
+              type: 'send_email',
+              template_id: 'tpl_alerte_weekend',
+              email_to: 'import@taftrans.fr',
+              cc: '{{client_email}}',
+              webhook: 'https://hook.eu2.make.com/WEBHOOK_ALERTE_WEEKEND'
+            }
+          }
+        ];
+        
+        emailTemplates = [
+          {
+            id: 'tpl_bonmag_sedis',
+            name: 'Bon de Magasinage SEDIS',
+            subject: 'Bon de Magasinage — {{client}} — LTA {{lta}}',
+            body: 'Bonjour,\n\nVeuillez trouver ci-joint le bon de magasinage pour votre arrivage :\n\n- Client : {{client}}\n- LTA : {{lta}}\n- Date : {{date}}\n- Compagnie : {{compagnie}}\n\nCordialement,\nTAF Transit Air Fret'
+          },
+          {
+            id: 'tpl_alerte_weekend',
+            name: 'Alerte Arrivage Week-end',
+            subject: '⚠️ Arrivage Week-end — {{client}} — {{lta}}',
+            body: 'ALERTE ARRIVAGE WEEK-END / JOUR FÉRIÉ\n\nClient : {{client}}\nLTA : {{lta}}\nCompagnie : {{compagnie}}\nETA : {{eta}}\n\nCet arrivage nécessite une attention particulière.\n\nTAF OPS'
+          }
+        ];
+        
+        console.log('[AUTOMATION] Règles par défaut SEDIS créées');
+      } else {
+        automationRules = rules || [];
+        emailTemplates = templates || [];
+      }
+      
+      renderAutomationRules();
+      renderEmailTemplates();
+    } catch(e) {
+      console.warn('[AUTOMATION] Erreur chargement:', e);
+    }
+  }
+  
+  window.showAutomationModal = function() {
+    const modal = document.getElementById('automationModal');
+    modal.style.display = 'block';
+    setTimeout(() => modal.classList.add('active'), 10);
+    loadAutomationConfig();
+  };
+  
+  window.closeAutomationModal = function() {
+    const modal = document.getElementById('automationModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+  };
+  
+  window.addAutomationRule = function() {
+    const newRule = {
+      id: 'rule_' + Date.now(),
+      name: 'Nouvelle règle',
+      active: true,
+      conditions: {
+        client: '',      // Nom du client (ou vide pour tous)
+        type: '',        // Type de fret
+        flux: '',        // export/import/perishable
+        statut: ''       // Statut déclencheur
+      },
+      action: {
+        type: 'send_email',
+        template_id: '',
+        email_to: '',    // Email destinataire (ou champ du dossier comme {{client_email}})
+        cc: '',
+        webhook: ''      // Webhook Make pour envoi
+      }
+    };
+    
+    automationRules.push(newRule);
+    renderAutomationRules();
+    // Scroll vers la nouvelle règle
+    setTimeout(() => {
+      const ruleEl = document.getElementById('rule-' + newRule.id);
+      if (ruleEl) ruleEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+  
+  window.deleteAutomationRule = function(ruleId) {
+    if (!confirm('Supprimer cette règle ?')) return;
+    automationRules = automationRules.filter(r => r.id !== ruleId);
+    renderAutomationRules();
+  };
+  
+  window.addEmailTemplate = function() {
+    const newTemplate = {
+      id: 'tpl_' + Date.now(),
+      name: 'Nouveau template',
+      subject: '',
+      body: '',
+      variables: [] // Variables dynamiques {{nom_variable}}
+    };
+    
+    emailTemplates.push(newTemplate);
+    renderEmailTemplates();
+  };
+  
+  window.deleteEmailTemplate = function(tplId) {
+    if (!confirm('Supprimer ce template ?')) return;
+    emailTemplates = emailTemplates.filter(t => t.id !== tplId);
+    renderEmailTemplates();
+  };
+  
+  function renderAutomationRules() {
+    const container = document.getElementById('automationRulesList');
+    if (!container) return;
+    
+    if (automationRules.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:48px 24px;color:var(--text3);">
+          <div style="font-size:48px;margin-bottom:16px;">🤖</div>
+          <div style="font-size:14px;">Aucune règle d'automatisation</div>
+          <div style="font-size:12px;margin-top:8px;">Cliquez sur "Nouvelle règle" pour commencer</div>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = automationRules.map(rule => `
+      <div id="rule-${rule.id}" style="background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <input type="checkbox" ${rule.active?'checked':''} onchange="toggleRule('${rule.id}', this.checked)"
+              style="width:18px;height:18px;cursor:pointer;">
+            <input type="text" value="${rule.name}" onchange="updateRuleName('${rule.id}', this.value)"
+              style="background:transparent;border:none;color:var(--text);font-size:15px;font-weight:600;font-family:var(--font-main);outline:none;border-bottom:1px dashed transparent;"
+              onmouseover="this.style.borderBottomColor='var(--border2)'"
+              onmouseout="this.style.borderBottomColor='transparent'">
+          </div>
+          <button onclick="deleteAutomationRule('${rule.id}')" 
+            style="background:rgba(255,61,61,0.1);border:1px solid rgba(255,61,61,0.3);border-radius:6px;padding:6px 12px;color:var(--red);font-size:12px;cursor:pointer;">
+            🗑 Supprimer
+          </button>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Client (vide = tous)</label>
+            <input type="text" value="${rule.conditions.client||''}" onchange="updateRuleCondition('${rule.id}', 'client', this.value)"
+              placeholder="Ex: CAPMARIN, SIDI..."
+              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Type de fret</label>
+            <input type="text" value="${rule.conditions.type||''}" onchange="updateRuleCondition('${rule.id}', 'type', this.value)"
+              placeholder="Ex: Seafood, AVI, FL..."
+              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Flux</label>
+            <select onchange="updateRuleCondition('${rule.id}', 'flux', this.value)"
+              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+              <option value="" ${!rule.conditions.flux?'selected':''}>Tous les flux</option>
+              <option value="export" ${rule.conditions.flux==='export'?'selected':''}>Export</option>
+              <option value="import" ${rule.conditions.flux==='import'?'selected':''}>Import</option>
+              <option value="perishable" ${rule.conditions.flux==='perishable'?'selected':''}>Périssable</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Statut déclencheur</label>
+            <input type="text" value="${rule.conditions.statut||''}" onchange="updateRuleCondition('${rule.id}', 'statut', this.value)"
+              placeholder="Ex: OK douane, Livré..."
+              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+          </div>
+        </div>
+        
+        <div style="border-top:1px solid var(--border);padding-top:16px;">
+          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Action : Envoi email via webhook Make</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <input type="text" value="${rule.action.email_to||''}" onchange="updateRuleAction('${rule.id}', 'email_to', this.value)"
+              placeholder="Email destinataire ou {{client_email}}"
+              style="padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+            <input type="text" value="${rule.action.webhook||''}" onchange="updateRuleAction('${rule.id}', 'webhook', this.value)"
+              placeholder="https://hook.eu2.make.com/..."
+              style="padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+          </div>
+          <div style="margin-top:8px;">
+            <input type="text" value="${rule.action.template_id||''}" onchange="updateRuleAction('${rule.id}', 'template_id', this.value)"
+              placeholder="ID du template d'email (optionnel)"
+              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  function renderEmailTemplates() {
+    const container = document.getElementById('emailTemplatesList');
+    if (!container) return;
+    
+    if (emailTemplates.length === 0) {
+      container.innerHTML = `<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px;">Aucun template</div>`;
+      return;
+    }
+    
+    container.innerHTML = emailTemplates.map(tpl => `
+      <div style="background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <input type="text" value="${tpl.name}" onchange="updateTemplateName('${tpl.id}', this.value)"
+            style="background:transparent;border:none;color:var(--text);font-size:14px;font-weight:600;font-family:var(--font-main);">
+          <button onclick="deleteEmailTemplate('${tpl.id}')" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;">🗑</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-bottom:8px;">ID: ${tpl.id}</div>
+        <input type="text" value="${tpl.subject||''}" onchange="updateTemplateSubject('${tpl.id}', this.value)"
+          placeholder="Sujet de l'email"
+          style="width:100%;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-main);font-size:12px;margin-bottom:8px;">
+        <textarea onchange="updateTemplateBody('${tpl.id}', this.value)"
+          placeholder="Corps de l'email (utilisez {{variable}} pour insérer des données du dossier)"
+          style="width:100%;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-main);font-size:12px;min-height:100px;resize:vertical;">${tpl.body||''}</textarea>
+      </div>
+    `).join('');
+  }
+  
+  window.toggleRule = function(ruleId, active) {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (rule) rule.active = active;
+  };
+  
+  window.updateRuleName = function(ruleId, name) {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (rule) rule.name = name;
+  };
+  
+  window.updateRuleCondition = function(ruleId, field, value) {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (rule) rule.conditions[field] = value;
+  };
+  
+  window.updateRuleAction = function(ruleId, field, value) {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (rule) rule.action[field] = value;
+  };
+  
+  window.updateTemplateName = function(tplId, name) {
+    const tpl = emailTemplates.find(t => t.id === tplId);
+    if (tpl) tpl.name = name;
+  };
+  
+  window.updateTemplateSubject = function(tplId, subject) {
+    const tpl = emailTemplates.find(t => t.id === tplId);
+    if (tpl) tpl.subject = subject;
+  };
+  
+  window.updateTemplateBody = function(tplId, body) {
+    const tpl = emailTemplates.find(t => t.id === tplId);
+    if (tpl) tpl.body = body;
+  };
+  
+  window.saveAutomationRules = async function() {
+    try {
+      await writeFirebase('automation/rules', automationRules);
+      await writeFirebase('automation/templates', emailTemplates);
+      notify('Configuration d\'automatisation sauvegardée', 'green');
+      console.log('[AUTOMATION] Sauvegarde réussie:', automationRules.length, 'règles');
+    } catch(e) {
+      notify('Erreur lors de la sauvegarde', 'red');
+      console.error('[AUTOMATION] Erreur:', e);
+    }
+  };
+  
+  // Fonction de détection week-end et jours fériés français 2026
+  function isWeekendOrHoliday() {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = dimanche, 6 = samedi
+    
+    // Week-end
+    if (dayOfWeek === 0 || dayOfWeek === 6) return true;
+    
+    // Jours fériés français 2026
+    const holidays2026 = [
+      '2026-01-01', // Nouvel an
+      '2026-04-06', // Lundi de Pâques
+      '2026-05-01', // Fête du travail
+      '2026-05-08', // Victoire 1945
+      '2026-05-14', // Ascension
+      '2026-05-25', // Lundi de Pentecôte
+      '2026-07-14', // Fête nationale
+      '2026-08-15', // Assomption
+      '2026-11-01', // Toussaint
+      '2026-11-11', // Armistice
+      '2026-12-25'  // Noël
+    ];
+    
+    const todayStr = now.toISOString().slice(0, 10);
+    return holidays2026.includes(todayStr);
+  }
+  
+  // Évaluer les règles quand un statut change
+  window.addEventListener('demande-statut-changed', async (e) => {
+    const { id, newStatut, type } = e.detail;
+    const demande = window.DEMO_DATA[type]?.find(d => d.id === id);
+    if (!demande) return;
+    
+    // Évaluer chaque règle active
+    for (const rule of automationRules) {
+      if (!rule.active) continue;
+      
+      // Vérifier les conditions de base
+      const clientMatch = !rule.conditions.client || (demande.client||'').toLowerCase().includes(rule.conditions.client.toLowerCase());
+      const typeMatch = !rule.conditions.type || (demande.type||'').toLowerCase().includes(rule.conditions.type.toLowerCase());
+      const fluxMatch = !rule.conditions.flux || type === rule.conditions.flux;
+      const statutMatch = !rule.conditions.statut || newStatut === rule.conditions.statut;
+      
+      // Condition spéciale : règle week-end (si le nom contient "Week-end" ou "Jours Fériés")
+      const isWeekendRule = rule.name.toLowerCase().includes('week-end') || rule.name.toLowerCase().includes('jours fériés');
+      const weekendConditionMet = !isWeekendRule || isWeekendOrHoliday();
+      
+      if (clientMatch && typeMatch && fluxMatch && statutMatch && weekendConditionMet) {
+        console.log('[AUTOMATION] Règle déclenchée:', rule.name, '— Dossier:', demande.client);
+        
+        // Exécuter l'action
+        if (rule.action.type === 'send_email' && rule.action.webhook) {
+          try {
+            // Préparer les données
+            const payload = {
+              dossier: demande,
+              email_to: rule.action.email_to,
+              template_id: rule.action.template_id,
+              rule_name: rule.name,
+              is_weekend_or_holiday: isWeekendOrHoliday()
+            };
+            
+            // Envoyer au webhook Make
+            await fetch(rule.action.webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            
+            console.log('[AUTOMATION] Email envoyé via Make pour:', demande.client);
+            notify(`📧 Email automatique envoyé : ${rule.name}`, 'green');
+          } catch(err) {
+            console.error('[AUTOMATION] Erreur envoi:', err);
+          }
+        }
+      }
+    }
+  });
+  
+  console.log('[TAF OPS] 🤖 Module automatisation chargé');
 })();
 </script>
 
