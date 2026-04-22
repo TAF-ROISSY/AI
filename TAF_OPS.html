@@ -2040,61 +2040,136 @@
 
 <!-- ─── MODAL AUTOMATISATIONS ─── -->
 <div class="auto-modal" id="autoModal">
-  <div class="auto-modal-inner">
+  <div class="auto-modal-inner" style="max-width:900px;">
     <div class="auto-modal-header">
-      <div class="auto-modal-title">⚡ Automatisations</div>
+      <div class="auto-modal-title">🤖 Automatisations</div>
       <button class="btn btn-red" onclick="document.getElementById('autoModal').classList.remove('active')">✕ Fermer</button>
     </div>
 
-    <p style="color:var(--text2); font-size:13px; margin-bottom:20px; line-height:1.6;">
-      Créez des règles <strong>SI… ALORS…</strong> — déclenchées automatiquement sans aucune intervention manuelle.
+    <p style="color:var(--text2); font-size:13px; margin-bottom:24px; line-height:1.6;">
+      Envoi automatique d'emails selon vos règles métier
     </p>
 
-    <!-- RÈGLES EXISTANTES -->
-    <div class="rules-grid" id="rulesList"></div>
+    <!-- STATION ANIMALIÈRE -->
+    <div style="background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-size:32px;">🐾</div>
+          <div>
+            <div style="font-size:16px;font-weight:600;color:var(--text);">Station Animalière</div>
+            <div style="font-size:12px;color:var(--text3);">Envoi auto quand Declaration + Bon Mag + Trace NT sont remplis</div>
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="autoStationActive" onchange="toggleStationAuto(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
 
-    <!-- NOUVELLE RÈGLE -->
-    <div class="new-rule-form">
-      <div style="font-size:13px; font-weight:700; margin-bottom:16px; color:var(--cyan);">+ Nouvelle règle</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>SI déclencheur</label>
-          <select id="r-trigger">
-            <option value="bm_recu">BM reçu</option>
-            <option value="ok_douane">Déclaration OK (bon à enlever)</option>
-            <option value="nouveau_dossier">Nouveau dossier créé</option>
-            <option value="statut_change">Changement de statut</option>
-            <option value="cotation_recue">Cotation reçue</option>
-          </select>
+      <!-- Configuration -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Email Station Animalière</label>
+          <input type="email" id="stationEmail" placeholder="station.animaux@exemple.fr"
+            style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
         </div>
-        <div class="form-group">
-          <label>Condition client (optionnel)</label>
-          <input type="text" id="r-condition" placeholder="Ex: ORCA MAREE, ou laisser vide">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Copie à (CC)</label>
+          <input type="email" id="stationCC" value="import@taftrans.fr" readonly
+            style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-main);font-size:13px;">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>ALORS action</label>
-          <select id="r-action">
-            <option value="mail">Envoyer un mail</option>
-            <option value="webhook">Déclencher webhook Make</option>
-            <option value="notif">Notification équipe</option>
-            <option value="cal">Créer événement calendrier</option>
-          </select>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Webhook Make.com</label>
+        <input type="url" id="stationWebhook" placeholder="https://hook.eu2.make.com/..."
+          style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">💡 Créez un scénario Make.com et collez l'URL du webhook ici</div>
+      </div>
+
+      <!-- Template Email -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Template Email (HTML)</label>
+          <button onclick="previewStationEmail()" 
+            style="padding:6px 12px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:6px;color:var(--cyan);font-size:11px;cursor:pointer;font-family:var(--font-main);">
+            👁️ Aperçu
+          </button>
         </div>
-        <div class="form-group">
-          <label>Destinataire / URL</label>
-          <input type="text" id="r-target" placeholder="email@client.fr ou URL webhook">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Variables disponibles : {{client}}, {{lta}}, {{colis}}, {{declaration}}, {{bon_mag}}, {{trace_nt}}</div>
+          <textarea id="stationTemplate" 
+            style="width:100%;min-height:200px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:12px;color:var(--text);font-family:var(--font-mono);font-size:11px;resize:vertical;"></textarea>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:16px;">
-        <label>Nom de la règle</label>
-        <input type="text" id="r-name" placeholder="Ex: BM reçu → Mail SEDIS automatique">
+
+      <!-- Test -->
+      <div style="margin-top:16px;display:flex;gap:12px;">
+        <button onclick="testStationEmail()" 
+          style="flex:1;padding:12px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;color:var(--cyan);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-main);">
+          🧪 Tester l'email
+        </button>
+        <button onclick="resetStationTemplate()" 
+          style="padding:12px 20px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font-main);">
+          ↻ Template par défaut
+        </button>
+        <button onclick="saveStationConfig()" 
+          style="padding:12px 20px;background:var(--green);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-main);">
+          💾 Sauvegarder
+        </button>
       </div>
-      <button class="btn btn-primary" onclick="addRule()">✓ Créer la règle</button>
     </div>
+
   </div>
 </div>
+
+<!-- Style pour le switch -->
+<style>
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 54px;
+  height: 28px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: rgba(255,255,255,0.1);
+  border: 1px solid var(--border2);
+  border-radius: 28px;
+  transition: 0.3s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text3);
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+input:checked + .slider {
+  background-color: var(--green);
+  border-color: var(--green);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+  background-color: #fff;
+}
+</style>
 
 <!-- ─── MODAL CALENDRIER ─── -->
 <div class="cal-modal" id="calModal">
@@ -15504,6 +15579,290 @@ console.log('[TAF OPS] 🔔 Module alertes sonores chargé');
   });
   
   console.log('[TAF OPS] 📄 Visualiseur de documents chargé');
+})();
+
+// ══════════════════════════════════════════════════
+//  MODULE AUTOMATISATION STATION ANIMALIÈRE
+// ══════════════════════════════════════════════════
+(function() {
+  
+  const DEFAULT_STATION_TEMPLATE = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+    .container { max-width: 600px; margin: 40px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); padding: 30px; text-align: center; }
+    .header h1 { margin: 0; color: white; font-size: 24px; font-weight: 700; }
+    .header p { margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px; }
+    .content { padding: 30px; }
+    .badge { display: inline-block; background: #00d4ff; color: white; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+    .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 12px; margin: 20px 0; }
+    .info-label { font-weight: 600; color: #666; font-size: 13px; }
+    .info-value { color: #333; font-size: 13px; }
+    .divider { height: 1px; background: #e0e0e0; margin: 20px 0; }
+    .message { background: #f8f9fa; padding: 20px; border-radius: 6px; border-left: 4px solid #00d4ff; margin: 20px 0; }
+    .message p { margin: 0 0 12px 0; line-height: 1.6; color: #555; }
+    .message p:last-child { margin-bottom: 0; }
+    .footer { background: #f8f9fa; padding: 20px 30px; text-align: center; }
+    .footer p { margin: 4px 0; color: #999; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>TAF TRANSIT AIR FRET</h1>
+      <p>Paris — Charles de Gaulle</p>
+    </div>
+    <div class="content">
+      <div class="badge">🐾 DOSSIER ANIMAUX VIVANTS</div>
+      
+      <div class="info-grid">
+        <div class="info-label">Client</div>
+        <div class="info-value"><strong>{{client}}</strong></div>
+        
+        <div class="info-label">LTA / AWB</div>
+        <div class="info-value"><strong>{{lta}}</strong></div>
+        
+        <div class="info-label">Nombre de colis</div>
+        <div class="info-value"><strong>{{colis}}</strong></div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div style="margin: 20px 0;">
+        <div style="font-weight: 600; color: #333; margin-bottom: 12px;">✅ Documents disponibles :</div>
+        <div class="info-grid">
+          <div class="info-label">N° Déclaration</div>
+          <div class="info-value">{{declaration}}</div>
+          
+          <div class="info-label">Bon Magasinier</div>
+          <div class="info-value">{{bon_mag}}</div>
+          
+          <div class="info-label">Trace NT</div>
+          <div class="info-value">{{trace_nt}}</div>
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="message">
+        <p>Bonjour,</p>
+        <p>Le dossier ci-dessus est complet et prêt pour traitement à la station animalière.</p>
+        <p>Merci de bien vouloir nous confirmer la prise en charge.</p>
+        <p>Cordialement,<br>L'équipe TAF</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p>📧 import@taftrans.fr</p>
+      <p>TAF Transit Air Fret — Spécialiste fret aérien CDG depuis 1986</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  let stationConfig = {
+    active: false,
+    email: '',
+    cc: 'import@taftrans.fr',
+    webhook: '',
+    template: DEFAULT_STATION_TEMPLATE
+  };
+  
+  // Charger la config depuis Firebase
+  async function loadStationConfig() {
+    try {
+      const config = await readFirebase('automation/config/station_animaliere');
+      if (config) {
+        stationConfig = config;
+      }
+      
+      // Appliquer dans l'interface
+      document.getElementById('autoStationActive').checked = stationConfig.active || false;
+      document.getElementById('stationEmail').value = stationConfig.email || '';
+      document.getElementById('stationWebhook').value = stationConfig.webhook || '';
+      document.getElementById('stationTemplate').value = stationConfig.template || DEFAULT_STATION_TEMPLATE;
+      
+      console.log('[AUTOMATION] Configuration chargée');
+    } catch(e) {
+      console.warn('[AUTOMATION] Erreur chargement:', e);
+    }
+  }
+  
+  // Remplacer l'ancienne fonction showAutoModal
+  window.showAutoModal = function() {
+    document.getElementById('autoModal').classList.add('active');
+    loadStationConfig();
+  };
+  
+  window.toggleStationAuto = function(active) {
+    stationConfig.active = active;
+    console.log('[AUTOMATION] Station animalière:', active ? 'ACTIVÉ' : 'DÉSACTIVÉ');
+  };
+  
+  window.saveStationConfig = async function() {
+    // Récupérer les valeurs
+    stationConfig.active = document.getElementById('autoStationActive').checked;
+    stationConfig.email = document.getElementById('stationEmail').value;
+    stationConfig.webhook = document.getElementById('stationWebhook').value;
+    stationConfig.template = document.getElementById('stationTemplate').value;
+    
+    try {
+      await writeFirebase('automation/config/station_animaliere', stationConfig);
+      notify('Configuration sauvegardée', 'green');
+      console.log('[AUTOMATION] Configuration sauvegardée');
+    } catch(e) {
+      notify('Erreur lors de la sauvegarde', 'red');
+      console.error('[AUTOMATION] Erreur:', e);
+    }
+  };
+  
+  window.resetStationTemplate = function() {
+    if (confirm('Réinitialiser le template au modèle par défaut ?')) {
+      document.getElementById('stationTemplate').value = DEFAULT_STATION_TEMPLATE;
+      notify('Template réinitialisé', 'green');
+    }
+  };
+  
+  window.previewStationEmail = function() {
+    const template = document.getElementById('stationTemplate').value;
+    
+    // Remplacer avec des données d'exemple
+    const preview = template
+      .replace(/{{client}}/g, 'ROYAL CANIN')
+      .replace(/{{lta}}/g, '057-12345678')
+      .replace(/{{colis}}/g, '12')
+      .replace(/{{declaration}}/g, 'FR2024123456')
+      .replace(/{{bon_mag}}/g, 'BM-2024-001')
+      .replace(/{{trace_nt}}/g, 'TN-789456');
+    
+    // Ouvrir dans une nouvelle fenêtre
+    const win = window.open('', 'preview', 'width=700,height=800');
+    win.document.write(preview);
+    win.document.close();
+  };
+  
+  window.testStationEmail = async function() {
+    const email = document.getElementById('stationEmail').value;
+    const webhook = document.getElementById('stationWebhook').value;
+    
+    if (!email) {
+      alert('⚠️ Veuillez renseigner l\'email de la station animalière');
+      return;
+    }
+    
+    if (!webhook) {
+      alert('⚠️ Veuillez renseigner le webhook Make.com');
+      return;
+    }
+    
+    const testData = {
+      to: email,
+      cc: 'import@taftrans.fr',
+      subject: 'TEST — ROYAL CANIN — 057-12345678 — 12 colis',
+      html: document.getElementById('stationTemplate').value
+        .replace(/{{client}}/g, 'ROYAL CANIN')
+        .replace(/{{lta}}/g, '057-12345678')
+        .replace(/{{colis}}/g, '12')
+        .replace(/{{declaration}}/g, 'FR2024123456')
+        .replace(/{{bon_mag}}/g, 'BM-2024-001')
+        .replace(/{{trace_nt}}/g, 'TN-789456'),
+      test: true
+    };
+    
+    try {
+      const response = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testData)
+      });
+      
+      if (response.ok) {
+        notify('✅ Email de test envoyé ! Vérifiez votre boîte mail.', 'green');
+      } else {
+        notify('⚠️ Erreur lors de l\'envoi. Vérifiez le webhook Make.com', 'red');
+      }
+    } catch(e) {
+      notify('⚠️ Erreur réseau. Vérifiez votre connexion', 'red');
+      console.error('[TEST EMAIL]', e);
+    }
+  };
+  
+  // Surveiller les changements de champs pour auto-trigger
+  function checkStationAnimaliere(dossier) {
+    if (!stationConfig.active) return;
+    if (!stationConfig.email) return;
+    if (!stationConfig.webhook) return;
+    
+    // Vérifier que c'est un dossier AVI
+    const isAVI = (dossier.type || '').toLowerCase().includes('avi') || 
+                  (dossier.type || '').toLowerCase().includes('animaux');
+    
+    if (!isAVI) return;
+    
+    // Vérifier que les 3 champs sont remplis
+    const hasDeclaration = dossier.declaration && dossier.declaration.trim() !== '';
+    const hasBonMag = dossier.bm || (dossier.bon_mag && dossier.bon_mag.trim() !== '');
+    const hasTraceNT = dossier.trace_nt && dossier.trace_nt.trim() !== '';
+    
+    if (hasDeclaration && hasBonMag && hasTraceNT) {
+      // Vérifier qu'on n'a pas déjà envoyé
+      if (dossier.station_email_sent) return;
+      
+      console.log('[AUTOMATION] 🐾 Station animalière — Conditions remplies pour:', dossier.client);
+      sendStationEmail(dossier);
+    }
+  }
+  
+  async function sendStationEmail(dossier) {
+    const subject = `${dossier.client} — ${dossier.lta || 'N/A'} — ${dossier.colis || dossier.nb_colis || 'N/A'} colis`;
+    
+    const html = stationConfig.template
+      .replace(/{{client}}/g, dossier.client || '')
+      .replace(/{{lta}}/g, dossier.lta || '')
+      .replace(/{{colis}}/g, dossier.colis || dossier.nb_colis || '')
+      .replace(/{{declaration}}/g, dossier.declaration || '')
+      .replace(/{{bon_mag}}/g, dossier.bon_mag || (dossier.bm ? 'Reçu' : ''))
+      .replace(/{{trace_nt}}/g, dossier.trace_nt || '');
+    
+    const payload = {
+      to: stationConfig.email,
+      cc: stationConfig.cc,
+      subject: subject,
+      html: html,
+      dossier_id: dossier.id
+    };
+    
+    try {
+      await fetch(stationConfig.webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      // Marquer comme envoyé
+      await writeFirebase(`demandes/${dossier.id}/station_email_sent`, new Date().toISOString());
+      
+      notify(`📧 Email station animalière envoyé : ${dossier.client}`, 'green');
+      console.log('[AUTOMATION] Email station animalière envoyé pour:', dossier.client);
+    } catch(e) {
+      console.error('[AUTOMATION] Erreur envoi email:', e);
+    }
+  }
+  
+  // Hook sur la sauvegarde des dossiers
+  const originalSaveDossier = window.saveDossier;
+  window.saveDossier = async function(key) {
+    if (originalSaveDossier) await originalSaveDossier(key);
+    
+    // Vérifier station animalière
+    if (currentDossier) {
+      checkStationAnimaliere(currentDossier);
+    }
+  };
+  
+  console.log('[TAF OPS] 🤖 Module automatisation Station Animalière chargé');
 })();
 </script>
 
