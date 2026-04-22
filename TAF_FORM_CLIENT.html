@@ -773,15 +773,7 @@
     <div class="field">
       <label>Zone de stockage</label>
       <div class="chips-wrap" id="locChips">
-        <div class="chip" onclick="toggleChip(this)">Air France Cargo</div>
-        <div class="chip" onclick="toggleChip(this)">WFS</div>
-        <div class="chip" onclick="toggleChip(this)">Swissport</div>
-        <div class="chip" onclick="toggleChip(this)">Qatar Airways</div>
-        <div class="chip" onclick="toggleChip(this)">Emirates SkyCargo</div>
-        <div class="chip" onclick="toggleChip(this)">Dnata</div>
-        <div class="chip" onclick="toggleChip(this)">Menzies</div>
-        <div class="chip" onclick="toggleChip(this)">Havas</div>
-        <div class="chip" onclick="toggleChip(this)">Autre</div>
+        <!-- Chips injectés depuis Firebase (taf_forms_config/locations) -->
       </div>
     </div>
   </div>
@@ -889,10 +881,27 @@ let uploadedDocFiles = [];
 let uploadedEur1Files = [];
 let formCounter = 0;
 
+// Config globale chargée depuis Firebase (taf_forms_config)
+let globalConfig = {
+  locations: ['LTM','CLC','WFS','SFS','FTM'],
+  teamEmails: [],
+  slackWebhookUrl: ''
+};
+
+// Emails CC contact client (via paramètre URL 'cc')
+let clientCcEmails = [];
+try {
+  const ccParam = urlParams.get('cc');
+  if (ccParam) {
+    const parsed = JSON.parse(decodeURIComponent(ccParam));
+    if (Array.isArray(parsed)) clientCcEmails = parsed.filter(s => s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+  }
+} catch(e) {}
+
 // ══════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   // Logo client via URL
   if (logoParam) {
     const wrap = document.getElementById('clientLogoWrap');
@@ -919,6 +928,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btn) setFlux(f, btn);
   }
 
+  // Charger la config globale + injecter les chips de stockage
+  await loadGlobalConfig();
+  renderLocationChips();
+
   // Valeurs fixes (champs verrouillés)
   applyFixedFields();
 
@@ -929,6 +942,71 @@ window.addEventListener('DOMContentLoaded', () => {
   // Progression en temps réel
   document.getElementById('tafForm').addEventListener('input', updateProgress);
 });
+
+// ══════════════════════════════════════════════════
+//  CONFIG GLOBALE (depuis Firebase)
+// ══════════════════════════════════════════════════
+async function loadGlobalConfig() {
+  try {
+    const r = await fetch(`${FIREBASE_URL}/taf_forms_config.json`);
+    if (!r.ok) return;
+    const cfg = await r.json();
+    if (cfg && typeof cfg === 'object') {
+      if (Array.isArray(cfg.locations) && cfg.locations.length > 0) globalConfig.locations = cfg.locations;
+      if (Array.isArray(cfg.teamEmails)) globalConfig.teamEmails = cfg.teamEmails;
+      if (typeof cfg.slackWebhookUrl === 'string') globalConfig.slackWebhookUrl = cfg.slackWebhookUrl;
+    }
+  } catch(e) {
+    console.warn('[CONFIG] fallback valeurs par défaut');
+  }
+}
+
+function renderLocationChips() {
+  const wrap = document.getElementById('locChips');
+  if (!wrap) return;
+  wrap.innerHTML = globalConfig.locations.map(loc =>
+    `<div class="chip" onclick="toggleChip(this)">${String(loc).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  MESSAGE SLACK (formatage Block Kit)
+// ══════════════════════════════════════════════════
+function buildSlackMessage(p) {
+  const fluxEmoji = p.flux === 'Import' ? '📥' : p.flux === 'Export' ? '📤' : '🌐';
+  const fluxColor = p.flux === 'Import' ? '#5b8dff' : p.flux === 'Export' ? '#3ecf8e' : '#c9a84c';
+  const title = `🚨 Nouvelle douane en attente — ${p.client}`;
+  const lines = [];
+  lines.push(`*Référence* : \`${p.ref}\``);
+  lines.push(`*Flux* : ${fluxEmoji} ${p.flux}`);
+  if (p.lta) lines.push(`*LTA* : ${p.lta}`);
+  if (p.pays) lines.push(`*Pays* : ${p.pays}`);
+  if (p.colis) lines.push(`*Colis* : ${p.colis}`);
+  if (p.kgb) lines.push(`*Poids* : ${p.kgb} kg`);
+  if (p.eur1) lines.push(`*EUR1* : ${p.eur1}`);
+  if (p.localisation) lines.push(`*Zone* : ${p.localisation}`);
+  if (p.notes) lines.push(`*Notes* : _${p.notes.slice(0, 200)}${p.notes.length > 200 ? '…' : ''}_`);
+
+  return {
+    text: title,
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: title, emoji: true }
+      },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: lines.join('\n') }
+      },
+      {
+        type: 'context',
+        elements: [
+          { type: 'mrkdwn', text: `📨 Soumis par le client · ${new Date().toLocaleString('fr-FR')}` }
+        ]
+      }
+    ]
+  };
+}
 
 // ══════════════════════════════════════════════════
 //  CHAMPS FIXES — Valeurs imposées par TAF
@@ -1123,6 +1201,7 @@ document.getElementById('tafForm').addEventListener('submit', async (e) => {
   btn.textContent = 'Envoi en cours…';
 
   const ref = updateRef();
+  const allEmails = getEmails();
   const payload = {
     ref,
     client: nom,
@@ -1135,6 +1214,10 @@ document.getElementById('tafForm').addEventListener('submit', async (e) => {
     localisation: selectedLoc.join(', '),
     notes: document.getElementById('notes').value.trim(),
     email: document.getElementById('email').value.trim(),
+    emails: allEmails,                     // liste complète des emails saisis par le client
+    cc_emails: clientCcEmails,             // CC contact client (ADV, compta, ...) — configurés dans Forms Manager
+    team_emails: globalConfig.teamEmails,  // Emails équipe TAF — reçoivent l'alerte "douane en attente"
+    slack_webhook_url: globalConfig.slackWebhookUrl,  // URL Slack pour poster l'alerte
     docs: uploadedDocFiles.map(f => f.name),
     statut: 'nouveau',
     created_at: new Date().toISOString(),
@@ -1154,12 +1237,22 @@ document.getElementById('tafForm').addEventListener('submit', async (e) => {
       body: JSON.stringify(payload)
     });
 
-    // Déclencher Make webhook
+    // Déclencher Make webhook (confirmation client + mail équipe — géré par Make)
     await fetch(MAKE_WEBHOOK, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({source: 'TAF_FORM', ...payload})
     }).catch(() => {});
+
+    // Poster directement sur Slack (si webhook configuré) — en mode "no-cors" pour éviter blocage CORS
+    if (globalConfig.slackWebhookUrl && /^https:\/\/hooks\.slack\.com\//.test(globalConfig.slackWebhookUrl)) {
+      const slackMessage = buildSlackMessage(payload);
+      fetch(globalConfig.slackWebhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(slackMessage)
+      }).catch(() => {});
+    }
 
     // Succès
     document.getElementById('progressBar').style.width = '100%';

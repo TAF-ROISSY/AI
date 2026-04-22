@@ -818,6 +818,216 @@
     color: var(--gold);
     text-transform: uppercase;
   }
+
+  /* ── VUE STATS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.4;
+  }
+  .kpi-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .kpi-value em { color: var(--gold); font-style: normal; }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+  }
+  .kpi-delta {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    margin-left: 6px;
+  }
+  .kpi-delta.up   { color: var(--green); background: var(--green-dim); }
+  .kpi-delta.down { color: var(--red); background: var(--red-dim); }
+  .kpi-delta.flat { color: var(--text3); background: var(--bg3); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+  .stats-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .stats-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .stats-card-header h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 17px;
+    letter-spacing: 0.5px;
+    color: var(--gold);
+    flex: 1;
+  }
+  .stats-card-body { padding: 16px 20px; }
+
+  /* Mini bar chart (30 derniers jours) */
+  .spark-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 80px;
+    padding: 12px 0 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .spark-bar {
+    flex: 1;
+    min-width: 4px;
+    background: linear-gradient(180deg, var(--gold2), var(--gold));
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+    position: relative;
+  }
+  .spark-bar:hover { opacity: 1; }
+  .spark-bar.empty { background: var(--border2); opacity: 0.3; }
+  .spark-bar .tip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    display: none;
+    border: 1px solid var(--border2);
+    margin-bottom: 4px;
+    pointer-events: none;
+  }
+  .spark-bar:hover .tip { display: block; }
+  .spark-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text3);
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Tableau clients */
+  .clients-table { width: 100%; border-collapse: collapse; }
+  .clients-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .clients-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .clients-table tr:last-child td { border-bottom: 0; }
+  .clients-table tr:hover td { background: rgba(201,168,76,0.04); }
+  .bar-inline {
+    height: 4px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 60px;
+    flex: 1;
+  }
+  .bar-inline > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    transition: width 0.3s;
+  }
+
+  /* ── NOTIF BELL (header) ── */
+  .notif-bell {
+    position: relative;
+    width: 36px; height: 36px;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .notif-bell:hover { border-color: var(--gold); color: var(--gold); }
+  .notif-bell.on { color: var(--gold); border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+  .notif-bell .pulse {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 16px; height: 16px;
+    background: var(--red);
+    border: 2px solid var(--bg);
+    border-radius: 50%;
+    font-size: 9px;
+    color: var(--white);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-weight: 600;
+    animation: bellPulse 1.4s ease-in-out infinite;
+  }
+  .notif-bell.has-new .pulse { display: flex; }
+  @keyframes bellPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); box-shadow: 0 0 12px rgba(240,76,76,0.6); }
+  }
+  .notif-bell.ring { animation: bellRing 0.6s ease; }
+  @keyframes bellRing {
+    0%, 100% { transform: rotate(0); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(10deg); }
+    60% { transform: rotate(-6deg); }
+    80% { transform: rotate(4deg); }
+  }
 </style>
 </head>
 <body>
@@ -843,6 +1053,9 @@
         <span>Soumissions</span>
         <span class="count" id="countSubs">0</span>
       </button>
+      <button class="nav-tab" data-view="stats">
+        <span>Statistiques</span>
+      </button>
     </div>
 
     <div class="header-right">
@@ -850,6 +1063,10 @@
         <span class="fb-dot"></span>
         <span id="fbLabel">Firebase…</span>
       </div>
+      <button class="notif-bell" id="notifBell" title="Notifications sonores" onclick="toggleNotif()">
+        🔔
+        <span class="pulse" id="notifPulse">0</span>
+      </button>
       <button class="btn btn-icon" title="Réglages" onclick="openSettings()">⚙</button>
       <button class="btn btn-primary" id="btnNewForm">+ Nouveau formulaire</button>
     </div>
@@ -955,6 +1172,14 @@
           <div class="field-group">
             <label>Email de notification TAF</label>
             <input type="text" id="fNotifyEmail" placeholder="ops@taftrans.fr">
+            <div class="field-hint">Adresse TAF qui reçoit la confirmation du dossier.</div>
+          </div>
+
+          <div class="field-group mt-16">
+            <label>Emails contact client (CC)</label>
+            <div class="field-hint mb-12">Ces adresses recevront une <strong>copie</strong> du mail de confirmation envoyé au client (service ADV, comptabilité, responsable compte…).</div>
+            <div id="clientCcList"></div>
+            <button class="btn btn-sm btn-ghost mt-12" onclick="addClientCc()" style="width:100%; justify-content:center;">+ Ajouter un email en CC</button>
           </div>
 
         </div>
@@ -1031,6 +1256,89 @@
     </div>
   </section>
 
+  <!-- ═══════════════════ VUE STATISTIQUES ═══════════════════ -->
+  <section class="view" id="viewStats">
+    <h1 class="page-title">Statistiques <em>& activité</em></h1>
+    <p class="page-sub">Vue consolidée des soumissions : volumes, délais, activité par client.</p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total soumissions</div>
+        <div class="kpi-value" id="kpiTotal">—</div>
+        <div class="kpi-sub" id="kpiTotalSub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">7 derniers jours</div>
+        <div class="kpi-value" id="kpi7d">—</div>
+        <div class="kpi-sub" id="kpi7dSub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">30 derniers jours</div>
+        <div class="kpi-value" id="kpi30d">—</div>
+        <div class="kpi-sub" id="kpi30dSub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Clients actifs</div>
+        <div class="kpi-value" id="kpiClients">—</div>
+        <div class="kpi-sub">formulaires ayant au moins 1 soumission</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Taux de complétion</div>
+        <div class="kpi-value" id="kpiCompl">—</div>
+        <div class="kpi-sub">champs remplis en moyenne</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Délai moyen traitement</div>
+        <div class="kpi-value" id="kpiDelay">—</div>
+        <div class="kpi-sub">de « Nouveau » à « Terminé »</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stats-card">
+        <div class="stats-card-header">
+          <h3>Activité 30 derniers jours</h3>
+          <span class="small" id="sparkMax">&nbsp;</span>
+        </div>
+        <div class="stats-card-body">
+          <div class="spark-chart" id="sparkChart"></div>
+          <div class="spark-axis" id="sparkAxis"></div>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <div class="stats-card-header">
+          <h3>Répartition par flux</h3>
+        </div>
+        <div class="stats-card-body" id="fluxBreakdown"></div>
+      </div>
+    </div>
+
+    <div class="stats-card mt-16" style="margin-top: 18px;">
+      <div class="stats-card-header">
+        <h3>Classement par client</h3>
+        <button class="btn btn-sm btn-ghost" onclick="loadSubmissions(true)">↻ Actualiser</button>
+      </div>
+      <div class="stats-card-body" style="padding: 0;">
+        <table class="clients-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th style="width: 80px;">Soumissions</th>
+              <th>Volume relatif</th>
+              <th style="width: 140px;">Dernière</th>
+              <th style="width: 100px;">Statut moyen</th>
+              <th style="width: 100px;">Délai moy.</th>
+            </tr>
+          </thead>
+          <tbody id="clientsStatsTbody">
+            <tr><td colspan="6" style="text-align:center; color: var(--text3); padding: 40px;">Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <!-- ═══════════════════ BOTTOM BAR (éditeur) ═══════════════════ -->
@@ -1081,29 +1389,42 @@
 </div>
 
 <div class="modal-backdrop" id="modalSettings">
-  <div class="modal">
+  <div class="modal" style="max-width: 640px;">
     <div class="modal-header">
-      <h2><em>Réglages</em> Forms Manager</h2>
+      <h2><em>Réglages</em> globaux</h2>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+
+      <div class="divider"><span>Formulaire public</span></div>
       <div class="field-group">
         <label>URL publique du formulaire client</label>
-        <input type="url" id="settingsPublicUrl" placeholder="https://…/TAF_FORM_TZST.html">
-        <div class="field-hint">
-          Adresse où votre fichier <strong>TAF_FORM_TZST.html</strong> est publié. Toutes les URLs générées
-          pour vos clients démarreront par cette base.
-        </div>
+        <input type="url" id="settingsPublicUrl" placeholder="https://…/TAF_FORM_CLIENT.html">
+        <div class="field-hint">Base utilisée pour toutes les URLs générées.</div>
       </div>
+
+      <div class="divider"><span>Lieux de stockage disponibles</span></div>
       <div class="field-group">
-        <label>Valeur actuelle utilisée</label>
-        <div class="mono" id="settingsCurrentUrl" style="padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--gold);word-break:break-all;">—</div>
+        <div class="field-hint mb-12">Ces choix apparaîtront sur le formulaire client en tant que « chips » sélectionnables (ex. LTM, CLC, WFS…).</div>
+        <div id="settingsLocations"></div>
+        <button class="btn btn-sm btn-ghost mt-12" onclick="addSettingsLocation()" style="width:100%; justify-content:center;">+ Ajouter un lieu</button>
       </div>
-      <div class="field-hint mt-12">
-        Cette valeur est sauvegardée dans Firebase et partagée entre tous vos postes.
+
+      <div class="divider"><span>Alerte équipe TAF</span></div>
+      <div class="field-group">
+        <label>Emails de l'équipe TAF (recevront une alerte à chaque soumission)</label>
+        <div class="field-hint mb-12">Ces destinataires reçoivent un mail <strong>« Nouvelle douane en attente »</strong> dès qu'un client soumet une demande, quel que soit le client.</div>
+        <div id="settingsTeamEmails"></div>
+        <button class="btn btn-sm btn-ghost mt-12" onclick="addSettingsTeamEmail()" style="width:100%; justify-content:center;">+ Ajouter un email équipe</button>
       </div>
+
+      <div class="field-group mt-16">
+        <label>URL webhook Slack TAF (optionnel)</label>
+        <input type="url" id="settingsSlackWebhook" placeholder="https://hooks.slack.com/services/T…/B…/…">
+        <div class="field-hint">Créez un <em>Incoming Webhook</em> Slack dans le canal qui recevra les alertes, puis collez l'URL ici.</div>
+      </div>
+
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="resetPublicUrl()">↺ Valeur par défaut</button>
       <button class="btn btn-ghost" onclick="closeModal('modalSettings')">Annuler</button>
       <button class="btn btn-primary" onclick="saveSettings()">💾 Enregistrer</button>
     </div>
@@ -1243,6 +1564,7 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
     const v = tab.dataset.view;
     showView(v);
     if (v === 'submissions') loadSubmissions();
+    if (v === 'stats') { loadSubmissions(true).then(renderStats); }
   });
 });
 
@@ -1258,13 +1580,20 @@ function backToList() {
    ════════════════════════════════════════ */
 async function init() {
   try {
-    // Charger les réglages globaux (URL publique du formulaire)
+    // Charger la config globale (URL publique, lieux, équipe, slack)
     try {
       const cfg = await fbGet('taf_forms_config');
-      if (cfg && typeof cfg === 'object' && cfg.publicUrl) {
-        FORM_PUBLIC_URL = cfg.publicUrl;
+      if (cfg && typeof cfg === 'object') {
+        if (cfg.publicUrl) FORM_PUBLIC_URL = cfg.publicUrl;
+        globalConfig = {
+          publicUrl: cfg.publicUrl || DEFAULT_FORM_PUBLIC_URL,
+          locations: Array.isArray(cfg.locations) ? cfg.locations : DEFAULT_LOCATIONS,
+          teamEmails: Array.isArray(cfg.teamEmails) ? cfg.teamEmails : [],
+          slackWebhookUrl: cfg.slackWebhookUrl || '',
+          notifSound: cfg.notifSound || false,
+        };
       }
-    } catch(_) { /* fallback sur la valeur par défaut */ }
+    } catch(_) { /* fallback sur valeurs par défaut */ }
 
     const data = await fbGet('taf_forms');
     forms = data || {};
@@ -1280,32 +1609,108 @@ async function init() {
 }
 
 /* ════════════════════════════════════════
-   RÉGLAGES
+   RÉGLAGES GLOBAUX
    ════════════════════════════════════════ */
+const DEFAULT_LOCATIONS = ['LTM', 'CLC', 'WFS', 'SFS', 'FTM'];
+let globalConfig = {
+  publicUrl: DEFAULT_FORM_PUBLIC_URL,
+  locations: [...DEFAULT_LOCATIONS],
+  teamEmails: [],
+  slackWebhookUrl: '',
+  notifSound: false,
+};
+
 function openSettings() {
-  document.getElementById('settingsPublicUrl').value = FORM_PUBLIC_URL || '';
-  document.getElementById('settingsCurrentUrl').textContent = getPublicFormUrl();
+  document.getElementById('settingsPublicUrl').value = globalConfig.publicUrl || FORM_PUBLIC_URL || '';
+  document.getElementById('settingsSlackWebhook').value = globalConfig.slackWebhookUrl || '';
+  renderSettingsLocations();
+  renderSettingsTeamEmails();
   openModal('modalSettings');
+}
+
+function renderSettingsLocations() {
+  const wrap = document.getElementById('settingsLocations');
+  if (!globalConfig.locations || globalConfig.locations.length === 0) {
+    globalConfig.locations = [...DEFAULT_LOCATIONS];
+  }
+  wrap.innerHTML = globalConfig.locations.map((loc, i) => `
+    <div class="custom-field-item">
+      <input type="text" value="${escapeHtml(loc)}" oninput="updateSettingsLocation(${i}, this.value)" placeholder="Ex. LTM" style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;flex:1;font-family:inherit;text-transform:uppercase;">
+      <button class="btn btn-sm btn-danger btn-icon" onclick="removeSettingsLocation(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+function addSettingsLocation() {
+  globalConfig.locations.push('');
+  renderSettingsLocations();
+}
+function updateSettingsLocation(i, v) {
+  globalConfig.locations[i] = v.toUpperCase().trim();
+}
+function removeSettingsLocation(i) {
+  globalConfig.locations.splice(i, 1);
+  renderSettingsLocations();
+}
+
+function renderSettingsTeamEmails() {
+  const wrap = document.getElementById('settingsTeamEmails');
+  if (!globalConfig.teamEmails) globalConfig.teamEmails = [];
+  if (globalConfig.teamEmails.length === 0) {
+    wrap.innerHTML = '<div class="small" style="text-align:center;padding:8px;">Aucun email équipe configuré</div>';
+    return;
+  }
+  wrap.innerHTML = globalConfig.teamEmails.map((em, i) => `
+    <div class="custom-field-item">
+      <input type="email" value="${escapeHtml(em)}" oninput="updateSettingsTeamEmail(${i}, this.value)" placeholder="ops@taftrans.fr" style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;flex:1;font-family:inherit;">
+      <button class="btn btn-sm btn-danger btn-icon" onclick="removeSettingsTeamEmail(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+function addSettingsTeamEmail() {
+  globalConfig.teamEmails.push('');
+  renderSettingsTeamEmails();
+}
+function updateSettingsTeamEmail(i, v) {
+  globalConfig.teamEmails[i] = v.trim();
+}
+function removeSettingsTeamEmail(i) {
+  globalConfig.teamEmails.splice(i, 1);
+  renderSettingsTeamEmails();
 }
 
 async function saveSettings() {
   const newUrl = document.getElementById('settingsPublicUrl').value.trim();
-  if (!newUrl) { toast('URL requise', 'err'); return; }
-  if (!/^https?:\/\//.test(newUrl)) { toast('URL invalide (http:// ou https:// requis)', 'err'); return; }
+  if (!newUrl || !/^https?:\/\//.test(newUrl)) {
+    toast('URL publique invalide', 'err');
+    return;
+  }
+  const slackUrl = document.getElementById('settingsSlackWebhook').value.trim();
+  if (slackUrl && !/^https?:\/\//.test(slackUrl)) {
+    toast('URL Slack invalide', 'err');
+    return;
+  }
+  // Nettoyer les listes (retirer vides)
+  const cleanLocations = globalConfig.locations.map(s => s.trim()).filter(Boolean);
+  const cleanEmails = globalConfig.teamEmails.map(s => s.trim()).filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+
+  const payload = {
+    publicUrl: newUrl,
+    locations: cleanLocations,
+    teamEmails: cleanEmails,
+    slackWebhookUrl: slackUrl,
+    notifSound: globalConfig.notifSound,
+    updated_at: new Date().toISOString()
+  };
   try {
-    await fbPut('taf_forms_config', { publicUrl: newUrl, updated_at: new Date().toISOString() });
+    await fbPut('taf_forms_config', payload);
+    globalConfig = payload;
     FORM_PUBLIC_URL = newUrl;
     closeModal('modalSettings');
-    toast('URL publique enregistrée', 'ok');
-    // Rafraîchir l'aperçu si on est dans l'éditeur
+    toast('Réglages enregistrés', 'ok');
     if (document.getElementById('viewEditor').classList.contains('active')) updatePreview();
   } catch(e) {
     toast('Erreur enregistrement', 'err');
   }
-}
-
-function resetPublicUrl() {
-  document.getElementById('settingsPublicUrl').value = DEFAULT_FORM_PUBLIC_URL;
 }
 
 /* ════════════════════════════════════════
@@ -1453,6 +1858,7 @@ function openEditor(id) {
 
   renderFieldsLibrary();
   renderCustomFields();
+  renderClientCc();
   updatePreview();
   showView('editor');
 }
@@ -1649,6 +2055,36 @@ function removeCustomField(i) {
 }
 
 /* ════════════════════════════════════════
+   CC CONTACT CLIENT
+   ════════════════════════════════════════ */
+function renderClientCc() {
+  const wrap = document.getElementById('clientCcList');
+  if (!currentForm.clientCcEmails) currentForm.clientCcEmails = [];
+  if (currentForm.clientCcEmails.length === 0) {
+    wrap.innerHTML = '<div class="small" style="text-align:center;padding:8px;">Aucun contact en CC</div>';
+    return;
+  }
+  wrap.innerHTML = currentForm.clientCcEmails.map((em, i) => `
+    <div class="custom-field-item">
+      <input type="email" value="${escapeHtml(em)}" oninput="updateClientCc(${i}, this.value)" placeholder="contact@client.fr" style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;flex:1;font-family:inherit;">
+      <button class="btn btn-sm btn-danger btn-icon" onclick="removeClientCc(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+function addClientCc() {
+  if (!currentForm.clientCcEmails) currentForm.clientCcEmails = [];
+  currentForm.clientCcEmails.push('');
+  renderClientCc();
+}
+function updateClientCc(i, v) {
+  currentForm.clientCcEmails[i] = v.trim();
+}
+function removeClientCc(i) {
+  currentForm.clientCcEmails.splice(i, 1);
+  renderClientCc();
+}
+
+/* ════════════════════════════════════════
    PREVIEW
    ════════════════════════════════════════ */
 function updatePreview() {
@@ -1765,6 +2201,12 @@ function buildPublicUrl(f, forDisplay=false) {
     // IMPORTANT : URLSearchParams encode déjà. Ne pas encodeURIComponent avant, sinon double-encodage.
     params.set('fixed', JSON.stringify(fixedMap));
     params.set('fixedLabels', JSON.stringify(labelsMap));
+  }
+
+  // Emails CC contact client (copiés sur le mail de confirmation)
+  const ccList = (f.clientCcEmails || []).filter(s => s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+  if (ccList.length > 0) {
+    params.set('cc', JSON.stringify(ccList));
   }
 
   const url = getPublicFormUrl() + '?' + params.toString();
@@ -1911,17 +2353,6 @@ function openPreviewUrl() {
 /* ════════════════════════════════════════
    VUE SOUMISSIONS
    ════════════════════════════════════════ */
-async function loadSubmissions() {
-  const tbody = document.getElementById('subsTbody');
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text3); padding: 40px;">Chargement…</td></tr>';
-  try {
-    const data = await fbGet('demandes');
-    submissions = data || {};
-    renderSubmissions();
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--red); padding: 40px;">Erreur de chargement</td></tr>';
-  }
-}
 
 function renderSubmissions() {
   const tbody = document.getElementById('subsTbody');
@@ -1997,9 +2428,345 @@ function viewSubmission(id) {
 }
 
 /* ════════════════════════════════════════
+   STATISTIQUES
+   ════════════════════════════════════════ */
+function daysAgo(n) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+function renderStats() {
+  const list = Object.entries(submissions || {}).map(([id, s]) => ({ id, ...s }));
+  const now = new Date();
+  const d7 = daysAgo(7), d30 = daysAgo(30);
+
+  const total = list.length;
+  const n7 = list.filter(s => new Date(s.created_at||0) >= d7).length;
+  const n30 = list.filter(s => new Date(s.created_at||0) >= d30).length;
+
+  // Clients distincts ayant soumis
+  const clientsSet = new Set(list.map(s => (s.client||'').trim()).filter(Boolean));
+  const nClients = clientsSet.size;
+
+  // Taux de complétion : nb de champs non vides / nb total de champs utiles par soumission
+  const usefulFields = ['client','flux','lta','colis','kgb','pays','eur1','localisation','notes','email'];
+  let totalRatios = 0, ratioCount = 0;
+  list.forEach(s => {
+    const filled = usefulFields.filter(k => {
+      const v = s[k];
+      return v !== undefined && v !== null && v !== '' && v !== 0;
+    }).length;
+    totalRatios += filled / usefulFields.length;
+    ratioCount++;
+  });
+  const completion = ratioCount > 0 ? Math.round((totalRatios / ratioCount) * 100) : 0;
+
+  // Délai moyen : différence entre created_at et (updated_at des dossiers terminés)
+  let totalDelayMs = 0, delayCount = 0;
+  list.forEach(s => {
+    const statut = (s.statut||'').toLowerCase();
+    if (statut.includes('termin') && s.created_at) {
+      const end = new Date(s.updated_at || s.finished_at || s.created_at);
+      const start = new Date(s.created_at);
+      const delta = end - start;
+      if (delta > 0 && delta < 90 * 86400000) { // bornage 0-90 jours
+        totalDelayMs += delta;
+        delayCount++;
+      }
+    }
+  });
+  const avgDelayH = delayCount > 0 ? Math.round(totalDelayMs / delayCount / 3600000) : 0;
+  const delayDisplay = avgDelayH >= 24
+    ? `${Math.round(avgDelayH/24)}<em> j</em>`
+    : avgDelayH > 0 ? `${avgDelayH}<em> h</em>` : '—';
+
+  // Comparatif 7d vs 7d précédent
+  const d14 = daysAgo(14);
+  const nPrev7 = list.filter(s => {
+    const d = new Date(s.created_at||0);
+    return d >= d14 && d < d7;
+  }).length;
+  const delta7 = n7 - nPrev7;
+  const delta7Label = delta7 > 0 ? `+${delta7} vs semaine précédente`
+                    : delta7 < 0 ? `${delta7} vs semaine précédente`
+                    : 'stable vs semaine précédente';
+  const delta7Cls = delta7 > 0 ? 'up' : delta7 < 0 ? 'down' : 'flat';
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpi7d').innerHTML = n7 + ` <span class="kpi-delta ${delta7Cls}">${delta7>0?'↑':delta7<0?'↓':'·'} ${Math.abs(delta7)}</span>`;
+  document.getElementById('kpi7dSub').textContent = delta7Label;
+  document.getElementById('kpi30d').textContent = n30;
+  document.getElementById('kpi30dSub').textContent = n30 > 0 ? `${(n30/30).toFixed(1)} par jour en moyenne` : '';
+  document.getElementById('kpiClients').textContent = nClients;
+  document.getElementById('kpiCompl').innerHTML = completion + '<em>%</em>';
+  document.getElementById('kpiDelay').innerHTML = delayDisplay;
+
+  renderSparkChart(list);
+  renderFluxBreakdown(list);
+  renderClientsStats(list);
+}
+
+function renderSparkChart(list) {
+  // Buckets 30 derniers jours (indice 0 = aujourd'hui, 29 = j-29)
+  const buckets = Array(30).fill(0);
+  list.forEach(s => {
+    const d = new Date(s.created_at || 0);
+    if (isNaN(d)) return;
+    const diff = Math.floor((new Date().setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000);
+    if (diff >= 0 && diff < 30) buckets[29 - diff]++;
+  });
+  const max = Math.max(1, ...buckets);
+  const wrap = document.getElementById('sparkChart');
+  wrap.innerHTML = buckets.map((v, i) => {
+    const h = Math.max(2, (v / max) * 100);
+    const d = new Date();
+    d.setDate(d.getDate() - (29 - i));
+    const label = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+    return `<div class="spark-bar ${v===0?'empty':''}" style="height:${h}%;">
+      <span class="tip">${label} · ${v} soumission${v>1?'s':''}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('sparkMax').textContent = `max ${max}/j`;
+  const first = new Date(); first.setDate(first.getDate() - 29);
+  const last = new Date();
+  document.getElementById('sparkAxis').innerHTML = `
+    <span>${first.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'})}</span>
+    <span>${last.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'})}</span>
+  `;
+}
+
+function renderFluxBreakdown(list) {
+  const byFlux = { Import: 0, Export: 0, Autre: 0 };
+  list.forEach(s => {
+    const f = (s.flux || '').toString();
+    if (f.toLowerCase() === 'import') byFlux.Import++;
+    else if (f.toLowerCase() === 'export') byFlux.Export++;
+    else byFlux.Autre++;
+  });
+  const total = Math.max(1, byFlux.Import + byFlux.Export + byFlux.Autre);
+  const colors = { Import: 'var(--blue)', Export: 'var(--green)', Autre: 'var(--text3)' };
+  const html = Object.entries(byFlux).map(([k,v]) => {
+    const pct = Math.round((v/total)*100);
+    return `
+      <div style="margin-bottom: 14px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+          <span style="color:${colors[k]};">● ${k}</span>
+          <span style="color:var(--text2);"><strong style="color:var(--text);">${v}</strong> · ${pct}%</span>
+        </div>
+        <div class="bar-inline"><div style="width:${pct}%; background:${colors[k]};"></div></div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('fluxBreakdown').innerHTML = html || '<div class="small">Aucune donnée</div>';
+}
+
+function renderClientsStats(list) {
+  const byClient = {};
+  list.forEach(s => {
+    const c = (s.client || 'Inconnu').trim() || 'Inconnu';
+    if (!byClient[c]) byClient[c] = { count: 0, last: null, statuts: {}, delays: [] };
+    byClient[c].count++;
+    const d = new Date(s.created_at || 0);
+    if (!byClient[c].last || d > byClient[c].last) byClient[c].last = d;
+    const st = (s.statut||'nouveau').toLowerCase();
+    byClient[c].statuts[st] = (byClient[c].statuts[st] || 0) + 1;
+    if (st.includes('termin') && s.created_at) {
+      const end = new Date(s.updated_at || s.finished_at || s.created_at);
+      const start = new Date(s.created_at);
+      const delta = end - start;
+      if (delta > 0 && delta < 90*86400000) byClient[c].delays.push(delta);
+    }
+  });
+  const rows = Object.entries(byClient).sort((a,b) => b[1].count - a[1].count);
+  const maxCount = Math.max(1, ...rows.map(r => r[1].count));
+
+  const tbody = document.getElementById('clientsStatsTbody');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Aucune soumission</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(([client, d]) => {
+    const pct = Math.round((d.count / maxCount) * 100);
+    const dominant = Object.entries(d.statuts).sort((a,b) => b[1]-a[1])[0];
+    const statLabel = dominant ? dominant[0].charAt(0).toUpperCase() + dominant[0].slice(1) : '—';
+    const statCls = statLabel.toLowerCase().includes('termin') ? 'termine'
+                 : statLabel.toLowerCase().includes('cours') ? 'cours' : 'nouveau';
+    const avgDelay = d.delays.length > 0
+      ? (() => {
+          const avg = d.delays.reduce((a,b)=>a+b,0) / d.delays.length;
+          const h = Math.round(avg/3600000);
+          return h >= 24 ? Math.round(h/24)+' j' : h+' h';
+        })()
+      : '—';
+    const lastStr = d.last ? d.last.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) +
+                            ' <span class="small">' + d.last.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) + '</span>'
+                          : '—';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(client)}</strong></td>
+        <td><span class="kpi-value" style="font-size:20px;">${d.count}</span></td>
+        <td><div class="bar-inline"><div style="width:${pct}%;"></div></div></td>
+        <td class="small">${lastStr}</td>
+        <td><span class="statut-pill statut-${statCls}">${escapeHtml(statLabel)}</span></td>
+        <td class="mono">${avgDelay}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Étend loadSubmissions pour pouvoir être appelé en silencieux (depuis stats / polling)
+async function loadSubmissions(silent) {
+  const tbody = document.getElementById('subsTbody');
+  if (!silent && tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text3); padding: 40px;">Chargement…</td></tr>';
+  try {
+    const data = await fbGet('demandes');
+    submissions = data || {};
+    if (!silent) renderSubmissions();
+    // Si la vue stats est active, la re-rendre
+    if (document.getElementById('viewStats').classList.contains('active')) renderStats();
+    // Compteur global toujours à jour
+    document.getElementById('countSubs').textContent = Object.keys(submissions).length;
+  } catch(e) {
+    if (tbody && !silent) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--red); padding: 40px;">Erreur de chargement</td></tr>';
+  }
+}
+
+/* ════════════════════════════════════════
+   NOTIFICATIONS SONORES + TEMPS RÉEL
+   ════════════════════════════════════════ */
+let notifEnabled = false;    // État utilisateur
+let knownIds = new Set();    // IDs déjà connus (baseline)
+let firstPoll = true;        // Premier passage = pas de son
+let newCount = 0;            // Nb de nouvelles non lues
+let pollTimer = null;
+
+// Son synthétisé via Web Audio API (pas de fichier externe à charger)
+let audioCtx = null;
+function playChime() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    // Deux notes : do5 puis sol5, courtes, douces
+    [880, 1318].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const t0 = now + i * 0.14;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+      osc.start(t0);
+      osc.stop(t0 + 0.4);
+    });
+  } catch(e) { console.warn('[AUDIO] Chime failed:', e); }
+}
+
+async function toggleNotif() {
+  notifEnabled = !notifEnabled;
+  document.getElementById('notifBell').classList.toggle('on', notifEnabled);
+  toast(notifEnabled ? 'Notifications sonores activées' : 'Notifications désactivées', 'ok');
+  // Sauver la préférence
+  try { await fbPut('taf_forms_config/notifSound', notifEnabled); } catch(_) {}
+  // Réinitialiser le compteur visible
+  if (!notifEnabled) clearNewCount();
+  // Jouer un chime de test à l'activation (débloquer AudioContext au passage)
+  if (notifEnabled) playChime();
+}
+
+function clearNewCount() {
+  newCount = 0;
+  document.getElementById('notifBell').classList.remove('has-new');
+  document.getElementById('notifPulse').textContent = '0';
+}
+
+async function loadNotifPreference() {
+  try {
+    const cfg = await fbGet('taf_forms_config');
+    if (cfg && cfg.notifSound === true) {
+      notifEnabled = true;
+      document.getElementById('notifBell').classList.add('on');
+    }
+  } catch(_) {}
+}
+
+async function pollSubmissions() {
+  try {
+    const data = await fbGet('demandes');
+    const currentIds = new Set(Object.keys(data || {}));
+
+    if (firstPoll) {
+      // Initialisation : on note tous les IDs existants SANS déclencher de son
+      knownIds = currentIds;
+      firstPoll = false;
+      submissions = data || {};
+      document.getElementById('countSubs').textContent = currentIds.size;
+      return;
+    }
+
+    // Détecter les nouveaux IDs
+    const newOnes = [...currentIds].filter(id => !knownIds.has(id));
+    if (newOnes.length > 0) {
+      submissions = data || {};
+      knownIds = currentIds;
+
+      // Mettre à jour le compteur global et la table si visible
+      document.getElementById('countSubs').textContent = currentIds.size;
+      if (document.getElementById('viewSubmissions').classList.contains('active')) renderSubmissions();
+      if (document.getElementById('viewStats').classList.contains('active')) renderStats();
+
+      // Alerte sonore + visuelle
+      newCount += newOnes.length;
+      const bell = document.getElementById('notifBell');
+      bell.classList.add('has-new');
+      bell.classList.add('ring');
+      setTimeout(() => bell.classList.remove('ring'), 700);
+      document.getElementById('notifPulse').textContent = newCount > 9 ? '9+' : newCount;
+
+      // Toast + son uniquement si activé par l'utilisateur
+      newOnes.forEach(id => {
+        const s = data[id];
+        const client = s?.client || 'Nouveau client';
+        toast(`📨 Nouvelle soumission — ${client}`, 'ok');
+      });
+      if (notifEnabled) playChime();
+    }
+  } catch(e) {
+    console.warn('[POLL] Error:', e);
+  }
+}
+
+function startPolling() {
+  // Premier poll immédiat pour établir la baseline
+  pollSubmissions();
+  // Puis toutes les 30 secondes
+  pollTimer = setInterval(pollSubmissions, 30000);
+}
+
+// Clic sur la cloche quand il y a du neuf → ouvrir la vue Soumissions
+document.getElementById('notifBell').addEventListener('click', (e) => {
+  if (newCount > 0 && e.target.closest('.pulse')) {
+    // clic sur la pastille : ouvrir soumissions
+    e.preventDefault();
+    e.stopPropagation();
+    showView('submissions');
+    loadSubmissions();
+    clearNewCount();
+  }
+});
+
+/* ════════════════════════════════════════
    DÉMARRAGE
    ════════════════════════════════════════ */
-init();
+init().then(() => {
+  loadNotifPreference();
+  startPolling();
+});
 
 // Raccourcis clavier
 document.addEventListener('keydown', (e) => {
