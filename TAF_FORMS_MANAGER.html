@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF FORMS MANAGER</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06080f;
+    --bg2: #0a0e1a;
+    --bg3: #0f1525;
+    --panel: #121929;
+    --panel2: #162038;
+    --border: #1c2640;
+    --border2: #243152;
+    --border3: #334060;
+    --gold: #c9a84c;
+    --gold2: #e8c97a;
+    --gold3: #f5e4a8;
+    --gold-dim: rgba(201,168,76,0.12);
+    --gold-glow: rgba(201,168,76,0.25);
+    --text: #f0eeea;
+    --text2: #8a94b0;
+    --text3: #3d4a68;
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.15);
+    --red: #f04c4c;
+    --red-dim: rgba(240,76,76,0.15);
+    --blue: #5b8dff;
+    --blue-dim: rgba(91,141,255,0.15);
+    --white: #ffffff;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body: 'Outfit', sans-serif;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    --shadow-gold: 0 4px 24px rgba(201,168,76,0.2);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,168,76,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 90% 90%, rgba(201,168,76,0.03) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(6,8,15,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-inner {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .logo-block { display:flex; align-items:center; gap:14px; }
+  .logo-mark {
+    width: 38px; height: 38px;
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: 1px;
+    background: radial-gradient(circle at 30% 20%, rgba(201,168,76,0.2), transparent 60%);
+  }
+  .logo-text {
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .logo-text .big {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .logo-text .sub {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .v-badge {
+    font-family: var(--font-body);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    background: var(--panel);
+    letter-spacing: 1px;
+  }
+
+  .nav-tabs { display:flex; gap:4px; margin-left: 32px; }
+  .nav-tab {
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--font-body);
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--panel); }
+  .nav-tab.active {
+    color: var(--gold);
+    background: var(--gold-dim);
+    border-color: rgba(201,168,76,0.3);
+  }
+  .nav-tab .count {
+    padding: 1px 7px;
+    background: rgba(201,168,76,0.15);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--gold);
+  }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .fb-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text2);
+    padding: 6px 10px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .fb-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text3);
+  }
+  .fb-status.ok .fb-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .fb-status.err .fb-dot { background: var(--red); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--panel);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%);
+    color: var(--bg);
+    border-color: transparent;
+    font-weight: 500;
+  }
+  .btn-primary:hover { filter: brightness(1.1); color: var(--bg); }
+  .btn-danger {
+    color: var(--red);
+    border-color: rgba(240,76,76,0.3);
+    background: var(--red-dim);
+  }
+  .btn-danger:hover { background: rgba(240,76,76,0.25); border-color: var(--red); color: var(--red); }
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+  }
+  .btn-sm { padding: 6px 10px; font-size: 12px; }
+  .btn-icon {
+    width: 32px; height: 32px; padding: 0;
+    justify-content: center;
+  }
+
+  /* ── LAYOUT ── */
+  main { max-width: 1800px; margin: 0 auto; padding: 28px; position: relative; z-index: 1; }
+  .view { display: none; animation: fadeIn 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── VIEW : LISTE ── */
+  .page-title {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 36px;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .page-title em { color: var(--gold); font-style: italic; }
+  .page-sub { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1; min-width: 260px;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input:focus { border-color: var(--gold); }
+  .search-box svg {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text3);
+  }
+
+  .forms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 18px;
+  }
+  .form-card {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .form-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.3;
+    transition: opacity 0.2s;
+  }
+  .form-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-gold);
+  }
+  .form-card:hover::before { opacity: 1; }
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; margin-bottom: 14px;
+  }
+  .card-client {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+  .card-flux-badge {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .card-flux-badge.import { color: var(--blue); border-color: rgba(91,141,255,0.4); background: var(--blue-dim); }
+  .card-flux-badge.export { color: var(--green); border-color: rgba(62,207,142,0.4); background: var(--green-dim); }
+  .card-flux-badge.both { color: var(--gold); border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+  .card-title {
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .card-desc { color: var(--text2); font-size: 12px; margin-bottom: 16px; min-height: 16px; }
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+    font-size: 11px; color: var(--text3);
+  }
+  .card-meta strong { color: var(--text2); font-weight: 500; }
+  .card-actions {
+    display: flex; gap: 6px; margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text2);
+  }
+  .empty-state .icon {
+    font-size: 48px; opacity: 0.3;
+    margin-bottom: 16px;
+  }
+  .empty-state h3 {
+    font-family: var(--font-display);
+    font-size: 24px; font-weight: 400;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .empty-state p { font-size: 13px; margin-bottom: 20px; }
+
+  /* ── VIEW : ÉDITEUR ── */
+  .editor-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr 460px;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  @media (max-width: 1400px) {
+    .editor-layout { grid-template-columns: 340px 1fr; }
+    .editor-preview { display: none; }
+  }
+  .editor-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 112px);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-header h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    color: var(--gold);
+    flex: 1;
+  }
+  .panel-body {
+    padding: 18px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .panel-body::-webkit-scrollbar { width: 6px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── FORM FIELDS (éditeur) ── */
+  .field-group { margin-bottom: 16px; }
+  .field-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .field-group input[type="text"],
+  .field-group input[type="url"],
+  .field-group textarea,
+  .field-group select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field-group input:focus,
+  .field-group textarea:focus,
+  .field-group select:focus { border-color: var(--gold); }
+  .field-group textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+  .field-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+  }
+  .segmented > button {
+    padding: 8px 10px;
+    background: transparent;
+    border: 0;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .segmented > button:hover { color: var(--text); }
+  .segmented > button.active {
+    background: var(--gold-dim);
+    color: var(--gold);
+  }
+
+  /* Composition / liste des champs */
+  .fields-library { display:flex; flex-direction:column; gap: 6px; }
+  .field-lib-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+  }
+  .field-lib-item.enabled { border-color: rgba(201,168,76,0.3); background: var(--gold-dim); }
+  .field-lib-item .drag-handle {
+    color: var(--text3);
+    cursor: grab;
+    font-size: 14px;
+    user-select: none;
+  }
+  .field-lib-item .drag-handle:active { cursor: grabbing; }
+  .field-lib-item.dragging { opacity: 0.4; border-style: dashed; }
+  .field-lib-item.drag-over { border-color: var(--gold); background: var(--gold-dim); }
+  .field-lib-item .field-lib-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .field-lib-item .field-lib-section {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .field-lib-toggle {
+    width: 34px; height: 20px;
+    background: var(--border2);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .field-lib-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: var(--text2);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  .field-lib-toggle.on { background: var(--gold); }
+  .field-lib-toggle.on::after { left: 16px; background: var(--bg); }
+
+  .field-config {
+    padding: 12px;
+    margin-top: 6px;
+    margin-left: 22px;
+    background: var(--bg3);
+    border-left: 2px solid var(--gold);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .field-config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .field-config-row:last-child { margin-bottom: 0; }
+  .field-config label {
+    font-size: 10px;
+    color: var(--text3);
+    display: block;
+    margin-bottom: 3px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .field-config input,
+  .field-config select {
+    width: 100%;
+    padding: 6px 9px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .field-config input:focus { border-color: var(--gold); }
+  .checkbox-line {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text2); cursor: pointer;
+    padding: 5px 0;
+  }
+  .checkbox-line input[type="checkbox"] { accent-color: var(--gold); }
+
+  /* Custom field */
+  .custom-fields { margin-top: 14px; }
+  .custom-field-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .custom-field-item .cf-label {
+    flex: 1;
+    font-size: 13px;
+  }
+
+  /* ── PREVIEW ── */
+  .editor-preview {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 112px);
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-frame {
+    flex: 1;
+    background: var(--bg);
+    padding: 24px 22px;
+    overflow-y: auto;
+    font-size: 12.5px;
+  }
+  .preview-frame::-webkit-scrollbar { width: 6px; }
+  .preview-frame::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .pv-header {
+    text-align: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 22px;
+  }
+  .pv-logo { max-width: 60px; margin: 0 auto 8px; display:block; border-radius: 6px; }
+  .pv-subtitle {
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .pv-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 300;
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+  .pv-title em { color: var(--gold); font-style: italic; }
+  .pv-desc { color: var(--text2); font-size: 11px; }
+
+  .pv-section { margin-bottom: 18px; }
+  .pv-section-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pv-field { margin-bottom: 10px; }
+  .pv-field label {
+    display:block;
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+  .pv-field .req { color: var(--red); margin-left: 2px; }
+  .pv-fixed {
+    display: inline-block;
+    font-size: 9px;
+    color: var(--gold);
+    background: var(--gold-dim);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+  }
+  .pv-input {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--text3);
+    min-height: 32px;
+  }
+  .pv-input.filled {
+    color: var(--text);
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.05);
+  }
+
+  /* ── BOTTOM BAR (éditeur) ── */
+  .editor-bottombar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(6,8,15,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 50;
+  }
+  .editor-bottombar .url-preview {
+    flex: 1;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--text2);
+    padding: 9px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .editor-bottombar .url-preview span { color: var(--gold); }
+
+  main { padding-bottom: 90px; }
+
+  /* ── VIEW : SOUMISSIONS ── */
+  .submissions-table {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .submissions-table table { width: 100%; border-collapse: collapse; }
+  .submissions-table thead {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .submissions-table th {
+    text-align: left;
+    padding: 13px 16px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .submissions-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+  }
+  .submissions-table tr:last-child td { border-bottom: 0; }
+  .submissions-table tr:hover td { background: rgba(201,168,76,0.04); }
+  .statut-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    border: 1px solid;
+  }
+  .statut-nouveau { color: var(--gold); border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+  .statut-cours { color: var(--blue); border-color: rgba(91,141,255,0.4); background: var(--blue-dim); }
+  .statut-termine { color: var(--green); border-color: rgba(62,207,142,0.4); background: var(--green-dim); }
+
+  /* ── MODAL ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    max-width: 520px;
+    width: 90%;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal-header {
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 24px;
+    color: var(--text);
+  }
+  .modal-header h2 em { color: var(--gold); }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: var(--bg3);
+  }
+
+  /* ── TOAST ── */
+  .toast-stack {
+    position: fixed;
+    bottom: 100px; right: 24px;
+    display: flex; flex-direction: column;
+    gap: 8px;
+    z-index: 300;
+    pointer-events: none;
+  }
+  .toast {
+    padding: 12px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-left: 3px solid var(--gold);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    animation: toastIn 0.3s ease;
+    pointer-events: auto;
+  }
+  .toast.err { border-left-color: var(--red); }
+  .toast.ok { border-left-color: var(--green); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Utilitaires */
+  .row { display:flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-20 { margin-bottom: 20px; }
+  .sep { height: 1px; background: var(--border); margin: 18px 0; }
+  .small { font-size: 11px; color: var(--text3); }
+  .mono { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+
+  /* Divider avec label */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 14px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .divider span {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ HEADER ═══════════════════════════════════ -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <div class="logo-mark">T</div>
+      <div class="logo-text">
+        <span class="big">Forms Manager</span>
+        <span class="sub">TAF · Trans Air Freight</span>
+      </div>
+      <span class="v-badge">v1.0</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="list">
+        <span>Formulaires</span>
+        <span class="count" id="countForms">0</span>
+      </button>
+      <button class="nav-tab" data-view="submissions">
+        <span>Soumissions</span>
+        <span class="count" id="countSubs">0</span>
+      </button>
+    </div>
+
+    <div class="header-right">
+      <div class="fb-status" id="fbStatus">
+        <span class="fb-dot"></span>
+        <span id="fbLabel">Firebase…</span>
+      </div>
+      <button class="btn btn-icon" title="Réglages" onclick="openSettings()">⚙</button>
+      <button class="btn btn-primary" id="btnNewForm">+ Nouveau formulaire</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ═══════════════════ VUE LISTE ═══════════════════ -->
+  <section class="view active" id="viewList">
+    <h1 class="page-title">Vos <em>formulaires</em></h1>
+    <p class="page-sub">Créez un formulaire personnalisé pour chaque client. Les soumissions remontent automatiquement dans TAF OPS.</p>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+        </svg>
+        <input type="text" id="searchForms" placeholder="Rechercher un client…">
+      </div>
+      <div class="segmented" style="flex:0 0 auto;">
+        <button data-filter="all" class="active">Tous</button>
+        <button data-filter="import">Import</button>
+        <button data-filter="export">Export</button>
+        <button data-filter="both">Mixte</button>
+      </div>
+    </div>
+
+    <div class="forms-grid" id="formsGrid"></div>
+
+    <div class="empty-state" id="emptyForms" style="display:none;">
+      <div class="icon">📋</div>
+      <h3>Aucun formulaire pour l'instant</h3>
+      <p>Créez votre premier formulaire client pour démarrer.</p>
+      <button class="btn btn-primary" onclick="openEditor()">+ Créer un formulaire</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ VUE ÉDITEUR ═══════════════════ -->
+  <section class="view" id="viewEditor">
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom: 20px;">
+      <button class="btn btn-ghost" onclick="backToList()">← Retour</button>
+      <div>
+        <h1 class="page-title" style="margin-bottom:0; font-size:28px;">
+          <em id="editorMode">Nouveau</em> formulaire
+        </h1>
+        <p class="page-sub" style="margin-bottom:0;" id="editorSub">Configuration du formulaire client</p>
+      </div>
+      <div style="margin-left:auto; display:flex; gap:8px;">
+        <button class="btn" onclick="duplicateForm()" id="btnDuplicate" style="display:none;">Dupliquer</button>
+        <button class="btn btn-danger" onclick="confirmDelete()" id="btnDelete" style="display:none;">Supprimer</button>
+        <button class="btn btn-primary" onclick="saveForm()">💾 Enregistrer</button>
+      </div>
+    </div>
+
+    <div class="editor-layout">
+
+      <!-- PANEL 1 : PROPRIÉTÉS -->
+      <div class="editor-panel">
+        <div class="panel-header">
+          <h3>Propriétés</h3>
+        </div>
+        <div class="panel-body">
+
+          <div class="field-group">
+            <label>Nom du client *</label>
+            <input type="text" id="fClient" placeholder="Ex. TZST, SAGA FRET…" oninput="updatePreview()">
+            <div class="field-hint">Identifie le formulaire. Utilisé dans l'URL et la référence du dossier.</div>
+          </div>
+
+          <div class="field-group">
+            <label>Logo du client (URL)</label>
+            <input type="url" id="fLogo" placeholder="https://…/logo.png" oninput="updatePreview()">
+          </div>
+
+          <div class="field-group">
+            <label>Sous-titre (au-dessus du titre)</label>
+            <input type="text" id="fSubtitle" placeholder="Trans Air Freight — CDG" oninput="updatePreview()">
+          </div>
+
+          <div class="field-group">
+            <label>Titre du formulaire</label>
+            <input type="text" id="fTitle" placeholder="Demande de prise en charge" oninput="updatePreview()">
+            <div class="field-hint">Astuce : utilisez &lt;em&gt;mot&lt;/em&gt; pour mettre un mot en doré italique.</div>
+          </div>
+
+          <div class="field-group">
+            <label>Description (sous le titre)</label>
+            <textarea id="fDesc" placeholder="Fret aérien international · Paris Charles-de-Gaulle" oninput="updatePreview()"></textarea>
+          </div>
+
+          <div class="divider"><span>Flux autorisé</span></div>
+          <div class="field-group">
+            <div class="segmented" id="fluxSelector">
+              <button data-flux="both" class="active">Les deux</button>
+              <button data-flux="import">Import seul</button>
+              <button data-flux="export">Export seul</button>
+            </div>
+            <div class="field-hint">Fige le flux si un seul est sélectionné.</div>
+          </div>
+
+          <div class="divider"><span>Destination</span></div>
+          <div class="field-group">
+            <label>Email de notification TAF</label>
+            <input type="text" id="fNotifyEmail" placeholder="ops@taftrans.fr">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PANEL 2 : CHAMPS -->
+      <div class="editor-panel">
+        <div class="panel-header">
+          <h3>Composition du formulaire</h3>
+        </div>
+        <div class="panel-body">
+          <div style="font-size:12px; color:var(--text2); margin-bottom:12px;">
+            Activez/désactivez les champs, réordonnez par glisser-déposer, pré-remplissez les valeurs imposées.
+          </div>
+
+          <div class="fields-library" id="fieldsLibrary"></div>
+
+          <div class="divider"><span>Champs personnalisés</span></div>
+
+          <div class="custom-fields" id="customFieldsList"></div>
+          <button class="btn btn-sm btn-ghost" onclick="addCustomField()" style="width:100%; margin-top:8px; justify-content:center;">+ Ajouter un champ personnalisé</button>
+
+        </div>
+      </div>
+
+      <!-- PANEL 3 : APERÇU -->
+      <div class="editor-preview">
+        <div class="panel-header">
+          <h3>Aperçu</h3>
+          <button class="btn btn-sm btn-ghost" onclick="openPreviewUrl()">↗ Plein écran</button>
+        </div>
+        <div class="preview-frame" id="previewFrame"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════ VUE SOUMISSIONS ═══════════════════ -->
+  <section class="view" id="viewSubmissions">
+    <h1 class="page-title">Soumissions <em>clients</em></h1>
+    <p class="page-sub">Toutes les demandes reçues via vos formulaires, classées par date.</p>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+        </svg>
+        <input type="text" id="searchSubs" placeholder="Rechercher par client, LTA, référence…">
+      </div>
+      <select id="filterSubClient" class="btn" style="min-width: 180px;">
+        <option value="">Tous les clients</option>
+      </select>
+      <button class="btn" onclick="loadSubmissions()">↻ Actualiser</button>
+    </div>
+
+    <div class="submissions-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Client</th>
+            <th>Référence</th>
+            <th>Flux</th>
+            <th>LTA</th>
+            <th>Pays</th>
+            <th>Statut</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="subsTbody">
+          <tr><td colspan="8" style="text-align:center; color: var(--text3); padding: 40px;">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══════════════════ BOTTOM BAR (éditeur) ═══════════════════ -->
+<div class="editor-bottombar" id="editorBottombar" style="display:none;">
+  <span style="font-size:11px; color: var(--text2); letter-spacing:0.5px;">URL PUBLIQUE</span>
+  <div class="url-preview mono" id="urlPreview">—</div>
+  <button class="btn" onclick="copyUrl()">📋 Copier</button>
+  <button class="btn" onclick="openPreviewUrl()">↗ Ouvrir</button>
+</div>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+<div class="modal-backdrop" id="modalConfirm">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="confirmTitle">Confirmer</h2>
+    </div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalConfirm')">Annuler</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalShare">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Partager <em>le formulaire</em></h2>
+    </div>
+    <div class="modal-body">
+      <p style="color: var(--text2); margin-bottom:14px; font-size:13px;">
+        Envoyez cette URL à votre client. Il accédera au formulaire pré-configuré.
+      </p>
+      <div class="field-group">
+        <label>URL publique</label>
+        <textarea id="shareUrl" readonly style="font-family: 'SF Mono', monospace; font-size: 11px; min-height: 90px;"></textarea>
+      </div>
+      <div class="row mt-12">
+        <button class="btn" onclick="copyShareUrl()">📋 Copier l'URL</button>
+        <button class="btn" onclick="shareByEmail()">✉ Envoyer par mail</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalShare')">Fermer</button>
+      <a class="btn btn-primary" id="shareOpenLink" target="_blank" rel="noopener">Ouvrir ↗</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalSettings">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><em>Réglages</em> Forms Manager</h2>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label>URL publique du formulaire client</label>
+        <input type="url" id="settingsPublicUrl" placeholder="https://…/TAF_FORM_TZST.html">
+        <div class="field-hint">
+          Adresse où votre fichier <strong>TAF_FORM_TZST.html</strong> est publié. Toutes les URLs générées
+          pour vos clients démarreront par cette base.
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Valeur actuelle utilisée</label>
+        <div class="mono" id="settingsCurrentUrl" style="padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--gold);word-break:break-all;">—</div>
+      </div>
+      <div class="field-hint mt-12">
+        Cette valeur est sauvegardée dans Firebase et partagée entre tous vos postes.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="resetPublicUrl()">↺ Valeur par défaut</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalSettings')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   TAF FORMS MANAGER v1.0 — Christophe Hermann / TAF Trans Air Freight
+   ════════════════════════════════════════════════════════════════════ */
+
+const FIREBASE_URL = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+
+// URL publique du formulaire client (à adapter si déployé ailleurs)
+// URL publique du formulaire client — modifiable dans Réglages et sauvée dans Firebase.
+// Valeur par défaut seulement au 1er lancement.
+const DEFAULT_FORM_PUBLIC_URL = "https://christophehermann.github.io/TAF/TAF_FORM_TZST.html";
+let FORM_PUBLIC_URL = DEFAULT_FORM_PUBLIC_URL;
+
+function getPublicFormUrl() {
+  return (FORM_PUBLIC_URL || DEFAULT_FORM_PUBLIC_URL).trim();
+}
+
+/* ════════════════════════════════════════
+   CATALOGUE DES CHAMPS STANDARDS
+   Mappe 1-à-1 le formulaire TAF_FORM_TZST.
+   ════════════════════════════════════════ */
+const FIELDS_CATALOG = [
+  { id: 'f1',  section:'IDENT.',  name:'Nom du client',     inputId:'nomClient', fixable:true, type:'text' },
+  { id: 'f_flux', section:'IDENT.', name:'Flux (Import/Export)', inputId:'flux', fixable:true, type:'select', options:['Import','Export'], alwaysOn:true },
+  { id: 'f2',  section:'EXPE.',   name:'Numéro LTA / AWB',  inputId:'lta', fixable:true, type:'text' },
+  { id: 'f3',  section:'EXPE.',   name:'Nombre de colis',   inputId:'colis', fixable:false, type:'number' },
+  { id: 'f4',  section:'EXPE.',   name:'Poids brut (kg)',   inputId:'kgb', fixable:false, type:'number' },
+  { id: 'f5',  section:'EXPE.',   name:'Pays destination/origine', inputId:'pays', fixable:true, type:'select' },
+  { id: 'f6',  section:'DOUANE',  name:'EUR1 requis',       inputId:'eur1', fixable:true, type:'radio', options:['Oui','Non'] },
+  { id: 'f6b', section:'DOUANE',  name:'Upload EUR1 (PDF)', inputId:'eur1Files', fixable:false, type:'file' },
+  { id: 'f7',  section:'LOCAL.',  name:'Zone de stockage',  inputId:'locChips', fixable:true, type:'chips', options:['LTM','CLC','WFS','SFS','FTM'] },
+  { id: 'f8',  section:'DOCS',    name:'Documents douaniers (PDF)', inputId:'docFiles', fixable:false, type:'file' },
+  { id: 'f9',  section:'INFOS',   name:'Notes / Instructions', inputId:'notes', fixable:true, type:'textarea' },
+  { id: 'f10', section:'CONTACT', name:'Emails de notification', inputId:'email', fixable:true, type:'email', alwaysOn:true },
+];
+
+/* ════════════════════════════════════════
+   ÉTAT GLOBAL
+   ════════════════════════════════════════ */
+let forms = {};          // Toutes les configs de formulaires (depuis Firebase)
+let submissions = {};    // Toutes les demandes reçues
+let currentForm = null;  // Formulaire en cours d'édition
+let currentFormId = null;
+let currentFilter = 'all';
+let firebaseOk = false;
+
+/* ════════════════════════════════════════
+   UTILITAIRES
+   ════════════════════════════════════════ */
+function toast(msg, kind='') {
+  const stack = document.getElementById('toastStack');
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'all 0.3s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(40px)';
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+function setFbStatus(ok, label) {
+  const el = document.getElementById('fbStatus');
+  el.className = 'fb-status ' + (ok ? 'ok' : 'err');
+  document.getElementById('fbLabel').textContent = label || (ok ? 'Firebase connecté' : 'Firebase hors-ligne');
+  firebaseOk = ok;
+}
+
+function slugify(s) {
+  return (s||'').toString().trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .toUpperCase();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) +
+    ' · ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', (e) => { if (e.target === b) b.classList.remove('show'); });
+});
+
+/* ════════════════════════════════════════
+   FIREBASE REST
+   ════════════════════════════════════════ */
+async function fbGet(path) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`);
+  if (!r.ok) throw new Error('Firebase GET ' + r.status);
+  return r.json();
+}
+async function fbPut(path, data) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('Firebase PUT ' + r.status);
+  return r.json();
+}
+async function fbDelete(path) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`, { method: 'DELETE' });
+  if (!r.ok) throw new Error('Firebase DELETE ' + r.status);
+  return true;
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION ENTRE VUES
+   ════════════════════════════════════════ */
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view' + name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  document.getElementById('editorBottombar').style.display = (name === 'editor') ? 'flex' : 'none';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const v = tab.dataset.view;
+    showView(v);
+    if (v === 'submissions') loadSubmissions();
+  });
+});
+
+document.getElementById('btnNewForm').addEventListener('click', () => openEditor(null));
+
+function backToList() {
+  showView('list');
+  renderFormsList();
+}
+
+/* ════════════════════════════════════════
+   CHARGEMENT INITIAL
+   ════════════════════════════════════════ */
+async function init() {
+  try {
+    // Charger les réglages globaux (URL publique du formulaire)
+    try {
+      const cfg = await fbGet('taf_forms_config');
+      if (cfg && typeof cfg === 'object' && cfg.publicUrl) {
+        FORM_PUBLIC_URL = cfg.publicUrl;
+      }
+    } catch(_) { /* fallback sur la valeur par défaut */ }
+
+    const data = await fbGet('taf_forms');
+    forms = data || {};
+    setFbStatus(true);
+    renderFormsList();
+  } catch(e) {
+    console.error('[INIT] Firebase error', e);
+    setFbStatus(false, 'Firebase hors-ligne');
+    forms = {};
+    renderFormsList();
+    toast('Connexion Firebase impossible', 'err');
+  }
+}
+
+/* ════════════════════════════════════════
+   RÉGLAGES
+   ════════════════════════════════════════ */
+function openSettings() {
+  document.getElementById('settingsPublicUrl').value = FORM_PUBLIC_URL || '';
+  document.getElementById('settingsCurrentUrl').textContent = getPublicFormUrl();
+  openModal('modalSettings');
+}
+
+async function saveSettings() {
+  const newUrl = document.getElementById('settingsPublicUrl').value.trim();
+  if (!newUrl) { toast('URL requise', 'err'); return; }
+  if (!/^https?:\/\//.test(newUrl)) { toast('URL invalide (http:// ou https:// requis)', 'err'); return; }
+  try {
+    await fbPut('taf_forms_config', { publicUrl: newUrl, updated_at: new Date().toISOString() });
+    FORM_PUBLIC_URL = newUrl;
+    closeModal('modalSettings');
+    toast('URL publique enregistrée', 'ok');
+    // Rafraîchir l'aperçu si on est dans l'éditeur
+    if (document.getElementById('viewEditor').classList.contains('active')) updatePreview();
+  } catch(e) {
+    toast('Erreur enregistrement', 'err');
+  }
+}
+
+function resetPublicUrl() {
+  document.getElementById('settingsPublicUrl').value = DEFAULT_FORM_PUBLIC_URL;
+}
+
+/* ════════════════════════════════════════
+   VUE LISTE
+   ════════════════════════════════════════ */
+function renderFormsList() {
+  const grid = document.getElementById('formsGrid');
+  const empty = document.getElementById('emptyForms');
+  const search = (document.getElementById('searchForms').value || '').toLowerCase();
+
+  const list = Object.entries(forms || {}).map(([id, f]) => ({ id, ...f }));
+  const filtered = list.filter(f => {
+    if (search && !((f.client||'') + ' ' + (f.title||'')).toLowerCase().includes(search)) return false;
+    if (currentFilter !== 'all' && (f.flux || 'both') !== currentFilter) return false;
+    return true;
+  }).sort((a,b) => new Date(b.updated_at||0) - new Date(a.updated_at||0));
+
+  document.getElementById('countForms').textContent = list.length;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = list.length === 0 ? 'block' : 'none';
+    if (search && list.length > 0) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:40px;">Aucun résultat pour « ${search} »</div>`;
+    }
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = filtered.map(f => {
+    const flux = f.flux || 'both';
+    const fluxLabel = flux === 'both' ? 'Import+Export' : (flux.charAt(0).toUpperCase()+flux.slice(1));
+    return `
+      <div class="form-card" onclick="openEditor('${f.id}')">
+        <div class="card-header">
+          <div class="card-client">${escapeHtml(f.client || 'Sans nom')}</div>
+          <span class="card-flux-badge ${flux}">${fluxLabel}</span>
+        </div>
+        <div class="card-title">${escapeHtml(stripTags(f.title || 'Demande de prise en charge'))}</div>
+        <div class="card-desc">${escapeHtml(f.description || '—')}</div>
+        <div class="card-meta">
+          <span><strong>${countEnabledFields(f)}</strong> champs</span>
+          <span><strong>${countFixedFields(f)}</strong> pré-remplis</span>
+          <span>MàJ ${fmtDate(f.updated_at).split(' · ')[0]}</span>
+        </div>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm" onclick="openShareModal('${f.id}')">↗ Partager</button>
+          <button class="btn btn-sm btn-ghost" onclick="openEditor('${f.id}')">Éditer</button>
+          <button class="btn btn-sm btn-ghost" onclick="duplicateFormById('${f.id}')">Dupliquer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function stripTags(s) { return String(s||'').replace(/<[^>]+>/g, ''); }
+
+function countEnabledFields(f) {
+  const cfg = f.fields || {};
+  return FIELDS_CATALOG.filter(fd => fd.alwaysOn || cfg[fd.id]?.enabled).length + (f.customFields?.length || 0);
+}
+function countFixedFields(f) {
+  const cfg = f.fields || {};
+  return FIELDS_CATALOG.filter(fd => cfg[fd.id]?.fixed && cfg[fd.id]?.fixedValue).length;
+}
+
+document.getElementById('searchForms').addEventListener('input', renderFormsList);
+document.querySelectorAll('[data-filter]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentFilter = b.dataset.filter;
+    renderFormsList();
+  });
+});
+
+/* ════════════════════════════════════════
+   ÉDITEUR — OUVERTURE
+   ════════════════════════════════════════ */
+function newFormTemplate() {
+  // Tous les champs activés par défaut, ordre naturel du catalogue
+  const fields = {};
+  FIELDS_CATALOG.forEach((f, i) => {
+    fields[f.id] = {
+      enabled: true,
+      required: ['f1','f_flux','f2','f5','f6','f10'].includes(f.id),
+      fixed: false,
+      fixedValue: '',
+      order: i
+    };
+  });
+  return {
+    client: '',
+    logo: '',
+    subtitle: 'Trans Air Freight — CDG',
+    title: 'Demande de<br><em>prise en charge</em>',
+    description: 'Fret aérien international · Paris Charles-de-Gaulle',
+    flux: 'both',
+    notifyEmail: 'ops@taftrans.fr',
+    fields,
+    customFields: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+
+function openEditor(id) {
+  if (id) {
+    currentFormId = id;
+    currentForm = JSON.parse(JSON.stringify(forms[id] || newFormTemplate()));
+    // Backfill si un champ du catalogue manque dans une ancienne config
+    FIELDS_CATALOG.forEach((f, i) => {
+      if (!currentForm.fields[f.id]) {
+        currentForm.fields[f.id] = { enabled: true, required: false, fixed: false, fixedValue: '', order: i };
+      }
+    });
+    document.getElementById('editorMode').textContent = 'Éditer';
+    document.getElementById('editorSub').textContent = `Formulaire : ${currentForm.client || id}`;
+    document.getElementById('btnDuplicate').style.display = '';
+    document.getElementById('btnDelete').style.display = '';
+  } else {
+    currentFormId = null;
+    currentForm = newFormTemplate();
+    document.getElementById('editorMode').textContent = 'Nouveau';
+    document.getElementById('editorSub').textContent = 'Configuration du formulaire client';
+    document.getElementById('btnDuplicate').style.display = 'none';
+    document.getElementById('btnDelete').style.display = 'none';
+  }
+
+  // Remplir les champs de l'éditeur
+  document.getElementById('fClient').value = currentForm.client || '';
+  document.getElementById('fLogo').value = currentForm.logo || '';
+  document.getElementById('fSubtitle').value = currentForm.subtitle || '';
+  document.getElementById('fTitle').value = currentForm.title || '';
+  document.getElementById('fDesc').value = currentForm.description || '';
+  document.getElementById('fNotifyEmail').value = currentForm.notifyEmail || '';
+
+  document.querySelectorAll('[data-flux]').forEach(b => {
+    b.classList.toggle('active', b.dataset.flux === (currentForm.flux || 'both'));
+  });
+
+  renderFieldsLibrary();
+  renderCustomFields();
+  updatePreview();
+  showView('editor');
+}
+
+// Flux selector
+document.querySelectorAll('[data-flux]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-flux]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    updatePreview();
+  });
+});
+
+// Sync en temps réel
+['fClient','fLogo','fSubtitle','fTitle','fDesc','fNotifyEmail'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (!currentForm) return;
+    const key = id.replace('f','').charAt(0).toLowerCase() + id.slice(2);
+    const map = { fClient:'client', fLogo:'logo', fSubtitle:'subtitle', fTitle:'title', fDesc:'description', fNotifyEmail:'notifyEmail' };
+    currentForm[map[id]] = document.getElementById(id).value;
+    updatePreview();
+  });
+});
+
+/* ════════════════════════════════════════
+   ÉDITEUR — CHAMPS STANDARDS
+   ════════════════════════════════════════ */
+function renderFieldsLibrary() {
+  if (!currentForm) return;
+  const wrap = document.getElementById('fieldsLibrary');
+
+  // Trier selon l'ordre de la config
+  const sorted = [...FIELDS_CATALOG].sort((a,b) => {
+    const oa = currentForm.fields[a.id]?.order ?? 999;
+    const ob = currentForm.fields[b.id]?.order ?? 999;
+    return oa - ob;
+  });
+
+  wrap.innerHTML = sorted.map(f => {
+    const cfg = currentForm.fields[f.id] || { enabled: true };
+    const enabled = cfg.enabled || f.alwaysOn;
+    const configOpen = cfg.enabled && (cfg.fixed || cfg.required);
+    return `
+      <div class="field-lib-wrap" data-id="${f.id}">
+        <div class="field-lib-item ${enabled?'enabled':''}" draggable="true" data-id="${f.id}">
+          <span class="drag-handle">⋮⋮</span>
+          <span class="field-lib-section">${f.section}</span>
+          <span class="field-lib-name">${escapeHtml(f.name)}${f.alwaysOn?' <em style="color:var(--gold);font-size:10px;">(obligatoire)</em>':''}</span>
+          <div class="field-lib-toggle ${enabled?'on':''}" onclick="toggleField('${f.id}')" ${f.alwaysOn?'style="opacity:0.5;pointer-events:none;"':''}></div>
+        </div>
+        ${enabled ? fieldConfigHtml(f, cfg) : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Drag & drop
+  wrap.querySelectorAll('.field-lib-item[draggable="true"]').forEach(it => {
+    it.addEventListener('dragstart', onDragStart);
+    it.addEventListener('dragend', onDragEnd);
+    it.addEventListener('dragover', onDragOver);
+    it.addEventListener('drop', onDrop);
+    it.addEventListener('dragleave', onDragLeave);
+  });
+}
+
+function fieldConfigHtml(f, cfg) {
+  let fixedInput = '';
+  if (f.fixable) {
+    if (f.type === 'select' && f.options) {
+      const opts = f.options.map(o => `<option ${cfg.fixedValue===o?'selected':''}>${o}</option>`).join('');
+      fixedInput = `<select onchange="setFieldFixedValue('${f.id}', this.value)" ${!cfg.fixed?'disabled':''}><option value="">—</option>${opts}</select>`;
+    } else if (f.type === 'radio' && f.options) {
+      const opts = f.options.map(o => `<option ${cfg.fixedValue===o?'selected':''}>${o}</option>`).join('');
+      fixedInput = `<select onchange="setFieldFixedValue('${f.id}', this.value)" ${!cfg.fixed?'disabled':''}><option value="">—</option>${opts}</select>`;
+    } else {
+      fixedInput = `<input type="text" value="${escapeHtml(cfg.fixedValue||'')}" oninput="setFieldFixedValue('${f.id}', this.value)" ${!cfg.fixed?'disabled':''} placeholder="Valeur imposée">`;
+    }
+  }
+  return `
+    <div class="field-config">
+      <label class="checkbox-line">
+        <input type="checkbox" ${cfg.required?'checked':''} onchange="toggleFieldRequired('${f.id}', this.checked)" ${f.alwaysOn?'disabled':''}>
+        Champ obligatoire
+      </label>
+      ${f.fixable ? `
+        <label class="checkbox-line">
+          <input type="checkbox" ${cfg.fixed?'checked':''} onchange="toggleFieldFixed('${f.id}', this.checked)">
+          Pré-remplir et verrouiller
+        </label>
+        ${cfg.fixed ? `<div class="field-config-row" style="grid-template-columns: 1fr;"><div><label>Valeur imposée</label>${fixedInput}</div></div>` : ''}
+      ` : ''}
+    </div>
+  `;
+}
+
+function toggleField(id) {
+  if (!currentForm) return;
+  const meta = FIELDS_CATALOG.find(f => f.id === id);
+  if (meta?.alwaysOn) return;
+  currentForm.fields[id].enabled = !currentForm.fields[id].enabled;
+  if (!currentForm.fields[id].enabled) {
+    currentForm.fields[id].fixed = false;
+    currentForm.fields[id].required = false;
+  }
+  renderFieldsLibrary();
+  updatePreview();
+}
+function toggleFieldRequired(id, v) {
+  currentForm.fields[id].required = v;
+  updatePreview();
+}
+function toggleFieldFixed(id, v) {
+  currentForm.fields[id].fixed = v;
+  if (!v) currentForm.fields[id].fixedValue = '';
+  renderFieldsLibrary();
+  updatePreview();
+}
+function setFieldFixedValue(id, v) {
+  currentForm.fields[id].fixedValue = v;
+  updatePreview();
+}
+
+/* Drag & drop des champs */
+let dragSrc = null;
+function onDragStart(e) {
+  dragSrc = e.currentTarget;
+  dragSrc.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) {
+  if (dragSrc) dragSrc.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  const tgt = e.currentTarget;
+  if (!dragSrc || dragSrc === tgt) return;
+  const srcId = dragSrc.dataset.id;
+  const tgtId = tgt.dataset.id;
+  // Réordonner
+  const ordered = [...FIELDS_CATALOG].sort((a,b) => (currentForm.fields[a.id].order ?? 0) - (currentForm.fields[b.id].order ?? 0));
+  const srcIdx = ordered.findIndex(f => f.id === srcId);
+  const tgtIdx = ordered.findIndex(f => f.id === tgtId);
+  const [item] = ordered.splice(srcIdx, 1);
+  ordered.splice(tgtIdx, 0, item);
+  ordered.forEach((f, i) => { currentForm.fields[f.id].order = i; });
+  renderFieldsLibrary();
+  updatePreview();
+}
+
+/* ════════════════════════════════════════
+   CHAMPS PERSONNALISÉS
+   ════════════════════════════════════════ */
+function renderCustomFields() {
+  const wrap = document.getElementById('customFieldsList');
+  if (!currentForm.customFields) currentForm.customFields = [];
+  if (currentForm.customFields.length === 0) {
+    wrap.innerHTML = '<div class="small" style="text-align:center;padding:8px;">Aucun champ personnalisé</div>';
+    return;
+  }
+  wrap.innerHTML = currentForm.customFields.map((cf, i) => `
+    <div class="custom-field-item">
+      <input type="text" value="${escapeHtml(cf.label)}" oninput="updateCustomField(${i}, 'label', this.value)" style="padding:6px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;flex:1;font-family:inherit;">
+      <select onchange="updateCustomField(${i}, 'type', this.value)" style="padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:inherit;">
+        <option value="text" ${cf.type==='text'?'selected':''}>Texte</option>
+        <option value="number" ${cf.type==='number'?'selected':''}>Nombre</option>
+        <option value="textarea" ${cf.type==='textarea'?'selected':''}>Zone de texte</option>
+        <option value="email" ${cf.type==='email'?'selected':''}>Email</option>
+      </select>
+      <button class="btn btn-sm btn-danger btn-icon" onclick="removeCustomField(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+function addCustomField() {
+  currentForm.customFields.push({ label:'Nouveau champ', type:'text', required: false });
+  renderCustomFields();
+  updatePreview();
+}
+function updateCustomField(i, key, v) {
+  currentForm.customFields[i][key] = v;
+  updatePreview();
+}
+function removeCustomField(i) {
+  currentForm.customFields.splice(i, 1);
+  renderCustomFields();
+  updatePreview();
+}
+
+/* ════════════════════════════════════════
+   PREVIEW
+   ════════════════════════════════════════ */
+function updatePreview() {
+  if (!currentForm) return;
+  const f = currentForm;
+  const flux = getSelectedFlux();
+  f.flux = flux;
+
+  // Liste des sections dans l'ordre
+  const ordered = [...FIELDS_CATALOG].sort((a,b) => {
+    const oa = f.fields[a.id]?.order ?? 999;
+    const ob = f.fields[b.id]?.order ?? 999;
+    return oa - ob;
+  });
+  const sections = {};
+  ordered.forEach(fd => {
+    const cfg = f.fields[fd.id] || {};
+    if (!cfg.enabled && !fd.alwaysOn) return;
+    if (!sections[fd.section]) sections[fd.section] = [];
+    sections[fd.section].push({ meta: fd, cfg });
+  });
+
+  let html = '';
+  // Header preview
+  html += '<div class="pv-header">';
+  if (f.logo) html += `<img src="${escapeHtml(f.logo)}" class="pv-logo" onerror="this.style.display='none'">`;
+  html += `<div class="pv-subtitle">${escapeHtml(f.subtitle || 'Trans Air Freight — CDG')}</div>`;
+  html += `<div class="pv-title">${f.title || 'Demande de prise en charge'}</div>`;
+  if (f.description) html += `<div class="pv-desc">${escapeHtml(f.description)}</div>`;
+  html += '</div>';
+
+  // Sections
+  Object.entries(sections).forEach(([sectionName, fields]) => {
+    html += `<div class="pv-section"><div class="pv-section-title">${sectionName}</div>`;
+    fields.forEach(({ meta, cfg }) => {
+      html += `<div class="pv-field">`;
+      html += `<label>${escapeHtml(meta.name)}`;
+      if (cfg.required || meta.alwaysOn) html += '<span class="req">*</span>';
+      if (cfg.fixed && cfg.fixedValue) html += `<span class="pv-fixed">📌 ${escapeHtml(cfg.fixedValue)}</span>`;
+      html += `</label>`;
+      if (cfg.fixed && cfg.fixedValue) {
+        html += `<div class="pv-input filled">${escapeHtml(cfg.fixedValue)}</div>`;
+      } else {
+        let placeholder = '';
+        if (meta.type === 'textarea') placeholder = 'Votre message…';
+        else if (meta.type === 'email') placeholder = 'email@exemple.fr';
+        else if (meta.type === 'number') placeholder = '0';
+        else if (meta.id === 'f2') placeholder = '057-12345678';
+        else if (meta.id === 'f_flux') placeholder = 'Import / Export';
+        else placeholder = '—';
+        html += `<div class="pv-input">${placeholder}</div>`;
+      }
+      html += `</div>`;
+    });
+    html += '</div>';
+  });
+
+  // Champs personnalisés
+  if (f.customFields && f.customFields.length > 0) {
+    html += `<div class="pv-section"><div class="pv-section-title">COMPLÉMENT</div>`;
+    f.customFields.forEach(cf => {
+      html += `<div class="pv-field"><label>${escapeHtml(cf.label)}${cf.required?'<span class="req">*</span>':''}</label>`;
+      html += `<div class="pv-input">${cf.type === 'textarea' ? '—' : '—'}</div></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Bouton
+  html += '<div style="text-align:center; padding: 20px 0; border-top: 1px solid var(--border); margin-top: 14px;">';
+  html += '<div style="display:inline-block; padding: 10px 28px; background: linear-gradient(135deg, var(--gold), var(--gold2)); color: var(--bg); border-radius: 8px; font-weight: 500; font-size: 12px; letter-spacing: 0.5px;">ENVOYER LA DEMANDE</div>';
+  html += '</div>';
+
+  document.getElementById('previewFrame').innerHTML = html;
+
+  // URL preview
+  document.getElementById('urlPreview').innerHTML = buildPublicUrl(currentForm, true);
+}
+
+function getSelectedFlux() {
+  const active = document.querySelector('[data-flux].active');
+  return active?.dataset.flux || 'both';
+}
+
+/* ════════════════════════════════════════
+   URL PUBLIQUE
+   ════════════════════════════════════════ */
+function buildPublicUrl(f, forDisplay=false) {
+  const params = new URLSearchParams();
+
+  // Flux imposé ?
+  if (f.flux === 'import' || f.flux === 'export') {
+    params.set('flux', f.flux);
+  }
+  // Logo client
+  if (f.logo) params.set('logo', f.logo);
+
+  // Pré-remplissage
+  const fixedMap = {};
+  const labelsMap = {};
+  FIELDS_CATALOG.forEach(meta => {
+    const cfg = f.fields?.[meta.id];
+    if (cfg?.fixed && cfg?.fixedValue) {
+      fixedMap[meta.id] = cfg.fixedValue;
+      labelsMap[meta.id] = meta.name;
+    }
+  });
+  // Le nom du client est toujours injecté comme valeur par défaut
+  if (f.client) {
+    fixedMap['f1'] = f.client;
+    labelsMap['f1'] = 'Nom du client';
+  }
+
+  if (Object.keys(fixedMap).length > 0) {
+    // IMPORTANT : URLSearchParams encode déjà. Ne pas encodeURIComponent avant, sinon double-encodage.
+    params.set('fixed', JSON.stringify(fixedMap));
+    params.set('fixedLabels', JSON.stringify(labelsMap));
+  }
+
+  const url = getPublicFormUrl() + '?' + params.toString();
+
+  if (forDisplay) {
+    // Affichage lisible avec coloration
+    const baseDisplay = getPublicFormUrl().replace(/^https?:\/\//, '');
+    let short = baseDisplay;
+    if (params.toString()) {
+      const paramCount = [...params].length;
+      short += `<span>?${params.get('flux')?'flux='+params.get('flux'):''}${f.logo?' · logo':''}${params.has('fixed')?' · '+Object.keys(fixedMap).length+' pré-rempli(s)':''}</span>`;
+    }
+    return short;
+  }
+  return url;
+}
+
+/* ════════════════════════════════════════
+   ENREGISTREMENT / SUPPRESSION
+   ════════════════════════════════════════ */
+async function saveForm() {
+  if (!currentForm.client || currentForm.client.trim() === '') {
+    toast('Le nom du client est requis', 'err');
+    document.getElementById('fClient').focus();
+    return;
+  }
+  currentForm.flux = getSelectedFlux();
+  currentForm.updated_at = new Date().toISOString();
+
+  const id = currentFormId || slugify(currentForm.client) + '_' + Date.now().toString(36);
+  try {
+    await fbPut(`taf_forms/${id}`, currentForm);
+    forms[id] = currentForm;
+    currentFormId = id;
+    document.getElementById('editorMode').textContent = 'Éditer';
+    document.getElementById('btnDuplicate').style.display = '';
+    document.getElementById('btnDelete').style.display = '';
+    toast('Formulaire enregistré', 'ok');
+  } catch(e) {
+    console.error(e);
+    toast('Erreur lors de l\'enregistrement', 'err');
+  }
+}
+
+function confirmDelete() {
+  document.getElementById('confirmTitle').innerHTML = 'Supprimer ce <em>formulaire ?</em>';
+  document.getElementById('confirmBody').innerHTML = `
+    <p style="color:var(--text2);">Vous êtes sur le point de supprimer le formulaire du client <strong style="color:var(--gold)">${escapeHtml(currentForm.client)}</strong>.</p>
+    <p style="color:var(--text3);margin-top:10px;font-size:12px;">⚠ Cette action est irréversible. Les soumissions déjà reçues dans TAF OPS sont conservées.</p>
+  `;
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.onclick = async () => {
+    try {
+      await fbDelete(`taf_forms/${currentFormId}`);
+      delete forms[currentFormId];
+      closeModal('modalConfirm');
+      toast('Formulaire supprimé', 'ok');
+      backToList();
+    } catch(e) {
+      toast('Erreur suppression', 'err');
+    }
+  };
+  openModal('modalConfirm');
+}
+
+function duplicateForm() {
+  if (!currentForm) return;
+  const copy = JSON.parse(JSON.stringify(currentForm));
+  copy.client = (copy.client || '') + ' (copie)';
+  copy.created_at = new Date().toISOString();
+  copy.updated_at = new Date().toISOString();
+  currentFormId = null;
+  currentForm = copy;
+  document.getElementById('fClient').value = copy.client;
+  document.getElementById('editorMode').textContent = 'Nouveau';
+  document.getElementById('btnDuplicate').style.display = 'none';
+  document.getElementById('btnDelete').style.display = 'none';
+  toast('Duplication créée — pensez à enregistrer', 'ok');
+  updatePreview();
+}
+function duplicateFormById(id) {
+  const f = forms[id];
+  if (!f) return;
+  const copy = JSON.parse(JSON.stringify(f));
+  copy.client = (copy.client || '') + ' (copie)';
+  copy.created_at = new Date().toISOString();
+  copy.updated_at = new Date().toISOString();
+  currentFormId = null;
+  currentForm = copy;
+  openEditor(null);
+  // Re-set car openEditor() écrase si id=null
+  currentForm = copy;
+  document.getElementById('fClient').value = copy.client;
+  document.getElementById('fLogo').value = copy.logo || '';
+  document.getElementById('fSubtitle').value = copy.subtitle || '';
+  document.getElementById('fTitle').value = copy.title || '';
+  document.getElementById('fDesc').value = copy.description || '';
+  document.getElementById('fNotifyEmail').value = copy.notifyEmail || '';
+  document.querySelectorAll('[data-flux]').forEach(b => b.classList.toggle('active', b.dataset.flux === copy.flux));
+  renderFieldsLibrary();
+  renderCustomFields();
+  updatePreview();
+  toast('Duplication créée — pensez à enregistrer', 'ok');
+}
+
+/* ════════════════════════════════════════
+   PARTAGE
+   ════════════════════════════════════════ */
+function openShareModal(id) {
+  const f = forms[id];
+  if (!f) return;
+  const url = buildPublicUrl(f);
+  document.getElementById('shareUrl').value = url;
+  document.getElementById('shareOpenLink').href = url;
+  openModal('modalShare');
+}
+function copyShareUrl() {
+  const el = document.getElementById('shareUrl');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => toast('URL copiée', 'ok'));
+}
+function shareByEmail() {
+  const url = document.getElementById('shareUrl').value;
+  const client = (currentForm?.client || forms[Object.keys(forms)[0]]?.client || 'cher client');
+  const subject = encodeURIComponent('TAF — Formulaire de demande de prise en charge');
+  const body = encodeURIComponent(
+    `Bonjour,\n\n` +
+    `Merci de compléter notre formulaire en ligne pour votre demande de prise en charge :\n\n${url}\n\n` +
+    `Cordialement,\nTAF TRANS — Trans Air Freight CDG`
+  );
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+}
+function copyUrl() {
+  if (!currentForm) return;
+  const url = buildPublicUrl(currentForm);
+  navigator.clipboard.writeText(url).then(() => toast('URL copiée dans le presse-papiers', 'ok'));
+}
+function openPreviewUrl() {
+  if (!currentForm) return;
+  const url = buildPublicUrl(currentForm);
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ════════════════════════════════════════
+   VUE SOUMISSIONS
+   ════════════════════════════════════════ */
+async function loadSubmissions() {
+  const tbody = document.getElementById('subsTbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text3); padding: 40px;">Chargement…</td></tr>';
+  try {
+    const data = await fbGet('demandes');
+    submissions = data || {};
+    renderSubmissions();
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--red); padding: 40px;">Erreur de chargement</td></tr>';
+  }
+}
+
+function renderSubmissions() {
+  const tbody = document.getElementById('subsTbody');
+  const search = (document.getElementById('searchSubs').value || '').toLowerCase();
+  const clientFilter = document.getElementById('filterSubClient').value;
+
+  const list = Object.entries(submissions).map(([id, s]) => ({ id, ...s }));
+
+  // Mettre à jour le select des clients
+  const clients = [...new Set(list.map(s => s.client).filter(Boolean))].sort();
+  const sel = document.getElementById('filterSubClient');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tous les clients</option>' + clients.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = cur;
+
+  const filtered = list.filter(s => {
+    if (clientFilter && s.client !== clientFilter) return false;
+    if (search) {
+      const hay = ((s.client||'') + ' ' + (s.lta||'') + ' ' + (s.ref||'') + ' ' + (s.pays||'')).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  }).sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+
+  document.getElementById('countSubs').textContent = list.length;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text3); padding: 40px;">Aucune soumission</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(s => {
+    const statut = (s.statut || 'nouveau').toLowerCase();
+    const statutClass = statut.includes('termin') ? 'termine' : statut.includes('cours') ? 'cours' : 'nouveau';
+    const statutLabel = statut.charAt(0).toUpperCase() + statut.slice(1);
+    const flux = (s.flux || '—');
+    return `
+      <tr>
+        <td><span class="small">${fmtDate(s.created_at).split(' · ')[0]}</span><br><span style="font-size:11px;color:var(--text3);">${fmtDate(s.created_at).split(' · ')[1] || ''}</span></td>
+        <td><strong>${escapeHtml(s.client||'—')}</strong></td>
+        <td class="mono">${escapeHtml(s.ref||'—')}</td>
+        <td><span class="card-flux-badge ${flux.toLowerCase()}">${escapeHtml(flux)}</span></td>
+        <td class="mono">${escapeHtml(s.lta||'—')}</td>
+        <td>${escapeHtml(s.pays||'—')}</td>
+        <td><span class="statut-pill statut-${statutClass}">${escapeHtml(statutLabel)}</span></td>
+        <td style="text-align:right;">
+          <button class="btn btn-sm btn-ghost" onclick='viewSubmission(${JSON.stringify(s.id).replace(/'/g, "&#39;")})'>Voir</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+document.getElementById('searchSubs').addEventListener('input', renderSubmissions);
+document.getElementById('filterSubClient').addEventListener('change', renderSubmissions);
+
+function viewSubmission(id) {
+  const s = submissions[id];
+  if (!s) return;
+  document.getElementById('confirmTitle').innerHTML = `Soumission <em>${escapeHtml(s.ref||id)}</em>`;
+  const rows = Object.entries(s).map(([k,v]) => {
+    if (typeof v === 'object') v = JSON.stringify(v);
+    return `<tr><td style="padding:4px 10px 4px 0;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(k)}</td><td style="padding:4px 0;font-family:'SF Mono',monospace;font-size:12px;">${escapeHtml(String(v))}</td></tr>`;
+  }).join('');
+  document.getElementById('confirmBody').innerHTML = `<table style="width:100%;"><tbody>${rows}</tbody></table>`;
+  document.getElementById('confirmOkBtn').textContent = 'Fermer';
+  document.getElementById('confirmOkBtn').className = 'btn btn-primary';
+  document.getElementById('confirmOkBtn').onclick = () => {
+    closeModal('modalConfirm');
+    document.getElementById('confirmOkBtn').className = 'btn btn-danger';
+    document.getElementById('confirmOkBtn').textContent = 'Confirmer';
+  };
+  openModal('modalConfirm');
+}
+
+/* ════════════════════════════════════════
+   DÉMARRAGE
+   ════════════════════════════════════════ */
+init();
+
+// Raccourcis clavier
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    if (document.getElementById('viewEditor').classList.contains('active')) saveForm();
+  }
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-backdrop.show').forEach(m => m.classList.remove('show'));
+  }
+});
+</script>
+</body>
+</html>
