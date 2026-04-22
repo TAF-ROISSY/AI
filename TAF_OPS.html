@@ -2133,7 +2133,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.2.5
+  v2.2.6
 </div>
 
 <!-- Firebase SDK -->
@@ -2203,9 +2203,19 @@
         // Router chaque demande vers le bon module selon flux + type
         const modules = { export:[], import:[], perishable:[], cotation:[] };
 
+        // ── Backfill automatique du champ `lta` manquant ──
+        // Certains dossiers ont lta_prefix+lta_suffix mais pas lta direct.
+        // Le scénario Make "BM reçu via mailhook" cherche via orderBy="lta"
+        // donc il faut garantir que ce champ existe sur chaque dossier.
+        const backfillQueue = [];
+
         Object.entries(data).forEach(([id, d]) => {
           if (!d || !d.client) return;
           const lta = d.lta || (d.lta_prefix && d.lta_suffix ? d.lta_prefix + '-' + d.lta_suffix : '');
+          // Si le dossier a prefix+suffix mais pas de champ lta direct → backfill
+          if (!d.lta && d.lta_prefix && d.lta_suffix && lta) {
+            backfillQueue.push({ id, lta });
+          }
           const item = {
             id, ...d,
             lta,
@@ -2242,6 +2252,19 @@
           window.renderModule && window.renderModule(type, modules[type]);
         });
         window.updateKPIs && window.updateKPIs();
+
+        // ── Exécuter le backfill `lta` (une seule fois par session) ──
+        if (backfillQueue.length > 0 && !window.__ltaBackfillDone) {
+          window.__ltaBackfillDone = true;
+          console.log('[BACKFILL] ' + backfillQueue.length + ' dossier(s) à corriger (lta manquant)');
+          backfillQueue.forEach(({id, lta}) => {
+            fetch('https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/demandes/' + id + '.json', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lta })
+            }).catch(e => console.warn('[BACKFILL] ' + id + ':', e));
+          });
+        }
       }); // fin whenReady
     }); // fin onValue demandes
 
@@ -3558,10 +3581,19 @@ async function saveDossierFull(dossier) {
 
     // 2. Firebase (temps réel, non bloquant)
     if (window.__firebaseReady) {
-      writeFirebase(`demandes/${key}`, {
+      // ── Garantir que le champ `lta` est toujours calculé et écrit ──
+      // Critique pour que le scénario Make "BM reçu via mailhook" trouve le dossier
+      // (il cherche via orderBy="lta"&equalTo=... → sans ce champ pas de match)
+      const normalizedLta = dossier.lta
+        || (dossier.lta_prefix && dossier.lta_suffix
+              ? String(dossier.lta_prefix).trim() + '-' + String(dossier.lta_suffix).trim()
+              : '');
+      const payload = {
         ...dossier,
+        lta: normalizedLta || dossier.lta || '',
         updated_at: new Date().toISOString()
-      }).catch(e => console.warn('[SAVE] Firebase:', e));
+      };
+      writeFirebase(`demandes/${key}`, payload).catch(e => console.warn('[SAVE] Firebase:', e));
     }
 
     // 3. Enregistrement dans les statistiques
