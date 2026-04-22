@@ -250,7 +250,6 @@
     color: var(--text3);
   }
   @keyframes pulse-green { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.6;transform:scale(1.15);} }
 
   /* ─── KPI BAR ─── */
   .kpi-bar {
@@ -1619,7 +1618,6 @@
     <button class="btn-new-entry" onclick="openNE()" title="Créer un nouveau dossier manuellement">
       <span style="font-size:18px;line-height:1;">✚</span> Nouvelle entrée
     </button>
-    <button class="btn" onclick="showAutomationModal()" title="Automatisation des emails">🤖 Automatisation</button>
     <button class="btn" onclick="showParamsModal()">⚙️ Paramètres</button>
   </div>
 </header>
@@ -1767,15 +1765,7 @@
         title="Cliquer pour voir le profil client (solde, factures)">—</span>
       <span class="popup-lta" id="popLTA">—</span>
       <span id="popRef" style="font-size:10px;font-family:var(--font-mono);color:rgba(0,212,255,0.5);padding:2px 7px;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.15);border-radius:4px;font-weight:700;display:none;"></span>
-      <div class="statut-dropdown-wrap">
-        <span class="status-badge" id="popStatus" 
-          onclick="toggleStatutDropdownPopup()" 
-          title="Cliquer pour changer le statut"
-          style="cursor:pointer;">—</span>
-        <div class="statut-dropdown" id="popStatutDropdown">
-          <!-- rempli dynamiquement -->
-        </div>
-      </div>
+      <span class="status-badge" id="popStatus">—</span>
     </div>
     <div id="factu-client-badge" style="display:none;margin-top:5px;"></div>
     <div class="popup-actions">
@@ -2229,7 +2219,6 @@
           const item = {
             id, ...d,
             lta,
-            source:   d.source || (d.doc_douane_url || d.form_id ? 'formulaire' : 'manuel'), // Détection auto
             statut:   d.statut || 'Demande reçue',
             bm:       d.bm || false,
             poids:    d.poids_brut ? d.poids_brut + ' kg' : (d.kgb ? d.kgb + ' kg' : (d.poids || '—')),
@@ -3021,19 +3010,6 @@ function renderModule(type, items) {
     const bmIcon = d.bm
       ? `<span class="bm-icon bm-received" title="BM reçu">✅</span>`
       : `<span class="bm-icon bm-waiting" title="BM en attente">📄</span>`;
-    
-    // Icône d'alerte 30 minutes pour demandes non prises en charge
-    let alertIcon = '';
-    if (d.statut === 'Demande reçue' && d.source === 'formulaire') {
-      const createdTime = new Date(d.created_at || d.date).getTime();
-      const now = Date.now();
-      const diffMinutes = (now - createdTime) / (1000 * 60);
-      if (diffMinutes >= 30) {
-        alertIcon = `<span class="alert-30min-icon" title="⚠️ Non prise en charge depuis ${Math.floor(diffMinutes)} min" 
-          style="color:var(--red);font-size:16px;animation:pulse 2s infinite;">🔔</span>`;
-      }
-    }
-    
     const ltaDisplay = d.lta ? `<span class="dossier-lta">${d.lta}</span>` : `<span class="dossier-lta" style="color:var(--text3)">Cotation</span>`;
     const urgentNote = d.urgent ? `<span style="color:var(--red);font-size:10px;font-weight:700;">● URGENT</span>` : '';
 
@@ -3076,7 +3052,6 @@ function renderModule(type, items) {
           ${urgentNote}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          ${alertIcon}
           ${bmIcon}
           <span class="dossier-time">${timeStr || dateStr}</span>
         </div>
@@ -4062,18 +4037,17 @@ const DEFAULT_POPUP_LAYOUT = [
   { id:'pop_declaration',label:'N° Déclaration',     key:'declaration',  span:2, size:'large',  visible:true,  editable:true, type:'field' },
   { id:'pop_eur1',     label:'EUR1',                 key:'eur1',         span:1, size:'normal', visible:true,  editable:true, type:'field' },
   { id:'pop_num',      label:'N° Dossier',           key:'num_dossier',  span:1, size:'small',  visible:true,  editable:true, type:'field' },
-  // ── Documents Douaniers (AVANT Notes) ──
-  { id:'pop_doc',      label:'📄 Document douanier', key:'doc_douane',   span:4, size:'normal', visible:true,  editable:true, type:'field' },
   // ── Notes ──
   { id:'pop_notes',    label:'Notes internes',       key:'notes',        span:4, size:'normal', visible:true,  editable:true, type:'field' },
   // ── Masqués par défaut ──
   { id:'pop_email',    label:'Email client',          key:'email',        span:2, size:'small',  visible:false, editable:true, type:'field' },
   { id:'pop_created',  label:'Date soumission',       key:'created_at',   span:1, size:'small',  visible:false, editable:false, type:'field' },
+  { id:'pop_doc',      label:'Documents douaniers',   key:'doc_douane',   span:4, size:'normal', visible:false, editable:true, type:'field' },
 ];
 
 // Déclaration sur window pour accès global robuste
 // Version du layout — incrémenter à chaque changement de DEFAULT_POPUP_LAYOUT
-const POPUP_LAYOUT_VERSION = 6; // v6 : Document douanier visible et placé avant Notes
+const POPUP_LAYOUT_VERSION = 5; // v5 : layout compact, docs douaniers masqués (gérés en rightSidebar)
 
 window.popupLayout = (function() {
   try {
@@ -4876,11 +4850,6 @@ async function setStatut(type, id, newStatut) {
   }
 
   notify('Statut mis à jour : ' + newStatut, 'green');
-  
-  // Émettre un événement pour le système d'alertes 30min
-  window.dispatchEvent(new CustomEvent('demande-statut-changed', { 
-    detail: { id, newStatut, type } 
-  }));
 
   // Sync FACTURATION
   const updatedDossier2 = DEMO_DATA[type]?.find(x => x.id === id);
@@ -4900,62 +4869,6 @@ async function setStatut(type, id, newStatut) {
       triggerNotificationsForStatut(updatedDossier2, newStatut).catch(()=>{});
     }
   }
-}
-
-
-// ══════════════════════════════════════════════════
-//  DROPDOWN STATUT DANS LE POPUP
-// ══════════════════════════════════════════════════
-function toggleStatutDropdownPopup() {
-  const drop = document.getElementById('popStatutDropdown');
-  if (!drop || !currentDossier) return;
-  
-  const isOpen = drop.classList.contains('open');
-  
-  if (!isOpen) {
-    const statuts = opsConfig?.statuts || DEFAULT_CONFIG.statuts;
-    const current = currentDossier.statut || '';
-    
-    drop.innerHTML = statuts.map(st => {
-      const sl = STATUS_LABELS[st] || { label: st, cls: 's-attente' };
-      const isCurrent = st === current;
-      return `<div class="statut-dropdown-item ${isCurrent?'current':''}"
-        onclick="event.stopPropagation();setStatutFromPopup('${st.replace(/'/g, "'")}')"
-        title="${st}">
-        <span class="status-badge ${sl.cls}" style="font-size:10px;padding:2px 6px;${statusBadgeStyle(sl)}">${sl.label}</span>
-        ${isCurrent ? '✓' : ''}
-      </div>`;
-    }).join('');
-    
-    drop.classList.add('open');
-    
-    // Fermer en cliquant ailleurs
-    setTimeout(() => {
-      const closeHandler = (e) => {
-        if (!drop.contains(e.target) && !document.getElementById('popStatus').contains(e.target)) {
-          drop.classList.remove('open');
-          document.removeEventListener('click', closeHandler);
-        }
-      };
-      document.addEventListener('click', closeHandler);
-    }, 10);
-  } else {
-    drop.classList.remove('open');
-  }
-}
-
-async function setStatutFromPopup(newStatut) {
-  if (!currentDossier) return;
-  
-  const type = currentDossier.module;
-  const id = currentDossier.id;
-  
-  // Fermer le dropdown
-  const drop = document.getElementById('popStatutDropdown');
-  if (drop) drop.classList.remove('open');
-  
-  // Mettre à jour via la fonction existante
-  await setStatut(type, id, newStatut);
 }
 
 
@@ -15454,586 +15367,6 @@ window.__tafCheckNewDemandes = function(data) {
 };
 
 console.log('[TAF OPS] 🔔 Module alertes sonores chargé');
-
-// ══════════════════════════════════════════════════
-//  SYSTÈME D'ALERTE 30 MINUTES - DEMANDES NON PRISES EN CHARGE
-// ══════════════════════════════════════════════════
-(function() {
-  // Webhooks
-  const WEBHOOK_MAKE_ALERT = 'https://hook.eu2.make.com/VOTRE_WEBHOOK_ALERTE_30MIN'; // À configurer
-  const WEBHOOK_SLACK = 'https://hooks.slack.com/services/VOTRE_WEBHOOK_SLACK'; // À configurer
-  
-  // Stockage des demandes déjà alertées (pour ne pas spammer)
-  const alertedDemandes = new Set();
-  
-  async function sendMakeAlert(demande) {
-    try {
-      const payload = {
-        dossier_id: demande.id,
-        client: demande.client,
-        lta: demande.lta || 'Cotation',
-        created_at: demande.created_at || demande.date,
-        minutes_elapsed: Math.floor((Date.now() - new Date(demande.created_at || demande.date).getTime()) / (1000 * 60)),
-        email_to: 'import@taftrans.fr',
-        type: demande.type || '',
-        flux: demande.flux || ''
-      };
-      
-      await fetch(WEBHOOK_MAKE_ALERT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('[ALERTE 30MIN] 📧 Email envoyé via Make pour:', demande.client);
-    } catch(e) {
-      console.warn('[ALERTE 30MIN] Erreur envoi Make:', e);
-    }
-  }
-  
-  async function sendSlackAlert(demande) {
-    try {
-      const minutesElapsed = Math.floor((Date.now() - new Date(demande.created_at || demande.date).getTime()) / (1000 * 60));
-      const message = {
-        text: `⚠️ ALERTE DEMANDE NON PRISE EN CHARGE`,
-        blocks: [
-          {
-            type: 'header',
-            text: {
-              type: 'plain_text',
-              text: '🔔 Demande en attente depuis plus de 30 minutes'
-            }
-          },
-          {
-            type: 'section',
-            fields: [
-              { type: 'mrkdwn', text: `*Client:*\n${demande.client}` },
-              { type: 'mrkdwn', text: `*LTA:*\n${demande.lta || 'Cotation'}` },
-              { type: 'mrkdwn', text: `*Type:*\n${demande.type || '—'}` },
-              { type: 'mrkdwn', text: `*Temps écoulé:*\n${minutesElapsed} minutes` }
-            ]
-          },
-          {
-            type: 'context',
-            elements: [
-              {
-                type: 'mrkdwn',
-                text: `Dossier: ${demande.id} | Créé: ${(demande.created_at || demande.date || '').slice(0,16)}`
-              }
-            ]
-          }
-        ]
-      };
-      
-      await fetch(WEBHOOK_SLACK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(message)
-      });
-      
-      console.log('[ALERTE 30MIN] 📱 Slack notifié pour:', demande.client);
-    } catch(e) {
-      console.warn('[ALERTE 30MIN] Erreur envoi Slack:', e);
-    }
-  }
-  
-  function checkAlertes30Min() {
-    if (!window.DEMO_DATA) return;
-    
-    const now = Date.now();
-    const allDemandes = [
-      ...(window.DEMO_DATA.export || []),
-      ...(window.DEMO_DATA.import || []),
-      ...(window.DEMO_DATA.perishable || []),
-      ...(window.DEMO_DATA.cotation || [])
-    ];
-    
-    allDemandes.forEach(d => {
-      // Vérifier seulement les demandes venant de formulaires
-      if (d.source !== 'formulaire') return;
-      if (d.statut !== 'Demande reçue') return;
-      if (alertedDemandes.has(d.id)) return; // Déjà alerté
-      
-      const createdTime = new Date(d.created_at || d.date).getTime();
-      const diffMinutes = (now - createdTime) / (1000 * 60);
-      
-      if (diffMinutes >= 30) {
-        console.log('[ALERTE 30MIN] ⚠️ Demande non prise en charge:', d.client, '—', Math.floor(diffMinutes), 'min');
-        
-        // Marquer comme alerté
-        alertedDemandes.add(d.id);
-        
-        // Envoyer les alertes
-        sendMakeAlert(d);
-        sendSlackAlert(d);
-        
-        // Marquer dans Firebase qu'une alerte a été envoyée
-        if (window.__firebaseReady) {
-          writeFirebase(`demandes/${d.id}/alert_30min_sent`, new Date().toISOString()).catch(()=>{});
-        }
-        
-        // Notification visuelle
-        if (typeof notify === 'function') {
-          notify(`⚠️ ALERTE: ${d.client} non pris en charge depuis ${Math.floor(diffMinutes)} min`, 'red');
-        }
-      }
-    });
-  }
-  
-  // Nettoyer le set des alertes quand le statut change
-  window.addEventListener('demande-statut-changed', (e) => {
-    if (e.detail && e.detail.id && e.detail.newStatut !== 'Demande reçue') {
-      alertedDemandes.delete(e.detail.id);
-    }
-  });
-  
-  // Vérifier toutes les minutes
-  setInterval(checkAlertes30Min, 60 * 1000);
-  
-  // Première vérification après 10 secondes
-  setTimeout(checkAlertes30Min, 10000);
-  
-  console.log('[TAF OPS] ⏱️ Système d\'alerte 30 minutes activé');
-})();
-})();
-</script>
-
-<!-- ══════════════════════════════════════════════════ -->
-<!--  MODAL AUTOMATISATION -->
-<!-- ══════════════════════════════════════════════════ -->
-<div class="params-modal" id="automationModal" style="display:none;">
-  <div class="params-inner">
-    
-    <!-- HEADER -->
-    <div class="params-header">
-      <div class="params-header-left">
-        <div class="params-header-icon">🤖</div>
-        <div>
-          <div class="params-title">Automatisations</div>
-          <div class="params-subtitle">Envoi automatique d'emails selon vos règles métier</div>
-        </div>
-      </div>
-      <div class="params-header-actions">
-        <button class="params-btn-save params-save-btn" onclick="saveAutomationConfig()">
-          💾 Sauvegarder
-        </button>
-        <button class="params-btn-close" onclick="closeAutomationModal()" title="Fermer">✕</button>
-      </div>
-    </div>
-
-    <!-- BODY -->
-    <div class="params-body" style="padding:32px;overflow-y:auto;">
-      
-      <!-- STATION ANIMALIÈRE -->
-      <div style="background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:24px;margin-bottom:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="font-size:32px;">🐾</div>
-            <div>
-              <div style="font-size:16px;font-weight:600;color:var(--text);">Station Animalière</div>
-              <div style="font-size:12px;color:var(--text3);">Envoi auto quand Declaration + Bon Mag + Trace NT sont remplis</div>
-            </div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="autoStationActive" onchange="toggleStationAuto(this.checked)">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <!-- Configuration -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-          <div>
-            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Email Station Animalière</label>
-            <input type="email" id="stationEmail" placeholder="station.animaux@exemple.fr"
-              style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
-          </div>
-          <div>
-            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Copie à (CC)</label>
-            <input type="email" id="stationCC" value="import@taftrans.fr" readonly
-              style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-main);font-size:13px;">
-          </div>
-        </div>
-
-        <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Webhook Make.com</label>
-          <input type="url" id="stationWebhook" placeholder="https://hook.eu2.make.com/..."
-            style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-main);font-size:13px;">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px;">💡 Créez un scénario Make.com et collez l'URL du webhook ici</div>
-        </div>
-
-        <!-- Template Email -->
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Template Email (HTML)</label>
-            <button onclick="previewStationEmail()" 
-              style="padding:6px 12px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:6px;color:var(--cyan);font-size:11px;cursor:pointer;font-family:var(--font-main);">
-              👁️ Aperçu
-            </button>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Variables disponibles : {{client}}, {{lta}}, {{colis}}, {{declaration}}, {{bon_mag}}, {{trace_nt}}</div>
-            <textarea id="stationTemplate" 
-              style="width:100%;min-height:300px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:12px;color:var(--text);font-family:var(--font-mono);font-size:12px;resize:vertical;"></textarea>
-          </div>
-        </div>
-
-        <!-- Test -->
-        <div style="margin-top:16px;display:flex;gap:12px;">
-          <button onclick="testStationEmail()" 
-            style="flex:1;padding:12px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px;color:var(--cyan);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-main);">
-            🧪 Tester l'email
-          </button>
-          <button onclick="resetStationTemplate()" 
-            style="padding:12px 20px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font-main);">
-            ↻ Template par défaut
-          </button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- Style pour le switch -->
-<style>
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 54px;
-  height: 28px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: rgba(255,255,255,0.1);
-  border: 1px solid var(--border2);
-  border-radius: 28px;
-  transition: 0.3s;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: var(--text3);
-  border-radius: 50%;
-  transition: 0.3s;
-}
-
-input:checked + .slider {
-  background-color: var(--green);
-  border-color: var(--green);
-}
-
-input:checked + .slider:before {
-  transform: translateX(26px);
-  background-color: #fff;
-}
-</style>
-
-<script>
-// ══════════════════════════════════════════════════
-//  MODULE AUTOMATISATION SIMPLIFIÉ
-// ══════════════════════════════════════════════════
-(function() {
-  
-  const DEFAULT_STATION_TEMPLATE = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 40px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .header { background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); padding: 30px; text-align: center; }
-    .header h1 { margin: 0; color: white; font-size: 24px; font-weight: 700; }
-    .header p { margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px; }
-    .content { padding: 30px; }
-    .badge { display: inline-block; background: #00d4ff; color: white; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
-    .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 12px; margin: 20px 0; }
-    .info-label { font-weight: 600; color: #666; font-size: 13px; }
-    .info-value { color: #333; font-size: 13px; }
-    .divider { height: 1px; background: #e0e0e0; margin: 20px 0; }
-    .message { background: #f8f9fa; padding: 20px; border-radius: 6px; border-left: 4px solid #00d4ff; margin: 20px 0; }
-    .message p { margin: 0 0 12px 0; line-height: 1.6; color: #555; }
-    .message p:last-child { margin-bottom: 0; }
-    .footer { background: #f8f9fa; padding: 20px 30px; text-align: center; }
-    .footer p { margin: 4px 0; color: #999; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>TAF TRANSIT AIR FRET</h1>
-      <p>Paris — Charles de Gaulle</p>
-    </div>
-    <div class="content">
-      <div class="badge">🐾 DOSSIER ANIMAUX VIVANTS</div>
-      
-      <div class="info-grid">
-        <div class="info-label">Client</div>
-        <div class="info-value"><strong>{{client}}</strong></div>
-        
-        <div class="info-label">LTA / AWB</div>
-        <div class="info-value"><strong>{{lta}}</strong></div>
-        
-        <div class="info-label">Nombre de colis</div>
-        <div class="info-value"><strong>{{colis}}</strong></div>
-      </div>
-      
-      <div class="divider"></div>
-      
-      <div style="margin: 20px 0;">
-        <div style="font-weight: 600; color: #333; margin-bottom: 12px;">✅ Documents disponibles :</div>
-        <div class="info-grid">
-          <div class="info-label">N° Déclaration</div>
-          <div class="info-value">{{declaration}}</div>
-          
-          <div class="info-label">Bon Magasinier</div>
-          <div class="info-value">{{bon_mag}}</div>
-          
-          <div class="info-label">Trace NT</div>
-          <div class="info-value">{{trace_nt}}</div>
-        </div>
-      </div>
-      
-      <div class="divider"></div>
-      
-      <div class="message">
-        <p>Bonjour,</p>
-        <p>Le dossier ci-dessus est complet et prêt pour traitement à la station animalière.</p>
-        <p>Merci de bien vouloir nous confirmer la prise en charge.</p>
-        <p>Cordialement,<br>L'équipe TAF</p>
-      </div>
-    </div>
-    <div class="footer">
-      <p>📧 import@taftrans.fr</p>
-      <p>TAF Transit Air Fret — Spécialiste fret aérien CDG depuis 1986</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-  let automationConfig = {
-    station_animaliere: {
-      active: false,
-      email: '',
-      cc: 'import@taftrans.fr',
-      webhook: '',
-      template: DEFAULT_STATION_TEMPLATE
-    }
-  };
-  
-  // Charger la config depuis Firebase
-  async function loadAutomationConfig() {
-    try {
-      const config = await readFirebase('automation/config');
-      if (config) {
-        automationConfig = config;
-      }
-      
-      // Appliquer dans l'interface
-      document.getElementById('autoStationActive').checked = automationConfig.station_animaliere.active || false;
-      document.getElementById('stationEmail').value = automationConfig.station_animaliere.email || '';
-      document.getElementById('stationWebhook').value = automationConfig.station_animaliere.webhook || '';
-      document.getElementById('stationTemplate').value = automationConfig.station_animaliere.template || DEFAULT_STATION_TEMPLATE;
-      
-      console.log('[AUTOMATION] Configuration chargée');
-    } catch(e) {
-      console.warn('[AUTOMATION] Erreur chargement:', e);
-    }
-  }
-  
-  window.showAutomationModal = function() {
-    const modal = document.getElementById('automationModal');
-    modal.style.display = 'block';
-    setTimeout(() => modal.classList.add('active'), 10);
-    loadAutomationConfig();
-  };
-  
-  window.closeAutomationModal = function() {
-    const modal = document.getElementById('automationModal');
-    modal.classList.remove('active');
-    setTimeout(() => modal.style.display = 'none', 300);
-  };
-  
-  window.toggleStationAuto = function(active) {
-    automationConfig.station_animaliere.active = active;
-    console.log('[AUTOMATION] Station animalière:', active ? 'ACTIVÉ' : 'DÉSACTIVÉ');
-  };
-  
-  window.saveAutomationConfig = async function() {
-    // Récupérer les valeurs
-    automationConfig.station_animaliere.active = document.getElementById('autoStationActive').checked;
-    automationConfig.station_animaliere.email = document.getElementById('stationEmail').value;
-    automationConfig.station_animaliere.webhook = document.getElementById('stationWebhook').value;
-    automationConfig.station_animaliere.template = document.getElementById('stationTemplate').value;
-    
-    try {
-      await writeFirebase('automation/config', automationConfig);
-      notify('Configuration sauvegardée', 'green');
-      console.log('[AUTOMATION] Configuration sauvegardée');
-    } catch(e) {
-      notify('Erreur lors de la sauvegarde', 'red');
-      console.error('[AUTOMATION] Erreur:', e);
-    }
-  };
-  
-  window.resetStationTemplate = function() {
-    if (confirm('Réinitialiser le template au modèle par défaut ?')) {
-      document.getElementById('stationTemplate').value = DEFAULT_STATION_TEMPLATE;
-      notify('Template réinitialisé', 'green');
-    }
-  };
-  
-  window.previewStationEmail = function() {
-    const template = document.getElementById('stationTemplate').value;
-    
-    // Remplacer avec des données d'exemple
-    const preview = template
-      .replace(/{{client}}/g, 'ROYAL CANIN')
-      .replace(/{{lta}}/g, '057-12345678')
-      .replace(/{{colis}}/g, '12')
-      .replace(/{{declaration}}/g, 'FR2024123456')
-      .replace(/{{bon_mag}}/g, 'BM-2024-001')
-      .replace(/{{trace_nt}}/g, 'TN-789456');
-    
-    // Ouvrir dans une nouvelle fenêtre
-    const win = window.open('', 'preview', 'width=700,height=800');
-    win.document.write(preview);
-    win.document.close();
-  };
-  
-  window.testStationEmail = async function() {
-    const email = document.getElementById('stationEmail').value;
-    const webhook = document.getElementById('stationWebhook').value;
-    
-    if (!email) {
-      alert('⚠️ Veuillez renseigner l\'email de la station animalière');
-      return;
-    }
-    
-    if (!webhook) {
-      alert('⚠️ Veuillez renseigner le webhook Make.com');
-      return;
-    }
-    
-    const testData = {
-      to: email,
-      cc: 'import@taftrans.fr',
-      subject: 'TEST — ROYAL CANIN — 057-12345678 — 12 colis',
-      html: document.getElementById('stationTemplate').value
-        .replace(/{{client}}/g, 'ROYAL CANIN')
-        .replace(/{{lta}}/g, '057-12345678')
-        .replace(/{{colis}}/g, '12')
-        .replace(/{{declaration}}/g, 'FR2024123456')
-        .replace(/{{bon_mag}}/g, 'BM-2024-001')
-        .replace(/{{trace_nt}}/g, 'TN-789456'),
-      test: true
-    };
-    
-    try {
-      const response = await fetch(webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testData)
-      });
-      
-      if (response.ok) {
-        notify('✅ Email de test envoyé ! Vérifiez votre boîte mail.', 'green');
-      } else {
-        notify('⚠️ Erreur lors de l\'envoi. Vérifiez le webhook Make.com', 'red');
-      }
-    } catch(e) {
-      notify('⚠️ Erreur réseau. Vérifiez votre connexion', 'red');
-      console.error('[TEST EMAIL]', e);
-    }
-  };
-  
-  // Surveiller les changements de champs pour auto-trigger
-  function checkStationAnimaliere(dossier) {
-    if (!automationConfig.station_animaliere.active) return;
-    if (!automationConfig.station_animaliere.email) return;
-    if (!automationConfig.station_animaliere.webhook) return;
-    
-    // Vérifier que c'est un dossier AVI
-    const isAVI = (dossier.type || '').toLowerCase().includes('avi') || 
-                  (dossier.type || '').toLowerCase().includes('animaux');
-    
-    if (!isAVI) return;
-    
-    // Vérifier que les 3 champs sont remplis
-    const hasDeclaration = dossier.declaration && dossier.declaration.trim() !== '';
-    const hasBonMag = dossier.bm || (dossier.bon_mag && dossier.bon_mag.trim() !== '');
-    const hasTraceNT = dossier.trace_nt && dossier.trace_nt.trim() !== '';
-    
-    if (hasDeclaration && hasBonMag && hasTraceNT) {
-      // Vérifier qu'on n'a pas déjà envoyé
-      if (dossier.station_email_sent) return;
-      
-      console.log('[AUTOMATION] 🐾 Station animalière — Conditions remplies pour:', dossier.client);
-      sendStationEmail(dossier);
-    }
-  }
-  
-  async function sendStationEmail(dossier) {
-    const subject = `${dossier.client} — ${dossier.lta || 'N/A'} — ${dossier.colis || dossier.nb_colis || 'N/A'} colis`;
-    
-    const html = automationConfig.station_animaliere.template
-      .replace(/{{client}}/g, dossier.client || '')
-      .replace(/{{lta}}/g, dossier.lta || '')
-      .replace(/{{colis}}/g, dossier.colis || dossier.nb_colis || '')
-      .replace(/{{declaration}}/g, dossier.declaration || '')
-      .replace(/{{bon_mag}}/g, dossier.bon_mag || (dossier.bm ? 'Reçu' : ''))
-      .replace(/{{trace_nt}}/g, dossier.trace_nt || '');
-    
-    const payload = {
-      to: automationConfig.station_animaliere.email,
-      cc: automationConfig.station_animaliere.cc,
-      subject: subject,
-      html: html,
-      dossier_id: dossier.id
-    };
-    
-    try {
-      await fetch(automationConfig.station_animaliere.webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      // Marquer comme envoyé
-      await writeFirebase(`demandes/${dossier.id}/station_email_sent`, new Date().toISOString());
-      
-      notify(`📧 Email station animalière envoyé : ${dossier.client}`, 'green');
-      console.log('[AUTOMATION] Email station animalière envoyé pour:', dossier.client);
-    } catch(e) {
-      console.error('[AUTOMATION] Erreur envoi email:', e);
-    }
-  }
-  
-  // Hook sur la sauvegarde des dossiers
-  const originalSaveDossier = window.saveDossier;
-  window.saveDossier = async function(key) {
-    if (originalSaveDossier) await originalSaveDossier(key);
-    
-    // Vérifier station animalière
-    if (currentDossier) {
-      checkStationAnimaliere(currentDossier);
-    }
-  };
-  
-  console.log('[TAF OPS] 🤖 Module automatisation chargé');
 })();
 
 // ══════════════════════════════════════════════════
@@ -16085,39 +15418,39 @@ input:checked + .slider:before {
     // Déterminer le type de visualisation
     if (['jpg','jpeg','png','gif','webp','svg'].includes(ext)) {
       // Image
-      content.innerHTML = \`
-        <img src="\${url}" 
+      content.innerHTML = `
+        <img src="${url}" 
           style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);"
-          alt="\${fileName}">
-      \`;
+          alt="${fileName}">
+      `;
     } else if (ext === 'pdf') {
       // PDF
-      content.innerHTML = \`
-        <iframe src="\${url}" 
+      content.innerHTML = `
+        <iframe src="${url}" 
           style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;">
         </iframe>
-      \`;
+      `;
     } else if (['doc','docx','xls','xlsx','ppt','pptx'].includes(ext)) {
       // Documents Office via Google Docs Viewer
       const viewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=true';
-      content.innerHTML = \`
-        <iframe src="\${viewerUrl}" 
+      content.innerHTML = `
+        <iframe src="${viewerUrl}" 
           style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;">
         </iframe>
-      \`;
+      `;
     } else if (ext === 'html') {
       // HTML
-      content.innerHTML = \`
-        <iframe src="\${url}" 
+      content.innerHTML = `
+        <iframe src="${url}" 
           style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;">
         </iframe>
-      \`;
+      `;
     } else {
       // Autres fichiers - lien de téléchargement
-      content.innerHTML = \`
+      content.innerHTML = `
         <div style="text-align:center;color:var(--text);">
           <div style="font-size:64px;margin-bottom:24px;">📄</div>
-          <div style="font-size:18px;font-weight:600;margin-bottom:12px;">\${fileName}</div>
+          <div style="font-size:18px;font-weight:600;margin-bottom:12px;">${fileName}</div>
           <div style="font-size:14px;color:var(--text2);margin-bottom:32px;">
             Prévisualisation non disponible pour ce type de fichier
           </div>
@@ -16126,7 +15459,7 @@ input:checked + .slider:before {
             💾 Télécharger le fichier
           </button>
         </div>
-      \`;
+      `;
     }
     
     modal.style.display = 'block';
