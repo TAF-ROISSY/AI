@@ -2121,7 +2121,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.2.2
+  v2.2.3
 </div>
 
 <!-- Firebase SDK -->
@@ -5068,7 +5068,9 @@ async function onDossierAFacturer(dossier) {
 //  FLIGHTAWARE — REFRESH VOL
 // ══════════════════════════════════════════════════
 
-const FLIGHTAWARE_WEBHOOK = 'https://hook.eu2.make.com/ty3f6b9mdkfsvlsj6u79tv5diicqan9o';
+// ⚠️ À REMPLACER après déploiement du Apps Script TAF_FLIGHTAWARE_PROXY.gs
+// URL obtenue à l'étape "Déployer → Application web → /exec"
+const FLIGHTAWARE_PROXY = 'https://script.google.com/macros/s/AKfycbwasqGBL5FCw2EtZlvSd5qPuz_uDxbOFJ5G9doFdD3qvamwGVVEc5Z5EvZSuA5uicpNgQ/exec';
 
 // Clé FlightAware stockée en config
 function renderVolTracking(dossier) {
@@ -5151,25 +5153,28 @@ async function refreshFlightAware() {
   if (!currentDossier) return;
   const vol = (currentDossier.vol||'').trim().replace(/\s+/g,'').toUpperCase();
   if (!vol) { notify("Renseignez d'abord le numéro de vol", 'orange'); return; }
-  let faKey = getFlightAwareKey();
-  if (!faKey) {
-    faKey = prompt('Clé API FlightAware AeroAPI (Paramètres → Clés API) :');
-    if (!faKey) return;
-    localStorage.setItem('taf_flightaware_key', faKey);
-    if (opsConfig) opsConfig.flightaware_key = faKey;
+  if (!FLIGHTAWARE_PROXY || FLIGHTAWARE_PROXY.includes('REPLACE_ME')) {
+    notify('Proxy FlightAware non configuré (voir FLIGHTAWARE_PROXY dans le code)', 'red');
+    return;
   }
   const btn=document.getElementById('btnRefreshVol'), status=document.getElementById('volStatus');
   if (btn){btn.innerHTML='⏳';btn.disabled=true;}
   if (status) status.innerHTML='<span style="color:var(--cyan)">Interrogation FlightAware...</span>';
   try {
-    const res = await fetch(`https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(vol)}`,
-      {headers:{'x-apikey':faKey,'Accept':'application/json; charset=UTF-8'}});
+    const res = await fetch(FLIGHTAWARE_PROXY + '?vol=' + encodeURIComponent(vol),
+      { method: 'GET', redirect: 'follow' });
     if (!res.ok) {
-      const m={401:'Clé API invalide',403:'Accès refusé',404:'Vol '+vol+' introuvable',429:'Quota dépassé'}[res.status]||'Erreur HTTP '+res.status;
-      if(status)status.innerHTML=`<span style="color:var(--red)">❌ ${m}</span>`;
-      notify(m,'red'); return;
+      if(status)status.innerHTML=`<span style="color:var(--red)">❌ Proxy HTTP ${res.status}</span>`;
+      notify('Proxy FlightAware : HTTP '+res.status, 'red'); return;
     }
-    const data=await res.json();
+    const data = await res.json();
+    // Le proxy relaie le statut upstream FlightAware dans _upstream_status
+    const upstream = data._upstream_status || 200;
+    if (upstream !== 200) {
+      const m = {401:'Clé API invalide',403:'Accès refusé',404:'Vol '+vol+' introuvable',429:'Quota dépassé'}[upstream] || 'Erreur FlightAware '+upstream;
+      if(status)status.innerHTML=`<span style="color:var(--red)">❌ ${m}</span>`;
+      notify(m, 'red'); return;
+    }
     const flights=data.flights||[];
     if(!flights.length){
       if(status)status.innerHTML=`<span style="color:var(--orange)">Aucun vol actif pour ${vol}</span>`;
