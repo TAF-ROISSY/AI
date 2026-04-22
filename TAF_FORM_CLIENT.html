@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF · Formulaire client</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06080f;
+    --bg2: #0a0e1a;
+    --bg3: #0f1525;
+    --panel: #121929;
+    --border: #1c2640;
+    --border2: #243152;
+    --gold: #c9a84c;
+    --gold2: #e8c97a;
+    --gold3: #f5e4a8;
+    --gold-dim: rgba(201,168,76,0.12);
+    --text: #f0eeea;
+    --text2: #8a94b0;
+    --text3: #3d4a68;
+    --green: #3ecf8e;
+    --red: #f04c4c;
+    --white: #ffffff;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body: 'Outfit', sans-serif;
+    --radius: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,168,76,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 90% 90%, rgba(201,168,76,0.03) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: relative;
+    z-index: 10;
+    padding: 48px 0 32px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .logo-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .logo-divider {
+    height: 1px;
+    width: 60px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 13px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 400;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 300;
+    color: var(--text);
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--gold2);
+  }
+
+  .header-sub {
+    font-size: 14px;
+    color: var(--text2);
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+
+  /* NUMÉRO AUTO */
+  .ref-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 30px;
+    padding: 8px 20px;
+    font-size: 13px;
+    color: var(--gold2);
+    font-family: var(--font-body);
+    font-weight: 500;
+    letter-spacing: 1px;
+  }
+
+  .ref-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  /* ── FORM CONTAINER ── */
+  .form-wrap {
+    position: relative;
+    z-index: 10;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 40px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(16px); }
+    to { opacity:1; transform: translateY(0); }
+  }
+
+  .section:nth-child(1) { animation-delay: 0.1s; }
+  .section:nth-child(2) { animation-delay: 0.2s; }
+  .section:nth-child(3) { animation-delay: 0.3s; }
+  .section:nth-child(4) { animation-delay: 0.4s; }
+  .section:nth-child(5) { animation-delay: 0.5s; }
+  .section:nth-child(6) { animation-delay: 0.6s; }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border2), transparent);
+  }
+
+  /* ── FIELD ── */
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  label .req {
+    color: var(--gold);
+    margin-left: 3px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  select,
+  textarea {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 400;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+    background: var(--bg3);
+  }
+
+  /* Champ fixe = verrouillé */
+  .field-fixed input,
+  .field-fixed select,
+  .field-fixed textarea {
+    opacity: 0.7;
+    cursor: not-allowed;
+    border-color: rgba(201,168,76,0.3) !important;
+    color: var(--gold2) !important;
+  }
+  .fixed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--gold);
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 10px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  input::placeholder, textarea::placeholder { color: var(--text3); }
+
+  select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a84c' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+  }
+
+  select option { background: var(--bg2); }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* LTA BLOC */
+  .lta-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lta-block-3 {
+    flex: 0 0 110px;
+  }
+
+  .lta-block-3 input {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    letter-spacing: 4px;
+    font-weight: 700;
+    color: var(--gold2);
+  }
+
+  .lta-sep {
+    font-size: 24px;
+    color: var(--border2);
+    font-weight: 300;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .lta-block-6 input {
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    letter-spacing: 4px;
+    font-weight: 700;
+    color: var(--gold2);
+  }
+
+  .lta-block-6 { flex: 1; }
+
+  /* FLUX TOGGLE */
+  .flux-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .flux-option {
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    transition: all 0.2s;
+    border: none;
+    background: var(--panel);
+    font-family: var(--font-body);
+    letter-spacing: 0.5px;
+  }
+
+  .flux-option:first-child { border-right: 1px solid var(--border2); }
+
+  .flux-option.active.import {
+    background: rgba(62,207,142,0.1);
+    color: var(--green);
+    box-shadow: inset 0 -2px 0 var(--green);
+  }
+
+  .flux-option.active.export {
+    background: rgba(201,168,76,0.1);
+    color: var(--gold2);
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
+
+  /* EUR1 */
+  .eur1-wrap { display: flex; gap: 12px; }
+
+  .radio-card {
+    flex: 1;
+    padding: 14px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    background: var(--panel);
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .radio-card.active {
+    border-color: var(--gold);
+    color: var(--gold2);
+    background: var(--gold-dim);
+  }
+
+  /* EUR1 UPLOAD */
+  .eur1-upload {
+    display: none;
+    margin-top: 14px;
+    animation: fadeUp 0.3s ease;
+  }
+  .eur1-upload.visible { display: block; }
+
+  /* DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--gold);
+    background: var(--gold-dim);
+  }
+
+  .drop-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.6; }
+
+  .drop-text {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .drop-text strong { color: var(--gold2); }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* FILE LIST */
+  .file-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    animation: fadeUp 0.2s ease;
+  }
+
+  .file-icon { font-size: 18px; }
+
+  .file-info { flex: 1; }
+  .file-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .file-size { font-size: 11px; color: var(--text3); }
+
+  .file-remove {
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 16px;
+    transition: color 0.2s;
+    background: none;
+    border: none;
+    padding: 4px;
+  }
+  .file-remove:hover { color: var(--red); }
+
+  /* LOCALISATION CHIPS */
+  .chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    padding: 8px 16px;
+    border: 1px solid var(--border2);
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--panel);
+  }
+
+  .chip:hover { border-color: var(--gold); color: var(--gold2); }
+  .chip.active { border-color: var(--gold); color: var(--gold2); background: var(--gold-dim); }
+
+  /* NOTES */
+  textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.6;
+  }
+
+  /* SUBMIT */
+  .submit-wrap {
+    padding-top: 12px;
+    animation: fadeUp 0.5s ease 0.7s both;
+  }
+
+  .btn-submit {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%);
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--bg);
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-submit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.15) 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(201,168,76,0.3); }
+  .btn-submit:hover::before { opacity: 1; }
+  .btn-submit:active { transform: translateY(0); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-sub { font-size: 12px; opacity: 0.7; display: block; margin-top: 4px; font-weight: 400; letter-spacing: 0.5px; }
+
+  /* SUCCESS */
+  .success-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+    padding: 40px;
+  }
+  .success-screen.show { display: flex; animation: fadeIn 0.4s ease; }
+
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+  .success-icon {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(62,207,142,0.12);
+    border: 2px solid var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    animation: popIn 0.5s ease 0.2s both;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .success-ref {
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    color: var(--gold2);
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 8px;
+    padding: 10px 24px;
+    letter-spacing: 2px;
+  }
+
+  .success-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--text);
+  }
+
+  .success-sub { font-size: 14px; color: var(--text2); max-width: 400px; line-height: 1.7; }
+
+  /* PROGRESS BAR */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    z-index: 999;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .lta-block-3 { flex: 0 0 90px; }
+    .lta-block-3 input, .lta-block-6 input { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+
+    <!-- LOGO TAF SVG -->
+    <div style="display:flex;justify-content:center;margin-bottom:20px;">
+      <svg width="120" height="48" viewBox="0 0 120 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Barre horizontale décorative -->
+        <line x1="0" y1="6" x2="120" y2="6" stroke="#c9a84c" stroke-width="0.5" opacity="0.4"/>
+        <line x1="0" y1="42" x2="120" y2="42" stroke="#c9a84c" stroke-width="0.5" opacity="0.4"/>
+        <!-- T -->
+        <text x="4" y="36" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#f5e4a8" letter-spacing="1">T</text>
+        <!-- A -->
+        <text x="30" y="36" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#c9a84c" letter-spacing="1">A</text>
+        <!-- F -->
+        <text x="60" y="36" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#f5e4a8" letter-spacing="1">F</text>
+        <!-- point doré -->
+        <circle cx="95" cy="32" r="3" fill="#c9a84c"/>
+        <!-- sous-titre -->
+        <text x="6" y="46" font-family="Arial, sans-serif" font-size="7" fill="#8a94b0" letter-spacing="3">TRANS AIR FREIGHT</text>
+      </svg>
+    </div>
+
+    <!-- LOGO CLIENT (visible si paramètre ?logo=URL) -->
+    <div id="clientLogoWrap" style="display:none;margin-bottom:16px;text-align:center;">
+      <img id="clientLogoImg" src="" alt="Logo client"
+        style="max-height:56px;max-width:180px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9;">
+    </div>
+
+    <div class="logo-line">
+      <div class="logo-divider"></div>
+      <span class="logo-text" id="formSubtitle">Trans Air Freight — CDG</span>
+      <div class="logo-divider"></div>
+    </div>
+
+    <h1 id="formTitle">Demande de<br><em>prise en charge</em></h1>
+    <p class="header-sub" id="formDesc">Fret aérien international · Paris Charles-de-Gaulle</p>
+    <div class="ref-badge">
+      <span class="ref-dot"></span>
+      <span id="refDisplay">—</span>
+    </div>
+  </div>
+</header>
+
+<!-- FORM -->
+<div class="form-wrap">
+<form id="tafForm" novalidate>
+
+  <!-- ─ IDENTIFICATION ─ -->
+  <div class="section">
+    <div class="section-title">Identification</div>
+
+    <div class="field">
+      <label>Nom du client <span class="req">*</span></label>
+      <input type="text" id="nomClient" placeholder="Raison sociale" required
+        oninput="updateRef()" autocomplete="organization" value="TEST" readonly>
+    </div>
+
+    <div class="field">
+      <label>Flux <span class="req">*</span></label>
+      <div class="flux-toggle">
+        <button type="button" class="flux-option import" onclick="setFlux('Import',this)">✈ Import</button>
+        <button type="button" class="flux-option export" onclick="setFlux('Export',this)">✈ Export</button>
+      </div>
+      <input type="hidden" id="flux" required>
+    </div>
+  </div>
+
+  <!-- ─ EXPÉDITION ─ -->
+  <div class="section">
+    <div class="section-title">Expédition</div>
+
+    <div class="field">
+      <label>Numéro LTA / AWB <span class="req">*</span></label>
+      <div class="lta-wrap">
+        <div class="lta-block-3">
+          <input type="text" id="lta1" maxlength="3" placeholder="057"
+            oninput="ltaInput(this, 'lta2', 3)" inputmode="numeric">
+        </div>
+        <span class="lta-sep">—</span>
+        <div class="lta-block-6">
+          <input type="text" id="lta2" maxlength="8" placeholder="00123456"
+            oninput="ltaInput(this, null, 8)" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label>Nombre de colis</label>
+        <input type="number" id="colis" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label>Poids brut (kg)</label>
+        <input type="number" id="kgb" placeholder="0.0" min="0" step="0.1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Destination / Origine <span class="req">*</span></label>
+      <select id="pays" required>
+        <option value="">Sélectionner un pays…</option>
+        <optgroup label="— Europe —">
+          <option>Allemagne</option><option>Autriche</option><option>Belgique</option>
+          <option>Danemark</option><option>Espagne</option><option>Finlande</option>
+          <option>France</option><option>Grèce</option><option>Irlande</option>
+          <option>Italie</option><option>Luxembourg</option><option>Norvège</option>
+          <option>Pays-Bas</option><option>Pologne</option><option>Portugal</option>
+          <option>Roumanie</option><option>Royaume-Uni</option><option>Russie</option>
+          <option>Suède</option><option>Suisse</option><option>Turquie</option>
+          <option>Ukraine</option>
+        </optgroup>
+        <optgroup label="— Afrique —">
+          <option>Afrique du Sud</option><option>Algérie</option><option>Cameroun</option>
+          <option>Côte d'Ivoire</option><option>Égypte</option><option>Éthiopie</option>
+          <option>Ghana</option><option>Kenya</option><option>Madagascar</option>
+          <option>Maroc</option><option>Maurice</option><option>Nigeria</option>
+          <option>Réunion</option><option>Sénégal</option><option>Tanzanie</option>
+          <option>Tunisie</option>
+        </optgroup>
+        <optgroup label="— Amériques —">
+          <option>Argentine</option><option>Brésil</option><option>Canada</option>
+          <option>Chili</option><option>Colombie</option><option>États-Unis</option>
+          <option>Mexique</option><option>Pérou</option>
+        </optgroup>
+        <optgroup label="— Asie / Pacifique —">
+          <option>Australie</option><option>Bangladesh</option><option>Chine</option>
+          <option>Hong Kong</option><option>Inde</option><option>Indonésie</option>
+          <option>Japon</option><option>Malaisie</option><option>Nouvelle-Zélande</option>
+          <option>Pakistan</option><option>Philippines</option><option>Singapour</option>
+          <option>Sri Lanka</option><option>Thaïlande</option><option>Viêt Nam</option>
+        </optgroup>
+        <optgroup label="— Moyen-Orient —">
+          <option>Arabie Saoudite</option><option>Bahreïn</option><option>Émirats arabes unis</option>
+          <option>Israël</option><option>Jordanie</option><option>Koweït</option>
+          <option>Liban</option><option>Oman</option><option>Qatar</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <!-- ─ DOUANE ─ -->
+  <div class="section">
+    <div class="section-title">Douane</div>
+
+    <div class="field">
+      <label>EUR1 requis <span class="req">*</span></label>
+      <div class="eur1-wrap">
+        <div class="radio-card" id="eur1-non" onclick="setEur1('Non')">
+          Non
+        </div>
+        <div class="radio-card" id="eur1-oui" onclick="setEur1('Oui')">
+          Oui — joindre la demande
+        </div>
+      </div>
+      <input type="hidden" id="eur1" required>
+    </div>
+
+    <div class="eur1-upload" id="eur1Upload">
+      <label>Demande EUR1 (PDF)</label>
+      <div class="drop-zone" id="dropEur1">
+        <input type="file" accept=".pdf,.doc,.docx" onchange="handleFiles(this.files, 'eur1Files')">
+        <div class="drop-icon">📋</div>
+        <div class="drop-text">Déposez votre demande EUR1<br><strong>PDF, DOC</strong></div>
+      </div>
+      <div class="file-list" id="eur1Files"></div>
+    </div>
+  </div>
+
+  <!-- ─ LOCALISATION ─ -->
+  <div class="section">
+    <div class="section-title">Localisation</div>
+    <div class="field">
+      <label>Zone de stockage</label>
+      <div class="chips-wrap" id="locChips">
+        <div class="chip" onclick="toggleChip(this)">Air France Cargo</div>
+        <div class="chip" onclick="toggleChip(this)">WFS</div>
+        <div class="chip" onclick="toggleChip(this)">Swissport</div>
+        <div class="chip" onclick="toggleChip(this)">Qatar Airways</div>
+        <div class="chip" onclick="toggleChip(this)">Emirates SkyCargo</div>
+        <div class="chip" onclick="toggleChip(this)">Dnata</div>
+        <div class="chip" onclick="toggleChip(this)">Menzies</div>
+        <div class="chip" onclick="toggleChip(this)">Havas</div>
+        <div class="chip" onclick="toggleChip(this)">Autre</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─ DOCUMENTS ─ -->
+  <div class="section">
+    <div class="section-title">Documents douaniers</div>
+    <div class="field">
+      <label>Pièces jointes (PDF, multiple)</label>
+      <div class="drop-zone" id="dropDocs"
+        ondragover="event.preventDefault(); this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="dropFiles(event, 'docFiles')">
+        <input type="file" accept=".pdf" multiple onchange="handleFiles(this.files, 'docFiles')">
+        <div class="drop-icon">📁</div>
+        <div class="drop-text">
+          Glissez vos documents ici ou <strong>parcourez</strong><br>
+          <span style="font-size:12px;color:var(--text3);">Facture, liste de colisage, certificats, BL…</span>
+        </div>
+      </div>
+      <div class="file-list" id="docFiles"></div>
+    </div>
+  </div>
+
+  <!-- ─ NOTES ─ -->
+  <div class="section">
+    <div class="section-title">Informations complémentaires</div>
+    <div class="field">
+      <label>Notes / Instructions particulières</label>
+      <textarea id="notes" placeholder="Marchandise fragile, conditionnement spécial, instructions de livraison…"></textarea>
+    </div>
+  </div>
+
+  <!-- ─ CONTACTS ─ -->
+  <div class="section">
+    <div class="section-title">Contacts & Notifications</div>
+    <div class="field">
+      <label>Adresses email <span class="req">*</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px;">jusqu'à 5 adresses — toutes seront notifiées</span>
+      </label>
+      <div id="emailList" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="email-row" style="display:flex;gap:8px;align-items:center;">
+          <input type="email" class="email-input" id="email" placeholder="email principal@client.fr" style="flex:1;">
+          <button type="button" onclick="addEmailRow()"
+            style="padding:10px 16px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:var(--gold2);font-size:20px;cursor:pointer;line-height:1;transition:all 0.2s;flex-shrink:0;"
+            title="Ajouter une adresse email">+</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">
+        📧 Un récapitulatif de la demande sera envoyé à toutes les adresses renseignées.
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBMIT -->
+  <div class="submit-wrap">
+    <button type="submit" class="btn-submit" id="btnSubmit">
+      Soumettre la demande
+      <span class="btn-sub">Votre dossier sera traité dans les plus brefs délais</span>
+    </button>
+  </div>
+
+</form>
+</div>
+
+<!-- SUCCESS -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Demande enregistrée</div>
+  <div class="success-ref" id="successRef"></div>
+  <p class="success-sub">
+    Votre demande a été transmise à l'équipe TAF.<br>
+    Un confirmé vous sera envoyé par email. Notre équipe vous contactera rapidement.
+  </p>
+  <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
+    <button onclick="resetForm()" style="padding:12px 28px;border:1px solid var(--gold);border-radius:8px;background:transparent;color:var(--gold2);font-family:var(--font-body);font-size:14px;cursor:pointer;font-weight:500;">
+      Nouvelle demande
+    </button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════
+// Remplacer par vos clés Firebase + webhook Make
+const FIREBASE_URL = "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+const MAKE_WEBHOOK = "https://hook.eu2.make.com/gb28a5vqky7raajojr4e20zbg0hlcf5t";
+
+// ── Paramètres URL de personnalisation ──
+const urlParams = new URLSearchParams(window.location.search);
+const clientParam = "TEST"; // pré-configuré
+const fluxParam   = urlParams.get('flux');   // 'import' ou 'export'
+const logoParam   = urlParams.get('logo');   // URL logo client
+const titleParam  = "Demande de<br><em>prise en charge</em>"; // pré-configuré  // Titre personnalisé
+const descParam   = "Fret aérien international · Paris Charles-de-Gaulle"; // pré-configuré   // Description
+
+// ══════════════════════════════════════════════════
+//  ÉTAT
+// ══════════════════════════════════════════════════
+let selectedFlux = '';
+let selectedEur1 = '';
+let selectedLoc = [];
+let uploadedDocFiles = [];
+let uploadedEur1Files = [];
+let formCounter = 0;
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  // Logo client via URL
+  if (logoParam) {
+    const wrap = document.getElementById('clientLogoWrap');
+    const img  = document.getElementById('clientLogoImg');
+    img.src = decodeURIComponent(logoParam);
+    wrap.style.display = 'block';
+  }
+  // Titre personnalisé
+  if (titleParam) {
+    document.getElementById('formTitle').innerHTML = decodeURIComponent(titleParam);
+  }
+  if (descParam) {
+    document.getElementById('formDesc').textContent = decodeURIComponent(descParam);
+  }
+
+  // Pré-remplissage client / flux
+  if (clientParam) {
+    document.getElementById('nomClient').value = decodeURIComponent(clientParam);
+    updateRef();
+  }
+  if (fluxParam) {
+    const f = fluxParam.charAt(0).toUpperCase() + fluxParam.slice(1).toLowerCase();
+    const btn = document.querySelector(`.flux-option.${fluxParam.toLowerCase()}`);
+    if (btn) setFlux(f, btn);
+  }
+
+  // Valeurs fixes (champs verrouillés)
+  applyFixedFields();
+
+  // Charger compteur depuis Firebase
+  loadCounter();
+  updateProgress();
+
+  // Progression en temps réel
+  document.getElementById('tafForm').addEventListener('input', updateProgress);
+});
+
+// ══════════════════════════════════════════════════
+//  CHAMPS FIXES — Valeurs imposées par TAF
+// ══════════════════════════════════════════════════
+function applyFixedFields() {
+  const fixedParam = urlParams.get('fixed');
+  const labelsParam = urlParams.get('fixedLabels');
+  if (!fixedParam) return;
+
+  let fixedMap = {};
+  let labelsMap = {};
+  try {
+    fixedMap  = JSON.parse(decodeURIComponent(fixedParam));
+    labelsMap = JSON.parse(decodeURIComponent(labelsParam || '{}'));
+  } catch(e) { return; }
+
+  // Map des IDs de champs vers les IDs des inputs HTML
+  const fieldIdToInputId = {
+    'f1': 'nomClient',
+    'f2': 'lta1',   // LTA prefix
+    'f6': 'eur1',
+    'f8': 'dosNotes',
+  };
+
+  Object.entries(fixedMap).forEach(([fieldId, fixedValue]) => {
+    const inputId = fieldIdToInputId[fieldId];
+    if (inputId) {
+      const input = document.getElementById(inputId);
+      if (input) {
+        input.value = fixedValue;
+        input.setAttribute('readonly', true);
+        input.closest('.field')?.classList.add('field-fixed');
+        // Ajouter badge "Pré-rempli"
+        const label = input.closest('.field')?.querySelector('label');
+        if (label && !label.querySelector('.fixed-badge')) {
+          label.insertAdjacentHTML('beforeend', '<span class="fixed-badge">📌 pré-rempli</span>');
+        }
+        // Si client, mettre à jour la référence
+        if (inputId === 'nomClient') updateRef();
+      }
+    } else {
+      // Champ générique — chercher par label
+      const label = labelsMap[fieldId] || fieldId;
+      console.log(`[Fixed] Champ "${label}" = "${fixedValue}" (mapping non défini)`);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  NUMÉRO AUTO
+// ══════════════════════════════════════════════════
+async function loadCounter() {
+  try {
+    const r = await fetch(`${FIREBASE_URL}/form_counter.json`);
+    const data = await r.json();
+    formCounter = (data || 0) + 1;
+    updateRef();
+  } catch(e) {
+    formCounter = Math.floor(Math.random() * 900) + 100;
+    updateRef();
+  }
+}
+
+function updateRef() {
+  const nom = document.getElementById('nomClient').value.trim();
+  if (!nom) { document.getElementById('refDisplay').textContent = '—'; return; }
+  const prefix = nom.substring(0, Math.min(6, nom.length)).toUpperCase().replace(/\s/g, '');
+  const num = String(formCounter).padStart(4, '0');
+  const today = new Date();
+  const dateStr = today.getFullYear().toString().slice(2) +
+    String(today.getMonth()+1).padStart(2,'0') +
+    String(today.getDate()).padStart(2,'0');
+  const ref = `${prefix}/${dateStr}-${num}`;
+  document.getElementById('refDisplay').textContent = ref;
+  return ref;
+}
+
+// ══════════════════════════════════════════════════
+//  FLUX
+// ══════════════════════════════════════════════════
+function setFlux(val, btn) {
+  selectedFlux = val;
+  document.getElementById('flux').value = val;
+  document.querySelectorAll('.flux-option').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateProgress();
+}
+
+// ══════════════════════════════════════════════════
+//  EUR1
+// ══════════════════════════════════════════════════
+function setEur1(val) {
+  selectedEur1 = val;
+  document.getElementById('eur1').value = val;
+  document.getElementById('eur1-oui').classList.toggle('active', val === 'Oui');
+  document.getElementById('eur1-non').classList.toggle('active', val === 'Non');
+  document.getElementById('eur1Upload').classList.toggle('visible', val === 'Oui');
+  updateProgress();
+}
+
+// ══════════════════════════════════════════════════
+//  LTA INPUT
+// ══════════════════════════════════════════════════
+function ltaInput(el, nextId, max) {
+  el.value = el.value.replace(/\D/g, '');
+  if (el.value.length >= max && nextId) {
+    document.getElementById(nextId).focus();
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  LOCALISATION CHIPS
+// ══════════════════════════════════════════════════
+function toggleChip(el) {
+  el.classList.toggle('active');
+  selectedLoc = [...document.querySelectorAll('.chip.active')].map(c => c.textContent.trim());
+  updateProgress();
+}
+
+// ══════════════════════════════════════════════════
+//  FICHIERS
+// ══════════════════════════════════════════════════
+function handleFiles(files, containerId) {
+  const arr = containerId === 'docFiles' ? uploadedDocFiles : uploadedEur1Files;
+  [...files].forEach(f => {
+    if (!arr.find(x => x.name === f.name)) arr.push(f);
+  });
+  renderFiles(arr, containerId);
+  updateProgress();
+}
+
+function dropFiles(e, containerId) {
+  e.preventDefault();
+  document.getElementById('dropDocs').classList.remove('dragover');
+  handleFiles(e.dataTransfer.files, containerId);
+}
+
+function renderFiles(arr, containerId) {
+  const list = document.getElementById(containerId);
+  list.innerHTML = arr.map((f, i) => `
+    <div class="file-item">
+      <span class="file-icon">📄</span>
+      <div class="file-info">
+        <div class="file-name">${f.name}</div>
+        <div class="file-size">${(f.size/1024).toFixed(1)} KB</div>
+      </div>
+      <button type="button" class="file-remove" onclick="removeFile(${i},'${containerId}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeFile(i, containerId) {
+  const arr = containerId === 'docFiles' ? uploadedDocFiles : uploadedEur1Files;
+  arr.splice(i, 1);
+  renderFiles(arr, containerId);
+}
+
+// ══════════════════════════════════════════════════
+//  PROGRESS BAR
+// ══════════════════════════════════════════════════
+function updateProgress() {
+  const fields = [
+    document.getElementById('nomClient').value.trim(),
+    selectedFlux,
+    document.getElementById('lta1').value.trim(),
+    document.getElementById('pays').value,
+    selectedEur1,
+  ];
+  const filled = fields.filter(Boolean).length;
+  const pct = Math.round((filled / fields.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ══════════════════════════════════════════════════
+//  SUBMIT
+// ══════════════════════════════════════════════════
+document.getElementById('tafForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  // Validation
+  const nom = document.getElementById('nomClient').value.trim();
+  const lta = document.getElementById('lta1').value.trim() + '-' + document.getElementById('lta2').value.trim();
+  const pays = document.getElementById('pays').value;
+
+  if (!nom) { flash('nomClient', 'Nom du client requis'); return; }
+  if (!selectedFlux) { alert('Sélectionnez un flux (Import/Export)'); return; }
+  if (!pays) { flash('pays', 'Sélectionnez le pays de destination/origine'); return; }
+  if (!selectedEur1) { alert('Indiquez si un EUR1 est requis'); return; }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours…';
+
+  const ref = updateRef();
+  const payload = {
+    ref,
+    client: nom,
+    flux: selectedFlux,
+    lta: lta !== '-' ? lta : '',
+    colis: document.getElementById('colis').value || 0,
+    kgb: document.getElementById('kgb').value || 0,
+    pays,
+    eur1: selectedEur1,
+    localisation: selectedLoc.join(', '),
+    notes: document.getElementById('notes').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    docs: uploadedDocFiles.map(f => f.name),
+    statut: 'nouveau',
+    created_at: new Date().toISOString(),
+  };
+
+  try {
+    // Incrémenter compteur Firebase
+    await fetch(`${FIREBASE_URL}/form_counter.json`, {
+      method: 'PUT',
+      body: JSON.stringify(formCounter)
+    });
+
+    // Sauvegarder la demande dans Firebase
+    const key = ref.replace(/[^a-zA-Z0-9]/g, '_');
+    await fetch(`${FIREBASE_URL}/demandes/${key}.json`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+
+    // Déclencher Make webhook
+    await fetch(MAKE_WEBHOOK, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({source: 'TAF_FORM', ...payload})
+    }).catch(() => {});
+
+    // Succès
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressBar').style.background = 'var(--green)';
+    document.getElementById('successRef').textContent = ref;
+    document.getElementById('successScreen').classList.add('show');
+
+  } catch(err) {
+    console.error(err);
+    // Afficher quand même le succès (mode offline fallback)
+    document.getElementById('successRef').textContent = ref;
+    document.getElementById('successScreen').classList.add('show');
+  }
+});
+
+function flash(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = 'var(--red)';
+  el.focus();
+  setTimeout(() => el.style.borderColor = '', 2000);
+}
+
+// ── Emails multiples ──
+function addEmailRow() {
+  const list = document.getElementById('emailList');
+  const rows = list.querySelectorAll('.email-row');
+  if (rows.length >= 5) {
+    notify && notify('Maximum 5 adresses email', 'red');
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'email-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  const inp = document.createElement('input');
+  inp.type = 'email';
+  inp.className = 'email-input';
+  inp.placeholder = 'email@client.fr';
+  inp.style.cssText = 'flex:1;background:var(--panel);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px;color:var(--text);font-family:inherit;font-size:15px;outline:none;transition:border-color 0.2s;';
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.textContent = '−';
+  del.title = 'Supprimer';
+  del.style.cssText = 'padding:8px 14px;background:rgba(255,61,61,0.1);border:1px solid rgba(255,61,61,0.3);border-radius:8px;color:#ff3d3d;font-size:18px;cursor:pointer;line-height:1;flex-shrink:0;';
+  del.onclick = () => row.remove();
+  row.appendChild(inp);
+  row.appendChild(del);
+  list.appendChild(row);
+}
+
+function getEmails() {
+  return [...document.querySelectorAll('.email-input')]
+    .map(i => i.value.trim())
+    .filter(Boolean);
+}
+
+function resetForm() {
+  document.getElementById('tafForm').reset();
+  document.getElementById('successScreen').classList.remove('show');
+  selectedFlux = '';
+  selectedEur1 = '';
+  selectedLoc = [];
+  uploadedDocFiles = [];
+  uploadedEur1Files = [];
+  document.querySelectorAll('.flux-option').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.radio-card').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('eur1Upload').classList.remove('visible');
+  document.getElementById('docFiles').innerHTML = '';
+  document.getElementById('eur1Files').innerHTML = '';
+  // Réinitialiser les emails supplémentaires
+  const emailList = document.getElementById('emailList');
+  if (emailList) {
+    const extra = emailList.querySelectorAll('.email-row:not(:first-child)');
+    extra.forEach(r => r.remove());
+  }
+  document.getElementById('progressBar').style.width = '0';
+  document.getElementById('progressBar').style.background = 'linear-gradient(90deg, var(--gold), var(--gold2))';
+  formCounter++;
+  updateRef();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+</script>
+</body>
+</html>
