@@ -1880,11 +1880,6 @@
           <div id="custom-action-btns" style="padding:0 2px;"></div>
           <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
           <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding:6px 12px 2px;">Panneaux</div>
-          <button onclick="switchSideTab(null,'history');closeOptionsMenu()"
-            style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-radius:7px;color:var(--text);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;"
-            onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
-            📋 Historique
-          </button>
           <button onclick="switchSideTab(null,'prealerte');closeOptionsMenu()"
             style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-radius:7px;color:var(--orange);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;"
             onmouseover="this.style.background='rgba(255,152,0,0.07)'" onmouseout="this.style.background='none'">
@@ -1990,6 +1985,19 @@
           <!-- Rempli dynamiquement par renderInlineClientDocs() -->
         </div>
       </div>
+
+      <!-- ═══ HISTORIQUE (v2.4.6) — déplacé depuis la sidebar ═══ -->
+      <div id="inlineHistorySection" style="margin-top:14px;padding:14px;background:rgba(156,39,176,0.04);border:1px solid rgba(156,39,176,0.15);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;display:flex;align-items:center;gap:6px;">
+            <span style="color:#ce93d8;">📋</span> Historique
+          </div>
+          <span id="inlineHistoryCounter" style="font-size:10px;color:var(--text3);">0 événement</span>
+        </div>
+        <div id="inlineHistoryList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;color:var(--text3);padding:8px 0;">Historique des actions à venir.</div>
+        </div>
+      </div>
       <style>
         .inline-doc-slot {
           position: relative;
@@ -2056,11 +2064,11 @@
     <!-- SIDEBAR -->
     <div class="popup-sidebar">
       <!-- Indicateur panneau actif -->
-      <div id="sidebarPanelTitle" style="padding:8px 12px 4px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);margin-bottom:4px;">📋 Historique</div>
+      <div id="sidebarPanelTitle" style="padding:8px 12px 4px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);margin-bottom:4px;">✈️ Pré-alerte</div>
 
-      <!-- Historique -->
-      <div class="sidebar-content" id="side-history" style="padding:14px;">
-        <div style="font-size:12px;color:var(--text3);">Historique des actions à venir.</div>
+      <!-- Historique (déplacé vers popup-main, panneau conservé pour compatibilité, masqué) -->
+      <div class="sidebar-content" id="side-history" style="display:none;padding:14px;">
+        <div style="font-size:12px;color:var(--text3);">Historique déplacé sous « Documents reçus ».</div>
       </div>
 
       <!-- Pré-alerte compagnie aérienne -->
@@ -2271,7 +2279,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.4.5
+  v2.4.6
 </div>
 
 <!-- Firebase SDK -->
@@ -4066,13 +4074,14 @@ function openDossier(type, id) {
   try { renderTimeline(d.statut, d); } catch(e) {}
   try { renderDocs(d.docs || []); } catch(e) {}
   try {
-    // Réinitialiser sidebar : montrer 'history' par défaut
+    // Réinitialiser sidebar : montrer 'prealerte' par défaut (historique déplacé vers popup-main)
     ['side-history','side-prealerte','side-courrier'].forEach(id => {
       const p = document.getElementById(id);
-      if (p) p.style.display = id === 'side-history' ? 'flex' : 'none';
+      if (p) p.style.display = id === 'side-prealerte' ? 'flex' : 'none';
     });
     const titleEl = document.getElementById('sidebarPanelTitle');
-    if (titleEl) titleEl.textContent = '📋 Historique';
+    if (titleEl) titleEl.textContent = '✈️ Pré-alerte';
+    if (typeof initPreAlertePanel === 'function') { try { initPreAlertePanel(); } catch(e) {} }
   } catch(e) {}
 
   document.getElementById('cal-title').value = `Arrivée ${d.client} — ${d.compagnie || d.vol || ''}`;
