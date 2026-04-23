@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF — VALIDE v1.1</title>
+<title>TAF — VALIDE v1.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,11 +108,11 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.1";
+const VERSION="v1.3";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
-const SENDER_CC="christophe@taftrans.fr";
-const WEBHOOK_SEND="https://hook.eu2.make.com/mgw0elsgsv37t5ct2k8hhwco6kmw6fsg";
+const SENDER_CC="import@taftrans.fr";
+const WEBHOOK_SEND="https://hook.eu2.make.com/a6y5o9xxvrqnwrvdytlo4ij08xgouoih";
 const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
 const FACTORY_BUREAUX=[
   {id:"b01",cat:"douane",nom:"Bureau de Douane CDG — Cargo 1 (Bât. 9420)",email:"cd.cdg-cargo1@douane.finances.gouv.fr",code:"CDG-C1"},
@@ -181,6 +181,38 @@ function App(){
   const[newDeclTitre,setNewDeclTitre]=useState("");
   const[dragDecl,setDragDecl]=useState(false);
   const[dragDoc,setDragDoc]=useState(false);
+
+  // ── URL PARAMS (pré-remplissage depuis TAF OPS) ──
+  const urlParams=useMemo(()=>{try{return new URLSearchParams(window.location.search);}catch(e){return new URLSearchParams();}},[]);
+  const initialDeclarantName=urlParams.get("declarant")||"";
+
+  // Appliquer type + numDecl au mount
+  useEffect(()=>{
+    const t=urlParams.get("type");
+    if(t==="import"||t==="export")setType(t);
+    const nd=urlParams.get("numDecl");
+    if(nd&&nd.length>=3)setNumDecl(nd);
+    const ref=urlParams.get("ref");
+    const client=urlParams.get("client");
+    if(ref||client||nd){
+      setTimeout(()=>{
+        const msg="Dossier "+(ref?ref:"")+(client?" — "+client:"")+" pré-rempli depuis TAF OPS";
+        setToast({msg:"📋 "+msg,ok:true});
+        setTimeout(()=>setToast(null),4500);
+      },300);
+    }
+  },[]);
+
+  // Pré-sélectionner le déclarant dès qu'il apparaît dans la liste
+  useEffect(()=>{
+    if(!initialDeclarantName||selDecl)return;
+    const needle=initialDeclarantName.toLowerCase().trim();
+    const match=declarants.find(d=>{
+      const full=((d.prenom||"")+" "+(d.nom||"")).toLowerCase().trim();
+      return full.includes(needle)||(d.prenom||"").toLowerCase()===needle||(d.nom||"").toLowerCase()===needle;
+    });
+    if(match)setSelDecl(match.id);
+  },[declarants,initialDeclarantName]);
 
   useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({bureaux,declarants,history}));}catch(e){}},[bureaux,declarants,history]);
   useEffect(()=>{const pI="26FRD000",pE="26FR1000";setNumDecl(prev=>{const s=prev.replace(pI,"").replace(pE,"");return(type==="import"?pI:pE)+s;});},[type]);
