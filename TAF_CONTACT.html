@@ -352,6 +352,7 @@
 
   .card-action-btn:hover.edit { border-color: var(--accent); color: var(--accent); background: rgba(79,124,255,0.1); }
   .card-action-btn:hover.del { border-color: var(--red); color: var(--red); background: rgba(255,79,106,0.1); }
+  .card-action-btn:hover.move { border-color: #b08ef0; color: #b08ef0; background: rgba(176,142,240,0.1); }
 
   .card-info { display: flex; flex-direction: column; gap: 7px; }
 
@@ -657,7 +658,7 @@
   <div class="header-right">
     <button class="sync-btn" id="configToggle" onclick="toggleConfig()">⚙️ Config Drive</button>
     <button class="sync-btn" id="saveBtn" onclick="saveToDrive()">💾 Sync Drive</button>
-    <div class="version-badge">v1.1.0</div>
+    <div class="version-badge">v1.1.1</div>
   </div>
 </header>
 
@@ -926,7 +927,9 @@ function getInitials(nom) {
 }
 
 function renderAll() {
-  ['douane','handlers','transporteurs','autres'].forEach(renderTab);
+  // ⚠️ Important: forEach passe (element, index, array) — il ne faut PAS
+  // passer renderTab directement en callback sinon l'index devient le filtre.
+  ['douane','handlers','transporteurs','autres'].forEach(tab => renderTab(tab));
   updateCounts();
 }
 
@@ -960,6 +963,7 @@ function renderTab(tab, filter = '') {
           ${c.poste ? `<div style="font-size:12px;color:var(--text3);margin-top:2px;">${esc(c.poste)}</div>` : ''}
         </div>
         <div class="card-actions">
+          <button class="card-action-btn move" title="Déplacer vers une autre catégorie" onclick="event.stopPropagation();moveContactMenu('${tab}','${c.id}', event)">📂</button>
           <button class="card-action-btn edit" onclick="event.stopPropagation();editContact('${tab}','${c.id}')">✏️</button>
           <button class="card-action-btn del" onclick="event.stopPropagation();deleteContact('${tab}','${c.id}')">🗑️</button>
         </div>
@@ -1071,6 +1075,37 @@ function deleteContact(tab, id) {
   saveLocal();
   renderAll();
   showToast(`Contact supprimé`, 'info');
+  saveToDrive();
+}
+
+// ══════════════════════════════════════════════
+// MOVE CONTACT (re-catégoriser)
+// ══════════════════════════════════════════════
+function moveContactMenu(fromTab, id) {
+  const c = data[fromTab].find(x => x.id === id);
+  if (!c) return;
+  const labels = {
+    douane: '🏛️ Douane',
+    handlers: '✈️ Handlers',
+    transporteurs: '🚚 Transporteurs',
+    autres: '🔗 Autres'
+  };
+  const options = Object.keys(labels).filter(k => k !== fromTab);
+  const msg = `Déplacer "${c.nom}" vers :\n\n` +
+    options.map((k, i) => `${i + 1}. ${labels[k]}`).join('\n') +
+    `\n\nTapez 1, 2 ou 3 :`;
+  const choice = prompt(msg);
+  const idx = parseInt(choice, 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= options.length) {
+    showToast('Déplacement annulé', 'info');
+    return;
+  }
+  const toTab = options[idx];
+  data[fromTab] = data[fromTab].filter(x => x.id !== id);
+  data[toTab].push({ ...c, updated: new Date().toISOString() });
+  saveLocal();
+  renderAll();
+  showToast(`✅ "${c.nom}" déplacé vers ${labels[toTab]}`, 'success');
   saveToDrive();
 }
 
