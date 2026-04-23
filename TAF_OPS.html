@@ -1915,6 +1915,56 @@
         </div>
       </div>
 
+      <!-- ═══ DOCUMENTS DOUANIERS INLINE (v2.3.0) ═══ -->
+      <div id="inlineDocsSection" style="margin-top:14px;padding:14px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--cyan);">📎</span> Documents douaniers
+          </div>
+          <div style="font-size:10px;color:var(--text3);">PDF · XLS · DOC · Images</div>
+        </div>
+        <div id="inlineDocsGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <!-- Déclaration -->
+          <div class="inline-doc-slot" id="inlinePdf-declaration" onclick="handlePdfSlotClick('declaration')"
+            style="position:relative;cursor:pointer;aspect-ratio:1/1.2;background:var(--bg2);border:2px dashed rgba(255,255,255,0.1);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;overflow:hidden;">
+            <div id="inlineThumb-declaration" style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden;">
+              <div style="font-size:32px;opacity:0.3;">📄</div>
+            </div>
+            <div style="padding:4px 6px;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:0.5px;text-align:center;width:100%;background:rgba(0,0,0,0.2);">Déclaration</div>
+            <input type="file" id="inlineUpload-declaration" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.webp" style="display:none;" onchange="handleRsUpload(event,'declaration')">
+          </div>
+          <!-- Bon Magasinier -->
+          <div class="inline-doc-slot" id="inlinePdf-bon_mag" onclick="handlePdfSlotClick('bon_mag')"
+            style="position:relative;cursor:pointer;aspect-ratio:1/1.2;background:var(--bg2);border:2px dashed rgba(255,255,255,0.1);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;overflow:hidden;">
+            <div id="inlineThumb-bon_mag" style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden;">
+              <div style="font-size:32px;opacity:0.3;">📄</div>
+            </div>
+            <div style="padding:4px 6px;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:0.5px;text-align:center;width:100%;background:rgba(0,0,0,0.2);">Bon Mag</div>
+            <input type="file" id="inlineUpload-bon_mag" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.webp" style="display:none;" onchange="handleRsUpload(event,'bon_mag')">
+          </div>
+          <!-- Trace NT -->
+          <div class="inline-doc-slot" id="inlinePdf-trace_nt" onclick="handlePdfSlotClick('trace_nt')"
+            style="position:relative;cursor:pointer;aspect-ratio:1/1.2;background:var(--bg2);border:2px dashed rgba(255,255,255,0.1);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;overflow:hidden;">
+            <div id="inlineThumb-trace_nt" style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden;">
+              <div style="font-size:32px;opacity:0.3;">📄</div>
+            </div>
+            <div style="padding:4px 6px;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:0.5px;text-align:center;width:100%;background:rgba(0,0,0,0.2);">Trace NT</div>
+            <input type="file" id="inlineUpload-trace_nt" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.webp" style="display:none;" onchange="handleRsUpload(event,'trace_nt')">
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--text3);text-align:center;">
+          Clic sur un slot vide pour uploader · Clic sur un slot rempli pour visualiser
+        </div>
+      </div>
+      <style>
+        .inline-doc-slot:hover { border-color: var(--cyan) !important; background: rgba(0,212,255,0.08) !important; }
+        .inline-doc-slot.has-doc { border-style: solid !important; border-color: rgba(0,230,118,0.4) !important; background: rgba(0,230,118,0.05) !important; }
+        .inline-doc-slot.has-doc:hover { border-color: var(--green) !important; }
+        .inline-doc-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+        .inline-doc-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; background: rgba(255,61,61,0.9); color: #fff; border: none; border-radius: 50%; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; }
+        .inline-doc-reup { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; background: rgba(0,212,255,0.9); color: #000; border: none; border-radius: 50%; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; }
+      </style>
+
       <!-- Notes internes rendues dans le info-grid via le layout dynamique -->
       <div id="notesInlineSection" style="display:none;margin-top:4px;">
         <textarea id="dosNotes" style="width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:12px; color:var(--text); font-family:var(--font-main); font-size:13px; resize:vertical; min-height:70px; outline:none;" placeholder="Ajouter une note…" oninput="autoSaveNote(this)"></textarea>
@@ -2141,7 +2191,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.2.9
+  v2.3.0
 </div>
 
 <!-- Firebase SDK -->
@@ -4064,12 +4114,32 @@ async function editField(fieldKey, fieldLabel, isSelect) {
 
   // SELECT
   if (isSelect) {
-    const listKey = {'statut':'statuts','type':'types','declarant':'declarants','localisation':'localisations'}[fieldKey] || fieldKey;
-    const list = opsConfig[listKey] || [];
+    // Pour le statut : toujours utiliser getStatusConfig() (avec fallback DEFAULT_STATUS_CONFIG)
+    let list;
+    if (fieldKey === 'statut') {
+      try {
+        list = getStatusConfig().map(s => s.name);
+      } catch(e) { list = []; }
+      if (!list || list.length === 0) {
+        list = (opsConfig.statuts && opsConfig.statuts.length) ? opsConfig.statuts : DEFAULT_STATUS_CONFIG.map(s => s.name);
+      }
+    } else {
+      const listKey = {'type':'types','declarant':'declarants','localisation':'localisations'}[fieldKey] || fieldKey;
+      list = opsConfig[listKey] || [];
+    }
     if (list.length > 0) {
       const sel = document.createElement('select');
       sel.style.cssText = 'width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--cyan);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;cursor:pointer;';
-      sel.innerHTML = '<option value="">— Choisir —</option>' + list.map(v => '<option value="'+v+'"'+(v===currentVal?' selected':'')+'>'+v+'</option>').join('');
+      // Pour le statut, afficher le label humain (ex: "BM reçu ✓") mais garder la valeur = clé stockée
+      const optHtml = list.map(v => {
+        let display = v;
+        if (fieldKey === 'statut') {
+          const sl = STATUS_LABELS[v];
+          if (sl && sl.label) display = sl.label;
+        }
+        return '<option value="'+v+'"'+(v===currentVal?' selected':'')+'>'+display+'</option>';
+      }).join('');
+      sel.innerHTML = '<option value="">— Choisir —</option>' + optHtml;
       valEl.innerHTML = '';
       valEl.appendChild(sel);
       sel.focus();
@@ -4730,8 +4800,9 @@ function applyPopupLayout(dossier) {
     if (f.key === 'lta' && raw) displayVal = '<span style="font-family:var(--font-mono);">' + raw + '</span>'
       + ' <a href="https://www.track-trace.com/aircargo#' + raw + '" target="_blank" style="font-size:10px;padding:2px 7px;border:1px solid rgba(0,212,255,.3);border-radius:4px;color:var(--cyan);text-decoration:none;">📡</a>';
     if (f.key === 'statut' && raw) {
-      var s = STATUS_LABELS[raw] || {cls:'s-attente'};
-      displayVal = '<span class="status-badge ' + s.cls + '" style="' + statusBadgeStyle(s) + '">' + raw + '</span>';
+      var s = STATUS_LABELS[raw] || {label: raw, cls:'s-attente'};
+      var displayLabel = s.label || raw;
+      displayVal = '<span class="status-badge ' + s.cls + '" style="' + statusBadgeStyle(s) + '">' + displayLabel + '</span>';
     }
     if (f.key === 'doc_douane') {
       if (dossier && dossier.doc_douane_url) {
@@ -14449,19 +14520,31 @@ async function renderPdfThumbnails(dossier) {
   for (const dt of RS_PDF_DOCS) {
     const slot  = document.getElementById('rsPdf-' + dt.id);
     const thumb = document.getElementById('rsThumb-' + dt.id);
-    if (!slot || !thumb) continue;
+    // Slots inline (dans la popup principale - v2.3.0)
+    const inlineSlot  = document.getElementById('inlinePdf-' + dt.id);
+    const inlineThumb = document.getElementById('inlineThumb-' + dt.id);
+
+    if (!slot && !inlineSlot) continue;
 
     const doc = docs[dt.id] || {};
     const uploaded = !!doc.uploaded;
 
-    // Appliquer classe
-    slot.className = 'rs-pdf-slot ' + (uploaded ? 'has-doc' : 'no-doc');
+    // Appliquer classe - sidebar
+    if (slot) slot.className = 'rs-pdf-slot ' + (uploaded ? 'has-doc' : 'no-doc');
+    // Appliquer classe - inline
+    if (inlineSlot) {
+      inlineSlot.classList.toggle('has-doc', uploaded);
+    }
 
     if (uploaded) {
       const lsKey = 'taf_doc_' + dossier.id + '_' + dt.id;
       const base64 = localStorage.getItem(lsKey);
       const btnDel = '<button class="rs-pdf-delete" onclick="event.stopPropagation();deleteRsDoc(\'' + dt.id + '\')" title="Supprimer">✕</button>';
       const btnRe  = '<button class="rs-pdf-reupload" onclick="event.stopPropagation();triggerRsUpload(\'' + dt.id + '\')" title="Re-uploader">↻</button>';
+      // Versions inline (class différentes pour positionnement)
+      const btnDelInline = '<button class="inline-doc-del" onclick="event.stopPropagation();deleteRsDoc(\'' + dt.id + '\')" title="Supprimer">✕</button>';
+      const btnReInline  = '<button class="inline-doc-reup" onclick="event.stopPropagation();triggerInlineUpload(\'' + dt.id + '\')" title="Re-uploader">↻</button>';
+
       const docType = (doc.type || '').toLowerCase();
       const docName = (doc.name || '').toLowerCase();
       const isPdf = docType.includes('pdf') || docName.endsWith('.pdf');
@@ -14469,15 +14552,18 @@ async function renderPdfThumbnails(dossier) {
       const isExcel = docType.includes('spreadsheet') || docType.includes('excel') || /\.(xls|xlsx)$/.test(docName);
       const isWord  = docType.includes('word') || /\.(doc|docx)$/.test(docName);
 
-      // ─── PRIORITÉ 1 : vignette Google Drive (upload Apps Script ou Drive proxy) ───
-      // Utilise l'API thumbnail Google Drive qui génère une preview du PDF.
-      // Fallback onerror vers ✅ vert si la vignette ne charge pas (CORS, 404, etc.)
+      let innerSidebar = '';
+      let innerInline = '';
+
+      // ─── PRIORITÉ 1 : vignette Google Drive ───
       if (doc.drive_id) {
         const thumbUrl = 'https://drive.google.com/thumbnail?id=' + doc.drive_id + '&sz=w400-h400';
-        thumb.innerHTML = '<img src="' + thumbUrl + '" alt="' + dt.label + '" '
+        innerSidebar = '<img src="' + thumbUrl + '" alt="' + dt.label + '" '
           + 'onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
-          + '<div style="display:none;align-items:center;justify-content:center;font-size:28px;color:var(--green);opacity:0.8;width:100%;height:100%;">✅</div>'
-          + btnDel + btnRe;
+          + '<div style="display:none;align-items:center;justify-content:center;font-size:28px;color:var(--green);opacity:0.8;width:100%;height:100%;">✅</div>';
+        innerInline = '<img src="' + thumbUrl + '" alt="' + dt.label + '" '
+          + 'onerror="this.onerror=null;this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+          + '<div style="display:none;align-items:center;justify-content:center;font-size:32px;color:var(--green);opacity:0.8;width:100%;height:100%;">✅</div>';
       } else if (isPdf && base64 && typeof pdfjsLib !== 'undefined') {
         try {
           const pdfData = atob(base64);
@@ -14494,23 +14580,48 @@ async function renderPdfThumbnails(dossier) {
           await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
 
           const imgUrl = canvas.toDataURL('image/jpeg', 0.92);
-          thumb.innerHTML = '<img src="' + imgUrl + '" alt="' + dt.label + '">' + btnDel + btnRe;
+          innerSidebar = '<img src="' + imgUrl + '" alt="' + dt.label + '">';
+          innerInline  = '<img src="' + imgUrl + '" alt="' + dt.label + '">';
         } catch(e) {
-          thumb.innerHTML = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>' + btnDel + btnRe;
+          innerSidebar = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>';
+          innerInline  = '<div style="font-size:32px;color:var(--green);opacity:0.8;">✅</div>';
         }
       } else if (isImage && base64) {
-        thumb.innerHTML = '<img src="data:' + (doc.type||'image/jpeg') + ';base64,' + base64 + '" alt="' + dt.label + '" style="object-fit:cover;">' + btnDel + btnRe;
+        innerSidebar = '<img src="data:' + (doc.type||'image/jpeg') + ';base64,' + base64 + '" alt="' + dt.label + '" style="object-fit:cover;">';
+        innerInline  = '<img src="data:' + (doc.type||'image/jpeg') + ';base64,' + base64 + '" alt="' + dt.label + '">';
       } else if (isExcel) {
-        thumb.innerHTML = '<div style="font-size:24px;opacity:0.9;">📊</div><div style="font-size:8px;color:var(--green);margin-top:2px;">' + (doc.name||'XLS').slice(0,12) + '</div>' + btnDel + btnRe;
+        innerSidebar = '<div style="font-size:24px;opacity:0.9;">📊</div><div style="font-size:8px;color:var(--green);margin-top:2px;">' + (doc.name||'XLS').slice(0,12) + '</div>';
+        innerInline  = '<div style="font-size:28px;opacity:0.9;">📊</div><div style="font-size:9px;color:var(--green);margin-top:4px;word-break:break-all;padding:0 4px;text-align:center;">' + (doc.name||'XLS').slice(0,14) + '</div>';
       } else if (isWord) {
-        thumb.innerHTML = '<div style="font-size:24px;opacity:0.9;">📝</div><div style="font-size:8px;color:var(--cyan);margin-top:2px;">' + (doc.name||'DOC').slice(0,12) + '</div>' + btnDel + btnRe;
+        innerSidebar = '<div style="font-size:24px;opacity:0.9;">📝</div><div style="font-size:8px;color:var(--cyan);margin-top:2px;">' + (doc.name||'DOC').slice(0,12) + '</div>';
+        innerInline  = '<div style="font-size:28px;opacity:0.9;">📝</div><div style="font-size:9px;color:var(--cyan);margin-top:4px;word-break:break-all;padding:0 4px;text-align:center;">' + (doc.name||'DOC').slice(0,14) + '</div>';
       } else {
-        thumb.innerHTML = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>' + btnDel + btnRe;
+        innerSidebar = '<div style="font-size:28px;color:var(--green);opacity:0.8;">✅</div>';
+        innerInline  = '<div style="font-size:32px;color:var(--green);opacity:0.8;">✅</div>';
+      }
+
+      if (thumb) thumb.innerHTML = innerSidebar + btnDel + btnRe;
+      if (inlineThumb) inlineThumb.innerHTML = innerInline;
+      // Boutons del/reup placés sur le slot inline (pas sur le thumb)
+      if (inlineSlot) {
+        // Supprimer anciens boutons s'ils existent
+        inlineSlot.querySelectorAll('.inline-doc-del, .inline-doc-reup').forEach(b => b.remove());
+        inlineSlot.insertAdjacentHTML('beforeend', btnDelInline + btnReInline);
       }
     } else {
-      thumb.innerHTML = '<div class="rs-pdf-empty">📄</div>';
+      if (thumb) thumb.innerHTML = '<div class="rs-pdf-empty">📄</div>';
+      if (inlineThumb) inlineThumb.innerHTML = '<div style="font-size:32px;opacity:0.3;">📄</div>';
+      if (inlineSlot) {
+        inlineSlot.querySelectorAll('.inline-doc-del, .inline-doc-reup').forEach(b => b.remove());
+      }
     }
   }
+}
+
+// Helper pour trigger l'upload inline (réutilise le même input que sidebar)
+function triggerInlineUpload(docId) {
+  const input = document.getElementById('rsUpload-' + docId) || document.getElementById('inlineUpload-' + docId);
+  if (input) { input.value = ''; input.click(); }
 }
 
 // ── Clic sur un slot PDF : upload si vide, viewer si dispo ──
