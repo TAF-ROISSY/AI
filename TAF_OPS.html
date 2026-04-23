@@ -616,6 +616,26 @@
   .bm-received { animation: popIn 0.3s ease; }
   @keyframes popIn { 0%{transform:scale(0.5);} 80%{transform:scale(1.2);} 100%{transform:scale(1);} }
 
+  /* Badge BM vert affiché sur la carte quand le Bon Mag est reçu */
+  .bm-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-weight: 800;
+    font-family: var(--font-main);
+    letter-spacing: 0.4px;
+    background: rgba(0, 230, 118, 0.18);
+    border: 1px solid rgba(0, 230, 118, 0.5);
+    color: var(--green);
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(0, 230, 118, 0.15);
+    animation: popIn 0.3s ease;
+  }
+
   .dossier-time {
     font-size: 10px;
     color: var(--text3);
@@ -2251,7 +2271,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.4.2
+  v2.4.5
 </div>
 
 <!-- Firebase SDK -->
@@ -3131,6 +3151,11 @@ function renderModule(type, items) {
     const bmIcon = d.bm
       ? `<span class="bm-icon bm-received" title="BM reçu">✅</span>`
       : `<span class="bm-icon bm-waiting" title="BM en attente">📄</span>`;
+    // Badge BM vert visible si BM reçu (flag statut OU PDF bon_mag uploadé)
+    const bmRecu = !!(d.bm || d.documents?.bon_mag?.uploaded);
+    const bmCardBadge = bmRecu
+      ? `<span class="bm-card-badge" title="Bon Magasinier reçu">✓ BM</span>`
+      : '';
     const ltaDisplay = d.lta ? `<span class="dossier-lta">${d.lta}</span>` : `<span class="dossier-lta" style="color:var(--text3)">Cotation</span>`;
     const urgentNote = d.urgent ? `<span style="color:var(--red);font-size:10px;font-weight:700;">● URGENT</span>` : '';
 
@@ -3151,9 +3176,12 @@ function renderModule(type, items) {
         onclick="event.stopPropagation();deleteDossier('${type}','${d.id}','${(d.client||'').replace(/'/g,'')}')"
         title="Supprimer ce dossier">✕</button>
       <div class="dossier-top">
-        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
           ${(d.ref||d.num_dossier) ? `<span class="dossier-ref-badge" style="align-self:flex-start;margin-bottom:1px;">${d.ref||d.num_dossier}</span>` : ''}
-          <span class="dossier-client">${TYPE_ICONS[d.type]||''} ${d.client}</span>
+          <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+            <span class="dossier-client">${TYPE_ICONS[d.type]||''} ${d.client}</span>
+            ${bmCardBadge}
+          </div>
         </div>
         <div class="statut-dropdown-wrap">
           <span class="status-badge ${s.cls}" 
@@ -12643,7 +12671,10 @@ function checkBMAlert(dossier) {
   if (!dossier) return;
 
   const vol = dossier.vol && dossier.vol.trim();
-  if (!vol || dossier.bm) return;
+  // BM considéré reçu si : flag dossier.bm OU PDF bon_mag uploadé
+  const docs = dossier.documents || {};
+  const bmRecu = !!(dossier.bm || docs.bon_mag?.uploaded);
+  if (!vol || bmRecu) return;
 
   const etaStr = dossier.vol_eta || dossier.eta;
   if (!etaStr) return;
@@ -15075,6 +15106,13 @@ function handleRsUpload(event, docId) {
     // Re-rendre les miniatures + doc manager
     renderPdfThumbnails(currentDossier);
     try { renderDocManager(); } catch(err) {}
+    // Rafraîchir les bannières (BM retard disparaît si bon_mag uploadé, STAVI apparaît si 3 docs OK)
+    try { checkBMAlert(currentDossier); } catch(err) {}
+    try { checkStaviDocs(currentDossier); } catch(err) {}
+    // Rafraîchir la carte du dossier (badge BM apparaît/disparaît sur le dashboard)
+    if (window.DEMO_DATA && currentDossier.module && docId === 'bon_mag') {
+      try { renderModule(currentDossier.module, DEMO_DATA[currentDossier.module]); } catch(err) {}
+    }
   };
   reader.readAsDataURL(file);
 }
@@ -15123,6 +15161,13 @@ async function deleteRsDoc(docId) {
   // Re-rendre
   renderPdfThumbnails(currentDossier);
   try { renderDocManager(); } catch(err) {}
+  // Rafraîchir les bannières (BM retard peut réapparaître si bon_mag supprimé)
+  try { checkBMAlert(currentDossier); } catch(err) {}
+  try { checkStaviDocs(currentDossier); } catch(err) {}
+  // Rafraîchir la carte du dossier sur le dashboard (badge BM disparaît)
+  if (window.DEMO_DATA && currentDossier.module && docId === 'bon_mag') {
+    try { renderModule(currentDossier.module, DEMO_DATA[currentDossier.module]); } catch(err) {}
+  }
   notify('🗑 ' + docLabel + ' supprimé', 'orange');
 }
 
