@@ -1880,10 +1880,10 @@
           <div id="custom-action-btns" style="padding:0 2px;"></div>
           <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
           <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding:6px 12px 2px;">Panneaux</div>
-          <button onclick="switchSideTab(null,'docdouane');closeOptionsMenu()"
+          <button onclick="switchSideTab(null,'docsrecus');closeOptionsMenu()"
             style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-radius:7px;color:var(--cyan);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;"
             onmouseover="this.style.background='rgba(0,212,255,0.07)'" onmouseout="this.style.background='none'">
-            🏛️ Documents douaniers
+            📎 Documents reçus
           </button>
           <button onclick="switchSideTab(null,'prealerte');closeOptionsMenu()"
             style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-radius:7px;color:var(--orange);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;"
@@ -1972,24 +1972,7 @@
         </div>
       </div>
 
-      <!-- ═══ DOCUMENTS REÇUS (v2.3.2) ═══ -->
-      <div id="inlineDocsSection" style="margin-top:14px;padding:14px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;display:flex;align-items:center;gap:6px;">
-            <span style="color:var(--cyan);">📎</span> Documents reçus
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span id="inlineDocsCounter" style="font-size:10px;color:var(--text3);">0 fichier</span>
-            <button onclick="triggerFreeUpload()" style="padding:5px 12px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);border-radius:5px;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">
-              ➕ Ajouter
-            </button>
-            <input type="file" id="freeDocUpload" accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx" multiple style="display:none;" onchange="handleFreeDocUpload(event)">
-          </div>
-        </div>
-        <div id="inlineDocsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;">
-          <!-- Rempli dynamiquement par renderInlineClientDocs() -->
-        </div>
-      </div>
+      <!-- ═══ DOCUMENTS REÇUS — déplacés vers la sidebar droite (v2.4.9) ═══ -->
 
       <!-- ═══ HISTORIQUE (v2.4.6) — déplacé depuis la sidebar ═══ -->
       <div id="inlineHistorySection" style="margin-top:14px;padding:14px;background:rgba(156,39,176,0.04);border:1px solid rgba(156,39,176,0.15);border-radius:10px;">
@@ -2069,7 +2052,7 @@
     <!-- SIDEBAR -->
     <div class="popup-sidebar">
       <!-- Indicateur panneau actif -->
-      <div id="sidebarPanelTitle" style="padding:8px 12px 4px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);margin-bottom:4px;">🏛️ Documents douaniers</div>
+      <div id="sidebarPanelTitle" style="padding:8px 12px 4px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);margin-bottom:4px;">📎 Documents reçus</div>
 
       <!-- Historique (déplacé vers popup-main, panneau conservé pour compatibilité, masqué) -->
       <div class="sidebar-content" id="side-history" style="display:none;padding:14px;">
@@ -2182,17 +2165,23 @@
         <div id="courrierStatus" style="font-size:11px;text-align:center;height:16px;"></div>
       </div>
 
-      <!-- 📋 Documents douaniers (v2.4.8) — vue consolidée docs de douane du dossier -->
-      <div class="sidebar-content" id="side-docdouane" style="display:flex;flex-direction:column;gap:10px;padding:12px;overflow-y:auto;">
+      <!-- 📎 Documents reçus (v2.4.9) — section déplacée depuis popup-main -->
+      <div class="sidebar-content" id="side-docsrecus" style="display:flex;flex-direction:column;gap:10px;padding:12px;overflow-y:auto;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;">🏛️ Documents douaniers</span>
-          <button onclick="renderDocDouanePanel(currentDossier)"
-            style="padding:4px 10px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:6px;color:var(--cyan);font-size:11px;cursor:pointer;font-family:var(--font-main);">
-            ↻
-          </button>
+          <span style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px;">
+            <span>📎</span> Documents reçus
+          </span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span id="inlineDocsCounter" style="font-size:10px;color:var(--text3);">0 fichier</span>
+            <button onclick="triggerFreeUpload()"
+              style="padding:4px 10px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);border-radius:5px;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-main);">
+              ➕ Ajouter
+            </button>
+            <input type="file" id="freeDocUpload" accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx" multiple style="display:none;" onchange="handleFreeDocUpload(event)">
+          </div>
         </div>
-        <div id="docDouaneList" style="display:flex;flex-direction:column;gap:8px;">
-          <div style="font-size:11px;color:var(--text3);padding:8px 0;">Sélectionnez un dossier pour voir ses documents douaniers.</div>
+        <div id="inlineDocsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
+          <!-- Rempli dynamiquement par renderInlineClientDocs() -->
         </div>
       </div>
 
@@ -2297,7 +2286,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.4.8
+  v2.4.9
 </div>
 
 <!-- Firebase SDK -->
@@ -3597,7 +3586,7 @@ function createOutlookEvent() {
 // ══════════════════════════════════════════════════
 const SIDE_PANEL_LABELS = {
   history: '📋 Historique',
-  docdouane: '🏛️ Documents douaniers',
+  docsrecus: '📎 Documents reçus',
   prealerte: '✈️ Pré-alerte', courrier: '📮 Courrier douane'
 };
 function switchSideTab(el, tab) {
@@ -3609,7 +3598,7 @@ function switchSideTab(el, tab) {
   if (titleEl) titleEl.textContent = SIDE_PANEL_LABELS[tab] || tab;
 
   // Masquer tous les panneaux
-  ['side-history','side-prealerte','side-courrier','side-docdouane'].forEach(id => {
+  ['side-history','side-prealerte','side-courrier','side-docsrecus'].forEach(id => {
     const p = document.getElementById(id);
     if (p) p.style.display = 'none';
   });
@@ -3620,7 +3609,9 @@ function switchSideTab(el, tab) {
     target.style.flexDirection = 'column';
     if (tab === 'prealerte') initPreAlertePanel();
     if (tab === 'courrier')  initCourrierPanel();
-    if (tab === 'docdouane' && typeof renderDocDouanePanel === 'function') renderDocDouanePanel(currentDossier);
+    if (tab === 'docsrecus' && typeof renderInlineClientDocs === 'function' && typeof currentDossier !== 'undefined' && currentDossier) {
+      try { renderInlineClientDocs(currentDossier); } catch(e) {}
+    }
   }
 }
 
@@ -4094,14 +4085,13 @@ function openDossier(type, id) {
   try { renderTimeline(d.statut, d); } catch(e) {}
   try { renderDocs(d.docs || []); } catch(e) {}
   try {
-    // Réinitialiser sidebar : montrer 'docdouane' par défaut (historique déplacé vers popup-main)
-    ['side-history','side-prealerte','side-courrier','side-docdouane'].forEach(id => {
+    // Réinitialiser sidebar : montrer 'docsrecus' par défaut
+    ['side-history','side-prealerte','side-courrier','side-docsrecus'].forEach(id => {
       const p = document.getElementById(id);
-      if (p) p.style.display = id === 'side-docdouane' ? 'flex' : 'none';
+      if (p) p.style.display = id === 'side-docsrecus' ? 'flex' : 'none';
     });
     const titleEl = document.getElementById('sidebarPanelTitle');
-    if (titleEl) titleEl.textContent = '🏛️ Documents douaniers';
-    if (typeof renderDocDouanePanel === 'function') { try { renderDocDouanePanel(d); } catch(e) {} }
+    if (titleEl) titleEl.textContent = '📎 Documents reçus';
   } catch(e) {}
 
   document.getElementById('cal-title').value = `Arrivée ${d.client} — ${d.compagnie || d.vol || ''}`;
@@ -6257,140 +6247,6 @@ function applyCourrierTemplate(tpl, d) {
 
 let courrierPdfBase64  = null;
 let courrierPdfName    = '';
-
-// ── Panneau "Documents douaniers" : vue consolidée des docs officiels du dossier ──
-function renderDocDouanePanel(dossier) {
-  const list = document.getElementById('docDouaneList');
-  if (!list) return;
-  if (!dossier) {
-    list.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px 0;">Aucun dossier sélectionné.</div>';
-    return;
-  }
-
-  const docs = dossier.documents || {};
-  const items = [];
-
-  // 1. N° Déclaration (champ texte)
-  if (dossier.declaration && String(dossier.declaration).trim()) {
-    items.push({
-      icon: '🔢',
-      label: 'N° Déclaration',
-      value: dossier.declaration,
-      type: 'text'
-    });
-  }
-
-  // 2. Déclaration en douane (PDF)
-  if (docs.declaration?.uploaded) {
-    items.push({
-      icon: '🏛️',
-      label: 'Déclaration en douane',
-      value: docs.declaration.name || 'declaration.pdf',
-      type: 'pdf',
-      docId: 'declaration',
-      driveUrl: docs.declaration.drive_url || ''
-    });
-  }
-
-  // 3. Trace NT (facturation douane)
-  if (docs.trace_nt?.uploaded) {
-    items.push({
-      icon: '📄',
-      label: 'Trace NT',
-      value: docs.trace_nt.name || 'trace_nt.pdf',
-      type: 'pdf',
-      docId: 'trace_nt',
-      driveUrl: docs.trace_nt.drive_url || ''
-    });
-  }
-
-  // 4. BAE (Bon à enlever)
-  if (docs.bae?.uploaded) {
-    const baeSent = dossier.bae_sent;
-    items.push({
-      icon: '✅',
-      label: 'BAE (Bon à enlever)',
-      value: docs.bae.name || 'bae.pdf',
-      type: 'pdf',
-      docId: 'bae',
-      driveUrl: docs.bae.drive_url || '',
-      extra: baeSent?.date ? `Envoyé client le ${new Date(baeSent.date).toLocaleDateString('fr-FR')}` : ''
-    });
-  }
-
-  // 5. Doc douane générique (Demande.html uploadé par le client)
-  if (dossier.doc_douane_url) {
-    const url = dossier.doc_douane_url;
-    const fileName = url.split('/').pop().split('?')[0];
-    items.push({
-      icon: '📎',
-      label: 'Documents du client',
-      value: fileName || 'Demande',
-      type: 'link',
-      externalUrl: url
-    });
-  }
-
-  // 6. EUR1 (si présent)
-  if (dossier.eur1 && String(dossier.eur1).trim()) {
-    items.push({
-      icon: '🇪🇺',
-      label: 'EUR1',
-      value: dossier.eur1,
-      type: 'text'
-    });
-  }
-
-  if (items.length === 0) {
-    list.innerHTML = `
-      <div style="text-align:center;padding:20px 10px;color:var(--text3);font-size:11px;line-height:1.6;">
-        <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">🏛️</div>
-        Aucun document douanier pour ce dossier.<br>
-        <span style="font-size:10px;">Uploadez la déclaration ou le BAE pour les voir ici.</span>
-      </div>`;
-    return;
-  }
-
-  list.innerHTML = items.map(it => {
-    if (it.type === 'text') {
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--panel);border:1px solid var(--border);border-radius:8px;">
-          <span style="font-size:16px;">${it.icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">${it.label}</div>
-            <div style="font-size:12px;font-weight:700;color:var(--text);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.value}</div>
-          </div>
-        </div>`;
-    }
-    if (it.type === 'pdf') {
-      const openBtn = `onclick="event.stopPropagation();openPdfViewer('${it.docId}')"`;
-      const driveBtn = it.driveUrl
-        ? `<a href="${it.driveUrl}" target="_blank" onclick="event.stopPropagation()" style="flex-shrink:0;padding:4px 9px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:5px;color:var(--cyan);font-size:10px;font-weight:700;text-decoration:none;">📂 Drive</a>`
-        : '';
-      return `
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--panel);border:1px solid rgba(0,230,118,0.25);border-radius:8px;cursor:pointer;" ${openBtn}>
-          <span style="font-size:16px;">${it.icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">${it.label}</div>
-            <div style="font-size:11.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.value}</div>
-            ${it.extra ? `<div style="font-size:9.5px;color:var(--green);margin-top:2px;">${it.extra}</div>` : ''}
-          </div>
-          ${driveBtn}
-        </div>`;
-    }
-    if (it.type === 'link') {
-      return `
-        <a href="${it.externalUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--panel);border:1px solid var(--border);border-radius:8px;text-decoration:none;">
-          <span style="font-size:16px;">${it.icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">${it.label}</div>
-            <div style="font-size:11.5px;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.value} ↗</div>
-          </div>
-        </a>`;
-    }
-    return '';
-  }).join('');
-}
 
 function initCourrierPanel() {
   // Remplir le select templates
