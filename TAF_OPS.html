@@ -2248,7 +2248,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.3.3
+  v2.4.0
 </div>
 
 <!-- Firebase SDK -->
@@ -2547,7 +2547,7 @@ function switchParamsTab(el, section) {
   if (section === 'calendrier')    renderCalendarParams();
   if (section === 'handlers')      renderHandlersParams();
   if (section === 'design')        renderDesignParams();
-  if (section === 'automatismes')  renderAutoParams();
+  if (section === 'automatismes')  { renderAutoParams(); if (typeof renderTransmissionAviParams === 'function') renderTransmissionAviParams(); }
   if (section === 'formulaires')   renderFormulairesParams();
 
   // ── Sections avec listes simples (opsConfig) ──
@@ -4060,6 +4060,8 @@ function openDossier(type, id) {
   try { checkBMAlert(d); } catch(e) {}
   // Verifier docs station animalière (AVI)
   try { checkStaviDocs(d); } catch(e) {}
+  // Vérifier automatisme Transmission Documents AVI (email configurable)
+  try { checkTransmissionDocsAVI(d); } catch(e) {}
   // Afficher case Alerte week-end si client Sidi
   try { updateAlerteWeekendVisibility(d); } catch(e) {}
   // Bouton Transfert Rahand (Import uniquement)
@@ -9087,6 +9089,12 @@ const SC_TEMPLATES = [
         </button>
       </div>
       <div id="auto-rules-params" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+      <!-- Automatisme dédié : Transmission documents AVI -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🔧 Automatismes prédéfinis</div>
+        <div id="transm-avi-params"></div>
+      </div>
     </div>
 
     <!-- 📋 FORMULAIRES -->
@@ -13396,6 +13404,281 @@ async function sendDocsStavi() {
   } catch(e) {
     notify('Erreur réseau: ' + e.message, 'red');
     if (btn) { btn.disabled = false; btn.innerHTML = '📧 Envoyer à WFS station animalière'; }
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+//  AUTOMATISME — Transmission Documents AVI (configurable)
+//  Scénario Make.com #9112585 · Webhook dédié
+//  Destinataire email modifiable depuis Paramètres › Automatismes
+// ══════════════════════════════════════════════════
+
+const WEBHOOK_TRANSMISSION_AVI = 'https://hook.eu2.make.com/fpjop6x3eh791j2dsyr5xkl3neekffjh';
+
+// Configuration (persistée localStorage)
+function getTransmissionAviConfig() {
+  const def = {
+    enabled: true,
+    destinataire_email: 'christophe@taftrans.fr',
+    destinataire_nom: 'Station animalière'
+  };
+  try {
+    const stored = JSON.parse(localStorage.getItem('taf_transmission_avi_config') || '{}');
+    return { ...def, ...stored };
+  } catch(e) { return def; }
+}
+
+function saveTransmissionAviConfig(cfg) {
+  try {
+    localStorage.setItem('taf_transmission_avi_config', JSON.stringify(cfg));
+  } catch(e) { console.warn('saveTransmissionAviConfig:', e); }
+}
+
+// CSS bannière Transmission
+const _transmStyle = document.createElement('style');
+_transmStyle.textContent = `
+.transm-banner { display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-radius:10px;margin:6px 0 4px 0;border:1px solid rgba(0,212,255,0.35);background:rgba(0,212,255,0.06); }
+.transm-banner-icon { font-size:22px;flex-shrink:0;margin-top:1px; }
+.transm-banner-body { flex:1; }
+.transm-banner-title { font-size:13px;font-weight:800;color:#4dd0e1;margin-bottom:4px; }
+.transm-banner-sub { font-size:11px;color:var(--text2);margin-bottom:10px; }
+.transm-btn { display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.35);color:#4dd0e1;cursor:pointer;font-family:var(--font-main);transition:all 0.2s; }
+.transm-btn:hover { background:rgba(0,212,255,0.22);transform:translateY(-1px); }
+.transm-btn:disabled { opacity:0.5;cursor:default;transform:none; }
+.transm-email-chip { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:10px;background:rgba(255,255,255,0.05);color:var(--text2);margin-left:8px;font-family:monospace; }
+`;
+document.head.appendChild(_transmStyle);
+
+// Vérifier + afficher la bannière (uniquement AVI avec 3 docs complets)
+function checkTransmissionDocsAVI(dossier) {
+  const banner = document.getElementById('bmAlertBanner');
+  if (!banner || !dossier) return;
+
+  const cfg = getTransmissionAviConfig();
+  if (!cfg.enabled) return;
+
+  // Uniquement Animaux vivants
+  if (dossier.type !== 'Animaux vivants' && dossier.type !== 'AVI' && dossier.type !== 'animaux vivants') return;
+
+  const docs = dossier.documents || {};
+  const hasDeclaration = !!(docs.declaration?.uploaded);
+  const hasBonMag      = !!(docs.bon_mag?.uploaded || dossier.bm);
+  const hasTraceNt     = !!(docs.trace_nt?.uploaded);
+  const allDocs        = hasDeclaration && hasBonMag && hasTraceNt;
+
+  const transmSent = dossier.transmission_avi_sent;
+  const domId = 'transm-banner-inner';
+
+  // Déjà envoyé → badge vert
+  if (transmSent && transmSent.date) {
+    const dt   = new Date(transmSent.date);
+    const hhmm = dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const ddmm = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+    banner.insertAdjacentHTML('beforeend', `
+      <div class="transm-banner" id="${domId}" style="border-color:rgba(0,230,118,0.25);background:rgba(0,230,118,0.05);">
+        <div class="transm-banner-icon">✅</div>
+        <div class="transm-banner-body">
+          <div class="transm-banner-title" style="color:var(--green);">Transmission de documents envoyée</div>
+          <div class="transm-banner-sub">LTA <strong>${dossier.lta||dossier.id}</strong> → ${transmSent.destinataire || cfg.destinataire_email}</div>
+          <span class="bm-sent-badge">📧 Envoyé le ${ddmm} à ${hhmm} par <strong>${transmSent.by||'?'}</strong></span>
+        </div>
+      </div>`);
+    banner.style.display = 'block';
+    return;
+  }
+
+  // Si docs incomplets → pas de bannière (la bannière STAVI gère déjà le statut)
+  if (!allDocs) return;
+
+  banner.insertAdjacentHTML('beforeend', `
+    <div class="transm-banner" id="${domId}">
+      <div class="transm-banner-icon">📄</div>
+      <div class="transm-banner-body">
+        <div class="transm-banner-title">Transmission de documents — Prêt à envoyer</div>
+        <div class="transm-banner-sub">
+          LTA <strong>${dossier.lta||dossier.id}</strong> — ${dossier.client} — ${dossier.colis||'?'} colis
+          <span class="transm-email-chip">→ ${cfg.destinataire_email}</span>
+        </div>
+        <button class="transm-btn" id="btnSendTransmAvi" onclick="sendTransmissionDocsAVI()">📧 Envoyer transmission</button>
+      </div>
+    </div>`);
+  banner.style.display = 'block';
+}
+
+// Envoi via Make webhook → email depuis import@taftrans.fr vers destinataire configuré
+async function sendTransmissionDocsAVI() {
+  if (!currentDossier) return;
+  const btn = document.getElementById('btnSendTransmAvi');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Envoi en cours...'; }
+
+  const cfg = getTransmissionAviConfig();
+
+  if (!cfg.destinataire_email || !cfg.destinataire_email.includes('@')) {
+    notify('Email destinataire invalide — configurez-le dans Paramètres › Automatismes', 'red');
+    if (btn) { btn.disabled = false; btn.innerHTML = '📧 Envoyer transmission'; }
+    return;
+  }
+
+  const operateur = (opsConfig && opsConfig.operateur_nom)
+    || localStorage.getItem('taf_operateur_nom')
+    || 'Opérateur';
+
+  const d   = currentDossier;
+  const id  = d.id || '';
+  const lta = d.lta || id;
+
+  // Récup des 3 PDFs depuis localStorage
+  const getDoc = (docId, fallbackName) => {
+    const b64  = localStorage.getItem(`taf_doc_${id}_${docId}`) || '';
+    const docs = d.documents || {};
+    const meta = docs[docId] || {};
+    return { data: b64, name: meta.name || fallbackName, available: !!b64 };
+  };
+
+  const declaration = getDoc('declaration', `declaration_${lta}.pdf`);
+  const bonMag      = getDoc('bon_mag',     `bon_mag_${lta}.pdf`);
+  const traceNt     = getDoc('trace_nt',    `trace_nt_${lta}.pdf`);
+
+  const manquants = [
+    !declaration.available && 'Déclaration',
+    !bonMag.available      && 'Bon Magasinier',
+    !traceNt.available     && 'Trace NT',
+  ].filter(Boolean);
+
+  if (manquants.length > 0) {
+    notify('Documents manquants : ' + manquants.join(', '), 'red');
+    if (btn) { btn.disabled = false; btn.innerHTML = '📧 Envoyer transmission'; }
+    return;
+  }
+
+  const sentData = {
+    date: new Date().toISOString(),
+    by: operateur,
+    destinataire: cfg.destinataire_email
+  };
+
+  // 1. Firebase anti-doublon immédiat
+  const fbKey = id.replace(/[^a-zA-Z0-9_]/g, '_');
+  if (window.__firebaseReady && fbKey) {
+    try {
+      await writeFirebase('demandes/' + fbKey + '/transmission_avi_sent', sentData);
+    } catch(e) { console.warn('transmission_avi_sent Firebase:', e); }
+  }
+  currentDossier.transmission_avi_sent = sentData;
+
+  // 2. Webhook Make — envoi email avec pièces jointes
+  try {
+    const today = new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const res = await fetch(WEBHOOK_TRANSMISSION_AVI, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        destinataire:     cfg.destinataire_email,
+        destinataire_nom: cfg.destinataire_nom || 'Station animalière',
+        lta:          lta,
+        client:       d.client || '',
+        vol:          (d.vol || '').trim().toUpperCase(),
+        origine:      d.pays || d.origine || '',
+        colis:        d.colis || '',
+        poids:        d.poids || d.poids_brut || '',
+        declaration:  d.declaration || '',
+        date_today:   today,
+        operateur:    operateur,
+        attachments: [
+          { filename: declaration.name, data: declaration.data, type: 'application/pdf' },
+          { filename: bonMag.name,      data: bonMag.data,      type: 'application/pdf' },
+          { filename: traceNt.name,     data: traceNt.data,     type: 'application/pdf' },
+        ]
+      })
+    });
+
+    if (res.ok) {
+      // Mettre à jour la carte dans l'affichage
+      if (window.DEMO_DATA) {
+        const m = currentDossier.module;
+        const card = window.DEMO_DATA[m]?.find(x => x.id === id);
+        if (card) { card.transmission_avi_sent = sentData; renderModule(m, window.DEMO_DATA[m]); }
+      }
+      // Refresh bannières
+      const b = document.getElementById('bmAlertBanner');
+      if (b) b.innerHTML = '';
+      try { checkBMAlert(currentDossier); } catch(e) {}
+      try { checkStaviDocs(currentDossier); } catch(e) {}
+      checkTransmissionDocsAVI(currentDossier);
+      notify('📧 Transmission envoyée à ' + cfg.destinataire_email + ' ✓', 'green');
+    } else {
+      notify('Erreur envoi: HTTP ' + res.status, 'red');
+      if (btn) { btn.disabled = false; btn.innerHTML = '📧 Envoyer transmission'; }
+    }
+  } catch(e) {
+    notify('Erreur réseau: ' + e.message, 'red');
+    if (btn) { btn.disabled = false; btn.innerHTML = '📧 Envoyer transmission'; }
+  }
+}
+
+// Rendu de la section de config dans Paramètres › Automatismes
+function renderTransmissionAviParams() {
+  const el = document.getElementById('transm-avi-params');
+  if (!el) return;
+  const cfg = getTransmissionAviConfig();
+
+  el.innerHTML = `
+    <div style="background:var(--panel);border:1px solid rgba(0,212,255,0.25);border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:18px;">📄</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:#4dd0e1;">Transmission documents — Animaux vivants</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Envoi auto des 3 PDF (Bon Mag + Déclaration + Trace NT) via import@taftrans.fr</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--text2);">
+          <input type="checkbox" id="transm-avi-enabled" ${cfg.enabled?'checked':''}
+            onchange="updateTransmissionAviConfig('enabled', this.checked)"
+            style="accent-color:var(--cyan);cursor:pointer;">
+          Actif
+        </label>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px;">Email destinataire</label>
+          <input type="email" id="transm-avi-email" value="${(cfg.destinataire_email||'').replace(/"/g,'&quot;')}"
+            placeholder="email@station.fr"
+            onchange="updateTransmissionAviConfig('destinataire_email', this.value.trim())"
+            style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:monospace;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px;">Nom destinataire (affichage)</label>
+          <input type="text" id="transm-avi-nom" value="${(cfg.destinataire_nom||'').replace(/"/g,'&quot;')}"
+            placeholder="Station animalière"
+            onchange="updateTransmissionAviConfig('destinataire_nom', this.value.trim())"
+            style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+        </div>
+      </div>
+
+      <div style="margin-top:10px;padding:8px 10px;background:rgba(0,212,255,0.04);border-radius:6px;font-size:10.5px;color:var(--text3);line-height:1.5;">
+        <strong style="color:var(--text2);">Objet :</strong> Transmission de documents // LTA // Client // Colis<br>
+        <strong style="color:var(--text2);">Déclencheur :</strong> Type Animaux vivants + 3 PDF complets → bouton apparaît dans le dossier
+      </div>
+    </div>
+  `;
+}
+
+function updateTransmissionAviConfig(key, value) {
+  const cfg = getTransmissionAviConfig();
+  cfg[key] = value;
+  saveTransmissionAviConfig(cfg);
+  notify('Paramètre enregistré ✓', 'green');
+  // Si dossier ouvert, refresh les bannières
+  if (typeof currentDossier !== 'undefined' && currentDossier) {
+    const b = document.getElementById('bmAlertBanner');
+    if (b) {
+      b.innerHTML = '';
+      try { checkBMAlert(currentDossier); } catch(e) {}
+      try { checkStaviDocs(currentDossier); } catch(e) {}
+      try { checkTransmissionDocsAVI(currentDossier); } catch(e) {}
+    }
   }
 }
 
