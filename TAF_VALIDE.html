@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF — VALIDE v1.4</title>
+<title>TAF — VALIDE v1.4.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,18 +108,13 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4";
+const VERSION="v1.4.1";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
 const WEBHOOK_SEND="https://hook.eu2.make.com/a6y5o9xxvrqnwrvdytlo4ij08xgouoih";
 const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
-const FACTORY_BUREAUX=[
-  {id:"b01",cat:"douane",nom:"Bureau de Douane CDG — Cargo 1 (Bât. 9420)",email:"cd.cdg-cargo1@douane.finances.gouv.fr",code:"CDG-C1"},
-  {id:"b02",cat:"douane",nom:"Bureau de Douane CDG — Cargo 2 (Bât. 9430)",email:"cd.cdg-cargo2@douane.finances.gouv.fr",code:"CDG-C2"},
-  {id:"b03",cat:"douane",nom:"Bureau de Douane CDG — Fret Express",email:"cd.cdg-express@douane.finances.gouv.fr",code:"CDG-EXP"},
-  {id:"b04",cat:"douane",nom:"DR2D Roissy — Direction Régionale",email:"dr2d.roissy@douane.finances.gouv.fr",code:"DR2D"},
-];
+const FACTORY_BUREAUX=[];
 const genId=()=>Math.random().toString(36).slice(2,10);
 const ts=()=>new Date().toISOString();
 const fmtDate=(d)=>new Date(d).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
@@ -321,11 +316,16 @@ function App(){
           list.forEach(c=>{if(!c||!c.email)return;imported.push({id:"tafcontact_"+(c.id||genId()),cat:"douane",nom:(c.societe?c.societe+" — ":"")+c.nom,email:c.email,code:c.code||"",source:"taf_contact"});});
         }
       }
-      // Nettoyer aussi les anciens bureaux non-douane présents dans le state (legacy localStorage)
-      setBureaux(prev=>{
-        const cleaned=prev.filter(b=>b.source!=="taf_contact"&&(b.cat==="douane"||!b.cat));
-        const me=new Set(cleaned.map(b=>(b.email||"").toLowerCase()));
-        return[...cleaned,...imported.filter(b=>!me.has(b.email.toLowerCase()))];
+      // v1.4.1 : Purge totale — on ne garde QUE les bureaux venant de TAF CONTACT (catégorie douane)
+      // Les anciens "bureaux par défaut" hardcodés sont supprimés
+      setBureaux(()=>{
+        const me=new Set();
+        return imported.filter(b=>{
+          const k=(b.email||"").toLowerCase();
+          if(me.has(k))return false;
+          me.add(k);
+          return true;
+        });
       });
       setContactSync({status:imported.length?"ok":"empty",count:imported.length,msg:imported.length+" bureau(x) douane"});
     }catch(e){setContactSync({status:"error",count:0,msg:e.message});}
@@ -459,19 +459,12 @@ function App(){
       <div className="card-b">
         <div className="fg">
           {(()=>{
-            // v1.4 : Filtre strict — uniquement les bureaux de catégorie "douane"
+            // v1.4.1 : Uniquement les bureaux de douane venant de TAF CONTACT
             const douaneOnly=bureaux.filter(b=>b.cat==="douane"||!b.cat);
-            const defaults=douaneOnly.filter(b=>b.source!=="taf_contact");
-            const fromContact=douaneOnly.filter(b=>b.source==="taf_contact");
             return (
               <select value={selBur} onChange={e=>setSelBur(e.target.value)} style={{fontSize:"14px"}}>
                 <option value="">— Choisir le bureau de douane —</option>
-                {defaults.length>0&&<optgroup label="🏛️ Bureaux par défaut">
-                  {defaults.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
-                </optgroup>}
-                {fromContact.length>0&&<optgroup label="📇 TAF CONTACT">
-                  {fromContact.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
-                </optgroup>}
+                {douaneOnly.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
               </select>
             );
           })()}
