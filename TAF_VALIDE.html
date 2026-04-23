@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF — VALIDE v1.3</title>
+<title>TAF — VALIDE v1.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,7 +108,7 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.3";
+const VERSION="v1.4";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
@@ -203,6 +203,94 @@ function App(){
     }
   },[]);
 
+  // ── v1.4 : AUTO-ATTACH DES PDF DEPUIS TAF OPS ──
+  // Lit ?docs=base64(JSON) + ?id=dossierId + ?auto_attach=1
+  // Puis fetche les base64 des PDF dans pdf_store/{id}/{doc_id} Firebase
+  useEffect(()=>{
+    const autoAttach=urlParams.get("auto_attach");
+    const docsParam=urlParams.get("docs");
+    const dossierId=urlParams.get("id");
+    if(autoAttach!=="1"||!docsParam)return;
+
+    let docsList=[];
+    try{
+      docsList=JSON.parse(decodeURIComponent(escape(atob(docsParam))));
+    }catch(e){
+      console.warn("[auto-attach] decode docs:",e);
+      return;
+    }
+    if(!Array.isArray(docsList)||!docsList.length)return;
+
+    (async()=>{
+      setToast({msg:"📥 Récupération de "+docsList.length+" document(s)…",ok:true});
+      const fbKey=(dossierId||"").replace(/[^a-zA-Z0-9_]/g,"_");
+      const fetchedDecl=null;
+      const fetchedDocs=[];
+      let declFound=null;
+
+      // Identification de la déclaration parmi les docs :
+      // - priorité à id === 'declaration'
+      // - sinon au nom contenant 'declaration', 'dau', 'delta', 'bae'
+      const isDeclarationDoc=(d)=>{
+        if(d.id==="declaration")return true;
+        const n=(d.name||"").toLowerCase();
+        return /declar|^dau|\bdau\b|delta|^bae|\bbae\b/.test(n);
+      };
+
+      for(const d of docsList){
+        try{
+          // 1) Essayer Firebase pdf_store (base64 stocké par TAF OPS)
+          let b64=null;
+          if(fbKey&&d.id){
+            const r=await fbGet("/pdf_store/"+fbKey+"/"+d.id+".json");
+            if(typeof r==="string"&&r.length>100)b64=r;
+          }
+          // 2) Fallback : fetch Drive direct via drive_id (peut échouer si CORS)
+          if(!b64&&d.drive_id){
+            try{
+              const driveUrl="https://drive.google.com/uc?export=download&id="+d.drive_id;
+              const resp=await fetch(driveUrl,{mode:"cors"});
+              if(resp.ok){
+                const blob=await resp.blob();
+                b64=await new Promise(res=>{
+                  const r=new FileReader();
+                  r.onload=()=>res(r.result.split(",")[1]||"");
+                  r.onerror=()=>res("");
+                  r.readAsDataURL(blob);
+                });
+              }
+            }catch(e){/* CORS probable */}
+          }
+          if(!b64)continue;
+
+          const size=Math.floor(b64.length*0.75);
+          const name=d.name||(d.id+".pdf");
+          const fileObj={name,size,b64};
+
+          if(isDeclarationDoc(d)&&!declFound){
+            declFound=fileObj;
+          }else{
+            fetchedDocs.push(fileObj);
+          }
+        }catch(e){
+          console.warn("[auto-attach] doc "+d.id+":",e);
+        }
+      }
+
+      // Appliquer les fichiers récupérés
+      if(declFound)setDeclFile(declFound);
+      if(fetchedDocs.length)setDocFiles(prev=>[...prev,...fetchedDocs]);
+
+      const total=(declFound?1:0)+fetchedDocs.length;
+      if(total>0){
+        setToast({msg:"✅ "+total+" document(s) attaché(s) automatiquement"+(declFound?" (dont la déclaration)":""),ok:true});
+      }else{
+        setToast({msg:"⚠️ Aucun PDF trouvé dans Firebase pour ce dossier",ok:false});
+      }
+      setTimeout(()=>setToast(null),5000);
+    })();
+  },[]);
+
   // Pré-sélectionner le déclarant dès qu'il apparaît dans la liste
   useEffect(()=>{
     if(!initialDeclarantName||selDecl)return;
@@ -217,22 +305,29 @@ function App(){
   useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify({bureaux,declarants,history}));}catch(e){}},[bureaux,declarants,history]);
   useEffect(()=>{const pI="26FRD000",pE="26FR1000";setNumDecl(prev=>{const s=prev.replace(pI,"").replace(pE,"");return(type==="import"?pI:pE)+s;});},[type]);
 
-  // ── TAF CONTACT → Bureaux ──
+  // ── TAF CONTACT → Bureaux (v1.4 : uniquement DOUANE) ──
   async function syncContacts(){
     setContactSync(s=>({...s,status:"loading"}));
     try{
       const contacts=await fbGet("/taf_contact/data.json");
       if(!contacts){setContactSync({status:"empty",count:0,msg:"Vide"});return;}
       setFbConnected(true);
-      const catMap={douane:"douane",handlers:"handler",transporteurs:"handler",autres:"autre"};
+      // v1.4 : On n'importe QUE les bureaux de douane — handlers/transporteurs/autres exclus
       const imported=[];
-      for(const[ck,bc] of Object.entries(catMap)){
-        let list=contacts[ck];if(!list)continue;
-        if(!Array.isArray(list)){if(typeof list==="object")list=Object.values(list);else continue;}
-        list.forEach(c=>{if(!c||!c.email)return;imported.push({id:"tafcontact_"+(c.id||genId()),cat:bc,nom:(c.societe?c.societe+" — ":"")+c.nom,email:c.email,code:c.code||"",source:"taf_contact"});});
+      let list=contacts.douane;
+      if(list){
+        if(!Array.isArray(list)&&typeof list==="object")list=Object.values(list);
+        if(Array.isArray(list)){
+          list.forEach(c=>{if(!c||!c.email)return;imported.push({id:"tafcontact_"+(c.id||genId()),cat:"douane",nom:(c.societe?c.societe+" — ":"")+c.nom,email:c.email,code:c.code||"",source:"taf_contact"});});
+        }
       }
-      if(imported.length){setBureaux(prev=>{const m=prev.filter(b=>b.source!=="taf_contact");const me=new Set(m.map(b=>(b.email||"").toLowerCase()));return[...m,...imported.filter(b=>!me.has(b.email.toLowerCase()))];});}
-      setContactSync({status:imported.length?"ok":"empty",count:imported.length,msg:imported.length+" contact(s)"});
+      // Nettoyer aussi les anciens bureaux non-douane présents dans le state (legacy localStorage)
+      setBureaux(prev=>{
+        const cleaned=prev.filter(b=>b.source!=="taf_contact"&&(b.cat==="douane"||!b.cat));
+        const me=new Set(cleaned.map(b=>(b.email||"").toLowerCase()));
+        return[...cleaned,...imported.filter(b=>!me.has(b.email.toLowerCase()))];
+      });
+      setContactSync({status:imported.length?"ok":"empty",count:imported.length,msg:imported.length+" bureau(x) douane"});
     }catch(e){setContactSync({status:"error",count:0,msg:e.message});}
   }
 
@@ -363,15 +458,23 @@ function App(){
       </div>
       <div className="card-b">
         <div className="fg">
-          <select value={selBur} onChange={e=>setSelBur(e.target.value)} style={{fontSize:"14px"}}>
-            <option value="">— Choisir le bureau de douane —</option>
-            {bureaux.filter(b=>b.source!=="taf_contact").length>0&&<optgroup label="🏛️ Bureaux par défaut">
-              {bureaux.filter(b=>b.source!=="taf_contact").map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
-            </optgroup>}
-            {bureaux.filter(b=>b.source==="taf_contact").length>0&&<optgroup label="📇 TAF CONTACT">
-              {bureaux.filter(b=>b.source==="taf_contact").map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
-            </optgroup>}
-          </select>
+          {(()=>{
+            // v1.4 : Filtre strict — uniquement les bureaux de catégorie "douane"
+            const douaneOnly=bureaux.filter(b=>b.cat==="douane"||!b.cat);
+            const defaults=douaneOnly.filter(b=>b.source!=="taf_contact");
+            const fromContact=douaneOnly.filter(b=>b.source==="taf_contact");
+            return (
+              <select value={selBur} onChange={e=>setSelBur(e.target.value)} style={{fontSize:"14px"}}>
+                <option value="">— Choisir le bureau de douane —</option>
+                {defaults.length>0&&<optgroup label="🏛️ Bureaux par défaut">
+                  {defaults.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+                </optgroup>}
+                {fromContact.length>0&&<optgroup label="📇 TAF CONTACT">
+                  {fromContact.map(b=><option key={b.id} value={b.id}>{b.nom}</option>)}
+                </optgroup>}
+              </select>
+            );
+          })()}
         </div>
         {selBur&&(()=>{const b=bureaux.find(x=>x.id===selBur);return b?<div style={{background:"var(--bg3)",border:"1px solid var(--borderL)",borderRadius:8,padding:"10px 14px",fontSize:12,display:"flex",alignItems:"center",gap:8}}>
           <span style={{color:"var(--textM)"}}>📧</span>
@@ -471,9 +574,9 @@ function App(){
         </div>
       </div></div>
 
-      <div className="card"><div className="card-h"><span className="card-icon">🏛️</span><span className="card-title">Bureaux ({bureaux.length})</span></div>
+      <div className="card"><div className="card-h"><span className="card-icon">🏛️</span><span className="card-title">Bureaux de douane ({bureaux.filter(b=>b.cat==="douane"||!b.cat).length})</span></div>
       <div className="card-b" style={{maxHeight:300,overflow:"auto"}}>
-        {bureaux.map(b=><div key={b.id} className="decl-item"><div style={{flex:1}}>
+        {bureaux.filter(b=>b.cat==="douane"||!b.cat).map(b=><div key={b.id} className="decl-item"><div style={{flex:1}}>
           <div style={{fontWeight:700,fontSize:12}}>{b.nom}</div>
           <div style={{fontSize:11,color:"var(--textM)",fontFamily:"'JetBrains Mono',monospace"}}>{b.email}</div>
         </div>{b.source==="taf_contact"?<span style={{fontSize:9,color:"var(--teal)",fontWeight:700,background:"rgba(20,184,166,.1)",padding:"2px 6px",borderRadius:4}}>TAF CONTACT</span>:<span style={{fontSize:9,color:"var(--textD)"}}>DÉFAUT</span>}</div>)}
@@ -482,7 +585,7 @@ function App(){
       <div className="card"><div className="card-h"><span className="card-icon">📊</span><span className="card-title">Statistiques</span></div>
       <div className="card-b">
         <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-          {[{v:history.length,l:"Envois",c:"var(--gold)"},{v:history.filter(h=>h.type==="import").length,l:"Import",c:"var(--blue)"},{v:history.filter(h=>h.type==="export").length,l:"Export",c:"var(--purple)"},{v:bureaux.length,l:"Bureaux",c:"var(--teal)"},{v:declarants.length,l:"Déclarants",c:"var(--green)"}].map((s,i)=>
+          {[{v:history.length,l:"Envois",c:"var(--gold)"},{v:history.filter(h=>h.type==="import").length,l:"Import",c:"var(--blue)"},{v:history.filter(h=>h.type==="export").length,l:"Export",c:"var(--purple)"},{v:bureaux.filter(b=>b.cat==="douane"||!b.cat).length,l:"Bureaux douane",c:"var(--teal)"},{v:declarants.length,l:"Déclarants",c:"var(--green)"}].map((s,i)=>
             <div key={i} style={{flex:1,minWidth:80,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,textAlign:"center"}}>
               <div style={{fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div>
               <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:".8px",color:"var(--textD)",marginTop:4}}>{s.l}</div>

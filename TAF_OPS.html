@@ -506,6 +506,34 @@
   }
   .statut-dropdown-item:hover { background: var(--panel); color: var(--text); }
   .statut-dropdown-item.current { color: var(--cyan); font-weight: 600; }
+
+  /* ─ BOUTON TAF VALIDE (v2.3.3) ─ */
+  .taf-valide-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: linear-gradient(135deg, #c9a84c, #e2c97e);
+    color: #0d1b2a;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: all 0.15s;
+    box-shadow: 0 1px 4px rgba(201,168,76,0.25);
+    font-family: var(--font-main);
+    line-height: 1;
+    vertical-align: middle;
+  }
+  .taf-valide-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(201,168,76,0.45);
+    filter: brightness(1.08);
+  }
+  .taf-valide-btn:active { transform: translateY(0); }
   .dossier-card.urgent { border-left: 2px solid var(--red); }
   .dossier-card.new-item { animation: slideIn 0.4s ease; }
 
@@ -1774,6 +1802,12 @@
           <!-- Rempli dynamiquement -->
         </div>
       </div>
+      <!-- Bouton TAF VALIDE (v2.3.3) — visible si statut = Validé -->
+      <button id="popTafValideBtn" class="taf-valide-btn" style="display:none;"
+        onclick="if(currentDossier) sendToTafValide(currentDossier);"
+        title="Transférer vers TAF VALIDE">
+        📨 <span style="margin-left:3px;">TAF VALIDE</span>
+      </button>
     </div>
     <div id="factu-client-badge" style="display:none;margin-top:5px;"></div>
     <div class="popup-actions">
@@ -2214,7 +2248,7 @@
 <!-- VERSION BADGE -->
 <div class="version-badge" id="versionBadge">
   <span class="version-dot"></span>
-  v2.3.2
+  v2.3.3
 </div>
 
 <!-- Firebase SDK -->
@@ -3125,6 +3159,7 @@ function renderModule(type, items) {
             style="cursor:pointer;${statusBadgeStyle(s)}">
             ${s.label} ▾
           </span>
+          ${renderTafValideButton(d, type)}
           <div class="statut-dropdown" id="sd-${type}-${d.id}">
             <!-- rempli dynamiquement -->
           </div>
@@ -3763,6 +3798,94 @@ function isValideStatus(s) {
   return t === 'validé' || t === 'valide' || t.startsWith('validé') || t.startsWith('valide');
 }
 
+// ═══════════════════════════════════════════════════════
+// v2.3.3 : Transfert manuel vers TAF VALIDE avec docs PDF
+// ═══════════════════════════════════════════════════════
+function sendToTafValide(dossier) {
+  if (!dossier) return;
+
+  // Type (import / export)
+  let type = 'import';
+  const mod = (dossier.module || dossier.type || '').toLowerCase();
+  if (mod.includes('export')) type = 'export';
+
+  // Params de base
+  const params = new URLSearchParams();
+  params.set('type', type);
+  if (dossier.declaration) params.set('numDecl', dossier.declaration);
+  if (dossier.declarant)   params.set('declarant', dossier.declarant);
+  if (dossier.ref || dossier.num_dossier) params.set('ref', dossier.ref || dossier.num_dossier);
+  if (dossier.client)      params.set('client', dossier.client);
+  if (dossier.id)          params.set('id', dossier.id);
+  if (dossier.lta)         params.set('lta', dossier.lta);
+  if (dossier.vol)         params.set('vol', dossier.vol);
+
+  // Collecter les URLs Drive de tous les documents attachés
+  // (déclaration PDF + tous les docs douaniers envoyés par le client)
+  const docs = dossier.documents || {};
+  const docUrls = [];
+  Object.keys(docs).forEach(docId => {
+    const d = docs[docId];
+    if (!d || !d.uploaded) return;
+    if (d.drive_url || d.drive_id) {
+      docUrls.push({
+        id: docId,
+        name: d.name || docId,
+        url: d.drive_url || ('https://drive.google.com/file/d/' + d.drive_id + '/view'),
+        drive_id: d.drive_id || ''
+      });
+    }
+  });
+
+  if (docUrls.length > 0) {
+    // Passer en JSON encodé (URL-safe)
+    try {
+      params.set('docs', btoa(unescape(encodeURIComponent(JSON.stringify(docUrls)))));
+    } catch(e) {
+      console.warn('[TAF VALIDE] encode docs:', e);
+    }
+    params.set('auto_attach', '1');
+  }
+
+  const url = TAF_VALIDE_URL + '?' + params.toString();
+
+  // Ouvrir dans un nouvel onglet
+  window.open(url, '_blank');
+
+  // Notification
+  if (typeof notify === 'function') {
+    const docCount = docUrls.length;
+    const msg = docCount > 0
+      ? '📨 TAF VALIDE ouvert avec ' + docCount + ' document(s) attaché(s)'
+      : '📨 TAF VALIDE ouvert (aucun PDF attaché)';
+    notify(msg, 'green');
+  }
+}
+
+// Génère le HTML du bouton icône (pour les cards dashboard)
+// Visible SEULEMENT si statut = Validé
+function renderTafValideButton(dossier, type) {
+  if (!dossier || !isValideStatus(dossier.statut)) return '';
+  const docs = dossier.documents || {};
+  const docCount = Object.keys(docs).filter(k => docs[k]?.uploaded).length;
+  const tooltip = docCount > 0
+    ? 'Transférer vers TAF VALIDE (' + docCount + ' document' + (docCount > 1 ? 's' : '') + ' à attacher)'
+    : 'Transférer vers TAF VALIDE';
+  return '<button class="taf-valide-btn" '
+    + 'onclick="event.stopPropagation();sendToTafValideFromCard(\'' + type + '\',\'' + dossier.id + '\')" '
+    + 'title="' + tooltip + '">'
+    + '<span style="font-size:13px;">📨</span>'
+    + (docCount > 0 ? '<span style="font-size:9px;background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:8px;margin-left:3px;">' + docCount + '</span>' : '')
+    + '</button>';
+}
+
+// Wrapper depuis la card (résout l'ID vers le dossier)
+function sendToTafValideFromCard(type, id) {
+  const d = DEMO_DATA[type]?.find(x => x.id === id);
+  if (!d) return;
+  sendToTafValide(d);
+}
+
 function promptOpenTafValide(dossier, oldStatut, newStatut) {
   if (!dossier) return;
   // On ne déclenche QUE sur transition douane → validé
@@ -3885,6 +4008,24 @@ function openDossier(type, id) {
     statusBadge.className = `status-badge ${s.cls}`;
     statusBadge.style.cssText = statusBadgeStyle(s) + ';cursor:pointer;';
     statusBadge.textContent = s.label;
+  }
+
+  // v2.3.3 : Afficher/masquer le bouton TAF VALIDE
+  const tvBtn = document.getElementById('popTafValideBtn');
+  if (tvBtn) {
+    if (isValideStatus(d.statut)) {
+      const docs = d.documents || {};
+      const docCount = Object.keys(docs).filter(k => docs[k]?.uploaded).length;
+      tvBtn.style.display = 'inline-flex';
+      tvBtn.title = docCount > 0
+        ? 'Transférer vers TAF VALIDE (' + docCount + ' document' + (docCount > 1 ? 's' : '') + ' à attacher)'
+        : 'Transférer vers TAF VALIDE';
+      // Mettre à jour le label avec le compteur si docs
+      tvBtn.innerHTML = '📨 <span style="margin-left:3px;">TAF VALIDE</span>'
+        + (docCount > 0 ? '<span style="font-size:9px;background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:8px;margin-left:4px;">' + docCount + '</span>' : '');
+    } else {
+      tvBtn.style.display = 'none';
+    }
   }
 
   // ── Appliquer le layout popup dynamique ──
@@ -5115,6 +5256,19 @@ async function setStatut(type, id, newStatut) {
     const s = STATUS_LABELS[newStatut] || {label:newStatut, cls:'s-attente'};
     const el = document.getElementById('popStatus');
     if (el) { el.className = 'status-badge ' + s.cls; el.style.cssText = statusBadgeStyle(s); el.textContent = s.label; }
+    // v2.3.3 : mettre à jour le bouton TAF VALIDE dans le popup
+    const tvBtn = document.getElementById('popTafValideBtn');
+    if (tvBtn) {
+      if (isValideStatus(newStatut)) {
+        const docs = currentDossier.documents || {};
+        const docCount = Object.keys(docs).filter(k => docs[k]?.uploaded).length;
+        tvBtn.style.display = 'inline-flex';
+        tvBtn.innerHTML = '📨 <span style="margin-left:3px;">TAF VALIDE</span>'
+          + (docCount > 0 ? '<span style="font-size:9px;background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:8px;margin-left:4px;">' + docCount + '</span>' : '');
+      } else {
+        tvBtn.style.display = 'none';
+      }
+    }
     try { renderTimeline(newStatut, currentDossier); } catch(e) {}
   }
 
