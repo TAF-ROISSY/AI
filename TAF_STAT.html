@@ -16,7 +16,7 @@
   --shadow:0 4px 24px rgba(0,0,0,0.4);--glow:0 0 20px rgba(0,212,255,0.15);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow:clip}
 
 /* SIDEBAR */
 #sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;z-index:100}
@@ -182,6 +182,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .search-box input{background:transparent;border:none;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;flex:1}
 .search-box input::placeholder{color:var(--text3)}
 
+/* BOUTONS CATÉGORIE MODAL */
+.cat-modal-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r2);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;border:2px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all 0.15s;margin:3px}
+.cat-modal-btn:hover{border-color:var(--cyan);color:var(--text)}
+.cam-active[data-sec="Poisson Frais"]{background:rgba(0,212,255,0.12);border-color:var(--cyan);color:var(--cyan)}
+.cam-active[data-sec="Fruits & Légumes"]{background:rgba(16,185,129,0.12);border-color:var(--green);color:var(--green)}
+.cam-active[data-sec="Animaux Vivants"]{background:rgba(129,140,248,0.12);border-color:var(--purple);color:var(--purple)}
+.cam-active[data-sec="Autre"]{background:rgba(240,165,0,0.12);border-color:var(--gold);color:var(--gold)}
+
 /* DRILL-DOWN */
 .drill-period-btn{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);background:rgba(0,212,255,0.1);color:var(--cyan);border:1px solid rgba(0,212,255,0.2);cursor:pointer;transition:all 0.15s}
 .drill-period-btn:hover{background:rgba(0,212,255,0.2)}
@@ -296,6 +304,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="nav-item" onclick="showView('flash')" id="nav-flash"><span class="nav-icon">⚡</span>Flash TAF<span class="nav-badge gold">IA</span></div>
     <div class="nav-item" onclick="showView('objectif')" id="nav-objectif"><span class="nav-icon">🎯</span>Objectif</div>
     <div class="nav-item" onclick="showView('filtres')" id="nav-filtres"><span class="nav-icon">🔖</span>Filtres Sauvés</div>
+    <div class="nav-section">Intelligence IA</div>
+    <div class="nav-item" onclick="showView('ia-chat')" id="nav-ia-chat"><span class="nav-icon">🤖</span>IA & Analyses</div>
+    <div class="nav-item" onclick="showView('simulateur')" id="nav-simulateur"><span class="nav-icon">🧮</span>Simulateur Frais</div>
+    <div class="nav-section">Configuration</div>
     <div class="nav-item" onclick="showView('import')" id="nav-import"><span class="nav-icon">📥</span>Importer XLS</div>
   </div>
   <div class="sidebar-footer">
@@ -405,6 +417,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div id="periode-label" style="font-size:11px;font-family:var(--mono);color:var(--cyan);margin-left:4px"></div>
       </div>
 
+      <div id="periode-ia-zone" style="display:none;margin-bottom:14px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn-secondary" style="font-size:10px;background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.3);color:var(--purple)" onclick="analyseIAPeriode()">🤖 Analyse IA de la période</button>
+      </div>
+
       <!-- KPIs financiers -->
       <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">💰 Financier</div>
       <div class="kpi-grid" id="kpi-periode-fin" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"></div>
@@ -479,6 +496,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <!-- DASHBOARD -->
     <div id="view-dashboard" class="view">
       <div id="anomaly-bar" style="margin-bottom:14px;display:none"></div>
+      <div id="dashboard-ia-zone" style="margin-bottom:14px;display:none"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn-secondary" style="font-size:10px;background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.3);color:var(--purple)" onclick="analyseIADashboard()">🤖 Analyse IA du tableau de bord</button>
+      </div>
       <div class="kpi-grid" id="kpi-main"></div>
       <div class="chart-card">
         <div class="chart-title">📈 Évolution BBE</div>
@@ -660,13 +681,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="section-header">
         <div class="section-title"><span class="icon">💤</span>Clients Dormants — Relance</div>
         <div class="section-actions">
+          <button class="btn-secondary" style="background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.3);color:var(--purple)" onclick="analyseIADormants()">🤖 Analyser par IA</button>
           <button class="btn-secondary" onclick="exportDormantsCRM()">📤 Exporter vers TAF Commercial</button>
           <button class="btn-drive" onclick="saveDormantsDrive()">☁️ Sauver Drive</button>
         </div>
       </div>
+      <div id="dormants-ia-zone" style="display:none;margin-bottom:14px"></div>
       <div class="taf-table-wrap">
         <table class="taf-table">
-          <thead><tr><th>Client</th><th>Dernière activité</th><th>BBE dernière année</th><th>Nb dossiers</th><th>Priorité</th><th>Secteur</th><th>Action</th></tr></thead>
+          <thead><tr><th>Client</th><th>Inactif depuis</th><th>BBE dernière année</th><th>Nb dossiers</th><th>Priorité</th><th>Secteur</th><th>Action</th></tr></thead>
           <tbody id="dormants-tbody"></tbody>
         </table>
       </div>
@@ -820,6 +843,158 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="chart-card"><div class="chart-title">📊 Scénario Réaliste</div><div id="proj-realiste"></div></div>
         <div class="chart-card"><div class="chart-title">🚀 Scénario Optimiste</div><div id="proj-optimiste"></div></div>
       </div>
+    </div>
+
+    <!-- IA CHAT & ANALYSES -->
+    <div id="view-ia-chat" class="view">
+
+      <!-- Config clé API -->
+      <div class="chart-card" style="margin-bottom:14px">
+        <div class="chart-title">⚙️ Configuration Claude API</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <div class="form-label">Clé API Claude (sauvegardée localement, jamais transmise)</div>
+            <div style="display:flex;gap:8px">
+              <input type="password" class="form-input" id="ia-api-key" placeholder="sk-ant-..." style="font-family:var(--mono);font-size:11px">
+              <button class="btn-primary" style="font-size:11px;white-space:nowrap" onclick="saveApiKey()">💾 Enregistrer</button>
+              <button class="btn-secondary" style="font-size:11px" onclick="toggleShowKey()">👁</button>
+            </div>
+          </div>
+          <div id="ia-key-status" style="font-size:10px;font-family:var(--mono);padding:6px 10px;border-radius:4px"></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start">
+
+        <!-- Prompts sauvegardés -->
+        <div>
+          <div class="chart-card">
+            <div class="chart-title">🔖 Mes Prompts Sauvegardés</div>
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <input type="text" class="form-input" id="new-prompt-name" placeholder="Nom du prompt..." style="flex:1;font-size:11px">
+              <button class="btn-primary" style="font-size:11px;white-space:nowrap" onclick="savePrompt()">➕ Sauver</button>
+            </div>
+            <div id="saved-prompts-list" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Question libre -->
+        <div>
+          <div class="chart-card">
+            <div class="chart-title">💬 Question libre sur vos données</div>
+            <textarea id="ia-question" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r2);padding:10px;color:var(--text);font-family:var(--mono);font-size:11px;resize:vertical;min-height:90px;outline:none;line-height:1.5" placeholder="Ex: Quels sont mes 3 clients les plus rentables en poisson frais sur 2024 ? Y a-t-il une saisonnalité marquée ?"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn-primary" style="font-size:11px" onclick="askIA()">🤖 Analyser</button>
+              <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('ia-question').value=''">🗑 Effacer</button>
+              <select id="ia-context-sel" class="fsel" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:5px 9px;font-size:10px">
+                <option value="general">Contexte général</option>
+                <option value="dormants">Clients dormants</option>
+                <option value="periode">Période sélectionnée</option>
+                <option value="secteurs">Analyse secteurs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zone réponse IA -->
+      <div id="ia-response-zone" style="display:none;margin-top:4px">
+        <div class="chart-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div class="chart-title" style="margin-bottom:0">🤖 Réponse IA</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-secondary" style="font-size:10px" onclick="printIAReport()">🖨️ Imprimer PDF</button>
+              <button class="btn-secondary" style="font-size:10px" onclick="copyIAResponse()">📋 Copier</button>
+              <button class="btn-secondary" style="font-size:10px" onclick="document.getElementById('ia-response-zone').style.display='none'">✕</button>
+            </div>
+          </div>
+          <div id="ia-response-content"></div>
+        </div>
+      </div>
+
+      <!-- Zone d'impression PDF -->
+      <div id="ia-print-zone" style="display:none"></div>
+    </div>
+
+    <!-- SIMULATEUR FRAIS -->
+    <div id="view-simulateur" class="view">
+      <div class="section-header">
+        <div class="section-title"><span class="icon">🧮</span>Simulateur — Impact Frais d'Intervention</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:16px;padding:10px 14px;background:rgba(0,212,255,0.06);border-left:3px solid var(--cyan);border-radius:0 6px 6px 0">
+        Simulez l'impact d'une hausse ou baisse de vos frais d'intervention sur votre BBE et le volume nécessaire pour maintenir votre rentabilité.
+      </div>
+
+      <div class="grid-2" style="align-items:start">
+
+        <!-- Paramètres -->
+        <div class="chart-card">
+          <div class="chart-title">⚙️ Paramètres de Simulation</div>
+
+          <div class="form-group">
+            <label class="form-label">Période de référence</label>
+            <select class="form-input" id="sim-year" style="font-size:11px">
+              <option value="all">Toutes années</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Secteur analysé</label>
+            <select class="form-input" id="sim-secteur" onchange="runSimulation()" style="font-size:11px">
+              <option value="all">Tous secteurs</option>
+              <option value="Poisson Frais">🐟 Poisson Frais</option>
+              <option value="Fruits & Légumes">🥦 Fruits & Légumes</option>
+              <option value="Animaux Vivants">🐾 Animaux Vivants</option>
+              <option value="Autre">📦 Autre</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Variation des frais d'intervention</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="range" id="sim-slider" min="-50" max="50" value="0" oninput="updateSimSlider();runSimulation()" style="flex:1;accent-color:var(--cyan)">
+              <div style="display:flex;align-items:center;gap:4px;min-width:90px">
+                <input type="number" id="sim-variation" value="0" min="-50" max="50" oninput="updateSimInput();runSimulation()" style="width:60px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:5px;color:var(--text);font-family:var(--mono);font-size:12px;text-align:center">
+                <span style="font-family:var(--mono);color:var(--text2)">%</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:3px">
+              <span>-50% (baisse)</span><span>0%</span><span>+50% (hausse)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Élasticité volume (si baisse des frais)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="range" id="sim-elast" min="0" max="3" step="0.1" value="1" oninput="document.getElementById('sim-elast-val').textContent=this.value+'x';runSimulation()" style="flex:1;accent-color:var(--green)">
+              <span id="sim-elast-val" style="font-family:var(--mono);color:var(--green);min-width:28px">1x</span>
+            </div>
+            <div style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:2px">Gain de volume attendu si baisse des frais (1x = volume stable, 2x = doublement)</div>
+          </div>
+
+          <button class="btn-primary" style="width:100%;font-size:12px;padding:10px;margin-top:6px" onclick="runSimulation()">▶ Lancer la simulation</button>
+        </div>
+
+        <!-- Résultats -->
+        <div id="sim-results">
+          <div class="chart-card" style="text-align:center;padding:40px 20px">
+            <div style="font-size:32px;margin-bottom:10px">🧮</div>
+            <div style="font-size:12px;color:var(--text3)">Ajustez les paramètres et lancez la simulation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphique impact -->
+      <div class="chart-card" style="margin-top:14px;display:none" id="sim-chart-card">
+        <div class="chart-title">📈 Courbe d'impact selon la variation de frais</div>
+        <canvas id="chart-sim" height="100"></canvas>
+      </div>
+
+      <!-- Analyse IA du simulateur -->
+      <div style="margin-top:14px">
+        <button class="btn-secondary" style="font-size:11px;background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.3);color:var(--purple)" onclick="analyseIASimulateur()">🤖 Demander à l'IA son avis sur cette simulation</button>
+      </div>
+      <div id="sim-ia-zone" style="display:none;margin-top:10px"></div>
     </div>
 
     <!-- FILTRES SAUVEGARDÉS -->
@@ -1209,6 +1384,8 @@ function renderCurrentView(){
   else if(v==='dormants') renderDormants();
   else if(v==='nouveaux') renderNouveaux();
   else if(v==='periode') renderPeriode();
+  else if(v==='ia-chat'){initIAView();renderSavedPrompts();}
+  else if(v==='simulateur'){initIAView();runSimulation();}
   else if(v==='categories') renderCategories();
   else if(v==='heatmap') renderHeatmap();
   else if(v==='secteurs') renderSecteurs();
@@ -1439,10 +1616,11 @@ function filterClientTable(){
   document.getElementById('client-tbody').innerHTML=page.map((r,i)=>{
     const d=delta(r.bbe,r.bbeCmp);
     const badge=r.statut==='new'?'<span class="badge-new">NOUVEAU</span>':r.statut==='recovered'?'<span class="badge-recovered">RÉCUPÉRÉ</span>':'<span class="badge-regular">RÉCURRENT</span>';
-    const secIcon=r.secteur==='Poisson Frais'?'🐟':r.secteur==='Fruits & Légumes'?'🥦':'📦';
+    const secIcon=r.secteur==='Poisson Frais'?'🐟':r.secteur==='Fruits & Légumes'?'🥦':r.secteur==='Animaux Vivants'?'🐾':'📦';
+    const cIdx=S._clientIndex?.[r.client]??-1;
     return`<tr>
       <td style="color:var(--text3)">${start+i+1}</td>
-      <td class="td-client" style="cursor:pointer" onclick="showClientDetail('${r.client}')">${r.client}</td>
+      <td class="td-client" style="cursor:pointer" onclick="openClientModal(${JSON.stringify(r.client)})">${r.client}</td>
       <td>${badge}</td>
       <td>${r.dossiers}</td>
       <td class="td-bbe">${fmtEur(r.bbe)}</td>
@@ -1452,7 +1630,7 @@ function filterClientTable(){
       <td class="td-delta ${d?.cls||''}">${d?d.arrow+' '+d.pct+'%':'—'}</td>
       <td>${sparkSVG(r.trend)}</td>
       <td>${secIcon} <span style="font-size:10px">${r.secteur}</span></td>
-      <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="setCascade('client','${r.client}')">🔍</button></td>
+      <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="setCascade('client',${JSON.stringify(r.client)})">🔍</button></td>
     </tr>`;
   }).join('');
   let pag=`<span>${total} clients · Page ${S.clientPage}/${pages||1}</span>`;
@@ -1463,39 +1641,32 @@ function filterClientTable(){
 function goPage(p){S.clientPage=p;filterClientTable();}
 function sortCT(col){if(S.clientSortCol===col)S.clientSortDir*=-1;else{S.clientSortCol=col;S.clientSortDir=-1;}filterClientTable();}
 
-function showClientDetail(client){
-  const data=S.raw.filter(d=>d.client===client).sort((a,b)=>a.date-b.date);
-  const byYear=groupBy(data,'year');
-  document.getElementById('modal-client-title').innerHTML=`📊 ${client} <button class="modal-close" onclick="closeModal('modal-client')">✕</button>`;
-  document.getElementById('modal-client-content').innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px">
-      ${Object.entries(byYear).sort(([a],[b])=>b-a).map(([y,d])=>`
-        <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
-          <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${y}</div>
-          <div style="font-size:16px;font-weight:700;color:var(--gold);font-family:var(--mono)">${fmtEur(sum(d,'bbe'))}</div>
-          <div style="font-size:10px;color:var(--text3)">${d.length} dossiers</div>
-        </div>`).join('')}
-    </div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
-      Premier dossier : <strong>${data[0]?.date.toLocaleDateString('fr')}</strong> · 
-      Dernier : <strong>${data[data.length-1]?.date.toLocaleDateString('fr')}</strong>
-    </div>
-    <div style="margin-bottom:10px">
-      <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Secteur</div>
-      <div class="cat-selector">
-        ${['Poisson Frais','Fruits & Légumes','Autre'].map(s=>{
-          const active=S.secteurs[client]===s||(data[0]?.secteur===s&&!S.secteurs[client]);
-          const cls=active?(s==='Poisson Frais'?'ap':s==='Fruits & Légumes'?'afl':'aa'):'';
-          return`<button class="cat-btn ${cls}" onclick="setSecteur('${client}','${s}',this)">${s}</button>`;
-        }).join('')}
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-primary" style="font-size:10px" onclick="sendClientToCRM('${client}');closeModal('modal-client')">📤 Envoyer TAF Commercial</button>
-      <button class="btn-secondary" style="font-size:10px" onclick="setCascade('client','${client}');closeModal('modal-client')">🔍 Filtrer sur ce client</button>
-    </div>`;
-  openModal('modal-client');
+function openClientModal(client){
+  // Appel depuis le tableau Top Clients — pas de période spécifique
+  drillClient(client, null, null, null, null);
 }
+
+function showClientDetail(client){
+  openClientModal(client);
+}
+
+function setSecteurModal(client, secteur){
+  // Changer la catégorie depuis le modal et rafraîchir les boutons
+  S.secteurs[client]=secteur;
+  localStorage.setItem('taf_stat_secteurs',JSON.stringify(S.secteurs));
+  S.raw.forEach(function(d){if(d.client===client)d.secteur=secteur;});
+  // Mettre à jour le titre du modal
+  var secIcon=secteur==='Poisson Frais'?'🐟':secteur==='Fruits & Légumes'?'🥦':secteur==='Animaux Vivants'?'🐾':'📦';
+  // Mettre en surbrillance le bon bouton
+  var btns=document.querySelectorAll('.cat-modal-btn');
+  btns.forEach(function(b){
+    var isActive=b.getAttribute('data-sec')===secteur;
+    b.className='cat-modal-btn'+(isActive?' cam-active':'');
+  });
+  toast('✅ '+client+' → '+secteur);
+}
+
+
 
 // ══════════════════════════════════════════════════════════════
 //  MOUVEMENTS
@@ -1568,38 +1739,75 @@ function renderMouvements(){
 function renderDormants(){
   const yearSel=document.getElementById('filter-year').value;
   const year=yearSel==='all'?Math.max(...S.years):parseInt(yearSel);
-  const cur=new Set(S.raw.filter(d=>d.year===year).map(d=>d.client));
-  const dormants=[];
-  [1,2,3].forEach(off=>{
-    const py=year-off;
-    if(!S.years.includes(py)) return;
-    const pd=S.raw.filter(d=>d.year===py);
-    const pg=groupBy(pd,'client');
-    Object.entries(pg).forEach(([c,dossiers])=>{
-      if(cur.has(c)||dormants.find(d=>d.client===c)) return;
-      const bbe=sum(dossiers,'bbe');
-      dormants.push({client:c,lastYear:py,bbe,nb:dossiers.length,sec:S.secteurs[c]||dossiers[0]?.secteur||'Autre',priorite:bbe>5000?'HAUTE':bbe>1000?'MOYENNE':'BASSE'});
-    });
+  const now=new Date();
+
+  // Un client est dormant s'il n'a pas eu de dossier depuis plus de 90 jours
+  // On cherche dans TOUTES les données, pas seulement par année
+  const clientLastDate={};
+  const clientBbe={}, clientNb={}, clientSec={};
+  S.raw.forEach(d=>{
+    if(!clientLastDate[d.client]||d.date>clientLastDate[d.client]) clientLastDate[d.client]=d.date;
+    if(!clientBbe[d.client]) clientBbe[d.client]=0;
+    if(!clientNb[d.client]) clientNb[d.client]=0;
+    clientBbe[d.client]+=d.bbe;
+    clientNb[d.client]++;
+    clientSec[d.client]=S.secteurs[d.client]||d.secteur;
   });
-  dormants.sort((a,b)=>b.bbe-a.bbe);
+
+  // BBE de la dernière année d'activité pour chaque client
+  const clientLastYearBbe={}, clientLastYear={};
+  Object.keys(clientLastDate).forEach(c=>{
+    const lastY=clientLastDate[c].getFullYear();
+    clientLastYear[c]=lastY;
+    const yData=S.raw.filter(d=>d.client===c&&d.year===lastY);
+    clientLastYearBbe[c]=sum(yData,'bbe');
+  });
+
+  // Seuil dormant : pas de dossier depuis 90 jours
+  const SEUIL_JOURS=90;
+  const dormants=Object.keys(clientLastDate)
+    .map(c=>({
+      client:c,
+      lastDate:clientLastDate[c],
+      daysSince:Math.floor((now-clientLastDate[c])/86400000),
+      lastYear:clientLastYear[c],
+      bbe:clientLastYearBbe[c],
+      bbeTotal:clientBbe[c],
+      nb:clientNb[c],
+      sec:clientSec[c]||'Autre',
+    }))
+    .filter(d=>d.daysSince>=SEUIL_JOURS)
+    .map(d=>({...d,
+      priorite:d.bbe>5000?'HAUTE':d.bbe>1000?'MOYENNE':'BASSE'
+    }))
+    .sort((a,b)=>b.bbe-a.bbe);
+
+  S._dormants=dormants;
   document.getElementById('nb-dormants').textContent=dormants.length;
-  document.getElementById('kpi-dormants').innerHTML=[
-    {label:'Clients Dormants',value:dormants.length},
-    {label:'BBE Potentiel',value:fmtEur(sum(dormants,'bbe'))},
+
+  const kpiHtml=[
+    {label:'Clients Dormants',value:dormants.length,sub:'+'+SEUIL_JOURS+'j sans dossier'},
+    {label:'BBE Potentiel Relance',value:fmtEur(sum(dormants,'bbe')),acc:'gold-accent'},
     {label:'Priorité Haute',value:dormants.filter(d=>d.priorite==='HAUTE').length,acc:'red-accent'},
     {label:'Priorité Moyenne',value:dormants.filter(d=>d.priorite==='MOYENNE').length,acc:'gold-accent'},
-  ].map(k=>`<div class="kpi-card ${k.acc||''}"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div>`).join('');
+  ].map(k=>`<div class="kpi-card ${k.acc||''}"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div>${k.sub?'<div class="kpi-sub">'+k.sub+'</div>':''}</div>`).join('');
+  document.getElementById('kpi-dormants').innerHTML=kpiHtml;
+
   const pColor={HAUTE:'var(--red)',MOYENNE:'var(--gold)',BASSE:'var(--text3)'};
-  document.getElementById('dormants-tbody').innerHTML=dormants.map(d=>`<tr>
-    <td class="td-client">${d.client}</td>
-    <td style="color:var(--text3)">${d.lastYear}</td>
-    <td class="td-bbe">${fmtEur(d.bbe)}</td>
-    <td>${d.nb}</td>
-    <td><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);background:${d.priorite==='HAUTE'?'rgba(244,63,94,0.12)':d.priorite==='MOYENNE'?'rgba(240,165,0,0.12)':'rgba(148,163,184,0.08)'};color:${pColor[d.priorite]}">${d.priorite}</span></td>
-    <td style="font-size:10px">${d.sec}</td>
-    <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="sendClientToCRM('${d.client}','${d.bbe}','${d.lastYear}')">📤 CRM</button></td>
-  </tr>`).join('');
-  S._dormants=dormants;
+  const tbody=dormants.map(d=>{
+    const daysColor=d.daysSince>365?'var(--red)':d.daysSince>180?'var(--orange)':'var(--gold)';
+    const cEsc=d.client.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return`<tr>
+      <td class="td-client" style="cursor:pointer" onclick="openClientModal(${JSON.stringify(d.client)})">${d.client}</td>
+      <td style="color:${daysColor};font-family:var(--mono)">${d.daysSince}j (${d.lastDate.toLocaleDateString('fr')})</td>
+      <td class="td-bbe">${fmtEur(d.bbe)}</td>
+      <td>${d.nb}</td>
+      <td><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);background:${d.priorite==='HAUTE'?'rgba(244,63,94,0.12)':d.priorite==='MOYENNE'?'rgba(240,165,0,0.12)':'rgba(148,163,184,0.08)'};color:${pColor[d.priorite]}">${d.priorite}</span></td>
+      <td style="font-size:10px">${d.sec}</td>
+      <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="sendClientToCRM(${JSON.stringify(d.client)})">📤 CRM</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('dormants-tbody').innerHTML=tbody||'<tr><td colspan="7" style="text-align:center;color:var(--green);padding:20px">✅ Aucun client dormant détecté</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2857,7 +3065,507 @@ function renderCompare(){
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
-//  DRILL-DOWN — sans template literals imbriqués
+//  IA CHAT — Clé API + Prompts sauvegardés + Question libre
+// ══════════════════════════════════════════════════════════════
+const IA = {
+  savedPrompts: JSON.parse(localStorage.getItem('taf_ia_prompts')||'[]'),
+  getKey(){ return localStorage.getItem('taf_claude_api_key')||''; }
+};
+
+function initIAView(){
+  // Charger la clé
+  const key=IA.getKey();
+  const inp=document.getElementById('ia-api-key');
+  if(inp) inp.value=key?'••••••••••••••••••••••':'' ;
+  updateKeyStatus();
+  renderSavedPrompts();
+  // Init simulateur years
+  const simYear=document.getElementById('sim-year');
+  if(simYear&&S.years.length){
+    simYear.innerHTML='<option value="all">Toutes années</option>'+S.years.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  }
+}
+
+function saveApiKey(){
+  const val=document.getElementById('ia-api-key').value.trim();
+  if(!val||val.startsWith('•')) return;
+  localStorage.setItem('taf_claude_api_key',val);
+  document.getElementById('ia-api-key').value='••••••••••••••••••••••';
+  updateKeyStatus();
+  toast('✅ Clé API sauvegardée localement');
+}
+
+function toggleShowKey(){
+  const inp=document.getElementById('ia-api-key');
+  if(inp.type==='password'){inp.type='text';inp.value=IA.getKey();}
+  else{inp.type='password';inp.value=IA.getKey()?'••••••••••••••••••••••':'';}
+}
+
+function updateKeyStatus(){
+  const el=document.getElementById('ia-key-status');
+  if(!el) return;
+  const key=IA.getKey();
+  if(key&&key.length>10){
+    el.innerHTML='✅ Clé configurée';
+    el.style.cssText='background:rgba(16,185,129,0.1);color:var(--green);font-size:10px;font-family:var(--mono);padding:6px 10px;border-radius:4px';
+  } else {
+    el.innerHTML='⚠️ Aucune clé';
+    el.style.cssText='background:rgba(240,165,0,0.1);color:var(--gold);font-size:10px;font-family:var(--mono);padding:6px 10px;border-radius:4px';
+  }
+}
+
+function savePrompt(){
+  const name=document.getElementById('new-prompt-name').value.trim();
+  const question=document.getElementById('ia-question').value.trim();
+  if(!name){toast('Donnez un nom au prompt');return;}
+  if(!question){toast('Rédigez un prompt dans le champ question');return;}
+  IA.savedPrompts.push({id:Date.now(),name,text:question,context:document.getElementById('ia-context-sel').value});
+  localStorage.setItem('taf_ia_prompts',JSON.stringify(IA.savedPrompts));
+  document.getElementById('new-prompt-name').value='';
+  renderSavedPrompts();
+  toast('🔖 Prompt "'+name+'" sauvegardé');
+}
+
+function renderSavedPrompts(){
+  const el=document.getElementById('saved-prompts-list');
+  if(!el) return;
+  if(!IA.savedPrompts.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--text3);text-align:center;padding:20px">Aucun prompt sauvegardé</div>';
+    return;
+  }
+  el.innerHTML=IA.savedPrompts.map(function(p){
+    return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 10px;display:flex;align-items:center;gap:8px">'
+      +'<div style="flex:1">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--text)">'+p.name+'</div>'
+      +'<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:2px">'+p.text.slice(0,60)+(p.text.length>60?'...':'')+'</div>'
+      +'</div>'
+      +'<button class="btn-primary" style="font-size:9px;padding:3px 8px;white-space:nowrap" onclick="usePrompt('+p.id+')">▶ Utiliser</button>'
+      +'<button class="btn-secondary" style="font-size:9px;padding:3px 6px;color:var(--red)" onclick="deletePrompt('+p.id+')">✕</button>'
+      +'</div>';
+  }).join('');
+}
+
+function usePrompt(id){
+  const p=IA.savedPrompts.find(function(x){return x.id===id;});
+  if(!p) return;
+  document.getElementById('ia-question').value=p.text;
+  if(p.context) document.getElementById('ia-context-sel').value=p.context;
+  askIA();
+}
+
+function deletePrompt(id){
+  IA.savedPrompts=IA.savedPrompts.filter(function(p){return p.id!==id;});
+  localStorage.setItem('taf_ia_prompts',JSON.stringify(IA.savedPrompts));
+  renderSavedPrompts();
+}
+
+async function askIA(){
+  const question=document.getElementById('ia-question').value.trim();
+  if(!question){toast('Posez une question');return;}
+  const apiKey=IA.getKey();
+  if(!apiKey){toast('⚠️ Configurez votre clé API Claude');showView('ia-chat');return;}
+  const context=document.getElementById('ia-context-sel')?.value||'general';
+
+  // Construire le contexte des données
+  const data=S.filtered;
+  const bbe=sum(data,'bbe'), nbD=data.length, nbC=new Set(data.map(function(d){return d.client;})).size;
+  const topClients=Object.entries(groupBy(data,'client')).map(function(e){return{c:e[0],bbe:sum(e[1],'bbe')};}).sort(function(a,b){return b.bbe-a.bbe;}).slice(0,5);
+  const bySec=groupBy(data,'secteur');
+  const secStats=Object.entries(bySec).map(function(e){return e[0]+': '+fmtEur(sum(e[1],'bbe'))+' ('+e[1].length+' dossiers)';}).join(', ');
+  const marge=avg(data.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;}));
+
+  let contextBlock='Données TAF ROISSY — Fret aérien Import CDG\n';
+  contextBlock+='Période analysée : '+document.getElementById('filter-year').value+'\n';
+  contextBlock+='BBE total : '+fmtEur(bbe)+' | Dossiers : '+nbD+' | Clients actifs : '+nbC+'\n';
+  contextBlock+='Marge moyenne : '+marge.toFixed(1)+'%\n';
+  contextBlock+='Secteurs : '+secStats+'\n';
+  contextBlock+='Top 5 clients : '+topClients.map(function(c){return c.c+' ('+fmtEur(c.bbe)+')';}).join(', ')+'\n';
+  if(context==='dormants'&&S._dormants){
+    contextBlock+='Clients dormants : '+S._dormants.length+' (BBE potentiel : '+fmtEur(sum(S._dormants,'bbe'))+')\n';
+  }
+
+  const fullPrompt='Tu es un expert en Business Intelligence pour TAF ROISSY, commissionnaire de transport fret aérien CDG depuis 40 ans.\n\n'
+    +'Voici les données disponibles :\n'+contextBlock+'\n'
+    +'Question : '+question+'\n\n'
+    +'Réponds de façon professionnelle, concise et actionnelle. Utilise des chiffres précis si tu peux les calculer.';
+
+  const zone=document.getElementById('ia-response-zone');
+  const content=document.getElementById('ia-response-content');
+  zone.style.display='block';
+  content.innerHTML='<div class="ai-thinking"><div class="spinner"></div>Analyse en cours...</div>';
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:fullPrompt}]})
+    });
+    const json=await resp.json();
+    if(json.error){content.innerHTML='<div style="color:var(--red);font-size:11px">❌ Erreur : '+json.error.message+'</div>';return;}
+    const text=json.content?.[0]?.text||'Réponse vide';
+    content.innerHTML='<div style="font-size:12px;color:var(--text2);line-height:1.8;white-space:pre-wrap">'+text+'</div>'
+      +'<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:10px">Question : '+question.slice(0,80)+(question.length>80?'...':'')+'</div>';
+    content.dataset.question=question;
+    content.dataset.response=text;
+    content.dataset.ts=new Date().toLocaleString('fr');
+  }catch(e){
+    content.innerHTML='<div style="color:var(--red);font-size:11px">❌ Erreur réseau : '+e.message+'</div>';
+  }
+}
+
+function copyIAResponse(){
+  const content=document.getElementById('ia-response-content');
+  const text=content.dataset.response||content.textContent;
+  navigator.clipboard?.writeText(text).then(()=>toast('📋 Réponse copiée'));
+}
+
+function printIAReport(){
+  const content=document.getElementById('ia-response-content');
+  const question=content.dataset.question||'—';
+  const response=content.dataset.response||content.textContent||'—';
+  const ts=content.dataset.ts||new Date().toLocaleString('fr');
+  const data=S.filtered;
+  const bbe=sum(data,'bbe'), nbD=data.length, nbC=new Set(data.map(function(d){return d.client;})).size;
+  const marge=avg(data.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;}));
+  const year=document.getElementById('filter-year').value;
+
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>Analyse TAF ROISSY — '+ts+'</title>'
+    +'<style>'
+    +'*{margin:0;padding:0;box-sizing:border-box}'
+    +'body{font-family:Georgia,serif;color:#1a2035;background:#fff;padding:40px;max-width:780px;margin:auto}'
+    +'.header{border-bottom:3px solid #0a1628;padding-bottom:20px;margin-bottom:28px}'
+    +'.logo{font-size:24px;font-weight:700;color:#0a1628;letter-spacing:-0.5px}'
+    +'.logo span{color:#00a8cc}'
+    +'.meta{font-size:11px;color:#666;margin-top:4px;font-family:monospace}'
+    +'.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}'
+    +'.kpi{background:#f8f9fa;border-radius:6px;padding:12px;text-align:center}'
+    +'.kpi-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}'
+    +'.kpi-value{font-size:18px;font-weight:700;color:#0a1628}'
+    +'.section-title{font-size:13px;font-weight:700;color:#0a1628;text-transform:uppercase;letter-spacing:1px;border-left:4px solid #00a8cc;padding-left:10px;margin-bottom:12px}'
+    +'.question{background:#f0f7ff;border-radius:6px;padding:14px;margin-bottom:20px;font-size:13px;font-style:italic;color:#334}'
+    +'.response{font-size:13px;line-height:1.8;color:#2a3448;white-space:pre-wrap}'
+    +'.footer{margin-top:36px;padding-top:14px;border-top:1px solid #ddd;font-size:10px;color:#999;font-family:monospace;display:flex;justify-content:space-between}'
+    +'@media print{body{padding:20px}}'
+    +'</style></head><body>'
+    +'<div class="header">'
+    +'<div class="logo">TAF <span>ROISSY</span></div>'
+    +'<div class="meta">Analyse IA — Généré le '+ts+' · Période : '+year+'</div>'
+    +'</div>'
+    +'<div class="kpi-row">'
+    +'<div class="kpi"><div class="kpi-label">BBE</div><div class="kpi-value">'+fmtEur(bbe)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">Dossiers</div><div class="kpi-value">'+nbD+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">Clients</div><div class="kpi-value">'+nbC+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">Marge moy.</div><div class="kpi-value">'+marge.toFixed(1)+'%</div></div>'
+    +'</div>'
+    +'<div class="section-title">Question posée</div>'
+    +'<div class="question">'+question+'</div>'
+    +'<div class="section-title">Analyse IA</div>'
+    +'<div class="response">'+response+'</div>'
+    +'<div class="footer">'
+    +'<span>TAF ROISSY · CDG · Commissionnaire de transport depuis 40 ans</span>'
+    +'<span>TAF STAT v1.1</span>'
+    +'</div>'
+    +'</body></html>';
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){w.print();},500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SIMULATEUR FRAIS
+// ══════════════════════════════════════════════════════════════
+function updateSimSlider(){
+  const v=document.getElementById('sim-slider').value;
+  document.getElementById('sim-variation').value=v;
+}
+function updateSimInput(){
+  const v=document.getElementById('sim-variation').value;
+  document.getElementById('sim-slider').value=Math.max(-50,Math.min(50,v));
+}
+
+function runSimulation(){
+  const yearSel=document.getElementById('sim-year')?.value||'all';
+  const secteur=document.getElementById('sim-secteur')?.value||'all';
+  const variation=parseFloat(document.getElementById('sim-variation')?.value)||0;
+  const elasticity=parseFloat(document.getElementById('sim-elast')?.value)||1;
+
+  let data=yearSel==='all'?S.raw:S.raw.filter(function(d){return d.year===parseInt(yearSel);});
+  if(secteur!=='all') data=data.filter(function(d){return d.secteur===secteur;});
+  if(!data.length){document.getElementById('sim-results').innerHTML='<div class="chart-card"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Chargez des données Malta</div></div></div>';return;}
+
+  const bbeCur=sum(data,'bbe');
+  const caCur=sum(data,'fc');
+  const nbDos=data.length;
+  const margeCur=avg(data.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;}));
+  const bbeParDos=nbDos?bbeCur/nbDos:0;
+
+  // Modèle : le BBE = CA - Coût. On suppose que les frais d'intervention = une partie du coût
+  // Impact de la variation : si hausse de X% des frais → BBE diminue de X% des coûts
+  // Coût estimé = CA - BBE (coût variable approximatif)
+  const coutCur=caCur-bbeCur;
+  const fraisPartOfCout=0.35; // estimation : 35% des coûts = frais d'intervention
+
+  const fraisActuels=coutCur*fraisPartOfCout;
+  const fraisNouveaux=fraisActuels*(1+variation/100);
+  const deltaCout=fraisNouveaux-fraisActuels;
+
+  // Sans changement de volume
+  const bbeBaseNoVol=bbeCur-deltaCout;
+  const margeBaseNoVol=caCur?((bbeBaseNoVol/caCur)*100):0;
+
+  // Avec élasticité volume (si baisse des frais → plus de volume)
+  let volMultiplier=1;
+  if(variation<0) volMultiplier=1+(Math.abs(variation)/100)*elasticity;
+  else if(variation>0) volMultiplier=1-(variation/200); // hausse = perte de volume possible
+
+  const bbeWithVol=bbeBaseNoVol*volMultiplier;
+  const nbDosWithVol=Math.round(nbDos*volMultiplier);
+  const deltaBbe=bbeWithVol-bbeCur;
+  const deltaPct=bbeCur?((deltaBbe/bbeCur)*100):0;
+
+  // Calcul du volume nécessaire pour maintenir le BBE actuel malgré une hausse
+  let volNecessaire=0;
+  if(variation>0&&bbeBaseNoVol<bbeCur){
+    volNecessaire=Math.ceil(bbeCur/bbeBaseNoVol*nbDos)-nbDos;
+  }
+
+  const dColor=deltaBbe>=0?'var(--green)':'var(--red)';
+  const dSign=deltaBbe>=0?'+':'';
+  const varColor=variation>0?'var(--red)':variation<0?'var(--green)':'var(--text2)';
+
+  document.getElementById('sim-results').innerHTML='<div class="chart-card">'
+    +'<div class="chart-title">📊 Résultats de Simulation</div>'
+    +'<div style="text-align:center;padding:10px 0;margin-bottom:16px;background:var(--bg3);border-radius:var(--r2)">'
+    +'<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:4px">Variation appliquée</div>'
+    +'<div style="font-size:32px;font-weight:800;font-family:var(--mono);color:'+varColor+'">'+(variation>0?'+':'')+variation+'%</div>'
+    +'<div style="font-size:10px;color:var(--text3)">des frais d\'intervention</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+    +'<div style="background:var(--bg3);border-radius:var(--r2);padding:10px;text-align:center">'
+    +'<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">BBE Actuel</div>'
+    +'<div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--gold)">'+fmtEur(bbeCur)+'</div>'
+    +'</div>'
+    +'<div style="background:var(--bg3);border-radius:var(--r2);padding:10px;text-align:center">'
+    +'<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">BBE Projeté</div>'
+    +'<div style="font-size:18px;font-weight:700;font-family:var(--mono);color:'+dColor+'">'+fmtEur(bbeWithVol)+'</div>'
+    +'</div>'
+    +'</div>'
+
+    +'<div style="display:flex;flex-direction:column;gap:7px">'
+    +'<div class="stat-row"><span class="stat-label">Impact BBE</span><span class="stat-value" style="color:'+dColor+'">'+dSign+fmtEur(deltaBbe)+' ('+dSign+deltaPct.toFixed(1)+'%)</span></div>'
+    +'<div class="stat-row"><span class="stat-label">Dossiers projetés</span><span class="stat-value">'+nbDosWithVol+' (vs '+nbDos+' actuels)</span></div>'
+    +'<div class="stat-row"><span class="stat-label">Marge projetée</span><span class="stat-value">'+margeBaseNoVol.toFixed(1)+'%</span></div>'
+    +(variation>0&&volNecessaire>0?'<div class="stat-row"><span class="stat-label">Dossiers supplémentaires pour maintenir le BBE</span><span class="stat-value" style="color:var(--orange)">+'+volNecessaire+' dossiers</span></div>':'')
+    +(variation<0?'<div class="stat-row"><span class="stat-label">Gain volume avec élasticité '+elasticity+'x</span><span class="stat-value" style="color:var(--green)">+'+Math.round((volMultiplier-1)*100).toFixed(0)+'%</span></div>':'')
+    +'</div>'
+
+    +'<div style="margin-top:14px;padding:10px;background:'+(deltaBbe>=0?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)')+';border-radius:var(--r2);border-left:3px solid '+(deltaBbe>=0?'var(--green)':'var(--red)')+';">'
+    +'<div style="font-size:10px;font-family:var(--mono);color:var(--text2);line-height:1.6">'
+    +(deltaBbe>=0
+      ?'✅ Cette baisse de frais est favorable. Avec une élasticité de '+elasticity+'x, vous passeriez à '+nbDosWithVol+' dossiers pour un BBE de '+fmtEur(bbeWithVol)+'.'
+      :(volNecessaire>0
+        ?'⚠️ Cette hausse de frais nécessite '+volNecessaire+' dossiers supplémentaires pour maintenir votre BBE actuel de '+fmtEur(bbeCur)+'.'
+        :'⚠️ Impact négatif. Le BBE diminue de '+fmtEur(Math.abs(deltaBbe))+'.')
+    )
+    +'</div></div></div>';
+
+  // Graphique courbe d'impact
+  const card=document.getElementById('sim-chart-card');
+  card.style.display='block';
+  const variations=[-50,-40,-30,-20,-10,-5,0,5,10,20,30,40,50];
+  const bbeValues=variations.map(function(v){
+    const f=fraisActuels*(1+v/100);
+    const dc=f-fraisActuels;
+    const bbn=bbeCur-dc;
+    const vm=v<0?1+(Math.abs(v)/100)*elasticity:(v>0?1-(v/200):1);
+    return Math.round(bbn*vm);
+  });
+  destroyC('chart-sim');
+  S.charts['chart-sim']=new Chart(document.getElementById('chart-sim'),{
+    type:'line',
+    data:{
+      labels:variations.map(function(v){return (v>0?'+':'')+v+'%';}),
+      datasets:[
+        {label:'BBE Projeté',data:bbeValues,borderColor:'#00d4ff',backgroundColor:'#00d4ff15',fill:true,tension:0.3,borderWidth:2,pointRadius:4,
+          pointBackgroundColor:variations.map(function(v){return v===0?'#f0a500':'#00d4ff';})},
+        {label:'BBE Actuel',data:variations.map(function(){return Math.round(bbeCur);}),borderColor:'#f0a500',borderDash:[5,5],pointRadius:0,borderWidth:1.5}
+      ]
+    },
+    options:chartOpts({yFmt:function(v){return fmtEur(v);}})
+  });
+
+  S._simData={variation,bbeCur,bbeWithVol,deltaBbe,deltaPct,nbDos,nbDosWithVol,volNecessaire,elasticity,secteur};
+}
+
+async function analyseIASimulateur(){
+  const sim=S._simData;
+  if(!sim){toast('Lancez d\'abord la simulation');return;}
+  const apiKey=IA.getKey();
+  if(!apiKey){toast('Configurez votre clé API');showView('ia-chat');return;}
+
+  const prompt='Expert fret aérien TAF ROISSY CDG. Analysez cette simulation tarifaire :\n'
+    +'- Variation des frais d\'intervention : '+(sim.variation>0?'+':'')+sim.variation+'%\n'
+    +'- BBE actuel : '+fmtEur(sim.bbeCur)+' ('+sim.nbDos+' dossiers)\n'
+    +'- BBE projeté : '+fmtEur(sim.bbeWithVol)+' ('+sim.nbDosWithVol+' dossiers)\n'
+    +'- Impact BBE : '+(sim.deltaBbe>=0?'+':'')+fmtEur(sim.deltaBbe)+' ('+sim.deltaPct.toFixed(1)+'%)\n'
+    +'- Secteur : '+sim.secteur+'\n'
+    +(sim.volNecessaire>0?'- Dossiers supplémentaires nécessaires : +'+sim.volNecessaire+'\n':'')
+    +'\nEn 3-4 phrases : est-ce pertinent ? Quels risques/opportunités ? Recommandation concrète pour TAF ?';
+
+  await callClaudeIA(prompt,'sim-ia-zone');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  OVERRIDE callClaudeIA pour utiliser la clé stockée
+// ══════════════════════════════════════════════════════════════
+async function callClaudeIA(prompt, targetElementId){
+  const el=document.getElementById(targetElementId);
+  if(!el) return;
+  el.style.display='block';
+  el.innerHTML='<div class="ai-thinking"><div class="spinner"></div>Analyse IA en cours...</div>';
+  const apiKey=IA.getKey();
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(apiKey) headers['x-api-key']=apiKey;
+    if(apiKey) headers['anthropic-version']='2023-06-01';
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:prompt}]})
+    });
+    const json=await resp.json();
+    if(json.error){el.innerHTML='<div style="color:var(--red);font-size:11px;padding:10px">❌ '+json.error.message+'</div>';return;}
+    const text=json.content?.[0]?.text||'Réponse vide';
+    el.innerHTML='<div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.2);border-left:3px solid var(--purple);border-radius:var(--r2);padding:14px 16px">'
+      +'<div style="font-size:9px;font-family:var(--mono);color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Analyse IA — TAF ROISSY</div>'
+      +'<div style="font-size:12px;color:var(--text2);line-height:1.7">'+text.replace(/\n/g,'<br>')+'</div>'
+      +'<button class="btn-secondary" style="font-size:10px;margin-top:10px" onclick="this.parentElement.parentElement.style.display=\'none\'">✕ Fermer</button>'
+      +'</div>';
+  }catch(e){
+    el.innerHTML='<div style="color:var(--red);font-size:11px;padding:10px">❌ Erreur : '+e.message+'<br><small>Vérifiez votre clé API dans la vue "IA & Analyses"</small></div>';
+  }
+}
+
+
+async function callClaudeIA(prompt, targetElementId){
+  const el=document.getElementById(targetElementId);
+  if(!el) return;
+  el.style.display='block';
+  el.innerHTML='<div class="ai-thinking"><div class="spinner"></div>Analyse IA en cours...</div>';
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const json=await resp.json();
+    const text=json.content?.[0]?.text||'Analyse indisponible';
+    el.innerHTML=`
+      <div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.2);border-left:3px solid var(--purple);border-radius:var(--r2);padding:14px 16px">
+        <div style="font-size:9px;font-family:var(--mono);color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Analyse IA — TAF ROISSY</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7">${text.replace(/\n/g,'<br>')}</div>
+        <button class="btn-secondary" style="font-size:10px;margin-top:10px" onclick="this.parentElement.parentElement.style.display='none'">✕ Fermer</button>
+      </div>`;
+  }catch(e){
+    el.innerHTML='<div style="color:var(--red);font-size:11px;padding:10px">❌ Erreur API IA — Vérifiez la connexion</div>';
+  }
+}
+
+async function analyseIADormants(){
+  const dormants=S._dormants||[];
+  if(!dormants.length){toast('Chargez d\'abord les données');return;}
+
+  const top5=dormants.slice(0,5).map(d=>`${d.client} (BBE: ${fmtEur(d.bbe)}, inactif ${d.daysSince}j, secteur: ${d.sec})`).join(', ');
+  const totalBbe=sum(dormants,'bbe');
+  const hauteCount=dormants.filter(d=>d.priorite==='HAUTE').length;
+
+  const prompt=`Tu es un expert commercial en fret aérien pour TAF ROISSY, commissionnaire de transport à l'aéroport CDG. 
+  
+Analyse ces clients dormants (inactifs depuis plus de 90 jours) :
+- Total : ${dormants.length} clients dormants
+- BBE potentiel de relance : ${fmtEur(totalBbe)}
+- Priorité haute : ${hauteCount} clients
+- Top 5 à relancer : ${top5}
+
+Donne-moi en 4-5 phrases :
+1. Une évaluation du potentiel commercial perdu
+2. Quelle stratégie de relance privilégier selon les secteurs (Poisson Frais, FL, AVI, Autre)
+3. Un ordre de priorité actionnable pour l'équipe commerciale
+4. Un argument commercial clé pour chaque secteur dominant
+
+Sois direct, concis et opérationnel. Parle en professionnel du fret aérien.`;
+
+  await callClaudeIA(prompt,'dormants-ia-zone');
+}
+
+async function analyseIADashboard(){
+  const data=S.filtered, cmp=getCmpData();
+  const bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
+  const d=delta(bbe,bbeCmp);
+  const nbC=new Set(data.map(x=>x.client)).size;
+  const bySec=groupBy(data,'secteur');
+  const topSec=Object.entries(bySec).sort(([,a],[,b])=>sum(b,'bbe')-sum(a,'bbe'))[0]?.[0]||'—';
+  const marge=avg(data.filter(x=>x.pct>0).map(x=>x.pct));
+  const yearSel=document.getElementById('filter-year').value;
+
+  const prompt=`Tu es analyste BI pour TAF ROISSY, commissionnaire fret aérien CDG, 40 ans d'expérience.
+
+Données de la période ${yearSel==='all'?'toutes années':yearSel} :
+- BBE : ${fmtEur(bbe)} (${d?d.arrow+' '+d.pct+'% vs N-1':'pas de comparaison'})
+- Clients actifs : ${nbC}
+- Marge moyenne : ${marge.toFixed(1)}%
+- Secteur dominant : ${topSec}
+- Dossiers : ${data.length}
+
+En 3-4 phrases professionnelles :
+1. Comment interpréter ces chiffres pour TAF ?
+2. Quels points d'attention ou d'optimisation ?
+3. Une recommandation commerciale concrète
+
+Ton ton est celui d'un directeur commercial expérimenté, direct et pragmatique.`;
+
+  const zone=document.getElementById('dashboard-ia-zone');
+  if(!zone){
+    const content=document.getElementById('content');
+    const div=document.createElement('div');
+    div.id='dashboard-ia-zone';
+    div.style.marginBottom='14px';
+    content.insertBefore(div,content.firstChild.nextSibling);
+  }
+  await callClaudeIA(prompt,'dashboard-ia-zone');
+}
+
+async function analyseIAPeriode(){
+  const zone=document.getElementById('periode-ia-zone');
+  const data=S.filtered;
+  if(!data.length){toast('Pas de données à analyser');return;}
+
+  const bbe=sum(data,'bbe'), nbD=data.length, nbC=new Set(data.map(x=>x.client)).size;
+  const bySec=groupBy(data,'secteur');
+  const secStats=Object.entries(bySec).map(([s,d])=>`${s}: ${fmtEur(sum(d,'bbe'))} (${d.length} dossiers)`).join(', ');
+  const gran=document.getElementById('filter-granularity').value;
+  const yearSel=document.getElementById('filter-year').value;
+
+  const prompt=`Analyste BI fret aérien CDG — TAF ROISSY.
+
+Analyse ${gran} pour ${yearSel==='all'?'toutes années':yearSel} :
+- BBE total : ${fmtEur(bbe)}
+- Dossiers : ${nbD}, Clients actifs : ${nbC}
+- Par secteur : ${secStats}
+
+En 3 phrases : tendances clés, point de vigilance, et une action commerciale prioritaire.`;
+
+  await callClaudeIA(prompt,'periode-ia-zone');
+}
+
+
 // ══════════════════════════════════════════════════════════════
 
 function getPeriodData(data, year, periodKey, gran){
@@ -3101,9 +3809,25 @@ function drillClient(client, year, periodKey, gran, periodLabel){
   html+='</tbody></table></div></div>';
 
   var cEsc=client.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var secs=[['Poisson Frais','🐟'],['Fruits & Légumes','🥦'],['Animaux Vivants','🐾'],['Autre','📦']];
+  var catHtml='<div style="margin-top:16px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">';
+  catHtml+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🏷️ Catégorie de ce client — cliquer pour changer</div>';
+  catHtml+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  secs.forEach(function(s){
+    var isActive=sec===s[0];
+    var cls='cat-modal-btn'+(isActive?' cam-active':'');
+    catHtml+='<button class="'+cls+'" data-sec="'+s[0]+'" onclick="setSecteurModal('+JSON.stringify(client)+','+JSON.stringify(s[0])+')">';
+    catHtml+=s[1]+' '+s[0];
+    catHtml+='</button>';
+  });
+  catHtml+='</div>';
+  if(sec) catHtml+='<div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:8px">Catégorie actuelle : <strong style="color:var(--cyan)">'+sec+'</strong> — appliquée à tous les dossiers de ce client</div>';
+  catHtml+='</div>';
+
+  html+=catHtml;
   html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
   html+='<button class="btn-secondary" style="font-size:10px" onclick="sendClientToCRM(\''+cEsc+'\')">📤 TAF Commercial</button>';
-  html+='<button class="btn-secondary" style="font-size:10px" onclick="setCascade(\'client\',\''+cEsc+'\');closeModal(\'modal-client-drill\')">🔍 Filtrer</button>';
+  html+='<button class="btn-secondary" style="font-size:10px" onclick="setCascade(\'client\',\''+cEsc+'\');closeModal(\'modal-client-drill\')">🔍 Filtrer sur ce client</button>';
   html+='</div>';
 
   document.getElementById('modal-client-drill-content').innerHTML=html;
