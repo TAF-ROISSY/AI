@@ -645,9 +645,9 @@ async function parseFile(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+        const wb = XLSX.read(e.target.result, { type:'array', raw:true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, dateNF:'YYYY-MM-DD' });
+        const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' });
         let hdr=-1, titleYear='';
         for (let i=0;i<rows.length;i++) {
           const r=rows[i];
@@ -659,15 +659,39 @@ async function parseFile(file) {
         }
         if(hdr<0){reject('Header not found');return}
         const dossiers=[];
+
+        // Convertir un serial Excel en Date JS
+        function excelDateToJS(serial){
+          // Epoch Excel = 30 déc 1899, mais on soustrait 25569 jours pour ramener à epoch Unix
+          const d=new Date(Math.round((parseFloat(serial)-25569)*86400*1000));
+          // Corriger le décalage UTC pour rester en date locale
+          return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+        }
+
         for(let i=hdr+1;i<rows.length;i++){
           const r=rows[i];
-          if(!r||!r[0]) continue;
+          if(!r||r[0]===undefined||r[0]==='') continue;
           const ds=String(r[0]).trim();
-          if(ds==='Nombre de dossiers'||ds==='Date') continue;
+          if(ds==='Nombre de dossiers'||ds==='Date'||ds==='') continue;
+          
           let date=null;
-          if(ds.match(/^\d{4}-\d{2}-\d{2}/)) date=new Date(ds.slice(0,10));
-          else if(ds.match(/^\d{2}\/\d{2}\/\d{4}/)){const[d,m,y]=ds.split('/');date=new Date(`${y}-${m}-${d}`);}
-          if(!date||isNaN(date.getTime())||date.getFullYear()<2000) continue;
+          const numVal=parseFloat(ds);
+          
+          // Cas 1 : numéro de série Excel (ex: 45659.0)
+          if(!isNaN(numVal) && numVal > 40000 && numVal < 60000){
+            date=excelDateToJS(numVal);
+          }
+          // Cas 2 : date ISO (2025-01-02)
+          else if(ds.match(/^\d{4}-\d{2}-\d{2}/)){
+            date=new Date(ds.slice(0,10));
+          }
+          // Cas 3 : date française (02/01/2025)
+          else if(ds.match(/^\d{2}\/\d{2}\/\d{4}/)){
+            const[d,m,y]=ds.split('/');
+            date=new Date(`${y}-${m}-${d}`);
+          }
+          
+          if(!date||isNaN(date.getTime())||date.getFullYear()<2000||date.getFullYear()>2100) continue;
           const client=String(r[5]||'').trim();
           if(!client||client==='Client') continue;
           const dep=String(r[3]||'').trim();
@@ -685,7 +709,7 @@ async function parseFile(file) {
             secteur: S.secteurs[client] || autoSecteur(dep),
           });
         }
-        resolve({dossiers, year:titleYear||(dossiers[0]?.year||'?')});
+        resolve({dossiers, year: titleYear || (dossiers[0]?.year ? String(dossiers[0].year) : '?')});
       } catch(e){reject(e)}
     };
     reader.readAsArrayBuffer(file);
