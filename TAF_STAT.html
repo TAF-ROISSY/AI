@@ -330,6 +330,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <option value="1" selected>N-1</option>
       </select>
     </div>
+    <!-- TOGGLE MÊME PÉRIODE -->
+    <div class="fg" id="same-period-wrap" title="Compare uniquement jusqu'à la même date dans l'année N-1">
+      <span class="fl">Mode</span>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="filter-same-period" onchange="applyFilters()" style="accent-color:var(--cyan);width:13px;height:13px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap" id="same-period-label">Même période</span>
+      </label>
+    </div>
     <div class="fg"><span class="fl">Granul.</span>
       <select class="fsel" id="filter-granularity" onchange="applyFilters()">
         <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
@@ -1344,23 +1352,102 @@ function renderCascadeBar(){
 
 function clearCascade(){S.cascadeFilter=null;applyFilters();}
 
+function isSamePeriodMode(){
+  return document.getElementById('filter-same-period')?.checked||false;
+}
+
+function getSamePeriodCutoff(){
+  // Retourne la date de coupure des données filtrées actuelles
+  // = la date max des dossiers dans S.filtered (ou aujourd'hui si aucune donnée)
+  if(!S.filtered.length) return new Date();
+  return new Date(Math.max(...S.filtered.map(d=>d.date.getTime())));
+}
+
 function getCmpData(offset){
   const cmpOff=parseInt(document.getElementById('filter-compare').value)||1;
   const yearSel=document.getElementById('filter-year').value;
   if(yearSel==='all') return[];
   const cmpYear=parseInt(yearSel)-(offset||cmpOff);
   if(!S.years.includes(cmpYear)) return[];
-  const p=S.preset; let data=S.raw.filter(d=>d.year===cmpYear);
-  if(p!=='ALL'){
-    const range=getPresetRange(p,cmpYear);
-    if(range){
-      const fromAdj=new Date(range.from); fromAdj.setFullYear(cmpYear);
-      const toAdj=new Date(range.to); toAdj.setFullYear(cmpYear);
-      data=data.filter(d=>d.date>=fromAdj&&d.date<=toAdj);
+
+  let data=S.raw.filter(d=>d.year===cmpYear);
+  const samePeriod=isSamePeriodMode();
+
+  if(samePeriod){
+    // Mode "même période" : couper N-1 à la même date relative que N
+    // Ex: 2026 jusqu'au 25 avril → 2025 jusqu'au 25 avril aussi
+    const cutoff=getSamePeriodCutoff();
+    const cutoffAdj=new Date(cmpYear, cutoff.getMonth(), cutoff.getDate(), 23, 59, 59);
+    const startAdj=new Date(cmpYear, 0, 1); // 1er janvier de l'année cmp
+    data=data.filter(d=>d.date>=startAdj&&d.date<=cutoffAdj);
+    updateSamePeriodLabel(cutoff, cmpYear, samePeriod);
+  } else {
+    // Mode classique : appliquer le preset
+    const p=S.preset;
+    if(p!=='ALL'){
+      const range=getPresetRange(p,cmpYear);
+      if(range){
+        const fromAdj=new Date(range.from); fromAdj.setFullYear(cmpYear);
+        const toAdj=new Date(range.to); toAdj.setFullYear(cmpYear);
+        data=data.filter(d=>d.date>=fromAdj&&d.date<=toAdj);
+      }
     }
+    updateSamePeriodLabel(null, cmpYear, false);
   }
   return data;
 }
+
+function updateSamePeriodLabel(cutoff, cmpYear, active){
+  const label=document.getElementById('same-period-label');
+  const wrap=document.getElementById('same-period-wrap');
+  if(!label||!wrap) return;
+  if(active&&cutoff){
+    const dateStr=cutoff.toLocaleDateString('fr',{day:'numeric',month:'short'});
+    label.textContent='≤ '+dateStr;
+    wrap.style.background='rgba(0,212,255,0.08)';
+    wrap.style.borderColor='rgba(0,212,255,0.3)';
+    label.style.color='var(--cyan)';
+  } else {
+    label.textContent='Même période';
+    wrap.style.background='';
+    wrap.style.borderColor='';
+    label.style.color='var(--text2)';
+  }
+  // Mettre à jour la bannière de contexte
+  renderSamePeriodBanner(cutoff, cmpYear, active);
+}
+
+function renderSamePeriodBanner(cutoff, cmpYear, active){
+  // Bannière discrète sous la topbar pour confirmer le mode de comparaison
+  let bar=document.getElementById('comparison-banner');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='comparison-banner';
+    const filters=document.getElementById('active-filters-bar');
+    if(filters) filters.parentNode.insertBefore(bar,filters);
+  }
+  const yearSel=document.getElementById('filter-year').value;
+  const cmpOff=document.getElementById('filter-compare').value;
+  if(cmpOff==='none'||yearSel==='all'){bar.style.display='none';return;}
+
+  if(active&&cutoff){
+    const dateStr=cutoff.toLocaleDateString('fr',{day:'numeric',month:'long'});
+    bar.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 20px;background:rgba(0,212,255,0.05);border-bottom:1px solid rgba(0,212,255,0.15);font-size:10px;font-family:var(--mono)';
+    bar.innerHTML='<span style="color:var(--cyan)">⚖️ Comparaison à date</span>'
+      +'<span style="color:var(--text2)">'
+      +yearSel+' <em>(jan → '+dateStr+')</em>'
+      +' vs '
+      +cmpYear+' <em>(jan → '+dateStr+')</em>'
+      +'</span>'
+      +'<span style="color:var(--text3);margin-left:4px">— Périmètre identique ✅</span>';
+  } else if(!active){
+    bar.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 20px;background:rgba(240,165,0,0.04);border-bottom:1px solid rgba(240,165,0,0.1);font-size:10px;font-family:var(--mono)';
+    bar.innerHTML='<span style="color:var(--gold)">📅 Comparaison</span>'
+      +'<span style="color:var(--text2)">'+yearSel+' (période filtrée) vs '+cmpYear+' (pleine année N-1) — cochez "Même période" pour un périmètre équitable</span>';
+  }
+}
+
+
 
 // ══════════════════════════════════════════════════════════════
 //  VIEW ROUTING
@@ -1424,7 +1511,13 @@ function renderDashboard(){
   const marg=avg(data.filter(d=>d.pct>0).map(d=>d.pct));
   const cmpOff=document.getElementById('filter-compare').value;
   const yearSel2=document.getElementById('filter-year').value;
-  const cmpYearLabel=cmpOff!=='none'&&yearSel2!=='all'?` (${parseInt(yearSel2)-parseInt(cmpOff)})`:'';
+  const samePeriod=isSamePeriodMode();
+  const cmpYearLabel=cmpOff!=='none'&&yearSel2!=='all'?` (${parseInt(yearSel2)-parseInt(cmpOff)})${samePeriod?' même période':''}`:'' ;
+
+  // Indicateur de progression vers objectif annuel
+  const objYear=yearSel2==='all'?null:yearSel2;
+  const obj=objYear?S.objectifs[objYear]:null;
+  const objPct=obj?(bbe/obj*100):null;
 
   document.getElementById('kpi-main').innerHTML=[
     {label:'Bénéfice Brut Estimé',value:fmtEur(bbe),d:delta(bbe,bbeCmp),acc:'gold-accent'},
@@ -1433,11 +1526,16 @@ function renderDashboard(){
     {label:'Clients Actifs',value:nbC,d:delta(nbC,new Set(cmp.map(d=>d.client)).size)},
     {label:'Marge Moyenne',value:marg.toFixed(1)+'%',d:delta(marg,avg(cmp.filter(d=>d.pct>0).map(d=>d.pct)))},
     {label:'BBE / Dossier',value:nbD?fmtEur(bbe/nbD):'—'},
-  ].map(k=>`<div class="kpi-card ${k.acc||''}">
-    <div class="kpi-label">${k.label}</div>
-    <div class="kpi-value">${k.value}</div>
-    ${k.d?`<div class="kpi-delta ${k.d.cls}">${k.d.arrow} ${k.d.pct}%</div><div class="kpi-sub">vs N-${cmpOff}${cmpYearLabel}</div>`:''}
-  </div>`).join('');
+  ].map(k=>{
+    const prog=k.d&&k.d.cls==='up'?'▲':'▼';
+    const progBar=k.d?`<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:5px"><div style="width:${Math.min(100,parseFloat(k.d.pct))}%;height:100%;background:${k.d.cls==='up'?'var(--green)':'var(--red)'};border-radius:2px;transition:width 0.5s"></div></div>`:'';
+    return`<div class="kpi-card ${k.acc||''}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      ${k.d?`<div class="kpi-delta ${k.d.cls}">${k.d.arrow} ${k.d.pct}%</div><div class="kpi-sub">vs N-${cmpOff}${cmpYearLabel}</div>${progBar}`:''}
+      ${k.acc==='gold-accent'&&objPct?`<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:3px">Objectif : ${objPct.toFixed(1)}%</div>`:''}
+    </div>`;
+  }).join('');
 
   // Anomalies
   const anomalies=detectAnomalies(data,cmp);
