@@ -2855,213 +2855,284 @@ function renderCompare(){
 // ══════════════════════════════════════════════════════════════
 //  DRILL-DOWN PÉRIODE
 // ══════════════════════════════════════════════════════════════
-function drillPeriod(year, periodKey, gran, label){
-  const yr=parseInt(year), pk=String(periodKey);
-  const periodData=S.raw.filter(d=>{
-    if(d.year!==yr) return false;
-    switch(gran){
-      case 'week':    return String(d.week)===pk;
-      case 'month':   return String(d.month)===pk;
-      case 'quarter': return String(d.quarter)===pk;
-      case 'semester':return String(d.month<=6?1:2)===pk;
-      case 'year':    return true;
-    }
-  });
-  const compareYears=S.years.filter(y=>y!==yr).sort((a,b)=>b-a).slice(0,4);
-  const cmpByYear={};
-  compareYears.forEach(cy=>{cmpByYear[cy]=S.raw.filter(d=>{
-    if(d.year!==cy) return false;
-    switch(gran){
-      case 'week':    return String(d.week)===pk;
-      case 'month':   return String(d.month)===pk;
-      case 'quarter': return String(d.quarter)===pk;
-      case 'semester':return String(d.month<=6?1:2)===pk;
-      case 'year':    return true;
-    }
-  });});
-  openModal('modal-periode');
-  document.getElementById('modal-periode-title').innerHTML=`📅 ${label} ${yr} <button class="modal-close" onclick="closeModal('modal-periode')">✕</button>`;
-  const bbe=sum(periodData,'bbe'),fc=sum(periodData,'fc'),nbD=periodData.length;
-  const marge=avg(periodData.filter(d=>d.pct>0).map(d=>d.pct));
-  const poids=sum(periodData,'poids'),colis=sum(periodData,'colis');
-  const nbC=new Set(periodData.map(d=>d.client)).size;
-  const bySec=groupBy(periodData,'secteur');
-  const topClients=Object.entries(groupBy(periodData,'client')).map(([c,d])=>({c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),nb:d.length,marge:avg(d.filter(x=>x.pct>0).map(x=>x.pct)),sec:S.secteurs[c]||d[0]?.secteur})).sort((a,b)=>b.bbe-a.bbe);
-  const prevAll=new Set(S.raw.filter(d=>d.year<yr).map(d=>d.client));
-  const nbNew=[...new Set(periodData.map(d=>d.client))].filter(c=>!prevAll.has(c)).length;
-  const compareCardsHTML=compareYears.map(cy=>{
-    const cmpBbe=sum(cmpByYear[cy],'bbe'),d=delta(bbe,cmpBbe);
-    return`<div class="year-compare-card" onclick="drillPeriod(${cy},'${pk}','${gran}','${label}')">
-      <div class="yc-year">${cy}</div>
-      <div class="yc-bbe">${cmpBbe?fmtEur(cmpBbe):'—'}</div>
-      <div class="yc-delta" style="color:${d?.cls==='up'?'var(--green)':'var(--red)'}">${d?d.arrow+d.pct+'%':'—'}</div>
-    </div>`;
-  }).join('');
-  const depPrincipal=(()=>{const dep=groupBy(periodData,'dep');return Object.entries(dep).sort(([,a],[,b])=>b.length-a.length)[0]?.[0]||'—';})();
-  document.getElementById('modal-periode-content').innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">
-      ${[{l:'BBE',v:fmtEur(bbe),c:'var(--gold)'},{l:'CA',v:fmtEur(fc)},{l:'Marge',v:marge.toFixed(1)+'%'},{l:'Dossiers',v:nbD},{l:'Clients',v:nbC},{l:'Poids kg',v:poids.toLocaleString('fr')},{l:'Colis',v:colis},{l:'BBE/Dossier',v:nbD?fmtEur(bbe/nbD):'—'}]
-        .map(k=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px"><div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">${k.l}</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:${k.c||'var(--text)'}">${k.v}</div></div>`).join('')}
-    </div>
-    <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Comparer aux années précédentes — cliquer pour voir le détail</div>
-    <div class="year-compare-grid">${compareCardsHTML||'<div style="color:var(--text3);font-size:11px;padding:10px">Chargez d'autres années Malta pour comparer</div>'}</div>
-    <div class="grid-2" style="margin:14px 0">
-      <div>
-        <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Secteurs</div>
-        ${['Poisson Frais','Fruits & Légumes','Animaux Vivants','Autre'].map(s=>{const sd=bySec[s]||[];const pct=bbe?((sum(sd,'bbe')/bbe)*100).toFixed(1):0;const color=s==='Poisson Frais'?'#00d4ff':s==='Fruits & Légumes'?'#10b981':s==='Animaux Vivants'?'#818cf8':'#f0a500';return`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);margin-bottom:2px"><span style="color:var(--text2)">${s==='Poisson Frais'?'🐟':s==='Fruits & Légumes'?'🥦':s==='Animaux Vivants'?'🐾':'📦'} ${s}</span><span style="color:${color}">${fmtEur(sum(sd,'bbe'))} · ${pct}%</span></div><div style="height:4px;background:var(--bg3);border-radius:2px"><div style="width:${pct}%;height:100%;background:${color};border-radius:2px"></div></div></div>`;}).join('')}
-      </div>
-      <div>
-        <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Détail</div>
-        <div class="stat-row"><span class="stat-label">Poids moy/dossier</span><span class="stat-value">${nbD?(poids/nbD).toFixed(0)+' kg':'—'}</span></div>
-        <div class="stat-row"><span class="stat-label">CA moy/dossier</span><span class="stat-value">${nbD?fmtEur(fc/nbD):'—'}</span></div>
-        <div class="stat-row"><span class="stat-label">BBE / kg</span><span class="stat-value">${poids?(bbe/poids).toFixed(2)+'€':'—'}</span></div>
-        <div class="stat-row"><span class="stat-label">Meilleur BBE dossier</span><span class="stat-value gold">${nbD?fmtEur(Math.max(...periodData.map(d=>d.bbe))):'—'}</span></div>
-        <div class="stat-row"><span class="stat-label">Départ principal</span><span class="stat-value">${depPrincipal}</span></div>
-        <div class="stat-row"><span class="stat-label">Nouveaux clients</span><span class="stat-value green">${nbNew}</span></div>
-      </div>
-    </div>
-    <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Top Clients — cliquer pour fiche complète</div>
-    <div class="taf-table-wrap">
-      <table class="taf-table"><thead><tr><th>#</th><th>Client</th><th>BBE</th><th>CA</th><th>Marge%</th><th>Dossiers</th><th>Secteur</th><th></th></tr></thead>
-      <tbody>${topClients.slice(0,15).map((c,i)=>`<tr>
-        <td style="color:var(--text3)">${i+1}</td>
-        <td class="td-client" style="cursor:pointer" onclick="drillClient('${c.c.replace(/'/g,"\'")}',${yr},'${pk}','${gran}','${label}')">${c.c}</td>
-        <td class="td-bbe">${fmtEur(c.bbe)}</td><td>${fmtEur(c.fc)}</td><td>${c.marge.toFixed(1)}%</td><td>${c.nb}</td>
-        <td style="font-size:10px">${c.sec||'—'}</td>
-        <td><button class="drill-client-btn" onclick="drillClient('${c.c.replace(/'/g,"\'")}',${yr},'${pk}','${gran}','${label}')">📊</button></td>
-      </tr>`).join('')}</tbody></table>
-    </div>`;
-}
 
 // ══════════════════════════════════════════════════════════════
-//  DRILL-DOWN CLIENT
+//  DRILL-DOWN — sans template literals imbriqués
 // ══════════════════════════════════════════════════════════════
-function drillClient(client,year,periodKey,gran,periodLabel){
-  const allData=S.raw.filter(d=>d.client===client);
-  let periodData=allData;
-  const yr=year?parseInt(year):null;
-  const pk=periodKey?String(periodKey):null;
-  if(yr&&pk&&gran){
-    periodData=allData.filter(d=>{
-      if(d.year!==yr) return false;
-      switch(gran){
-        case 'week':    return String(d.week)===pk;
-        case 'month':   return String(d.month)===pk;
-        case 'quarter': return String(d.quarter)===pk;
-        case 'semester':return String(d.month<=6?1:2)===pk;
-        case 'year':    return true;
-      }
-    });
-  }
-  const byYear=groupBy(allData,'year');
-  const years=Object.keys(byYear).map(Number).sort((a,b)=>a-b);
-  const ltv=sum(allData,'bbe'),bbe=sum(periodData,'bbe'),fc=sum(periodData,'fc'),nbD=periodData.length;
-  const marge=avg(periodData.filter(d=>d.pct>0).map(d=>d.pct));
-  const poids=sum(periodData,'poids');
-  const sec=S.secteurs[client]||allData[0]?.secteur||'—';
-  const firstDate=new Date(Math.min(...allData.map(d=>d.date.getTime())));
-  const lastDate=new Date(Math.max(...allData.map(d=>d.date.getTime())));
-  const daysSinceLast=Math.floor((new Date()-lastDate)/86400000);
-  const bbeByYear=years.map(y=>({y,bbe:sum(byYear[y],'bbe'),nb:byYear[y].length}));
-  const bestYear=[...bbeByYear].sort((a,b)=>b.bbe-a.bbe)[0];
-  const trend3=bbeByYear.slice(-3);
-  const isTrending=trend3.length>=2&&trend3[trend3.length-1].bbe>trend3[0].bbe;
-  const topRoute=(()=>{const dep=groupBy(allData,'dep');return Object.entries(dep).sort(([,a],[,b])=>b.length-a.length)[0]?.[0]||'—';})();
-  const secIcon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Animaux Vivants'?'🐾':'📦';
+
+function getPeriodData(data, year, periodKey, gran){
+  var yr=parseInt(year), pk=String(periodKey);
+  return data.filter(function(d){
+    if(d.year!==yr) return false;
+    if(gran==='week')     return String(d.week)===pk;
+    if(gran==='month')    return String(d.month)===pk;
+    if(gran==='quarter')  return String(d.quarter)===pk;
+    if(gran==='semester') return String(d.month<=6?1:2)===pk;
+    return true; // year
+  });
+}
+
+function buildKpiBar(items){
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">';
+  items.forEach(function(k){
+    html+='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px">';
+    html+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">'+k.l+'</div>';
+    html+='<div style="font-size:15px;font-weight:700;font-family:var(--mono);color:'+(k.c||'var(--text)')+'">'+k.v+'</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function buildSecteurBars(periodData, bbe){
+  var secs=['Poisson Frais','Fruits & Légumes','Animaux Vivants','Autre'];
+  var colors={'Poisson Frais':'#00d4ff','Fruits & Légumes':'#10b981','Animaux Vivants':'#818cf8','Autre':'#f0a500'};
+  var icons={'Poisson Frais':'🐟','Fruits & Légumes':'🥦','Animaux Vivants':'🐾','Autre':'📦'};
+  var html='';
+  secs.forEach(function(s){
+    var sd=periodData.filter(function(d){return d.secteur===s;});
+    var sbbe=sum(sd,'bbe');
+    var pct=bbe?((sbbe/bbe)*100).toFixed(1):0;
+    var color=colors[s];
+    html+='<div style="margin-bottom:7px">';
+    html+='<div style="display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);margin-bottom:2px">';
+    html+='<span style="color:var(--text2)">'+icons[s]+' '+s+'</span>';
+    html+='<span style="color:'+color+'">'+fmtEur(sbbe)+' · '+pct+'%</span>';
+    html+='</div>';
+    html+='<div style="height:4px;background:var(--bg3);border-radius:2px">';
+    html+='<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:2px"></div>';
+    html+='</div></div>';
+  });
+  return html;
+}
+
+function buildYearCompareCards(compareYears, cmpByYear, bbe, pk, gran, label){
+  if(!compareYears.length) return '<div style="color:var(--text3);font-size:11px;padding:10px">Chargez d&#39;autres ann&#233;es Malta pour comparer</div>';
+  var html='';
+  compareYears.forEach(function(cy){
+    var cmpBbe=sum(cmpByYear[cy],'bbe');
+    var d=delta(bbe,cmpBbe);
+    var dcolor=d&&d.cls==='up'?'var(--green)':'var(--red)';
+    var dtext=d?d.arrow+d.pct+'%':'—';
+    html+='<div class="year-compare-card" onclick="drillPeriod('+cy+',\''+pk+'\',\''+gran+'\',\''+label+'\')">';
+    html+='<div class="yc-year">'+cy+'</div>';
+    html+='<div class="yc-bbe">'+(cmpBbe?fmtEur(cmpBbe):'—')+'</div>';
+    html+='<div class="yc-delta" style="color:'+dcolor+'">'+dtext+'</div>';
+    html+='</div>';
+  });
+  return html;
+}
+
+function drillPeriod(year, periodKey, gran, label){
+  var yr=parseInt(year), pk=String(periodKey);
+  var periodData=getPeriodData(S.raw, yr, pk, gran);
+  var compareYears=S.years.filter(function(y){return y!==yr;}).sort(function(a,b){return b-a;}).slice(0,5);
+  var cmpByYear={};
+  compareYears.forEach(function(cy){cmpByYear[cy]=getPeriodData(S.raw,cy,pk,gran);});
+
+  openModal('modal-periode');
+  document.getElementById('modal-periode-title').innerHTML=
+    '📅 '+label+' '+yr+' <button class="modal-close" onclick="closeModal(\'modal-periode\')">✕</button>';
+
+  var bbe=sum(periodData,'bbe'), fc=sum(periodData,'fc'), nbD=periodData.length;
+  var marge=avg(periodData.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;}));
+  var poids=sum(periodData,'poids'), colis=sum(periodData,'colis');
+  var nbC=new Set(periodData.map(function(d){return d.client;})).size;
+  var prevAll=new Set(S.raw.filter(function(d){return d.year<yr;}).map(function(d){return d.client;}));
+  var nbNew=[...new Set(periodData.map(function(d){return d.client;}))].filter(function(c){return !prevAll.has(c);}).length;
+  var depPrincipal=(function(){
+    var dep=groupBy(periodData,'dep');
+    var sorted=Object.entries(dep).sort(function(a,b){return b[1].length-a[1].length;});
+    return sorted[0]?sorted[0][0]:'—';
+  })();
+
+  var topClients=Object.entries(groupBy(periodData,'client')).map(function(e){
+    var c=e[0],d=e[1];
+    return{c:c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),nb:d.length,
+      marge:avg(d.filter(function(x){return x.pct>0;}).map(function(x){return x.pct;})),
+      sec:S.secteurs[c]||d[0].secteur};
+  }).sort(function(a,b){return b.bbe-a.bbe;});
+
+  var html='';
+  html+=buildKpiBar([
+    {l:'BBE',v:fmtEur(bbe),c:'var(--gold)'},{l:'CA',v:fmtEur(fc)},
+    {l:'Marge',v:marge.toFixed(1)+'%'},{l:'Dossiers',v:nbD},
+    {l:'Clients',v:nbC},{l:'Poids kg',v:poids.toLocaleString('fr')},
+    {l:'Colis',v:colis},{l:'BBE/Dossier',v:nbD?fmtEur(bbe/nbD):'—'}
+  ]);
+
+  html+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Comparer aux années précédentes</div>';
+  html+='<div class="year-compare-grid">'+buildYearCompareCards(compareYears,cmpByYear,bbe,pk,gran,label)+'</div>';
+
+  html+='<div class="grid-2" style="margin:14px 0">';
+  html+='<div><div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Secteurs</div>'+buildSecteurBars(periodData,bbe)+'</div>';
+  html+='<div><div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Détail</div>';
+  html+='<div class="stat-row"><span class="stat-label">Poids moy/dossier</span><span class="stat-value">'+(nbD?(poids/nbD).toFixed(0)+' kg':'—')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">CA moy/dossier</span><span class="stat-value">'+(nbD?fmtEur(fc/nbD):'—')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">BBE / kg</span><span class="stat-value">'+(poids?(bbe/poids).toFixed(2)+'€':'—')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Meilleur BBE dossier</span><span class="stat-value gold">'+(nbD?fmtEur(Math.max.apply(null,periodData.map(function(d){return d.bbe;}))):'—')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Départ principal</span><span class="stat-value">'+depPrincipal+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Nouveaux clients</span><span class="stat-value green">'+nbNew+'</span></div>';
+  html+='</div></div>';
+
+  html+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Top Clients</div>';
+  html+='<div class="taf-table-wrap"><table class="taf-table"><thead><tr><th>#</th><th>Client</th><th>BBE</th><th>CA</th><th>Marge%</th><th>Dossiers</th><th>Secteur</th><th></th></tr></thead><tbody>';
+  topClients.slice(0,15).forEach(function(c,i){
+    var cEsc=c.c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html+='<tr>';
+    html+='<td style="color:var(--text3)">'+(i+1)+'</td>';
+    html+='<td class="td-client" style="cursor:pointer" onclick="drillClient(\''+cEsc+'\','+yr+',\''+pk+'\',\''+gran+'\',\''+label+'\')">'+c.c+'</td>';
+    html+='<td class="td-bbe">'+fmtEur(c.bbe)+'</td>';
+    html+='<td>'+fmtEur(c.fc)+'</td>';
+    html+='<td>'+c.marge.toFixed(1)+'%</td>';
+    html+='<td>'+c.nb+'</td>';
+    html+='<td style="font-size:10px">'+(c.sec||'—')+'</td>';
+    html+='<td><button class="drill-client-btn" onclick="drillClient(\''+cEsc+'\','+yr+',\''+pk+'\',\''+gran+'\',\''+label+'\')">📊</button></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+
+  document.getElementById('modal-periode-content').innerHTML=html;
+}
+
+function drillClient(client, year, periodKey, gran, periodLabel){
+  var allData=S.raw.filter(function(d){return d.client===client;});
+  var yr=year?parseInt(year):null;
+  var pk=periodKey?String(periodKey):null;
+  var periodData=allData;
+  if(yr&&pk&&gran) periodData=getPeriodData(allData,yr,pk,gran);
+
+  var byYear=groupBy(allData,'year');
+  var years=Object.keys(byYear).map(Number).sort(function(a,b){return a-b;});
+  var ltv=sum(allData,'bbe'), bbe=sum(periodData,'bbe'), fc=sum(periodData,'fc');
+  var nbD=periodData.length, marge=avg(periodData.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;}));
+  var poids=sum(periodData,'poids');
+  var sec=S.secteurs[client]||allData[0]&&allData[0].secteur||'—';
+  var secIcon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Animaux Vivants'?'🐾':'📦';
+  var firstDate=new Date(Math.min.apply(null,allData.map(function(d){return d.date.getTime();})));
+  var lastDate=new Date(Math.max.apply(null,allData.map(function(d){return d.date.getTime();})));
+  var daysSinceLast=Math.floor((new Date()-lastDate)/86400000);
+  var bbeByYear=years.map(function(y){return{y:y,bbe:sum(byYear[y],'bbe'),nb:byYear[y].length};});
+  var bestYear=[].concat(bbeByYear).sort(function(a,b){return b.bbe-a.bbe;})[0];
+  var trend3=bbeByYear.slice(-3);
+  var isTrending=trend3.length>=2&&trend3[trend3.length-1].bbe>trend3[0].bbe;
+  var topRoute=(function(){var dep=groupBy(allData,'dep');var s=Object.entries(dep).sort(function(a,b){return b[1].length-a[1].length;});return s[0]?s[0][0]:'—';})();
+  var dColor=daysSinceLast>90?'var(--red)':daysSinceLast>30?'var(--gold)':'var(--green)';
+
   openModal('modal-client-drill');
-  document.getElementById('modal-client-drill-title').innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex:1">
-    <span>📊 ${client}</span>
-    <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);background:rgba(0,212,255,0.1);color:var(--cyan)">${secIcon} ${sec}</span>
-    ${periodLabel?`<span style="font-size:10px;font-family:var(--mono);color:var(--text3)">— ${periodLabel} ${yr||''}</span>`:''}
-  </div><button class="modal-close" onclick="closeModal('modal-client-drill')">✕</button>`;
-  document.getElementById('modal-client-drill-content').innerHTML=`
-    <div style="display:flex;gap:6px;margin-bottom:16px">
-      ${periodLabel?`<button class="btn-primary" style="font-size:10px" id="drill-btn-period" onclick="switchDrillView('period')">📅 ${periodLabel} ${yr}</button>`:''}
-      <button class="${periodLabel?'btn-secondary':'btn-primary'}" style="font-size:10px" id="drill-btn-global" onclick="switchDrillView('global')">📊 Vue Globale</button>
-    </div>
-    <!-- VUE PÉRIODE -->
-    <div id="drill-view-period" style="${periodLabel?'':'display:none'}">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">
-        ${[{l:'BBE Période',v:fmtEur(bbe),c:'var(--gold)'},{l:'CA',v:fmtEur(fc)},{l:'Marge',v:marge.toFixed(1)+'%'},{l:'Dossiers',v:nbD},{l:'Poids kg',v:poids.toLocaleString('fr')},{l:'BBE/Dossier',v:nbD?fmtEur(bbe/nbD):'—'}]
-          .map(k=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px"><div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">${k.l}</div><div style="font-size:14px;font-weight:700;font-family:var(--mono);color:${k.c||'var(--text)'}">${k.v}</div></div>`).join('')}
-      </div>
-      <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Dossiers de la période</div>
-      <div class="taf-table-wrap" style="max-height:200px;overflow-y:auto">
-        <table class="taf-table"><thead><tr><th>Date</th><th>Dossier</th><th>Départ</th><th>Poids</th><th>CA</th><th>BBE</th><th>Marge%</th></tr></thead>
-        <tbody>${periodData.sort((a,b)=>a.date-b.date).map(d=>`<tr>
-          <td>${d.date.toLocaleDateString('fr')}</td>
-          <td style="color:var(--cyan);font-family:var(--mono);font-size:10px">${d.dossier}</td>
-          <td>${d.dep}</td><td>${d.poids.toLocaleString('fr')} kg</td>
-          <td>${fmtEur(d.fc)}</td><td class="td-bbe">${fmtEur(d.bbe)}</td><td>${d.pct.toFixed(1)}%</td>
-        </tr>`).join('')}</tbody></table>
-      </div>
-      <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Même période — Années précédentes</div>
-      <div class="year-compare-grid">
-        ${years.filter(y=>y!==yr).map(cy=>{
-          const cyData=allData.filter(d=>{if(d.year!==cy)return false;switch(gran){case 'week':return String(d.week)===pk;case 'month':return String(d.month)===pk;case 'quarter':return String(d.quarter)===pk;case 'semester':return String(d.month<=6?1:2)===pk;default:return true;}});
-          const cyBbe=sum(cyData,'bbe'),d=delta(bbe,cyBbe);
-          return`<div class="year-compare-card"><div class="yc-year">${cy}</div><div class="yc-bbe">${cyBbe?fmtEur(cyBbe):'—'}</div><div class="yc-delta" style="color:${d?.cls==='up'?'var(--green)':'var(--red)'}">${d?d.arrow+d.pct+'%':'—'}</div></div>`;
-        }).join('')||'<div style="color:var(--text3);font-size:11px">Pas d'autres années</div>'}
-      </div>
-    </div>
-    <!-- VUE GLOBALE -->
-    <div id="drill-view-global" style="${periodLabel?'display:none':''}">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
-        <div>
-          <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Fiche Complète</div>
-          <div class="stat-row"><span class="stat-label">LTV (BBE Cumulé)</span><span class="stat-value gold">${fmtEur(ltv)}</span></div>
-          <div class="stat-row"><span class="stat-label">Premier dossier</span><span class="stat-value">${firstDate.toLocaleDateString('fr')}</span></div>
-          <div class="stat-row"><span class="stat-label">Dernier dossier</span><span class="stat-value">${lastDate.toLocaleDateString('fr')}</span></div>
-          <div class="stat-row"><span class="stat-label">Inactif depuis</span><span class="stat-value ${daysSinceLast>90?'red':daysSinceLast>30?'gold':'green'}">${daysSinceLast} jours</span></div>
-          <div class="stat-row"><span class="stat-label">Années actif</span><span class="stat-value">${years.length} (${years[0]}→${years[years.length-1]})</span></div>
-          <div class="stat-row"><span class="stat-label">Total dossiers</span><span class="stat-value">${allData.length}</span></div>
-          <div class="stat-row"><span class="stat-label">BBE moyen/an</span><span class="stat-value">${fmtEur(ltv/years.length)}</span></div>
-          <div class="stat-row"><span class="stat-label">Tendance 3 ans</span><span class="stat-value ${isTrending?'green':'red'}">${isTrending?'📈 Croissance':'📉 Déclin'}</span></div>
-          <div class="stat-row"><span class="stat-label">Meilleure année</span><span class="stat-value gold">${bestYear?.y} — ${fmtEur(bestYear?.bbe)}</span></div>
-          <div class="stat-row"><span class="stat-label">Route principale</span><span class="stat-value">${topRoute} → CDG</span></div>
-          <div class="stat-row"><span class="stat-label">Poids moy/dossier</span><span class="stat-value">${(sum(allData,'poids')/allData.length).toFixed(0)} kg</span></div>
-        </div>
-        <div>
-          <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">BBE par Année</div>
-          <canvas id="chart-drill-client-year" height="220"></canvas>
-        </div>
-      </div>
-      <div class="taf-table-wrap">
-        <table class="taf-table"><thead><tr><th>Année</th><th>BBE</th><th>CA</th><th>Marge%</th><th>Dossiers</th><th>Poids kg</th><th>BBE/Dossier</th><th>vs N-1</th></tr></thead>
-        <tbody>${[...bbeByYear].reverse().map((row,i,arr)=>{
-          const prev=arr[i+1];const d=prev?delta(row.bbe,prev.bbe):null;const yd=byYear[row.y];
-          return`<tr>
-            <td style="color:var(--cyan);font-weight:700">${row.y}</td>
-            <td class="td-bbe">${fmtEur(row.bbe)}</td>
-            <td>${fmtEur(sum(yd,'fc'))}</td>
-            <td>${avg(yd.filter(d=>d.pct>0).map(d=>d.pct)).toFixed(1)}%</td>
-            <td>${yd.length}</td>
-            <td>${sum(yd,'poids').toLocaleString('fr')}</td>
-            <td>${fmtEur(row.bbe/yd.length)}</td>
-            <td class="td-delta ${d?.cls||''}">${d?d.arrow+d.pct+'%':'—'}</td>
-          </tr>`;
-        }).join('')}</tbody></table>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-      <button class="btn-secondary" style="font-size:10px" onclick="sendClientToCRM('${client}')">📤 TAF Commercial</button>
-      <button class="btn-secondary" style="font-size:10px" onclick="setCascade('client','${client}');closeModal('modal-client-drill')">🔍 Filtrer</button>
-    </div>`;
-  setTimeout(()=>{
-    destroyC('chart-drill-client-year');
-    S.charts['chart-drill-client-year']=new Chart(document.getElementById('chart-drill-client-year'),{
-      type:'bar',data:{labels:years,datasets:[{data:years.map(y=>sum(byYear[y],'bbe').toFixed(0)),
-        backgroundColor:years.map(y=>y===yr?'#f0a500':'#00d4ff33'),
-        borderColor:years.map(y=>y===yr?'#f0a500':'#00d4ff'),borderWidth:1.5}]},
-      options:chartOpts({yFmt:v=>fmtEur(v)})
+
+  var titleHtml='<div style="display:flex;align-items:center;gap:10px;flex:1">';
+  titleHtml+='<span>📊 '+client+'</span>';
+  titleHtml+='<span style="padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);background:rgba(0,212,255,0.1);color:var(--cyan)">'+secIcon+' '+sec+'</span>';
+  if(periodLabel) titleHtml+='<span style="font-size:10px;font-family:var(--mono);color:var(--text3)">— '+periodLabel+' '+(yr||'')+'</span>';
+  titleHtml+='</div><button class="modal-close" onclick="closeModal(\'modal-client-drill\')">✕</button>';
+  document.getElementById('modal-client-drill-title').innerHTML=titleHtml;
+
+  var html='<div style="display:flex;gap:6px;margin-bottom:16px">';
+  if(periodLabel) html+='<button class="btn-primary" style="font-size:10px" id="drill-btn-period" onclick="switchDrillView(\'period\')">📅 '+periodLabel+' '+yr+'</button>';
+  var globalClass=periodLabel?'btn-secondary':'btn-primary';
+  html+='<button class="'+globalClass+'" style="font-size:10px" id="drill-btn-global" onclick="switchDrillView(\'global\')">📊 Vue Globale</button>';
+  html+='</div>';
+
+  // VUE PÉRIODE
+  var pDisplay=periodLabel?'block':'none';
+  html+='<div id="drill-view-period" style="display:'+pDisplay+'">';
+  html+=buildKpiBar([
+    {l:'BBE Période',v:fmtEur(bbe),c:'var(--gold)'},{l:'CA',v:fmtEur(fc)},
+    {l:'Marge',v:marge.toFixed(1)+'%'},{l:'Dossiers',v:nbD},
+    {l:'Poids kg',v:poids.toLocaleString('fr')},{l:'BBE/Dossier',v:nbD?fmtEur(bbe/nbD):'—'}
+  ]);
+  html+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Dossiers de la période</div>';
+  html+='<div class="taf-table-wrap" style="max-height:200px;overflow-y:auto"><table class="taf-table"><thead><tr><th>Date</th><th>Dossier</th><th>Départ</th><th>Poids</th><th>CA</th><th>BBE</th><th>Marge%</th></tr></thead><tbody>';
+  periodData.slice().sort(function(a,b){return a.date-b.date;}).forEach(function(d){
+    html+='<tr><td>'+d.date.toLocaleDateString('fr')+'</td>';
+    html+='<td style="color:var(--cyan);font-family:var(--mono);font-size:10px">'+d.dossier+'</td>';
+    html+='<td>'+d.dep+'</td><td>'+d.poids.toLocaleString('fr')+' kg</td>';
+    html+='<td>'+fmtEur(d.fc)+'</td><td class="td-bbe">'+fmtEur(d.bbe)+'</td><td>'+d.pct.toFixed(1)+'%</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Même période — Années précédentes</div>';
+  html+='<div class="year-compare-grid">';
+  var otherYears=years.filter(function(y){return y!==yr;});
+  if(otherYears.length){
+    otherYears.forEach(function(cy){
+      var cyData=getPeriodData(allData,cy,pk,gran);
+      var cyBbe=sum(cyData,'bbe'), d=delta(bbe,cyBbe);
+      var dcolor=d&&d.cls==='up'?'var(--green)':'var(--red)';
+      html+='<div class="year-compare-card"><div class="yc-year">'+cy+'</div><div class="yc-bbe">'+(cyBbe?fmtEur(cyBbe):'—')+'</div><div class="yc-delta" style="color:'+dcolor+'">'+(d?d.arrow+d.pct+'%':'—')+'</div></div>';
     });
-  },120);
+  } else { html+='<div style="color:var(--text3);font-size:11px">Pas d&#39;autres ann&#233;es disponibles</div>'; }
+  html+='</div></div>';
+
+  // VUE GLOBALE
+  var gDisplay=periodLabel?'none':'block';
+  html+='<div id="drill-view-global" style="display:'+gDisplay+'">';
+  html+='<div class="grid-2" style="margin-bottom:14px">';
+  html+='<div><div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Fiche Complète</div>';
+  html+='<div class="stat-row"><span class="stat-label">LTV (BBE Cumulé)</span><span class="stat-value gold">'+fmtEur(ltv)+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Premier dossier</span><span class="stat-value">'+firstDate.toLocaleDateString('fr')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Dernier dossier</span><span class="stat-value">'+lastDate.toLocaleDateString('fr')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Inactif depuis</span><span class="stat-value" style="color:'+dColor+'">'+daysSinceLast+' jours</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Années actif</span><span class="stat-value">'+years.length+' ('+years[0]+'→'+years[years.length-1]+')</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Total dossiers</span><span class="stat-value">'+allData.length+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">BBE moyen/an</span><span class="stat-value">'+fmtEur(ltv/years.length)+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Tendance 3 ans</span><span class="stat-value" style="color:'+(isTrending?'var(--green)':'var(--red)')+'>'+(isTrending?'📈 Croissance':'📉 Déclin')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Meilleure année</span><span class="stat-value gold">'+(bestYear?bestYear.y+' — '+fmtEur(bestYear.bbe):'—')+'</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Route principale</span><span class="stat-value">'+topRoute+' → CDG</span></div>';
+  html+='<div class="stat-row"><span class="stat-label">Poids moy/dossier</span><span class="stat-value">'+(sum(allData,'poids')/allData.length).toFixed(0)+' kg</span></div>';
+  html+='</div>';
+  html+='<div><div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">BBE par Année</div>';
+  html+='<canvas id="chart-drill-client-year" height="220"></canvas></div></div>';
+  html+='<div class="taf-table-wrap"><table class="taf-table"><thead><tr><th>Année</th><th>BBE</th><th>CA</th><th>Marge%</th><th>Dossiers</th><th>Poids kg</th><th>BBE/Dossier</th><th>vs N-1</th></tr></thead><tbody>';
+  var revYears=[].concat(bbeByYear).reverse();
+  revYears.forEach(function(row,i){
+    var yd=byYear[row.y];
+    var prev=revYears[i+1];
+    var d=prev?delta(row.bbe,prev.bbe):null;
+    html+='<tr><td style="color:var(--cyan);font-weight:700">'+row.y+'</td>';
+    html+='<td class="td-bbe">'+fmtEur(row.bbe)+'</td>';
+    html+='<td>'+fmtEur(sum(yd,'fc'))+'</td>';
+    html+='<td>'+avg(yd.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;})).toFixed(1)+'%</td>';
+    html+='<td>'+yd.length+'</td>';
+    html+='<td>'+sum(yd,'poids').toLocaleString('fr')+'</td>';
+    html+='<td>'+fmtEur(row.bbe/yd.length)+'</td>';
+    html+='<td class="td-delta '+(d?d.cls:'')+'">'+(d?d.arrow+d.pct+'%':'—')+'</td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+
+  var cEsc=client.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">';
+  html+='<button class="btn-secondary" style="font-size:10px" onclick="sendClientToCRM(\''+cEsc+'\')">📤 TAF Commercial</button>';
+  html+='<button class="btn-secondary" style="font-size:10px" onclick="setCascade(\'client\',\''+cEsc+'\');closeModal(\'modal-client-drill\')">🔍 Filtrer</button>';
+  html+='</div>';
+
+  document.getElementById('modal-client-drill-content').innerHTML=html;
+
+  setTimeout(function(){
+    destroyC('chart-drill-client-year');
+    var sortedYears=years.slice().sort(function(a,b){return a-b;});
+    S.charts['chart-drill-client-year']=new Chart(document.getElementById('chart-drill-client-year'),{
+      type:'bar',
+      data:{labels:sortedYears,datasets:[{
+        data:sortedYears.map(function(y){return sum(byYear[y],'bbe').toFixed(0);}),
+        backgroundColor:sortedYears.map(function(y){return y===yr?'#f0a500':'#00d4ff33';}),
+        borderColor:sortedYears.map(function(y){return y===yr?'#f0a500':'#00d4ff';}),
+        borderWidth:1.5
+      }]},
+      options:chartOpts({yFmt:function(v){return fmtEur(v);}})
+    });
+  },150);
 }
 
 function switchDrillView(v){
-  document.getElementById('drill-view-period').style.display=v==='period'?'block':'none';
-  document.getElementById('drill-view-global').style.display=v==='global'?'block':'none';
-  ['period','global'].forEach(t=>{const b=document.getElementById(`drill-btn-${t}`);if(b){b.className=t===v?'btn-primary':'btn-secondary';b.style.fontSize='10px';}});
+  var pd=document.getElementById('drill-view-period');
+  var gd=document.getElementById('drill-view-global');
+  if(pd) pd.style.display=v==='period'?'block':'none';
+  if(gd) gd.style.display=v==='global'?'block':'none';
+  var bp=document.getElementById('drill-btn-period');
+  var bg=document.getElementById('drill-btn-global');
+  if(bp){bp.className=v==='period'?'btn-primary':'btn-secondary';bp.style.fontSize='10px';}
+  if(bg){bg.className=v==='global'?'btn-primary':'btn-secondary';bg.style.fontSize='10px';}
 }
 
 // ══════════════════════════════════════════════════════════════
