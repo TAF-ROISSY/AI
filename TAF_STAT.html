@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
     <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:200px"></div>
       <select class="fsel" id="filter-secteur" onchange="applyFilters()">
-        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson Frais</option><option value="Fruits & Légumes">🥦 FL</option><option value="Autre">📦 Autre</option>
+        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson Frais</option><option value="Fruits & Légumes">🥦 FL</option><option value="Animaux Vivants">🐾 Animaux Vivants</option><option value="Autre">📦 Autre</option>
       </select>
     </div>
     <div style="display:flex;gap:3px">
@@ -515,6 +515,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <option value="all">Toutes catégories</option>
             <option value="Poisson Frais">🐟 Poisson Frais</option>
             <option value="Fruits & Légumes">🥦 Fruits & Légumes</option>
+            <option value="Animaux Vivants">🐾 Animaux Vivants</option>
             <option value="Autre">📦 Autre</option>
             <option value="non-categorise">⚪ Non catégorisé</option>
           </select>
@@ -530,6 +531,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <div onclick="setCatFilter('Poisson Frais')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--cyan)">🐟 Poisson Frais</div>
         <div onclick="setCatFilter('Fruits & Légumes')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--green)">🥦 Fruits & Légumes</div>
+        <div onclick="setCatFilter('Animaux Vivants')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--purple)">🐾 Animaux Vivants</div>
         <div onclick="setCatFilter('Autre')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(240,165,0,0.1);border:1px solid rgba(240,165,0,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--gold)">📦 Autre</div>
         <div onclick="setCatFilter('all')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--text2)">Tous</div>
       </div>
@@ -541,7 +543,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             <th style="width:36px">#</th>
             <th>Client</th>
             <th>Catégorie actuelle</th>
-            <th colspan="3" style="text-align:center">Changer la catégorie</th>
+            <th colspan="4" style="text-align:center">Changer la catégorie</th>
             <th>Départ fréquent</th>
             <th>Dossiers</th>
             <th>BBE Total</th>
@@ -558,6 +560,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div style="display:flex;gap:6px;margin-left:8px">
           <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Poisson Frais')">🐟 Poisson Frais</button>
           <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Fruits & Légumes')">🥦 Fruits & Légumes</button>
+          <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Animaux Vivants')">🐾 Animaux Vivants</button>
           <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Autre')">📦 Autre</button>
         </div>
         <button class="btn-secondary" style="font-size:10px;margin-left:auto" onclick="selectAllCat()">Tout sélectionner</button>
@@ -695,6 +698,8 @@ const CFG = {
 
 const POISSON_DEP = new Set(['CMB','MLE','BOS','DSS','LFW','TNR','DAC','MRU','TRV','BOM','MAA','COK','PPT','NOU','SIN','DJE','ABJ','FDF','PTP','RUN']);
 const FL_DEP = new Set(['BKO','OUA','ABJ','ACC','LOS','DLA','KIS','ADD','ANT','HAH','MRU','TNR','COO','OUA','KAN']);
+// Animaux vivants : pas de code départ spécifique fiable → détection par N° dossier ou manuelle
+const AVI_DOS = /AVI|ANI|LIVE|ANIM/i; // pattern dans le N° dossier ou désignation
 
 // ══════════════════════════════════════════════════════════════
 //  STATE
@@ -787,7 +792,7 @@ async function parseFile(file) {
             estime:parseFloat(String(r[13]).replace(/[^\d.-]/g,''))||0,
             bbe:parseFloat(String(r[14]).replace(/[^\d.-]/g,''))||0,
             pct:parseFloat(String(r[15]).replace(/[^\d.-]/g,''))||0,
-            secteur: S.secteurs[client] || autoSecteur(dep),
+            secteur: S.secteurs[client] || autoSecteur(dep, String(r[1]||'')),
           });
         }
         resolve({dossiers, year: titleYear || (dossiers[0]?.year ? String(dossiers[0].year) : '?')});
@@ -797,7 +802,8 @@ async function parseFile(file) {
   });
 }
 
-function autoSecteur(dep){
+function autoSecteur(dep,dossier=''){
+  if(AVI_DOS.test(dossier)) return 'Animaux Vivants';
   if(POISSON_DEP.has(dep)) return 'Poisson Frais';
   if(FL_DEP.has(dep)) return 'Fruits & Légumes';
   return 'Autre';
@@ -1061,7 +1067,7 @@ function renderDashboard(){
   destroyC('chart-sectors');
   S.charts['chart-sectors']=new Chart(document.getElementById('chart-sectors'),{
     type:'doughnut',
-    data:{labels:secNames,datasets:[{data:secBbe,backgroundColor:['#00d4ff','#10b981','#f0a500'],borderWidth:0}]},
+    data:{labels:secNames,datasets:[{data:secBbe,backgroundColor:secNames.map(s=>s==='Poisson Frais'?'#00d4ff':s==='Fruits & Légumes'?'#10b981':s==='Animaux Vivants'?'#818cf8':'#f0a500'),borderWidth:0}]},
     options:{...chartOpts(),plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:9}}},
       tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtEur(ctx.parsed)}`}}}
     ,onClick:(_,items)=>{if(items.length){setCascade('secteur',secNames[items[0].index]);}},
@@ -1473,8 +1479,8 @@ function heatColor(t){
 function renderSecteurs(){
   const data=S.filtered;
   const bySec=groupBy(data,'secteur');
-  const secNames=['Poisson Frais','Fruits & Légumes','Autre'];
-  const secColors=['#00d4ff','#10b981','#f0a500'];
+  const secNames=['Poisson Frais','Fruits & Légumes','Animaux Vivants','Autre'];
+  const secColors=['#00d4ff','#10b981','#818cf8','#f0a500'];
   document.getElementById('kpi-secteurs').innerHTML=secNames.map((s,i)=>{
     const sd=bySec[s]||[];
     return`<div class="kpi-card" style="border-top:2px solid ${secColors[i]}">
@@ -1519,9 +1525,10 @@ function renderSecteurs(){
       <td>${cnt}</td>
       <td style="color:var(--text3)">${depFreq}</td>
       <td><div class="cat-selector">
-        ${['Poisson Frais','Fruits & Légumes','Autre'].map(s=>{
-          const cls=sec===s?(s==='Poisson Frais'?'ap':s==='Fruits & Légumes'?'afl':'aa'):'';
-          return`<button class="cat-btn ${cls}" onclick="setSecteur('${client}','${s}',this)">${s==='Poisson Frais'?'🐟':s==='Fruits & Légumes'?'🥦':'📦'}</button>`;
+        ${['Poisson Frais','Fruits & Légumes','Animaux Vivants','Autre'].map(s=>{
+          const cls=sec===s?(s==='Poisson Frais'?'ap':s==='Fruits & Légumes'?'afl':s==='Animaux Vivants'?'ap':'aa'):'';
+          const style=sec===s&&s==='Animaux Vivants'?'background:rgba(129,140,248,0.12);border-color:var(--purple);color:var(--purple)':'';
+          return`<button class="cat-btn ${cls}" style="${style}" onclick="setSecteur('${client}','${s}',this)">${s==='Poisson Frais'?'🐟':s==='Fruits & Légumes'?'🥦':s==='Animaux Vivants'?'🐾':'📦'}</button>`;
         }).join('')}
       </div></td>
     </tr>`;
@@ -1816,11 +1823,34 @@ async function saveToDrive(){
 
 async function uploadToDrive(fileName,content,mimeType){
   try{
-    const payload={action:'upload',fileName,content,mimeType,folderId:CFG.DRIVE_FOLDER};
-    const resp=await fetch(CFG.DRIVE_PROXY,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'application/json'}});
+    // Le proxy TAF attend : filename (minuscule), content, mimeType, folderId
+    const payload={
+      filename: fileName,
+      content:  content,
+      mimeType: mimeType,
+      folderId: CFG.DRIVE_FOLDER
+    };
+    const resp=await fetch(CFG.DRIVE_PROXY,{
+      method:'POST',
+      body:JSON.stringify(payload),
+      headers:{'Content-Type':'application/json'}
+    });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json=await resp.json();
-    return{ok:json.success||json.id,name:fileName};
-  }catch(e){return{ok:false,name:fileName};}
+    const ok=!!(json.success||json.id||json.fileId||json.ok);
+    return{ok, name:fileName, url:json.url||json.webViewLink||''};
+  }catch(e){
+    console.warn('Drive upload failed:',e.message,'→ fallback téléchargement local');
+    // Fallback : téléchargement local automatique
+    try{
+      const blob=new Blob([content],{type:mimeType+';charset=utf-8'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=fileName; a.click();
+      URL.revokeObjectURL(a.href);
+    }catch(e2){}
+    return{ok:false,name:fileName,fallback:true};
+  }
 }
 
 function generateSyntheseHTML(){
@@ -1976,15 +2006,17 @@ function renderCategories(){
   const total=S._catClients.length;
   const poisson=S._catClients.filter(c=>S.secteurs[c.client]==='Poisson Frais').length;
   const fl=S._catClients.filter(c=>S.secteurs[c.client]==='Fruits & Légumes').length;
+  const avi=S._catClients.filter(c=>S.secteurs[c.client]==='Animaux Vivants').length;
   const autre=S._catClients.filter(c=>S.secteurs[c.client]==='Autre').length;
-  const nonCat=total-poisson-fl-autre;
+  const nonCat=total-poisson-fl-avi-autre;
   document.getElementById('kpi-categories').innerHTML=[
-    {label:'Total Clients',value:total,acc:''},
-    {label:'🐟 Poisson Frais',value:poisson,acc:'',color:'var(--cyan)'},
-    {label:'🥦 Fruits & Légumes',value:fl,acc:'',color:'var(--green)'},
-    {label:'📦 Autre',value:autre,acc:'',color:'var(--gold)'},
+    {label:'Total Clients',value:total},
+    {label:'🐟 Poisson Frais',value:poisson,color:'var(--cyan)'},
+    {label:'🥦 Fruits & Légumes',value:fl,color:'var(--green)'},
+    {label:'🐾 Animaux Vivants',value:avi,color:'var(--purple)'},
+    {label:'📦 Autre',value:autre,color:'var(--gold)'},
     {label:'⚪ Non catégorisés',value:nonCat,acc:nonCat>0?'red-accent':'green-accent'},
-  ].map(k=>`<div class="kpi-card ${k.acc}"><div class="kpi-label">${k.label}</div><div class="kpi-value" ${k.color?`style="color:${k.color}"`:''}>${k.value}</div></div>`).join('');
+  ].map(k=>`<div class="kpi-card ${k.acc||''}"><div class="kpi-label">${k.label}</div><div class="kpi-value" ${k.color?`style="color:${k.color}"`:''}>${k.value}</div></div>`).join('');
 
   filterCatTable();
 }
@@ -2014,18 +2046,21 @@ function filterCatTable(){
       ?'background:rgba(0,212,255,0.12);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)'
       :sec==='Fruits & Légumes'
       ?'background:rgba(16,185,129,0.12);color:var(--green);border:1px solid rgba(16,185,129,0.3)'
+      :sec==='Animaux Vivants'
+      ?'background:rgba(129,140,248,0.12);color:var(--purple);border:1px solid rgba(129,140,248,0.3)'
       :sec==='Autre'
       ?'background:rgba(240,165,0,0.12);color:var(--gold);border:1px solid rgba(240,165,0,0.3)'
       :'background:var(--bg3);color:var(--text3);border:1px solid var(--border)';
     const secLabel=sec||'— Non catégorisé';
-    const secIcon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Autre'?'📦':'⚪';
+    const secIcon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Animaux Vivants'?'🐾':sec==='Autre'?'📦':'⚪';
     return`<tr style="${isSelected?'background:rgba(0,212,255,0.05)':''}">
       <td><input type="checkbox" ${isSelected?'checked':''} onchange="toggleCatSelect('${c.client.replace(/'/g,"\\'")}',this)" style="accent-color:var(--cyan);cursor:pointer"></td>
       <td class="td-client" style="font-size:12px">${c.client}</td>
       <td><span style="padding:3px 10px;border-radius:4px;font-size:10px;font-family:var(--mono);${badgeStyle}">${secIcon} ${secLabel}</span></td>
-      <td style="text-align:center"><button class="cat-btn ${sec==='Poisson Frais'?'ap':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Poisson Frais')">🐟 Poisson Frais</button></td>
-      <td style="text-align:center"><button class="cat-btn ${sec==='Fruits & Légumes'?'afl':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Fruits & Légumes')">🥦 Fruits & Légumes</button></td>
-      <td style="text-align:center"><button class="cat-btn ${sec==='Autre'?'aa':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Autre')">📦 Autre</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Poisson Frais'?'ap':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Poisson Frais')">🐟</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Fruits & Légumes'?'afl':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Fruits & Légumes')">🥦</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Animaux Vivants'?'ap':''}" style="${sec==='Animaux Vivants'?'background:rgba(129,140,248,0.12);border-color:var(--purple);color:var(--purple)':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Animaux Vivants')">🐾</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Autre'?'aa':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Autre')">📦</button></td>
       <td style="color:var(--text3);font-size:10px">${depFreq}</td>
       <td>${c.dossiers}</td>
       <td class="td-bbe">${fmtEur(c.bbe)}</td>
