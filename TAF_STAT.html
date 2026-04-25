@@ -182,7 +182,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .search-box input{background:transparent;border:none;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;flex:1}
 .search-box input::placeholder{color:var(--text3)}
 
-/* FILTER PILL (cascade) */
+/* CLIENT FILTER DROPDOWN */
+.client-dd-item{display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:11px;font-family:var(--mono);color:var(--text2);cursor:pointer;transition:background 0.1s}
+.client-dd-item:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.client-dd-item.selected{color:var(--cyan);background:rgba(0,212,255,0.06)}
+.client-dd-item input[type=checkbox]{accent-color:var(--cyan);cursor:pointer}
+.client-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);border-radius:10px;padding:2px 8px;font-size:9px;font-family:var(--mono);color:var(--cyan);white-space:nowrap}
+.client-pill .pill-x{cursor:pointer;opacity:0.6;font-size:10px}
+.client-pill .pill-x:hover{opacity:1}
 .filter-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:20px;padding:3px 10px;font-size:10px;font-family:var(--mono);color:var(--cyan);cursor:pointer}
 .filter-pill .pill-x{opacity:0.6;margin-left:2px}
 .filter-pill:hover .pill-x{opacity:1}
@@ -256,6 +263,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="nav-item" onclick="showView('dormants')" id="nav-dormants"><span class="nav-icon">💤</span>Dormants<span class="nav-badge red" id="nb-dormants">—</span></div>
     <div class="nav-item" onclick="showView('nouveaux')" id="nav-nouveaux"><span class="nav-icon">✨</span>Nouveaux<span class="nav-badge green" id="nb-nouveaux">—</span></div>
     <div class="nav-section">Analyse</div>
+    <div class="nav-item" onclick="showView('categories')" id="nav-categories"><span class="nav-icon">🏷️</span>Catégories Clients</div>
     <div class="nav-item" onclick="showView('heatmap')" id="nav-heatmap"><span class="nav-icon">🔥</span>Heatmap</div>
     <div class="nav-item" onclick="showView('secteurs')" id="nav-secteurs"><span class="nav-icon">🏷️</span>Secteurs</div>
     <div class="nav-section">Rapports</div>
@@ -289,17 +297,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
       </select>
     </div>
-    <div class="fg"><span class="fl">Secteur</span>
+    <div class="fg" style="position:relative">
+      <span class="fl">Client</span>
+      <input type="text" class="fsel" id="filter-client-input" placeholder="Tous les clients" 
+        oninput="filterClientDropdown()" onfocus="showClientDropdown()" style="min-width:130px;cursor:text"
+        autocomplete="off">
+      <div id="client-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);z-index:200;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+        <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9px;font-family:var(--mono);color:var(--text3)" id="client-dd-count">—</span>
+          <button onclick="clearClientFilter()" style="font-size:9px;font-family:var(--mono);color:var(--red);background:none;border:none;cursor:pointer">Effacer</button>
+        </div>
+        <div id="client-dd-list"></div>
+      </div>
+    </div>
+    <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:200px"></div>
       <select class="fsel" id="filter-secteur" onchange="applyFilters()">
         <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson Frais</option><option value="Fruits & Légumes">🥦 FL</option><option value="Autre">📦 Autre</option>
       </select>
     </div>
     <div style="display:flex;gap:3px">
-      <button class="btn-preset active" onclick="setPreset('YTD',this)">YTD</button>
-      <button class="btn-preset" onclick="setPreset('MTD',this)">MTD</button>
-      <button class="btn-preset" onclick="setPreset('QTD',this)">QTD</button>
-      <button class="btn-preset" onclick="setPreset('LM',this)">M-1</button>
-      <button class="btn-preset" onclick="setPreset('LQ',this)">T-1</button>
+      <button class="btn-preset active" onclick="setPreset('YTD',this)">Depuis janv.</button>
+      <button class="btn-preset" onclick="setPreset('MTD',this)">Ce mois</button>
+      <button class="btn-preset" onclick="setPreset('QTD',this)">Ce trimestre</button>
+      <button class="btn-preset" onclick="setPreset('LM',this)">Mois préc.</button>
+      <button class="btn-preset" onclick="setPreset('LQ',this)">Trim. préc.</button>
       <button class="btn-preset" onclick="setPreset('ALL',this)">Tout</button>
     </div>
     <div class="topbar-spacer"></div>
@@ -484,7 +505,67 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="heatmap-area"></div>
     </div>
 
-    <!-- SECTEURS -->
+    <!-- CATEGORIES -->
+    <div id="view-categories" class="view">
+      <div class="section-header">
+        <div class="section-title"><span class="icon">🏷️</span>Catégories Clients</div>
+        <div class="section-actions">
+          <div class="search-box"><span>🔍</span><input type="text" placeholder="Rechercher un client..." id="cat-search" oninput="filterCatTable()"></div>
+          <select class="fsel" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:5px 9px" id="cat-filter-sec" onchange="filterCatTable()">
+            <option value="all">Toutes catégories</option>
+            <option value="Poisson Frais">🐟 Poisson Frais</option>
+            <option value="Fruits & Légumes">🥦 Fruits & Légumes</option>
+            <option value="Autre">📦 Autre</option>
+            <option value="non-categorise">⚪ Non catégorisé</option>
+          </select>
+          <button class="btn-secondary" onclick="autoCategorize()">🤖 Auto-catégoriser</button>
+          <button class="btn-drive" onclick="saveSecteursDrive()">☁️ Sauver Drive</button>
+        </div>
+      </div>
+
+      <!-- Compteurs par catégorie -->
+      <div class="kpi-grid" id="kpi-categories" style="margin-bottom:16px"></div>
+
+      <!-- Légende -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div onclick="setCatFilter('Poisson Frais')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--cyan)">🐟 Poisson Frais</div>
+        <div onclick="setCatFilter('Fruits & Légumes')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--green)">🥦 Fruits & Légumes</div>
+        <div onclick="setCatFilter('Autre')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(240,165,0,0.1);border:1px solid rgba(240,165,0,0.3);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--gold)">📦 Autre</div>
+        <div onclick="setCatFilter('all')" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--text2)">Tous</div>
+      </div>
+
+      <!-- Tableau clients avec sélection catégorie -->
+      <div class="taf-table-wrap">
+        <table class="taf-table">
+          <thead><tr>
+            <th style="width:36px">#</th>
+            <th>Client</th>
+            <th>Catégorie actuelle</th>
+            <th colspan="3" style="text-align:center">Changer la catégorie</th>
+            <th>Départ fréquent</th>
+            <th>Dossiers</th>
+            <th>BBE Total</th>
+          </tr></thead>
+          <tbody id="cat-tbody"></tbody>
+        </table>
+        <div class="pagination" id="cat-pagination"></div>
+      </div>
+
+      <!-- Actions groupées -->
+      <div style="margin-top:14px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:11px;font-family:var(--mono);color:var(--text3)">Sélection multiple :</span>
+        <span id="cat-selected-count" style="font-size:11px;font-family:var(--mono);color:var(--cyan)">0 client(s) sélectionné(s)</span>
+        <div style="display:flex;gap:6px;margin-left:8px">
+          <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Poisson Frais')">🐟 Poisson Frais</button>
+          <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Fruits & Légumes')">🥦 Fruits & Légumes</button>
+          <button class="btn-secondary" style="font-size:10px" onclick="applyBulkCategory('Autre')">📦 Autre</button>
+        </div>
+        <button class="btn-secondary" style="font-size:10px;margin-left:auto" onclick="selectAllCat()">Tout sélectionner</button>
+        <button class="btn-secondary" style="font-size:10px" onclick="clearCatSelection()">Désélectionner</button>
+      </div>
+    </div>
+
+    <!-- SECTEURS (vue analytique) -->
     <div id="view-secteurs" class="view">
       <div class="kpi-grid" id="kpi-secteurs"></div>
       <div class="grid-2">
@@ -768,6 +849,8 @@ function refreshLoadedFiles(){
 
 function initState(){
   S.years=[...new Set(S.raw.map(d=>d.year))].sort((a,b)=>b-a);
+  S.selectedClients=S.selectedClients||new Set();
+  buildClientDropdown();
   const sel=document.getElementById('filter-year');
   sel.innerHTML='<option value="all">Toutes années</option>'+S.years.map(y=>`<option value="${y}" ${y===Math.max(...S.years)?'selected':''}>${y}</option>`).join('');
   document.getElementById('input-objectif-year').innerHTML=S.years.map(y=>`<option>${y}</option>`).join('');
@@ -832,6 +915,8 @@ function applyFilters(){
     if(range) data=data.filter(d=>d.date>=range.from&&d.date<=range.to);
   }
   if(secteurSel!=='all') data=data.filter(d=>d.secteur===secteurSel);
+  // Filtre clients multi-sélection
+  if(S.selectedClients&&S.selectedClients.size>0) data=data.filter(d=>S.selectedClients.has(d.client));
   if(S.cascadeFilter){
     const{type,value}=S.cascadeFilter;
     if(type==='client') data=data.filter(d=>d.client===value);
@@ -899,6 +984,7 @@ function renderCurrentView(){
   else if(v==='mouvements') renderMouvements();
   else if(v==='dormants') renderDormants();
   else if(v==='nouveaux') renderNouveaux();
+  else if(v==='categories') renderCategories();
   else if(v==='heatmap') renderHeatmap();
   else if(v==='secteurs') renderSecteurs();
   else if(v==='flash') renderFlash();
@@ -1870,7 +1956,248 @@ async function exportPerdusCRM(){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  FLASH DATA HELPERS
+//  CATEGORIES CLIENTS
+// ══════════════════════════════════════════════════════════════
+let CAT_STATE = { page:1, pageSize:50, selected:new Set(), searchFilter:'', secFilter:'all' };
+
+function renderCategories(){
+  if(!S.raw.length) return;
+  // Construire la liste de tous les clients uniques
+  const clientMap={};
+  S.raw.forEach(d=>{
+    if(!clientMap[d.client]) clientMap[d.client]={client:d.client,dossiers:0,bbe:0,deps:{}};
+    clientMap[d.client].dossiers++;
+    clientMap[d.client].bbe+=d.bbe;
+    clientMap[d.client].deps[d.dep]=(clientMap[d.client].deps[d.dep]||0)+1;
+  });
+  S._catClients=Object.values(clientMap).sort((a,b)=>b.bbe-a.bbe);
+
+  // KPIs
+  const total=S._catClients.length;
+  const poisson=S._catClients.filter(c=>S.secteurs[c.client]==='Poisson Frais').length;
+  const fl=S._catClients.filter(c=>S.secteurs[c.client]==='Fruits & Légumes').length;
+  const autre=S._catClients.filter(c=>S.secteurs[c.client]==='Autre').length;
+  const nonCat=total-poisson-fl-autre;
+  document.getElementById('kpi-categories').innerHTML=[
+    {label:'Total Clients',value:total,acc:''},
+    {label:'🐟 Poisson Frais',value:poisson,acc:'',color:'var(--cyan)'},
+    {label:'🥦 Fruits & Légumes',value:fl,acc:'',color:'var(--green)'},
+    {label:'📦 Autre',value:autre,acc:'',color:'var(--gold)'},
+    {label:'⚪ Non catégorisés',value:nonCat,acc:nonCat>0?'red-accent':'green-accent'},
+  ].map(k=>`<div class="kpi-card ${k.acc}"><div class="kpi-label">${k.label}</div><div class="kpi-value" ${k.color?`style="color:${k.color}"`:''}>${k.value}</div></div>`).join('');
+
+  filterCatTable();
+}
+
+function filterCatTable(){
+  const search=(document.getElementById('cat-search')?.value||'').toLowerCase();
+  const secF=document.getElementById('cat-filter-sec')?.value||'all';
+  let clients=(S._catClients||[]).filter(c=>{
+    const ms=!search||c.client.toLowerCase().includes(search);
+    const sec=S.secteurs[c.client]||'';
+    const mf=secF==='all'||(secF==='non-categorise'?!sec:sec===secF);
+    return ms&&mf;
+  });
+  CAT_STATE.searchFilter=search;
+  CAT_STATE.secFilter=secF;
+
+  const total=clients.length;
+  const pages=Math.ceil(total/CAT_STATE.pageSize);
+  const start=(CAT_STATE.page-1)*CAT_STATE.pageSize;
+  const page=clients.slice(start,start+CAT_STATE.pageSize);
+
+  document.getElementById('cat-tbody').innerHTML=page.map((c,i)=>{
+    const sec=S.secteurs[c.client]||'';
+    const depFreq=Object.entries(c.deps).sort(([,a],[,b])=>b-a)[0]?.[0]||'—';
+    const isSelected=CAT_STATE.selected.has(c.client);
+    const badgeStyle=sec==='Poisson Frais'
+      ?'background:rgba(0,212,255,0.12);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)'
+      :sec==='Fruits & Légumes'
+      ?'background:rgba(16,185,129,0.12);color:var(--green);border:1px solid rgba(16,185,129,0.3)'
+      :sec==='Autre'
+      ?'background:rgba(240,165,0,0.12);color:var(--gold);border:1px solid rgba(240,165,0,0.3)'
+      :'background:var(--bg3);color:var(--text3);border:1px solid var(--border)';
+    const secLabel=sec||'— Non catégorisé';
+    const secIcon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Autre'?'📦':'⚪';
+    return`<tr style="${isSelected?'background:rgba(0,212,255,0.05)':''}">
+      <td><input type="checkbox" ${isSelected?'checked':''} onchange="toggleCatSelect('${c.client.replace(/'/g,"\\'")}',this)" style="accent-color:var(--cyan);cursor:pointer"></td>
+      <td class="td-client" style="font-size:12px">${c.client}</td>
+      <td><span style="padding:3px 10px;border-radius:4px;font-size:10px;font-family:var(--mono);${badgeStyle}">${secIcon} ${secLabel}</span></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Poisson Frais'?'ap':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Poisson Frais')">🐟 Poisson Frais</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Fruits & Légumes'?'afl':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Fruits & Légumes')">🥦 Fruits & Légumes</button></td>
+      <td style="text-align:center"><button class="cat-btn ${sec==='Autre'?'aa':''}" onclick="setSecteurAndRefresh('${c.client.replace(/'/g,"\\'")}','Autre')">📦 Autre</button></td>
+      <td style="color:var(--text3);font-size:10px">${depFreq}</td>
+      <td>${c.dossiers}</td>
+      <td class="td-bbe">${fmtEur(c.bbe)}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  let pag=`<span>${total} clients`;
+  if(CAT_STATE.selected.size) pag+=` · <span style="color:var(--cyan)">${CAT_STATE.selected.size} sélectionné(s)</span>`;
+  pag+='</span>';
+  if(pages>1) for(let p=1;p<=Math.min(pages,15);p++) pag+=`<button class="page-btn ${p===CAT_STATE.page?'active':''}" onclick="catGoPage(${p})">${p}</button>`;
+  document.getElementById('cat-pagination').innerHTML=pag;
+  document.getElementById('cat-selected-count').textContent=`${CAT_STATE.selected.size} client(s) sélectionné(s)`;
+}
+
+function catGoPage(p){CAT_STATE.page=p;filterCatTable();}
+
+function setCatFilter(sec){
+  const sel=document.getElementById('cat-filter-sec');
+  if(sel) sel.value=sec;
+  CAT_STATE.page=1;
+  filterCatTable();
+}
+
+function setSecteurAndRefresh(client,secteur){
+  S.secteurs[client]=secteur;
+  localStorage.setItem('taf_stat_secteurs',JSON.stringify(S.secteurs));
+  S.raw.forEach(d=>{if(d.client===client)d.secteur=secteur;});
+  // Mettre à jour _catClients
+  filterCatTable();
+  // Mettre à jour les KPIs
+  const total=S._catClients.length;
+  const poisson=S._catClients.filter(c=>S.secteurs[c.client]==='Poisson Frais').length;
+  const fl=S._catClients.filter(c=>S.secteurs[c.client]==='Fruits & Légumes').length;
+  const autre=S._catClients.filter(c=>S.secteurs[c.client]==='Autre').length;
+  const nonCat=total-poisson-fl-autre;
+  document.getElementById('kpi-categories').innerHTML=[
+    {label:'Total Clients',value:total},
+    {label:'🐟 Poisson Frais',value:poisson,color:'var(--cyan)'},
+    {label:'🥦 Fruits & Légumes',value:fl,color:'var(--green)'},
+    {label:'📦 Autre',value:autre,color:'var(--gold)'},
+    {label:'⚪ Non catégorisés',value:nonCat,acc:nonCat>0?'red-accent':'green-accent'},
+  ].map(k=>`<div class="kpi-card ${k.acc||''}"><div class="kpi-label">${k.label}</div><div class="kpi-value" ${k.color?`style="color:${k.color}"`:''}>${k.value}</div></div>`).join('');
+  toast(`✅ ${client} → ${secteur}`);
+}
+
+function toggleCatSelect(client,cb){
+  if(cb.checked) CAT_STATE.selected.add(client);
+  else CAT_STATE.selected.delete(client);
+  document.getElementById('cat-selected-count').textContent=`${CAT_STATE.selected.size} client(s) sélectionné(s)`;
+}
+
+function applyBulkCategory(secteur){
+  if(!CAT_STATE.selected.size){toast('Sélectionnez d\'abord des clients');return;}
+  CAT_STATE.selected.forEach(client=>{
+    S.secteurs[client]=secteur;
+    S.raw.forEach(d=>{if(d.client===client)d.secteur=secteur;});
+  });
+  localStorage.setItem('taf_stat_secteurs',JSON.stringify(S.secteurs));
+  toast(`✅ ${CAT_STATE.selected.size} clients → ${secteur}`);
+  CAT_STATE.selected.clear();
+  renderCategories();
+}
+
+function selectAllCat(){
+  const search=(document.getElementById('cat-search')?.value||'').toLowerCase();
+  const secF=document.getElementById('cat-filter-sec')?.value||'all';
+  (S._catClients||[]).filter(c=>{
+    const ms=!search||c.client.toLowerCase().includes(search);
+    const sec=S.secteurs[c.client]||'';
+    const mf=secF==='all'||(secF==='non-categorise'?!sec:sec===secF);
+    return ms&&mf;
+  }).forEach(c=>CAT_STATE.selected.add(c.client));
+  filterCatTable();
+}
+
+function clearCatSelection(){
+  CAT_STATE.selected.clear();
+  filterCatTable();
+}
+
+async function saveSecteursDrive(){
+  const content=JSON.stringify({exportDate:new Date().toISOString(),secteurs:S.secteurs,total:Object.keys(S.secteurs).length},null,2);
+  const r=await uploadToDrive(`TAF_STAT_categories_${dateStr()}.json`,content,'application/json');
+  toast(r.ok?'☁️ Catégories sauvegardées sur Drive !':'❌ Erreur Drive');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FILTRE CLIENT MULTI-SÉLECTION
+// ══════════════════════════════════════════════════════════════
+function buildClientDropdown(){
+  if(!S.raw.length) return;
+  S._allClients=[...new Set(S.raw.map(d=>d.client))].sort();
+  renderClientDropdown(S._allClients);
+}
+
+function filterClientDropdown(){
+  const q=(document.getElementById('filter-client-input')?.value||'').toLowerCase();
+  renderClientDropdown((S._allClients||[]).filter(c=>c.toLowerCase().includes(q)));
+  showClientDropdown();
+}
+
+function renderClientDropdown(clients){
+  const list=document.getElementById('client-dd-list');
+  const count=document.getElementById('client-dd-count');
+  if(!list) return;
+  count.textContent=`${clients.length} client(s)`;
+  list.innerHTML=clients.slice(0,80).map(c=>{
+    const sel=S.selectedClients?.has(c);
+    const sec=S.secteurs[c]||'';
+    const icon=sec==='Poisson Frais'?'🐟':sec==='Fruits & Légumes'?'🥦':sec==='Autre'?'📦':'';
+    return`<div class="client-dd-item ${sel?'selected':''}" onclick="toggleClientFilter(this,'${c.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+      <input type="checkbox" ${sel?'checked':''} style="pointer-events:none;accent-color:var(--cyan)">
+      <span>${icon} ${c}</span>
+    </div>`;
+  }).join('');
+  if(clients.length>80) list.innerHTML+=`<div style="padding:6px 10px;font-size:9px;font-family:var(--mono);color:var(--text3);text-align:center">+${clients.length-80} autres — affinez la recherche</div>`;
+}
+
+function showClientDropdown(){
+  const dd=document.getElementById('client-dropdown');
+  if(dd) dd.style.display='block';
+  setTimeout(()=>{
+    function handler(e){
+      const dd=document.getElementById('client-dropdown');
+      const inp=document.getElementById('filter-client-input');
+      if(dd&&!dd.contains(e.target)&&e.target!==inp){
+        dd.style.display='none';
+        document.removeEventListener('click',handler);
+      }
+    }
+    document.addEventListener('click',handler);
+  },200);
+}
+
+function toggleClientFilter(el,client){
+  if(!S.selectedClients) S.selectedClients=new Set();
+  if(S.selectedClients.has(client)) S.selectedClients.delete(client);
+  else S.selectedClients.add(client);
+  // Mettre à jour visuellement dans la liste
+  if(el){el.classList.toggle('selected',S.selectedClients.has(client));el.querySelector('input').checked=S.selectedClients.has(client);}
+  renderClientPills();
+  applyFilters();
+}
+
+function clearClientFilter(){
+  S.selectedClients=new Set();
+  renderClientPills();
+  renderClientDropdown(S._allClients||[]);
+  const inp=document.getElementById('filter-client-input');
+  if(inp) inp.value='';
+  applyFilters();
+}
+
+function renderClientPills(){
+  const el=document.getElementById('client-pills');
+  if(!el) return;
+  if(!S.selectedClients?.size){el.innerHTML='';return;}
+  const arr=[...S.selectedClients], visible=arr.slice(0,2), rest=arr.length-2;
+  el.innerHTML=visible.map(c=>`<div class="client-pill" title="${c}">
+    <span style="max-width:70px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle">${c}</span>
+    <span class="pill-x" onclick="removePill('${c.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</span>
+  </div>`).join('')+(rest>0?`<div class="client-pill" style="cursor:pointer" onclick="showClientDropdown()">+${rest}</div>`:'');
+}
+
+function removePill(client){
+  if(S.selectedClients) S.selectedClients.delete(client);
+  renderClientPills();
+  renderClientDropdown(S._allClients||[]);
+  applyFilters();
+}
+
 // ══════════════════════════════════════════════════════════════
 function getFlashData(period){
   const now=new Date(),year=Math.max(...S.years);
