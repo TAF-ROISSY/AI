@@ -2316,7 +2316,7 @@ function renderDashboard(){
   const yearSel2=document.getElementById('filter-year').value;
   const samePeriod=isSamePeriodMode();
   const cmpYearNum=cmpOff!=='none'&&yearSel2!=='all'?parseInt(yearSel2)-parseInt(cmpOff):null;
-  const cmpLabel=cmpYearNum?(samePeriod?`${cmpYearNum} même période`:`${cmpYearNum}`):'';
+  var cmpLabel=cmpYearNum?(samePeriod?(cmpYearNum+' même période'):String(cmpYearNum)):'';
 
   // Indicateur de progression vers objectif annuel
   const objYear=yearSel2==='all'?null:yearSel2;
@@ -2394,7 +2394,7 @@ function renderDashboard(){
 function detectAnomalies(data,cmp){
   const res=[];
   const bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
-  if(bbeCmp&&(bbe-bbeCmp)/bbeCmp<-0.1) res.push({type:'warn',icon:'🔻',text:`BBE en baisse de <strong>${Math.abs(((bbe-bbeCmp)/bbeCmp)*100).toFixed(1)}%</strong> vs même période N-1`});
+  if(bbeCmp&&(bbe-bbeCmp)/bbeCmp<-0.1) res.push({type:'warn',icon:'🔻',text:'BBE en baisse de <strong>'+String(Math.abs(((bbe-bbeCmp)/bbeCmp)*100).toFixed(1))+'%</strong> vs même période N-1'});
   if(cmp.length){
     const cmpClients=groupBy(cmp,'client'), curClients=new Set(data.map(d=>d.client));
     const perdus=Object.entries(cmpClients).filter(([c])=>!curClients.has(c)).map(([c,d])=>({c,bbe:sum(d,'bbe')})).filter(d=>d.bbe>2000).sort((a,b)=>b.bbe-a.bbe).slice(0,3);
@@ -2404,10 +2404,10 @@ function detectAnomalies(data,cmp){
   const negatifs=data.filter(d=>d.bbe<0);
   if(negatifs.length>0){
     const totalNegatif=sum(negatifs,'bbe');
-    res.push({type:'warn',icon:'📉',text:`<strong>${negatifs.length} dossier${negatifs.length>1?'s':''} déficitaire${negatifs.length>1?'s':''}</strong> — Impact BBE : ${fmtEur(totalNegatif)} (${negatifs.slice(0,3).map(d=>d.client).join(', ')})`});
+    res.push({type:'warn',icon:'📉',text:'<strong>'+String(negatifs.length)+' dossier'+String(negatifs.length>1?'s':'')+' déficitaire'+String(negatifs.length>1?'s':'')+'</strong> — Impact BBE : '+String(fmtEur(totalNegatif))+' ('+String(negatifs.slice(0,3).map(d=>d.client).join(', '))+')'});
   }
   const nbNew=countNew(data);
-  if(nbNew>0) res.push({type:'info',icon:'✨',text:`<strong>${nbNew}</strong> nouveau${nbNew>1?'x':''} client${nbNew>1?'s':''} cette période`});
+  if(nbNew>0) res.push({type:'info',icon:'✨',text:'<strong>'+String(nbNew)+'</strong> nouveau'+String(nbNew>1?'x':'')+' client'+String(nbNew>1?'s':'')+' cette période'});
   return res;
 }
 
@@ -2892,7 +2892,7 @@ function renderSecteurs(){
         ${['Poisson Frais','Fruits & Légumes','Animaux Vivants','Autre'].map(s=>{
           const cls=sec===s?(s==='Poisson Frais'?'ap':s==='Fruits & Légumes'?'afl':s==='Animaux Vivants'?'ap':'aa'):'';
           const style=sec===s&&s==='Animaux Vivants'?'background:rgba(129,140,248,0.12);border-color:var(--purple);color:var(--purple)':'';
-          return`<button class="cat-btn ${cls}" style="${style}" onclick="setSecteur('${client}','${s}',this)">${s==='Poisson Frais'?'🐟':s==='Fruits & Légumes'?'🥦':s==='Animaux Vivants'?'🐾':'📦'}</button>`;
+          return'<button class="cat-btn '+String(cls)+'" style="'+String(style)+'" onclick="setSecteur(\''+String(client)+'\',\''+String(s)+'\',this)">'+String(s==='Poisson Frais'?'🐟':s==='Fruits & Légumes'?'🥦':s==='Animaux Vivants'?'🐾':'📦')+'</button>';
         }).join('')}
       </div></td>
     </tr>`;
@@ -3009,7 +3009,7 @@ async function sendFlashEmail(){
   const fd=S._flashData;
   const payload={
     subject:`⚡ Flash TAF — ${fd.label}`,
-    body:`Flash TAF — ${fd.label}\n\nBBE : ${fmtEur(fd.bbe)}\nÉvolution : ${fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A'}\nDossiers : ${fd.nbD} · Clients : ${fd.nbC} · Marge : ${fd.marge.toFixed(1)}%\nSecteur dominant : ${fd.topSec}\n\n${fd.aiSummary||''}\n\n— TAF STAT v1.2`,
+    body:'Flash TAF — '+fd.label+'\n\nBBE : '+fmtEur(fd.bbe)+'\nÉvolution : '+(fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A')+'\nDossiers : '+fd.nbD+' · Clients : '+fd.nbC+' · Marge : '+fd.marge.toFixed(1)+'%\nSecteur dominant : '+fd.topSec+'\n\n'+(fd.aiSummary||'')+'\n\n— TAF STAT v1.2',
     to:'direction@taftrans.fr'
   };
   try{
@@ -3028,7 +3028,7 @@ function renderObjectif(){
   const ytd=S.raw.filter(d=>d.year===year);
   const bbeCur=sum(ytd,'bbe');
   if(!obj){
-    document.getElementById('kpi-objectif').innerHTML=`<div class="kpi-card" style="grid-column:1/-1;text-align:center;padding:28px"><div style="font-size:12px;color:var(--text2);margin-bottom:10px">Aucun objectif pour ${year}</div><button class="btn-primary" onclick="openObjectifModal()">🎯 Définir l'objectif</button></div>`;
+    document.getElementById('kpi-objectif').innerHTML='<div class="kpi-card" style="grid-column:1/-1;text-align:center;padding:28px"><div style="font-size:12px;color:var(--text2);margin-bottom:10px">Aucun objectif pour '+String(year)+'</div><button class="btn-primary" onclick="openObjectifModal()">🎯 Définir l\'objectif</button></div>';
     document.getElementById('chart-objectif')?.getContext('2d');
     ['pessimiste','realiste','optimiste'].forEach(s=>{document.getElementById(`proj-${s}`).innerHTML='';});
     return;
@@ -3079,7 +3079,7 @@ function openSaveFilterModal(){
   const gran=document.getElementById('filter-granularity').value;
   const cmp=document.getElementById('filter-compare').value;
   const sec=document.getElementById('filter-secteur').value;
-  document.getElementById('filter-preview-save').textContent=`Année: ${year} · Granularité: ${gran} · Comparaison: N-${cmp} · Secteur: ${sec} · Preset: ${S.preset}`;
+  document.getElementById('filter-preview-save').textContent='Année: '+String(year)+' · Granularité: '+String(gran)+' · Comparaison: N-'+String(cmp)+' · Secteur: '+String(sec)+' · Preset: '+String(S.preset);
   openModal('modal-save-filter');
 }
 
@@ -3098,7 +3098,7 @@ function saveCurrentFilter(){
   localStorage.setItem('taf_stat_filters',JSON.stringify(S.savedFilters));
   closeModal('modal-save-filter');
   document.getElementById('input-filter-name').value='';
-  toast(`🔖 Filtre "${name}" sauvegardé`);
+  toast('🔖 Filtre "'+name+'" sauvegardé');
   if(S.currentView==='filtres') renderSavedFilters();
 }
 
@@ -3110,7 +3110,7 @@ function applyFilter(f){
   document.querySelectorAll('.btn-preset').forEach(b=>{b.classList.toggle('active',b.textContent===f.preset);});
   S.preset=f.preset;
   applyFilters();
-  toast(`✅ Filtre "${f.name}" appliqué`);
+  toast('✅ Filtre "'+f.name+'" appliqué');
 }
 
 function deleteFilter(id){
@@ -3191,8 +3191,8 @@ async function saveToDrive(){
           ${r.fallback?'<span style="font-size:9px;margin-left:4px">(téléchargé localement)</span>':''}
         </div>`).join('')}
       <div style="padding:10px;background:var(--mid);border-radius:var(--r2);font-size:11px;color:var(--text2);margin-top:4px">
-        ${ok>0?`✅ <strong>${ok}/${results.length}</strong> fichier(s) sauvegardés sur votre Drive TAF`:''}
-        ${fallback>0?`<br>⬇️ ${fallback} fichier(s) téléchargés en local (Drive indisponible)`:''}
+        ${ok>0?'✅ <strong>'+String(ok)+'/'+String(results.length)+'</strong> fichier(s) sauvegardés sur votre Drive TAF':''}
+        ${fallback>0?'<br>⬇️ '+String(fallback)+' fichier(s) téléchargés en local (Drive indisponible)':''}
         ${ok===0&&!fallback?'❌ Erreur réseau — vérifiez votre connexion':''}
       </div>
       <button class="btn-primary" style="margin-top:6px" onclick="closeModal('modal-drive')">OK</button>
@@ -3530,7 +3530,7 @@ async function publishKpisSemaine(){
   };
 
   const ok = await fbWrite('taf_stat/kpis_semaine', kpis);
-  if(ok) toast(`📊 KPIs S${kpis.semaine} publiés sur Firebase`);
+  if(ok) toast('📊 KPIs S'+kpis.semaine+' publiés sur Firebase');
   else toast('❌ Erreur Firebase');
 }
 
@@ -3543,7 +3543,7 @@ async function exportDormantsCRM(){
     count++;
     await sleep(100);
   }
-  toast(`✅ ${count} clients dormants envoyés vers TAF Commercial (Firebase)`);
+  toast('✅ '+count+' clients dormants envoyés vers TAF Commercial (Firebase)');
 }
 
 async function exportPerdusCRM(){
@@ -3637,11 +3637,11 @@ function filterCatTable(){
 
   // Pagination
   let pag=`<span>${total} clients`;
-  if(CAT_STATE.selected.size) pag+=` · <span style="color:var(--cyan)">${CAT_STATE.selected.size} sélectionné(s)</span>`;
+  if(CAT_STATE.selected.size) pag+=' · <span style="color:var(--cyan)">'+String(CAT_STATE.selected.size)+' sélectionné(s)</span>';
   pag+='</span>';
   if(pages>1) for(let p=1;p<=Math.min(pages,15);p++) pag+=`<button class="page-btn ${p===CAT_STATE.page?'active':''}" onclick="catGoPage(${p})">${p}</button>`;
   document.getElementById('cat-pagination').innerHTML=pag;
-  document.getElementById('cat-selected-count').textContent=`${CAT_STATE.selected.size} client(s) sélectionné(s)`;
+  document.getElementById('cat-selected-count').textContent=CAT_STATE.selected.size+' client(s) sélectionné(s)';
 }
 
 function catGoPage(p){CAT_STATE.page=p;filterCatTable();}
@@ -3678,7 +3678,7 @@ function setSecteurAndRefresh(client,secteur){
 function toggleCatSelect(client,cb){
   if(cb.checked) CAT_STATE.selected.add(client);
   else CAT_STATE.selected.delete(client);
-  document.getElementById('cat-selected-count').textContent=`${CAT_STATE.selected.size} client(s) sélectionné(s)`;
+  document.getElementById('cat-selected-count').textContent=CAT_STATE.selected.size+' client(s) sélectionné(s)';
 }
 
 function applyBulkCategory(secteur){
@@ -3738,7 +3738,7 @@ function renderPeriode(){
 
   // Label période
   const labels={week:'Semaine',month:'Mois',quarter:'Trimestre',semester:'Semestre',year:'Année'};
-  document.getElementById('periode-label').textContent=`— ${data.length} dossiers analysés`;
+  document.getElementById('periode-label').textContent='— '+data.length+' dossiers analysés';
 
   const bbe=sum(data,'bbe'), fc=sum(data,'fc'), nbD=data.length;
   const bbeCmp=sum(cmpData,'bbe'), fcCmp=sum(cmpData,'fc');
@@ -3807,7 +3807,7 @@ function renderPeriode(){
 
   // Records & Insights
   const bbeByWeekNum={};
-  data.forEach(d=>{const k=`${gran==='week'?'S':''}${gran==='week'?d.week:gran==='month'?['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.month-1]:gran==='quarter'?'T'+d.quarter:''}`;bbeByWeekNum[k]=(bbeByWeekNum[k]||0)+d.bbe;});
+  data.forEach(d=>{const k=String(gran==='week'?'S':'')+String(gran==='week'?d.week:gran==='month'?['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.month-1]:gran==='quarter'?'T'+d.quarter:'');bbeByWeekNum[k]=(bbeByWeekNum[k]||0)+d.bbe;});
   const bestPeriodKey=Object.entries(bbeByWeekNum).sort(([,a],[,b])=>b-a)[0];
   const lastDossier=data.sort((a,b)=>b.date-a.date)[0];
   const firstDossier=[...data].sort((a,b)=>a.date-b.date)[0];
