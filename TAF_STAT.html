@@ -2178,17 +2178,21 @@ async function handleFileSelect(files){
   const prog=document.getElementById('import-progress');
   prog.style.display='block';
   for(const f of files){
-    prog.textContent='⏳ '+(f.name)+'...';
+    prog.textContent='Chargement '+f.name+'...';
     try{
       const {dossiers,year}=await parseFile(f);
-      const existing=new Set(S.raw.map(d=>d.dossier));
-      const newD=dossiers.filter(d=>!existing.has(d.dossier));
-      S.raw.push(...newD);
-      const bbe=newD.reduce((s,d)=>s+d.bbe,0);
-      const yr=year||(newD[0]?.year||'?');
-      if(!S.loadedMeta.find(m=>m.year===String(yr)))
-        S.loadedMeta.push({year:String(yr),name:f.name,count:newD.length,bbe});
-    } catch(e){console.error(e); prog.textContent='❌ '+(f.name);}
+      if(!dossiers.length){prog.textContent='Aucun dossier trouvé dans '+f.name; continue;}
+      // Stratégie : REMPLACER toute l'année importée (Malta exporte toujours le fichier complet)
+      // On supprime les entrées existantes de cette année puis on ajoute tout
+      const yr=dossiers[0].year;
+      S.raw=S.raw.filter(function(d){return d.year!==yr;});
+      S.raw.push(...dossiers);
+      const bbe=dossiers.reduce(function(s,d){return s+d.bbe;},0);
+      // Mettre à jour les métadonnées
+      S.loadedMeta=S.loadedMeta.filter(function(m){return m.year!==String(yr);});
+      S.loadedMeta.push({year:String(yr),name:f.name,count:dossiers.length,bbe:bbe});
+      prog.textContent='OK: '+dossiers.length+' dossiers '+yr;
+    } catch(e){console.error(e); prog.textContent='Erreur: '+f.name;}
   }
   prog.style.display='none';
   refreshLoadedFiles();
@@ -2254,6 +2258,9 @@ function initState(){
   const ipList=document.getElementById('ip-client-list');
   if(ipList) ipList.innerHTML=[...new Set(S.raw.map(d=>d.client))].sort().map(c=>'<option value="'+c+'">').join('');
   setTimeout(autoSaveState, 1000);
+  // Appliquer les filtres et afficher le dashboard automatiquement
+  applyFilters();
+  showView('dashboard');
 }
 
 // ══════════════════════════════════════════════════════════════
