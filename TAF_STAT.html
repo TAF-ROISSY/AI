@@ -1181,6 +1181,9 @@ body::after {
         <button class="btn-secondary" style="font-size:10px;background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.3);color:var(--purple)" onclick="analyseIADashboard()">🤖 Analyse IA du tableau de bord</button>
       </div>
       <div class="kpi-grid" id="kpi-main"></div>
+
+      <!-- Bandeau Contexte Pluriannuel -->
+      <div id="kpi-pluriannuel" style="display:none;background:rgba(255,255,255,0.015);border:1px solid rgba(255,184,0,0.1);border-radius:var(--r);padding:10px 18px;margin-bottom:14px"></div>
       <div class="chart-card">
         <div class="chart-title">📈 Évolution BBE</div>
         <div class="chart-legend" id="evo-legend"></div>
@@ -2504,139 +2507,95 @@ function aggBy(data,gran){
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function renderDashboard(){
-  const data=S.filtered, cmp=getCmpData();
-  const bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
-  const fc=sum(data,'fc'), nbD=data.length, nbC=new Set(data.map(d=>d.client)).size;
-  // CORRECTION: marge = BBE/FC global (pas moyenne des % Malta)
-  const marg=fc>0?(bbe/fc*100):0;
-  const cmpOff=document.getElementById('filter-compare').value;
-  const yearSel2=document.getElementById('filter-year').value;
+  var data=S.filtered, cmp=getCmpData();
+  var bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
+  var fc=sum(data,'fc'), nbD=data.length, nbC=new Set(data.map(function(d){return d.client;})).size;
+  var marg=fc>0?(bbe/fc*100):0;
+  var cmpOff=document.getElementById('filter-compare').value;
+  var yearSel2=document.getElementById('filter-year').value;
   var samePeriod=isSamePeriodMode();
-  const cmpYearNum=cmpOff!=='none'&&yearSel2!=='all'?parseInt(yearSel2)-parseInt(cmpOff):null;
+  var cmpYearNum=cmpOff!=='none'&&yearSel2!=='all'?parseInt(yearSel2)-parseInt(cmpOff):null;
   var cmpLabel=cmpYearNum?(samePeriod?(cmpYearNum+' même période'):String(cmpYearNum)):'';
+  var objYear=yearSel2==='all'?null:yearSel2;
+  var obj=objYear?S.objectifs[objYear]:null;
+  var objPct=obj?(bbe/obj*100):null;
+  var bbeCmpVal=sum(cmp,'bbe'), fcCmpVal=sum(cmp,'fc');
+  var nbDCmpVal=cmp.length, nbCCmpVal=new Set(cmp.map(function(d){return d.client;})).size;
+  var margCmpVal=sum(cmp,'fc')>0?(sum(cmp,'bbe')/sum(cmp,'fc')*100):0;
 
-  // Indicateur de progression vers objectif annuel
-  const objYear=yearSel2==='all'?null:yearSel2;
-  const obj=objYear?S.objectifs[objYear]:null;
-  const objPct=obj?(bbe/obj*100):null;
-
-  // Valeurs de comparaison réelles
-  const bbeCmpVal=sum(cmp,'bbe');
-  const fcCmpVal=sum(cmp,'fc');
-  const nbDCmpVal=cmp.length;
-  const nbCCmpVal=new Set(cmp.map(d=>d.client)).size;
-  const margCmpVal=sum(cmp,'fc')>0?(sum(cmp,'bbe')/sum(cmp,'fc')*100):0;
-
-  const kpiItems=[
-    {label:'Bénéfice Brut Estimé', value:fmtEur(bbe),    cmpVal:bbeCmpVal,  cmpFmt:fmtEur,    d:delta(bbe,bbeCmpVal),    acc:'gold-accent'},
-    {label:'CA (F.C.)',            value:fmtEur(fc),     cmpVal:fcCmpVal,   cmpFmt:fmtEur,    d:delta(fc,fcCmpVal)},
-    {label:'Dossiers',             value:nbD,            cmpVal:nbDCmpVal,  cmpFmt:v=>v,      d:delta(nbD,nbDCmpVal)},
-    {label:'Clients Actifs',       value:nbC,            cmpVal:nbCCmpVal,  cmpFmt:v=>v,      d:delta(nbC,nbCCmpVal)},
-    {label:'Marge Moyenne',        value:marg.toFixed(1)+'%', cmpVal:margCmpVal, cmpFmt:v=>v.toFixed(1)+'%', d:delta(marg,margCmpVal)},
+  var kpiItems=[
+    {label:'Bénéfice Brut Estimé', value:fmtEur(bbe),         cmpVal:bbeCmpVal,  cmpFmt:fmtEur,              d:delta(bbe,bbeCmpVal),    acc:'gold-accent'},
+    {label:'CA (F.C.)',            value:fmtEur(fc),           cmpVal:fcCmpVal,   cmpFmt:fmtEur,              d:delta(fc,fcCmpVal)},
+    {label:'Dossiers',             value:nbD,                  cmpVal:nbDCmpVal,  cmpFmt:function(v){return v;}, d:delta(nbD,nbDCmpVal)},
+    {label:'Clients Actifs',       value:nbC,                  cmpVal:nbCCmpVal,  cmpFmt:function(v){return v;}, d:delta(nbC,nbCCmpVal)},
+    {label:'Marge Moyenne',        value:marg.toFixed(1)+'%',  cmpVal:margCmpVal, cmpFmt:function(v){return v.toFixed(1)+'%';}, d:delta(marg,margCmpVal)},
     {label:'BBE / Dossier',        value:nbD?fmtEur(bbe/nbD):'—'},
   ];
 
-  document.getElementById('kpi-main').innerHTML=kpiItems.map(k=>{
-    const hasCmp=cmpOff!=='none'&&cmp.length>0&&k.d;
-    const progBar=hasCmp?'<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:5px"><div style="width:'+(Math.min(100,parseFloat(k.d.pct)))+'%;height:100%;background:'+(k.d.cls==='up'?'var(--green)':'var(--red)')+';border-radius:2px;transition:width 0.5s"></div></div>':'';
-    const cmpLine=hasCmp?`
-      <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
-        <div class="kpi-delta ${k.d.cls}">${k.d.arrow} ${k.d.pct}%</div>
-        <span style="font-size:9px;font-family:var(--mono);color:var(--text3)">${k.cmpFmt(k.cmpVal)}</span>
-      </div>
-      <div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:1px">vs ${cmpLabel}</div>
-      ${progBar}`:'';
-    return`<div class="kpi-card ${k.acc||''}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}</div>
-      ${cmpLine}
-      ${k.acc==='gold-accent'&&objPct?'<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:3px">🎯 Objectif : '+(objPct.toFixed(1))+'%</div>':''}
-    </div>`;
+  document.getElementById('kpi-main').innerHTML=kpiItems.map(function(k){
+    var hasCmp=cmpOff!=='none'&&cmp.length>0&&k.d;
+    var h='<div class="kpi-card '+(k.acc||'')+'">';
+    h+='<div class="kpi-label">'+k.label+'</div>';
+    h+='<div class="kpi-value">'+k.value+'</div>';
+    if(hasCmp){
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">';
+      h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';
+      h+='<span style="font-size:9px;font-family:var(--mono);color:var(--text3)">'+k.cmpFmt(k.cmpVal)+'</span>';
+      h+='</div>';
+      h+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:1px">vs '+cmpLabel+'</div>';
+      h+='<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:5px"><div style="width:'+Math.min(100,Math.max(0,objPct||0))+'%;height:100%;background:'+k.d.cls+'Var;border-radius:2px"></div></div>';
+    }
+    if(k.acc==='gold-accent'&&objPct) h+='<div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:4px">'+objPct.toFixed(1)+'% objectif</div>';
+    h+='</div>';
+    return h;
   }).join('');
 
   // Anomalies
-  const anomalies=detectAnomalies(data,cmp);
-  const aBar=document.getElementById('anomaly-bar');
+  var anomalies=detectAnomalies(data,cmp);
+  var aBar=document.getElementById('anomaly-bar');
   if(anomalies.length){
     aBar.style.display='block';
     aBar.innerHTML='<div class="anomaly-list">'+anomalies.map(function(a){return '<div class="anomaly-card '+a.type+'"><span>'+a.icon+'</span><span class="anomaly-text">'+a.text+'</span></div>';}).join('')+'</div>';
+  } else {
+    aBar.style.display='none';
+  }
 
-  // Cards par année
-  document.getElementById('sw-year-cards').innerHTML=yearsToShow.slice().reverse().map(function(y,i){
-    const yd=data.filter(d=>d.year===y);
-    const wm=buildWeekMap(yd,metric);
-    const vals=Object.values(wm).map(function(w){return swVal([{bbe:w.bbe,fc:w.fc,pct:avg(w.pcts),dossiers:w.dossiers}],metric);});
-    if(!vals.length) return '';
-    const yAvg=avg(vals), yMax=Math.max(...vals), yMin=Math.min(...vals);
-    const yMed=vals.slice().sort((a,b)=>a-b)[Math.floor(vals.length/2)];
-    const bestWeek=Object.entries(wm).find(([k,w])=>swVal([{bbe:w.bbe,fc:w.fc,pct:avg(w.pcts),dossiers:w.dossiers}],metric)===yMax);
-
-    // Progressions année
-    const wKeys=Object.keys(wm).map(Number).sort((a,b)=>a-b);
-    const yProgs=[];
-    for(let j=1;j<wKeys.length;j++){
-      const pv=swVal([{bbe:wm[wKeys[j-1]].bbe,fc:wm[wKeys[j-1]].fc,pct:avg(wm[wKeys[j-1]].pcts),dossiers:wm[wKeys[j-1]].dossiers}],metric);
-      const cv=swVal([{bbe:wm[wKeys[j]].bbe,fc:wm[wKeys[j]].fc,pct:avg(wm[wKeys[j]].pcts),dossiers:wm[wKeys[j]].dossiers}],metric);
-      if(pv>0) yProgs.push(((cv-pv)/pv)*100);
-    }
-    const yAvgProg=yProgs.length?avg(yProgs):0;
-    const yMaxProg=yProgs.length?Math.max(...yProgs):0;
-
-    // Nb dossiers stats
-    const dosVals=Object.values(wm).map(w=>w.dossiers);
-    const dosAvg=avg(dosVals), dosMin=Math.min(...dosVals), dosMax=Math.max(...dosVals);
-
-    return'<div class="chart-card" style="border-top:2px solid '+palette[i%palette.length]+'">'
-      +'<div class="chart-title" style="color:'+palette[i%palette.length]+'">'+y+' — '+(Math.max(...Object.keys(wm).map(Number))-Math.min(...Object.keys(wm).map(Number))+1)+' semaines</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Moy/semaine</span><span class="stat-value" style="color:'+palette[i%palette.length]+'">'+fmtMetric(yAvg)+'</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Médiane</span><span class="stat-value">'+fmtMetric(yMed)+'</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Maximum</span><span class="stat-value" style="color:var(--green)">'+fmtMetric(yMax)+'</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Minimum</span><span class="stat-value" style="color:var(--red)">'+fmtMetric(yMin)+'</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Dossiers moy</span><span class="stat-value">'+dosAvg.toFixed(1)+'/sem</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Dos. min/max</span><span class="stat-value">'+dosMin+' / '+dosMax+'</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Prog. moy S/S</span><span class="stat-value" style="color:'+(yAvgProg>=0?'var(--green)':'var(--red)')+')">'+(yAvgProg>=0?'+':'')+yAvgProg.toFixed(1)+'%</span></div>'
-      +'<div class="stat-row" style="padding:4px 0"><span class="stat-label">Meilleure prog.</span><span class="stat-value" style="color:var(--green)">+'+yMaxProg.toFixed(1)+'%</span></div>'
-      +'</div>'
-      +'<div style="font-size:9px;font-family:var(--mono);color:var(--text3)">🏆 Semaine record : S'+bestWeek?.[0]+' ('+fmtMetric(yMax)+')</div>'
-      +'</div>';
-  }).join('');
-
-  // Chart distribution
-  const bins=10;
-  const binSize=(globalMax-globalMin)/bins||1;
-  const binLabels=Array.from({length:bins},(_,i)=>fmtMetric(Math.round(globalMin+i*binSize)));
-  const binCounts=Array(bins).fill(0);
-  allWeekValues.forEach(v=>{
-    const idx=Math.min(Math.floor((v-globalMin)/binSize),bins-1);
-    if(idx>=0) binCounts[idx]++;
-  });
-  destroyC('sw-chart-dist');
-  S.charts['sw-chart-dist']=new Chart(document.getElementById('sw-chart-dist'),{
-    type:'bar',data:{labels:binLabels,datasets:[{data:binCounts,backgroundColor:'#FFB80044',borderColor:'#FFB800',borderWidth:1}]},
-    options:{...chartOpts(),scales:{x:{ticks:{maxRotation:30,font:{size:8}}},y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  // Chart évolution BBE
+  var gran=document.getElementById('filter-granularity')?.value||'month';
+  var periods=aggBy(data,gran), periodsCmp=aggBy(cmp,gran);
+  renderLegend('evo-legend',cmpOff);
+  destroyC('chart-evo');
+  S.charts['chart-evo']=new Chart(document.getElementById('chart-evo'),{
+    type:'line',
+    data:{
+      labels:periods.map(function(p){return p.label;}),
+      datasets:[
+        {label:'BBE',data:periods.map(function(p){return Math.round(p.bbe);}),borderColor:'#FFB800',backgroundColor:'rgba(255,184,0,0.08)',fill:true,tension:0.3,pointRadius:2,pointHoverRadius:5},
+        periodsCmp.length?{label:'N-'+cmpOff,data:periodsCmp.map(function(p){return Math.round(p.bbe);}),borderColor:'#f0a500',backgroundColor:'transparent',borderDash:[4,4],tension:0.3,pointRadius:0}:null
+      ].filter(Boolean)
+    },
+    options:{...chartOpts(),scales:{x:{ticks:{maxRotation:0,font:{size:8}},grid:{color:'rgba(255,184,0,0.05)'}},y:{ticks:{callback:function(v){return fmtK(v);},font:{size:8}},grid:{color:'rgba(255,184,0,0.05)'}}}}
   });
 
-  // Chart progressions
-  const progBins=[-50,-30,-20,-10,-5,0,5,10,20,30,50];
-  const progLabels=progBins.slice(0,-1).map((v,i)=>v+'% → '+progBins[i+1]+'%');
-  const progCounts=Array(progBins.length-1).fill(0);
-  progressions.forEach(p=>{
-    for(let i=0;i<progBins.length-1;i++){if(p>=progBins[i]&&p<progBins[i+1]){progCounts[i]++;break;}}
-  });
-  destroyC('sw-chart-prog');
-  S.charts['sw-chart-prog']=new Chart(document.getElementById('sw-chart-prog'),{
-    type:'bar',
-    data:{labels:progLabels,datasets:[{
-      data:progCounts,
-      backgroundColor:progBins.slice(0,-1).map(v=>v<0?'rgba(255,61,113,0.3)':'rgba(0,245,160,0.3)'),
-      borderColor:progBins.slice(0,-1).map(v=>v<0?'#FF3D71':'#00F5A0'),
-      borderWidth:1
-    }]},
-    options:{...chartOpts(),scales:{x:{ticks:{maxRotation:40,font:{size:8}}},y:{beginAtZero:true}}}
+  // Chart secteurs (donut)
+  var bySec=groupBy(data,'secteur');
+  var secNames=Object.keys(bySec), secBBE=secNames.map(function(s){return Math.round(sum(bySec[s],'bbe'));});
+  destroyC('chart-sectors');
+  S.charts['chart-sectors']=new Chart(document.getElementById('chart-sectors'),{
+    type:'doughnut',
+    data:{labels:secNames,datasets:[{data:secBBE,backgroundColor:['#00E5FF','#00F5A0','#B8ACFF','#FFB800'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:true,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#7A8FAD',font:{size:10},boxWidth:10}}}}
   });
 
-  renderSwDetail();
+  renderBarChart('chart-dossiers',periods,'dossiers');
+  renderBarChart('chart-marge',periods,'margeAvg','#818cf8');
+
+  // ── Bandeau pluriannuel (moy / best / worst sur toutes les années en mémoire)
+  renderContextePluriannuel(data);
+
+  // Score Santé + Projection BBE
+  renderScoreSante();
+  renderProjectionBBE();
 }
 
 function renderSwDetail(){
@@ -2983,6 +2942,7 @@ async function analyseIAImpact(){
 
 // ══════════════════════════════════════════════════════════════
 //  RESET FILTRES
+function resetFilters(){
   // Remettre tous les filtres à zéro
   const yearSel=document.getElementById('filter-year');
   if(yearSel&&S.years.length) yearSel.value=Math.max(...S.years);
@@ -4157,6 +4117,7 @@ function dlCSV(csv,name){
 // ══════════════════════════════════════════════════════════════
 const fmt=n=>n?Math.round(n).toLocaleString('fr'):'0';
 const fmtEur=n=>n?Math.round(n).toLocaleString('fr')+'€':'0€';
+const fmtK=function(v){return v>=1000?(v/1000).toFixed(0)+'k':Math.round(v);};
 const sum=(arr,k)=>arr.reduce((s,d)=>s+(d[k]||0),0);
 const avg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;
 const groupBy=(arr,k)=>arr.reduce((m,d)=>{(m[d[k]]=m[d[k]]||[]).push(d);return m;},{});
@@ -4185,6 +4146,271 @@ function toast(msg){
 // TOOLTIP
 function showTT(e,text){const t=document.getElementById('taf-tooltip');t.textContent=text;t.style.display='block';t.style.left=e.pageX+10+'px';t.style.top=e.pageY-28+'px';}
 function hideTT(){document.getElementById('taf-tooltip').style.display='none';}
+
+// ══ SCORE SANTÉ D'ACTIVITÉ ══════════════════════════════════════
+function renderScoreSante(){
+  if(!S.raw.length) return;
+  var data=S.filtered, cmp=getCmpData();
+  var bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
+  var fc=sum(data,'fc'), marge=fc>0?(bbe/fc*100):0;
+  var year=Math.max.apply(null,S.years);
+  var scores=[];
+
+  // 1. Evolution BBE vs N-1 (25 pts)
+  var s1=0;
+  if(bbeCmp>0){var ep=(bbe-bbeCmp)/bbeCmp*100; s1=ep>15?25:ep>5?20:ep>0?15:ep>-10?8:0;}
+  else s1=12;
+  scores.push({l:'Evolution vs N-1',s:s1,m:25,d:bbeCmp>0?((bbe-bbeCmp)/bbeCmp*100).toFixed(1)+'%':'N/A',c:s1>=20?'green':s1>=12?'gold':'red'});
+
+  // 2. Marge (20 pts)
+  var s2=marge>25?20:marge>18?16:marge>12?11:marge>6?6:0;
+  scores.push({l:'Marge Brute',s:s2,m:20,d:marge.toFixed(1)+'%',c:s2>=16?'green':s2>=10?'gold':'red'});
+
+  // 3. Diversification (15 pts)
+  var cg=groupBy(data,'client');
+  var top3=Object.values(cg).map(function(d){return sum(d,'bbe');}).sort(function(a,b){return b-a;}).slice(0,3);
+  var top3p=bbe>0?top3.reduce(function(a,v){return a+v;},0)/bbe*100:0;
+  var s3=top3p<40?15:top3p<55?11:top3p<70?6:2;
+  scores.push({l:'Diversification',s:s3,m:15,d:'Top3='+top3p.toFixed(0)+'%',c:s3>=11?'green':s3>=6?'gold':'red'});
+
+  // 4. Rétention (15 pts)
+  var activeC=new Set(S.raw.filter(function(d){return d.year===year;}).map(function(d){return d.client;}));
+  var prevC=new Set(S.raw.filter(function(d){return d.year===year-1;}).map(function(d){return d.client;}));
+  var lost=0; prevC.forEach(function(c){if(!activeC.has(c))lost++;});
+  var ret=prevC.size>0?(1-lost/prevC.size)*100:100;
+  var s4=ret>85?15:ret>70?11:ret>55?6:2;
+  scores.push({l:'Retention clients',s:s4,m:15,d:ret.toFixed(0)+'%',c:s4>=11?'green':s4>=6?'gold':'red'});
+
+  // 5. Volume hebdo (15 pts)
+  var wksA=new Set(data.map(function(d){return d.week;})).size||1;
+  var wksCmp=new Set(cmp.map(function(d){return d.week;})).size||1;
+  var avgW=bbe/wksA, avgWc=bbeCmp/wksCmp;
+  var s5=avgWc>0?(avgW>=avgWc*0.95?15:avgW>=avgWc*0.8?10:avgW>=avgWc*0.65?6:2):10;
+  scores.push({l:'Volume hebdo',s:s5,m:15,d:fmtEur(avgW)+'/sem',c:s5>=10?'green':s5>=6?'gold':'red'});
+
+  // 6. Nouveaux clients (10 pts)
+  var prevAll=new Set(S.raw.filter(function(d){return d.year<year;}).map(function(d){return d.client;}));
+  var newC=[...activeC].filter(function(c){return!prevAll.has(c);}).length;
+  var s6=newC>5?10:newC>2?7:newC>0?4:1;
+  scores.push({l:'Nouveaux clients',s:s6,m:10,d:newC+' nouveaux',c:s6>=7?'green':s6>=4?'gold':'red'});
+
+  var total=scores.reduce(function(a,s){return a+s.s;},0);
+  var maxT=scores.reduce(function(a,s){return a+s.m;},0);
+  var pct=Math.round(total/maxT*100);
+
+  var color=pct>=75?'var(--green)':pct>=55?'var(--cyan)':pct>=35?'var(--gold)':'var(--red)';
+  var label=pct>=75?'Excellent':pct>=55?'Bon':pct>=35?'Attention':'Alerte';
+  var bg=pct>=75?'rgba(0,245,160,0.1)':pct>=55?'rgba(0,229,255,0.1)':pct>=35?'rgba(255,184,0,0.1)':'rgba(255,61,113,0.1)';
+
+  var circle=document.getElementById('sante-score-circle');
+  if(!circle) return;
+  circle.textContent=pct;
+  circle.style.background=bg;
+  circle.style.borderColor=color;
+  circle.style.color=color;
+  document.getElementById('sante-label').textContent=label;
+  document.getElementById('sante-label').style.color=color;
+  document.getElementById('sante-sub').textContent=pct+'/100';
+  var bar=document.getElementById('sante-bar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=color;}
+
+  // Composantes
+  var comp=document.getElementById('sante-composantes');
+  if(comp){
+    comp.innerHTML=scores.map(function(s){
+      var p=Math.round(s.s/s.m*100);
+      var cc=s.c==='green'?'var(--green)':s.c==='gold'?'var(--gold)':'var(--red)';
+      return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
+        +'<span style="font-size:10px;color:var(--text2)">'+s.l+'</span>'
+        +'<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+cc+'">'+s.s+'/'+s.m+'</span>'
+        +'</div>'
+        +'<div style="height:3px;background:var(--mid);border-radius:2px">'
+        +'<div style="height:100%;width:'+p+'%;background:'+cc+';border-radius:2px"></div>'
+        +'</div>'
+        +'<div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px">'+s.d+'</div>'
+        +'</div>';
+    }).join('');
+  }
+}
+
+function toggleSanteDetail(){
+  var el=document.getElementById('sante-detail');
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+}
+
+// ══ CONTEXTE PLURIANNUEL ════════════════════════════════════════
+function renderContextePluriannuel(currentData){
+  var el=document.getElementById('kpi-pluriannuel');
+  if(!el) return;
+  if(S.years.length<2){el.style.display='none';return;}
+
+  var yearSel=document.getElementById('filter-year')?.value||'all';
+  var preset=S.preset;
+  var now=new Date();
+
+  // Pour chaque année en mémoire, calculer BBE et dossiers sur la même période relative
+  var yearStats=S.years.map(function(y){
+    var yd=S.raw.filter(function(d){return d.year===y;});
+    // Si filtre de période (preset), appliquer la même fenêtre temporelle sur chaque année
+    if(preset!=='ALL'){
+      var range=getPresetRange(preset,y);
+      if(range) yd=yd.filter(function(d){return d.date>=range.from&&d.date<=range.to;});
+    }
+    return {y:y, bbe:sum(yd,'bbe'), fc:sum(yd,'fc'), dos:yd.length,
+            clients:new Set(yd.map(function(d){return d.client;})).size,
+            marge:sum(yd,'fc')>0?(sum(yd,'bbe')/sum(yd,'fc')*100):0};
+  }).filter(function(s){return s.bbe>0;});
+
+  if(yearStats.length<2){el.style.display='none';return;}
+
+  var bbeAll=yearStats.map(function(s){return s.bbe;});
+  var dosAll=yearStats.map(function(s){return s.dos;});
+  var margeAll=yearStats.map(function(s){return s.marge;});
+  var avgBBE=bbeAll.reduce(function(a,v){return a+v;},0)/bbeAll.length;
+  var avgDos=dosAll.reduce(function(a,v){return a+v;},0)/dosAll.length;
+  var avgMarge=margeAll.reduce(function(a,v){return a+v;},0)/margeAll.length;
+
+  var bestBBE=yearStats.reduce(function(a,b){return b.bbe>a.bbe?b:a;});
+  var worstBBE=yearStats.reduce(function(a,b){return b.bbe<a.bbe?b:a;});
+  var curBBE=sum(currentData,'bbe');
+  var curDos=currentData.length;
+  var curMarge=sum(currentData,'fc')>0?(sum(currentData,'bbe')/sum(currentData,'fc')*100):0;
+
+  function pctVs(cur,ref){
+    if(!ref) return '';
+    var p=(cur-ref)/ref*100;
+    var c=p>=0?'var(--green)':'var(--red)';
+    return '<span style="font-family:var(--mono);font-size:9px;color:'+c+';margin-left:4px">'+(p>=0?'+':'')+p.toFixed(1)+'%</span>';
+  }
+
+  // Barre sparkline des années
+  var maxBBE=Math.max.apply(null,bbeAll)||1;
+  var sparkline=yearStats.slice().sort(function(a,b){return a.y-b.y;}).map(function(s){
+    var h=Math.max(4,Math.round(s.bbe/maxBBE*32));
+    var isCur=yearSel!=='all'&&s.y===parseInt(yearSel);
+    var isBest=s.y===bestBBE.y;
+    var col=isBest?'#FFB800':isCur?'#00E5FF':'rgba(255,255,255,0.2)';
+    return '<div title="'+s.y+' : '+fmtEur(s.bbe)+'" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default">'
+      +'<div style="width:14px;height:'+h+'px;background:'+col+';border-radius:2px;align-self:flex-end"></div>'
+      +'<div style="font-family:var(--mono);font-size:7px;color:'+(isCur?'#00E5FF':'var(--text3)')+'">'+String(s.y).slice(2)+'</div>'
+      +'</div>';
+  }).join('');
+
+  el.style.display='block';
+  el.innerHTML=''
+    +'<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">'
+    // Label
+    +'<div style="font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;white-space:nowrap">'+yearStats.length+' années</div>'
+    // Sparkline
+    +'<div style="display:flex;align-items:flex-end;gap:3px;padding:0 4px">'+sparkline+'</div>'
+    // Stats
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;flex:1">'
+    // Moy
+    +'<div style="display:flex;flex-direction:column;gap:2px">'
+    +'<div style="font-family:var(--mono);font-size:8px;color:var(--text3)">MOY</div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--text2)">'+fmtEur(avgBBE)+pctVs(curBBE,avgBBE)+'</div>'
+    +'<div style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+Math.round(avgDos)+' dos · '+avgMarge.toFixed(1)+'%</div>'
+    +'</div>'
+    // Meilleur
+    +'<div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid rgba(255,184,0,0.2);padding-left:12px">'
+    +'<div style="font-family:var(--mono);font-size:8px;color:var(--gold)">RECORD '+bestBBE.y+'</div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--gold)">'+fmtEur(bestBBE.bbe)+pctVs(curBBE,bestBBE.bbe)+'</div>'
+    +'<div style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+bestBBE.dos+' dos · '+bestBBE.marge.toFixed(1)+'%</div>'
+    +'</div>'
+    // Pire
+    +'<div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid rgba(255,61,113,0.2);padding-left:12px">'
+    +'<div style="font-family:var(--mono);font-size:8px;color:var(--red)">MIN '+worstBBE.y+'</div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--red)">'+fmtEur(worstBBE.bbe)+pctVs(curBBE,worstBBE.bbe)+'</div>'
+    +'<div style="font-family:var(--mono);font-size:9px;color:var(--text3)">'+worstBBE.dos+' dos · '+worstBBE.marge.toFixed(1)+'%</div>'
+    +'</div>'
+    +'</div>'
+    +'</div>';
+}
+
+
+
+// ══ PROJECTION BBE FIN D'ANNEE ══════════════════════════════════
+var _projChart=null;
+
+function renderProjectionBBE(){
+  if(!S.raw.length) return;
+  var year=Math.max.apply(null,S.years);
+  var yearData=S.raw.filter(function(d){return d.year===year;});
+  if(!yearData.length) return;
+
+  var now=new Date();
+  var startOfYear=new Date(year,0,1);
+  var endOfYear=new Date(year,11,31);
+  var daysPassed=Math.max(1,Math.round((now-startOfYear)/86400000));
+  var daysTotal=Math.round((endOfYear-startOfYear)/86400000)+1;
+  var daysLeft=daysTotal-daysPassed;
+  var bbeYTD=sum(yearData,'bbe');
+  var ratePerDay=bbeYTD/daysPassed;
+
+  var projReal=bbeYTD+ratePerDay*daysLeft;
+  var projPess=bbeYTD+ratePerDay*0.75*daysLeft;
+  var projOpti=bbeYTD+ratePerDay*1.25*daysLeft;
+
+  var prevData=S.raw.filter(function(d){return d.year===year-1;});
+  var bbePrev=sum(prevData,'bbe');
+
+  var daysLeftEl=document.getElementById('proj-days-left');
+  if(daysLeftEl) daysLeftEl.textContent=daysLeft+'j restants en '+year;
+
+  var scenarios=[
+    {label:'Pessimiste',val:projPess,color:'var(--red)'},
+    {label:'Réaliste',  val:projReal,color:'var(--gold)'},
+    {label:'Optimiste', val:projOpti,color:'var(--green)'},
+  ];
+
+  var projEl=document.getElementById('proj-scenarios');
+  if(projEl){
+    projEl.innerHTML=scenarios.map(function(s){
+      var pct=bbePrev>0?(s.val-bbePrev)/bbePrev*100:null;
+      var dt=pct!==null?((pct>=0?'+':'')+pct.toFixed(1)+'% vs N-1'):'';
+      var dc=pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--text3)';
+      return '<div style="text-align:center;padding:6px 8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--r2)">'
+        +'<div style="font-family:var(--mono);font-size:7px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">'+s.label+'</div>'
+        +'<div style="font-family:var(--mono);font-size:14px;font-weight:700;color:'+s.color+'">'+fmtEur(s.val)+'</div>'
+        +'<div style="font-size:9px;color:'+dc+';margin-top:2px;font-family:var(--mono)">'+dt+'</div>'
+        +'</div>';
+    }).join('');
+  }
+
+  // Mini chart cumulé
+  var byWeek={};
+  yearData.forEach(function(d){byWeek[d.week]=(byWeek[d.week]||0)+d.bbe;});
+  var currentWeek=getWeek(now);
+  var wLabels=[],wActual=[],wProj=[];
+  var cumA=0,cumP=0;
+  for(var w=1;w<=52;w++){
+    var isReal=w<=currentWeek;
+    cumA+=isReal?(byWeek[w]||0):0;
+    cumP+=!isReal?ratePerDay*7:0;
+    if(w%4===0||w===1||w===52){
+      wLabels.push('S'+w);
+      wActual.push(isReal?Math.round(cumA):null);
+      wProj.push(!isReal?Math.round(cumA+cumP):null);
+    }
+  }
+  if(_projChart){_projChart.destroy();_projChart=null;}
+  var ctx=document.getElementById('chart-projection-mini');
+  if(ctx){
+    _projChart=new Chart(ctx,{
+      type:'line',
+      data:{labels:wLabels,datasets:[
+        {label:'Réel',data:wActual,borderColor:'#FFB800',backgroundColor:'rgba(255,184,0,0.08)',fill:true,tension:0.3,pointRadius:0,spanGaps:true,borderWidth:2},
+        {label:'Projection',data:wProj,borderColor:'rgba(0,245,160,0.6)',fill:true,backgroundColor:'rgba(0,245,160,0.04)',tension:0.2,pointRadius:0,spanGaps:true,borderWidth:1,borderDash:[4,4]},
+        bbePrev>0?{label:'N-1',data:wLabels.map(function(){return Math.round(bbePrev);}),borderColor:'rgba(255,255,255,0.1)',fill:false,pointRadius:0,borderWidth:1,borderDash:[2,4]}:null
+      ].filter(Boolean)},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:'#2A3F5A',font:{size:7}},grid:{display:false}},
+                y:{ticks:{color:'#2A3F5A',font:{size:7},callback:function(v){return(v/1000).toFixed(0)+'k';}},grid:{color:'rgba(255,184,0,0.04)'}}}}
+    });
+  }
+}
+
 
 </script>
 </body>
