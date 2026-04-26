@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF STAT — Business Intelligence v1.1</title>
+<title>TAF STAT — Business Intelligence v1.2</title>
 <!-- fonts chargées dans le CSS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -771,7 +771,7 @@ body::after {
   <div class="sidebar-logo">
     <div class="logo-tag">TAF ROISSY · CDG</div>
     <div class="logo-name">TAF STAT</div>
-    <div class="logo-sub">Business Intelligence · v1.1</div>
+    <div class="logo-sub">Business Intelligence · v1.2</div>
   </div>
   <div class="sidebar-nav">
     <div class="nav-section">Tableaux de bord</div>
@@ -893,6 +893,21 @@ body::after {
           <div id="loaded-files" style="margin-top:12px;display:flex;flex-direction:column;gap:5px;text-align:left"></div>
           <div id="start-btn-wrap" style="margin-top:18px;display:none;text-align:center">
             <button class="btn-primary" style="margin:auto;font-size:12px;padding:10px 24px" onclick="showView('dashboard')">🚀 Analyser →</button>
+          </div>
+        </div>
+
+        <!-- Bloc restauration -->
+        <div id="import-restore-bloc" style="margin-top:16px;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.2);border-radius:var(--r);padding:16px 18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--cyan);margin-bottom:3px">🔄 Restauration rapide</div>
+              <div id="import-autosave-status" style="font-size:10px;font-family:var(--mono);color:var(--text3)">Vérification en cours...</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn-secondary" style="font-size:11px" onclick="tryAutoRestore()">⚡ Restaurer auto-save</button>
+              <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('restore-quick-input').click()">📂 Charger fichier JSON</button>
+              <input type="file" id="restore-quick-input" accept=".json" style="display:none" onchange="restoreFromFile(this.files[0]);if(S.raw.length)setTimeout(()=>showView('dashboard'),800)">
+            </div>
           </div>
         </div>
       </div>
@@ -1505,6 +1520,8 @@ body::after {
             <option value="month">Ce mois</option><option value="week">Cette semaine</option><option value="quarter">Ce trimestre</option><option value="ytd">Depuis le 1er janvier</option>
           </select>
           <button class="btn-secondary" onclick="sendFlashEmail()">📧 Envoyer par email</button>
+          <button class="btn-secondary" style="background:rgba(0,229,255,0.08);border-color:rgba(0,229,255,0.25);color:var(--cyan)" onclick="publishFlashFirebase()">🔥 Publier Firebase</button>
+          <button class="btn-secondary" style="background:rgba(0,229,255,0.08);border-color:rgba(0,229,255,0.25);color:var(--cyan)" onclick="publishKpisSemaine()">📊 KPIs → Firebase</button>
           <button class="btn-drive" onclick="saveFlashDrive()">☁️ Sauver Drive</button>
           <button class="btn-primary" onclick="window.print()">🖨️ Imprimer</button>
         </div>
@@ -1809,7 +1826,7 @@ body::after {
 </div>
 
 <div class="taf-tooltip" id="taf-tooltip"></div>
-<div class="version-tag">TAF STAT v1.1</div>
+<div class="version-tag">TAF STAT v1.2</div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -2240,6 +2257,7 @@ function renderCurrentView(){
   else if(v==='nouveaux') renderNouveaux();
   else if(v==='periode') renderPeriode();
   else if(v==='stats-semaines') renderStatsSemaines();
+  else if(v==='import') checkImportAutoSave();
   else if(v==='restaurer') renderRestaurer();
   else if(v==='ia-chat'){initIAView();renderSavedPrompts();}
   else if(v==='simulateur'){initIAView();runSimulation();}
@@ -2991,7 +3009,7 @@ async function sendFlashEmail(){
   const fd=S._flashData;
   const payload={
     subject:`⚡ Flash TAF — ${fd.label}`,
-    body:`Flash TAF — ${fd.label}\n\nBBE : ${fmtEur(fd.bbe)}\nÉvolution : ${fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A'}\nDossiers : ${fd.nbD} · Clients : ${fd.nbC} · Marge : ${fd.marge.toFixed(1)}%\nSecteur dominant : ${fd.topSec}\n\n${fd.aiSummary||''}\n\n— TAF STAT v1.1`,
+    body:`Flash TAF — ${fd.label}\n\nBBE : ${fmtEur(fd.bbe)}\nÉvolution : ${fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A'}\nDossiers : ${fd.nbD} · Clients : ${fd.nbC} · Marge : ${fd.marge.toFixed(1)}%\nSecteur dominant : ${fd.topSec}\n\n${fd.aiSummary||''}\n\n— TAF STAT v1.2`,
     to:'direction@taftrans.fr'
   };
   try{
@@ -3248,7 +3266,7 @@ async function sendConfigToDrive(){
       fileName:configFile.name,
       content:configFile.content,
       folderId:CFG.DRIVE_FOLDER,
-      source:'TAF_STAT_v1.1',
+      source:'TAF_STAT_v1.2',
       date:new Date().toISOString()
     };
     const resp=await fetch(CFG.MAKE_WEBHOOK,{
@@ -3340,7 +3358,7 @@ function generateSyntheseHTML(){
     +'<body style="font-family:Georgia,serif;background:#fff;color:#1a2035;padding:40px;max-width:900px;margin:auto">'
     +'<div style="border-bottom:3px solid #0a1628;padding-bottom:16px;margin-bottom:24px">'
     +'<div style="font-size:26px;font-weight:700;color:#0a1628">TAF <span style="color:#FFB800">ROISSY</span></div>'
-    +'<div style="font-size:11px;color:#666;font-family:monospace;margin-top:4px">Synthèse TAF STAT v1.1 — '+now+' — '+S.raw.length+' dossiers</div>'
+    +'<div style="font-size:11px;color:#666;font-family:monospace;margin-top:4px">Synthèse TAF STAT v1.2 — '+now+' — '+S.raw.length+' dossiers</div>'
     +'</div>'
     +'<h2 style="font-size:13px;color:#888;margin-bottom:10px;letter-spacing:1px">ÉVOLUTION ANNUELLE</h2>'
     +'<table style="width:100%;border-collapse:collapse;margin-bottom:28px">'
@@ -3350,7 +3368,7 @@ function generateSyntheseHTML(){
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr style="background:#f9fafb"><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">#</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">CLIENT</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">BBE TOTAL</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">SECTEUR</th></tr></thead>'
     +'<tbody>'+topRows+'</tbody></table>'
-    +'<div style="margin-top:28px;padding:12px;background:#f9fafb;border-radius:6px;font-size:10px;color:#888;font-family:monospace">TAF ROISSY · CDG · Fret aérien Import · TAF STAT v1.1 · '+now+'</div>'
+    +'<div style="margin-top:28px;padding:12px;background:#f9fafb;border-radius:6px;font-size:10px;color:#888;font-family:monospace">TAF ROISSY · CDG · Fret aérien Import · TAF STAT v1.2 · '+now+'</div>'
     +'</body></html>';
 }
 
@@ -3372,67 +3390,168 @@ async function saveDormantsDrive(){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  CRM — EXPORT DRIVE + EMAIL (sans Airtable)
+//  FIREBASE BRIDGE — TAF STAT ↔ Commercial ↔ Recouvrement
 // ══════════════════════════════════════════════════════════════
-async function sendClientToCRM(client, bbe, lastYear){
-  const clientData=S.raw.filter(d=>d.client===client);
-  const totalBBE=bbe||sum(clientData,'bbe');
-  const sec=S.secteurs[client]||clientData[0]?.secteur||'Autre';
-  const lastD=clientData.sort((a,b)=>b.date-a.date)[0];
-  const firstD=clientData.sort((a,b)=>a.date-b.date)[0];
+const FB = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app';
 
-  // 1. Sauvegarder la fiche sur Drive
-  const ficheContent='CLIENT : '+client+'\n'
-    +'SECTEUR : '+sec+'\n'
-    +'STATUT : Dormant — Relance recommandée\n'
-    +'Dernière activité : '+(lastYear||lastD?.year||'N/A')+'\n'
-    +'Premier dossier : '+(firstD?.date?.toLocaleDateString('fr')||'N/A')+'\n'
-    +'BBE total estimé : '+fmtEur(totalBBE)+'\n'
-    +'Nombre de dossiers : '+clientData.length+'\n'
-    +'Ports de départ fréquents : '+([...new Set(clientData.map(d=>d.dep))].slice(0,5).join(', '))+'\n'
-    +'---\nGénéré par TAF STAT v1.1 — '+new Date().toLocaleString('fr');
-
-  const driveResult=await uploadToDrive(
-    'Fiche_Relance_'+client.replace(/[^a-zA-Z0-9]/g,'_')+'_'+dateStr()+'.txt',
-    ficheContent,'text/plain'
-  );
-
-  // 2. Envoyer une notification email via Make.com
+async function fbWrite(path, data){
   try{
-    await fetch(CFG.MAKE_WEBHOOK,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        type:'relance_client',
-        client, secteur:sec, lastYear:lastYear||lastD?.year,
-        bbe:totalBBE, dossiers:clientData.length,
-        message:'Relance recommandée pour '+client+' — BBE estimé '+fmtEur(totalBBE)+' — Dernier dossier '+(lastYear||lastD?.year)
-      })
+    const resp = await fetch(FB+'/${path}.json', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.2'})
     });
-    toast('✅ '+client+' — Fiche Drive + notif email envoyées');
-  }catch(e){
-    if(driveResult.ok) toast('✅ '+client+' — Fiche sauvée sur Drive (email KO)');
-    else toast('❌ Erreur envoi pour '+client);
+    return resp.ok;
+  } catch(e){ console.warn('Firebase write error:', e.message); return false; }
+}
+
+async function fbPush(path, data){
+  try{
+    const resp = await fetch(FB+'/${path}.json', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.2'})
+    });
+    const json = await resp.json();
+    return json.name; // Firebase push ID
+  } catch(e){ console.warn('Firebase push error:', e.message); return null; }
+}
+
+async function fbRead(path){
+  try{
+    const resp = await fetch(FB+'/${path}.json');
+    return resp.ok ? await resp.json() : null;
+  } catch(e){ return null; }
+}
+
+// ── Envoyer un client dormant vers TAF Commercial (Firebase) ──
+async function sendClientToCRM(client, bbeParam, lastYearParam){
+  const allData = S.raw.filter(d => d.client === client);
+  const bbe = bbeParam || sum(allData, 'bbe');
+  const sec = S.secteurs[client] || allData[0]?.secteur || 'Autre';
+  const lastD = allData.sort((a,b) => b.date - a.date)[0];
+  const firstD = [...allData].sort((a,b) => a.date - b.date)[0];
+  const bbeByYear = groupBy(allData, 'year');
+  const lastYear = lastYearParam || lastD?.year;
+
+  const prospect = {
+    nom: client,
+    secteur: sec,
+    statut: 'À contacter',
+    priorite: bbe > 5000 ? 'HAUTE' : bbe > 1000 ? 'MOYENNE' : 'BASSE',
+    bbe_estime: Math.round(bbe),
+    derniere_activite: lastYear,
+    premier_dossier: firstD?.date?.toISOString()?.slice(0,10),
+    dernier_dossier: lastD?.date?.toISOString()?.slice(0,10),
+    nb_dossiers_total: allData.length,
+    historique_bbe: Object.entries(bbeByYear).reduce((acc, [y,d]) => {acc[y] = Math.round(sum(d,'bbe')); return acc;}, {}),
+    route_principale: (function(){ const dep=groupBy(allData,'dep'); return Object.entries(dep).sort(([,a],[,b])=>b.length-a.length)[0]?.[0]||'—'; })(),
+    notes: 'D&#233;tect&#233; par TAF STAT — Client dormant, BBE estim&#233; '+fmtEur(bbe)+', derni&#232;re activit&#233; '+lastYear,
+    date_envoi: new Date().toISOString()
+  };
+
+  const id = `${client.replace(/[^a-zA-Z0-9]/g,'_')}_${Date.now()}`;
+  const ok = await fbPush('taf_stat/prospects', prospect);
+
+  if(ok){
+    toast(`✅ ${client} → TAF Commercial (Firebase)`);
+  } else {
+    toast(`❌ Erreur Firebase — ${client}`);
   }
 }
 
+// ── Envoyer une alerte recouvrement vers TAF Recouvrement ──
+async function sendToRecouvrement(client, bbe, motif){
+  const allData = S.raw.filter(d => d.client === client);
+  const sec = S.secteurs[client] || allData[0]?.secteur || 'Autre';
+  const lastD = allData.sort((a,b) => b.date - a.date)[0];
+
+  const alerte = {
+    client,
+    secteur: sec,
+    bbe_estime: Math.round(bbe),
+    motif: motif || 'Client à risque détecté par TAF STAT',
+    dernier_dossier: lastD?.date?.toISOString()?.slice(0,10),
+    statut: 'À traiter',
+    priorite: bbe > 5000 ? 'HAUTE' : 'MOYENNE',
+    date_alerte: new Date().toISOString()
+  };
+
+  const ok = await fbPush('taf_stat/recouvrement', alerte);
+  if(ok) toast(`⚠️ ${client} → TAF Recouvrement (Firebase)`);
+  else toast(`❌ Erreur Firebase — ${client}`);
+}
+
+// ── Publier le Flash TAF sur Firebase (lu par toutes les apps) ──
+async function publishFlashFirebase(){
+  const fd = S._flashData;
+  if(!fd){ toast('Générez d\'abord le Flash TAF'); return; }
+  const date = new Date().toISOString().slice(0,10);
+  const flash = {
+    periode: fd.label,
+    date,
+    bbe: Math.round(fd.bbe),
+    bbe_cmp: Math.round(fd.bbeCmp||0),
+    evolution_pct: fd.d ? parseFloat(fd.d.pct) * (fd.d.cls==='up'?1:-1) : 0,
+    nb_dossiers: fd.nbD,
+    nb_clients: fd.nbC,
+    marge: parseFloat(fd.marge.toFixed(1)),
+    secteur_top: fd.topSec,
+    client_top: fd.topClient,
+    analyse_ia: fd.aiSummary || '',
+  };
+  const ok = await fbWrite(`taf_stat/flash/${date}`, flash);
+  if(ok) toast('☁️ Flash TAF publié sur Firebase — visible par TAF Commercial & Recouvrement');
+  else toast('❌ Erreur Firebase');
+}
+
+// ── Publier les KPIs semaine sur Firebase ──
+async function publishKpisSemaine(){
+  if(!S.raw.length){ toast('Aucune donnée'); return; }
+  const year = Math.max(...S.years);
+  const data = S.raw.filter(d => d.year === year);
+  const now = new Date();
+  const week = S.raw.length ? data[0]?.week : getWeek(now);
+  const weekData = data.filter(d => d.week === getWeek(now));
+  const prevWeekData = data.filter(d => d.week === getWeek(now)-1);
+
+  const kpis = {
+    semaine: getWeek(now),
+    annee: year,
+    bbe_semaine: Math.round(sum(weekData,'bbe')),
+    bbe_semaine_prec: Math.round(sum(prevWeekData,'bbe')),
+    dossiers_semaine: weekData.length,
+    clients_semaine: new Set(weekData.map(d=>d.client)).size,
+    bbe_ytd: Math.round(sum(data,'bbe')),
+    dossiers_ytd: data.length,
+    clients_ytd: new Set(data.map(d=>d.client)).size,
+    marge_moy: parseFloat(avg(data.filter(d=>d.pct>0).map(d=>d.pct)).toFixed(1)),
+    date_maj: new Date().toISOString()
+  };
+
+  const ok = await fbWrite('taf_stat/kpis_semaine', kpis);
+  if(ok) toast(`📊 KPIs S${kpis.semaine} publiés sur Firebase`);
+  else toast('❌ Erreur Firebase');
+}
+
+// ── Export groupé des dormants vers Firebase ──
 async function exportDormantsCRM(){
-  if(!S._dormants?.length){toast('Chargez d\'abord les dormants');return;}
-  // Générer un CSV complet et le sauvegarder sur Drive
-  let csv='Client;Secteur;Dernière Année;BBE;Dossiers;Priorité\n';
-  S._dormants.forEach(function(d){csv+=d.client+';'+d.sec+';'+d.daysSince+';'+d.bbe.toFixed(2)+';'+d.nb+';'+d.priorite+'\n';});
-  const r=await uploadToDrive('TAF_Relances_'+dateStr()+'.csv',csv,'text/csv');
-  // Notifier via Make
-  try{
-    await fetch(CFG.MAKE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'export_dormants',nb:S._dormants.length,bbeTotal:sum(S._dormants,'bbe').toFixed(0),date:new Date().toLocaleString('fr')})});
-  }catch(e){}
-  toast(r.ok?'☁️ '+S._dormants.length+' clients dormants exportés sur Drive !':'❌ Erreur Drive');
+  if(!S._dormants?.length){ toast('Chargez d\'abord les dormants'); return; }
+  let count = 0;
+  for(const d of S._dormants.filter(d=>d.priorite==='HAUTE'||d.priorite==='MOYENNE')){
+    await sendClientToCRM(d.client, d.bbe, d.lastYear);
+    count++;
+    await sleep(100);
+  }
+  toast(`✅ ${count} clients dormants envoyés vers TAF Commercial (Firebase)`);
 }
 
 async function exportPerdusCRM(){
-  toast('Utilisez le bouton 📤 sur chaque ligne pour envoyer la fiche individuelle');
+  toast('Utilisez le bouton 📤 sur chaque ligne pour envoyer individuellement');
 }
+
+
+// ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
 //  CATEGORIES CLIENTS
@@ -3933,7 +4052,10 @@ function renderRisque(){
     <td class="td-delta down">${r.d?r.d.arrow+r.d.pct+'%':'—'}</td>
     <td style="color:var(--text3)">${r.lastDate?.toLocaleDateString('fr')||'—'}</td>
     <td style="font-size:10px">${r.sec||'—'}</td>
-    <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="sendClientToCRM('${r.c}')">📤</button></td>
+    <td style="display:flex;gap:4px">
+      <button class="btn-secondary" style="font-size:9px;padding:2px 6px" onclick="sendClientToCRM(${JSON.stringify(r.c)})">📤 CRM</button>
+      <button class="btn-secondary" style="font-size:9px;padding:2px 6px;color:var(--orange);border-color:rgba(255,140,0,0.3)" onclick="sendToRecouvrement(${JSON.stringify(r.c)},${r.bbe},${JSON.stringify(r.signal)})">⚠️</button>
+    </td>
   </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--green);padding:20px">✅ Aucun client à risque détecté</td></tr>';
 }
 
@@ -4647,6 +4769,33 @@ async function analyseIAImpact(){
 // ══════════════════════════════════════════════════════════════
 const LS_KEY='taf_stat_autostate';
 
+function tryAutoRestore(){
+  var saved=localStorage.getItem(LS_KEY);
+  if(!saved){toast('⚠️ Aucun auto-save — Importez un fichier XLS Malta');return;}
+  restoreFromLocalStorage();
+  setTimeout(function(){
+    if(S.years.length) showView('dashboard');
+    else toast('Auto-save restauré — Chargez vos fichiers XLS Malta');
+  },300);
+}
+
+function checkImportAutoSave(){
+  var el=document.getElementById('import-autosave-status');
+  if(!el) return;
+  var saved=localStorage.getItem(LS_KEY);
+  if(saved){
+    try{
+      var s=JSON.parse(saved);
+      var ts=s.ts?new Date(s.ts).toLocaleString('fr'):'—';
+      el.textContent='Auto-save du '+ts+' · '+s.totalDossiers+' dossiers · Cliquez Restaurer pour recharger';
+      el.style.color='var(--green)';
+    }catch(e){el.textContent='Sauvegarde disponible';el.style.color='var(--cyan)';}
+  } else {
+    el.textContent='Aucun auto-save · Importez vos fichiers Malta XLS';
+    el.style.color='var(--text3)';
+  }
+}
+
 function autoSaveState(){
   if(!S.raw.length) return;
   try{
@@ -4971,7 +5120,7 @@ function printIAReport(){
     +'<div class="response">'+response+'</div>'
     +'<div class="footer">'
     +'<span>TAF ROISSY · CDG · Commissionnaire de transport depuis 40 ans</span>'
-    +'<span>TAF STAT v1.1</span>'
+    +'<span>TAF STAT v1.2</span>'
     +'</div>'
     +'</body></html>';
 
@@ -5174,12 +5323,12 @@ async function callClaudeIA(prompt, targetElementId){
     });
     const json=await resp.json();
     const text=json.content?.[0]?.text||'Analyse indisponible';
-    el.innerHTML=`
-      <div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.2);border-left:3px solid var(--purple);border-radius:var(--r2);padding:14px 16px">
-        <div style="font-size:9px;font-family:var(--mono);color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Analyse IA — TAF ROISSY</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7">${text.replace(/\n/g,'<br>')}</div>
-        <button class="btn-secondary" style="font-size:10px;margin-top:10px" onclick="this.parentElement.parentElement.style.display='none'">✕ Fermer</button>
-      </div>`;
+    var iaHtml='<div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.2);border-left:3px solid var(--purple);border-radius:var(--r2);padding:14px 16px">';
+    iaHtml+='<div style="font-size:9px;font-family:var(--mono);color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Analyse IA — TAF ROISSY</div>';
+    iaHtml+='<div style="font-size:12px;color:var(--text2);line-height:1.7">'+text.replace(/\n/g,'<br>')+'</div>';
+    iaHtml+='<button class="btn-secondary" style="font-size:10px;margin-top:10px" onclick="this.parentElement.parentElement.style.display=\'none\'">✕ Fermer</button>';
+    iaHtml+='</div>';
+    el.innerHTML=iaHtml;
   }catch(e){
     el.innerHTML='<div style="color:var(--red);font-size:11px;padding:10px">❌ Erreur API IA — Vérifiez la connexion</div>';
   }
@@ -5602,14 +5751,20 @@ function clearClientFilter(){
 }
 
 function renderClientPills(){
-  const el=document.getElementById('client-pills');
+  var el=document.getElementById('client-pills');
   if(!el) return;
-  if(!S.selectedClients?.size){el.innerHTML='';return;}
-  const arr=[...S.selectedClients], visible=arr.slice(0,2), rest=arr.length-2;
-  el.innerHTML=visible.map(c=>`<div class="client-pill" title="${c}">
-    <span style="max-width:70px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle">${c}</span>
-    <span class="pill-x" onclick="removePill('${c.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</span>
-  </div>`).join('')+(rest>0?`<div class="client-pill" style="cursor:pointer" onclick="showClientDropdown()">+${rest}</div>`:'');
+  if(!S.selectedClients||!S.selectedClients.size){el.innerHTML='';return;}
+  var arr=[...S.selectedClients], visible=arr.slice(0,2), rest=arr.length-2;
+  var html='';
+  visible.forEach(function(c){
+    var cEsc=c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html+='<div class="client-pill" title="'+c+'">';
+    html+='<span style="max-width:70px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle">'+c+'</span>';
+    html+='<span class="pill-x" onclick="removePill(\''+cEsc+'\')">✕</span>';
+    html+='</div>';
+  });
+  if(rest>0) html+='<div class="client-pill" style="cursor:pointer" onclick="showClientDropdown()">+'+rest+'</div>';
+  el.innerHTML=html;
 }
 
 function removePill(client){
