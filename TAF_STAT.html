@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF STAT — Business Intelligence v1.2</title>
+<title>TAF STAT — Business Intelligence v1.3</title>
 <!-- fonts chargées dans le CSS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -771,7 +771,7 @@ body::after {
   <div class="sidebar-logo">
     <div class="logo-tag">TAF ROISSY · CDG</div>
     <div class="logo-name">TAF STAT</div>
-    <div class="logo-sub">Business Intelligence · v1.2</div>
+    <div class="logo-sub">Business Intelligence · v1.3</div>
   </div>
   <div class="sidebar-nav">
     <div class="nav-section">Tableaux de bord</div>
@@ -1826,7 +1826,7 @@ body::after {
 </div>
 
 <div class="taf-tooltip" id="taf-tooltip"></div>
-<div class="version-tag">TAF STAT v1.2</div>
+<div class="version-tag">TAF STAT v1.3</div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -3009,7 +3009,7 @@ async function sendFlashEmail(){
   const fd=S._flashData;
   const payload={
     subject:`⚡ Flash TAF — ${fd.label}`,
-    body:'Flash TAF — '+fd.label+'\n\nBBE : '+fmtEur(fd.bbe)+'\nÉvolution : '+(fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A')+'\nDossiers : '+fd.nbD+' · Clients : '+fd.nbC+' · Marge : '+fd.marge.toFixed(1)+'%\nSecteur dominant : '+fd.topSec+'\n\n'+(fd.aiSummary||'')+'\n\n— TAF STAT v1.2',
+    body:'Flash TAF — '+fd.label+'\n\nBBE : '+fmtEur(fd.bbe)+'\nÉvolution : '+(fd.d?fd.d.arrow+' '+fd.d.pct+'% vs N-1':'N/A')+'\nDossiers : '+fd.nbD+' · Clients : '+fd.nbC+' · Marge : '+fd.marge.toFixed(1)+'%\nSecteur dominant : '+fd.topSec+'\n\n'+(fd.aiSummary||'')+'\n\n— TAF STAT v1.3',
     to:'direction@taftrans.fr'
   };
   try{
@@ -3266,7 +3266,7 @@ async function sendConfigToDrive(){
       fileName:configFile.name,
       content:configFile.content,
       folderId:CFG.DRIVE_FOLDER,
-      source:'TAF_STAT_v1.2',
+      source:'TAF_STAT_v1.3',
       date:new Date().toISOString()
     };
     const resp=await fetch(CFG.MAKE_WEBHOOK,{
@@ -3358,7 +3358,7 @@ function generateSyntheseHTML(){
     +'<body style="font-family:Georgia,serif;background:#fff;color:#1a2035;padding:40px;max-width:900px;margin:auto">'
     +'<div style="border-bottom:3px solid #0a1628;padding-bottom:16px;margin-bottom:24px">'
     +'<div style="font-size:26px;font-weight:700;color:#0a1628">TAF <span style="color:#FFB800">ROISSY</span></div>'
-    +'<div style="font-size:11px;color:#666;font-family:monospace;margin-top:4px">Synthèse TAF STAT v1.2 — '+now+' — '+S.raw.length+' dossiers</div>'
+    +'<div style="font-size:11px;color:#666;font-family:monospace;margin-top:4px">Synthèse TAF STAT v1.3 — '+now+' — '+S.raw.length+' dossiers</div>'
     +'</div>'
     +'<h2 style="font-size:13px;color:#888;margin-bottom:10px;letter-spacing:1px">ÉVOLUTION ANNUELLE</h2>'
     +'<table style="width:100%;border-collapse:collapse;margin-bottom:28px">'
@@ -3368,7 +3368,7 @@ function generateSyntheseHTML(){
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr style="background:#f9fafb"><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">#</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">CLIENT</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">BBE TOTAL</th><th style="padding:8px 12px;text-align:left;font-size:10px;color:#666">SECTEUR</th></tr></thead>'
     +'<tbody>'+topRows+'</tbody></table>'
-    +'<div style="margin-top:28px;padding:12px;background:#f9fafb;border-radius:6px;font-size:10px;color:#888;font-family:monospace">TAF ROISSY · CDG · Fret aérien Import · TAF STAT v1.2 · '+now+'</div>'
+    +'<div style="margin-top:28px;padding:12px;background:#f9fafb;border-radius:6px;font-size:10px;color:#888;font-family:monospace">TAF ROISSY · CDG · Fret aérien Import · TAF STAT v1.3 · '+now+'</div>'
     +'</body></html>';
 }
 
@@ -3399,7 +3399,7 @@ async function fbWrite(path, data){
     const resp = await fetch(FB+'/${path}.json', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.2'})
+      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.3'})
     });
     return resp.ok;
   } catch(e){ console.warn('Firebase write error:', e.message); return false; }
@@ -3410,7 +3410,7 @@ async function fbPush(path, data){
     const resp = await fetch(FB+'/${path}.json', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.2'})
+      body: JSON.stringify({...data, _ts: Date.now(), _source: 'TAF_STAT_v1.3'})
     });
     const json = await resp.json();
     return json.name; // Firebase push ID
@@ -3450,11 +3450,11 @@ async function sendClientToCRM(client, bbeParam, lastYearParam){
     date_envoi: new Date().toISOString()
   };
 
-  const id = `${client.replace(/[^a-zA-Z0-9]/g,'_')}_${Date.now()}`;
+  const id = client.replace(/[^a-zA-Z0-9]/g,'_')+'_'+Date.now();
   const ok = await fbPush('taf_stat/prospects', prospect);
 
   if(ok){
-    toast(`✅ ${client} → TAF Commercial (Firebase)`);
+    toast('✅ '+client+' → TAF Commercial (Firebase)');
   } else {
     toast(`❌ Erreur Firebase — ${client}`);
   }
@@ -3478,7 +3478,7 @@ async function sendToRecouvrement(client, bbe, motif){
   };
 
   const ok = await fbPush('taf_stat/recouvrement', alerte);
-  if(ok) toast(`⚠️ ${client} → TAF Recouvrement (Firebase)`);
+  if(ok) toast('⚠️ '+client+' → TAF Recouvrement (Firebase)');
   else toast(`❌ Erreur Firebase — ${client}`);
 }
 
@@ -5120,7 +5120,7 @@ function printIAReport(){
     +'<div class="response">'+response+'</div>'
     +'<div class="footer">'
     +'<span>TAF ROISSY · CDG · Commissionnaire de transport depuis 40 ans</span>'
-    +'<span>TAF STAT v1.2</span>'
+    +'<span>TAF STAT v1.3</span>'
     +'</div>'
     +'</body></html>';
 
