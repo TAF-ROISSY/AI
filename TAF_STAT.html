@@ -3503,15 +3503,15 @@ function renderPeriode(){
 
   // Top 10 clients de la période
   const topClients=Object.entries(groupBy(data,'client')).map(([c,d])=>({
-    c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),nb:d.length,poids:sum(d,'poids'),
-    marge:avg(d.filter(x=>x.pct>0).map(x=>x.pct)),sec:S.secteurs[c]||d[0]?.secteur
+    c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),dos:d.length,poids:sum(d,'poids'),
+    marge:avg(d.filter(x=>x.pct>0).map(x=>x.pct))||0,secteur:S.secteurs[c]||d[0]?.secteur||'—'
   })).sort((a,b)=>b.bbe-a.bbe).slice(0,10);
   document.getElementById('periode-top-tbody').innerHTML=topClients.map(function(c,i){
     var cEsc=c.c.replace(/'/g,"\'");
     return '<tr style="cursor:pointer" onclick="drillClient(\''+cEsc+'\',null,null,null,null)">'
       +'<td>'+(i+1)+'</td><td class="td-client">'+c.c+'</td>'
       +'<td class="td-bbe">'+fmtEur(c.bbe)+'</td><td>'+fmtEur(c.fc)+'</td>'
-      +'<td>'+c.marge.toFixed(1)+'%</td><td>'+c.dos+'</td><td>'+c.pds.toFixed(0)+'</td>'
+      +'<td>'+(c.marge||0).toFixed(1)+'%</td><td>'+c.dos+'</td><td>'+(c.poids||0).toFixed(0)+'</td>'
       +'<td>'+fmtEur(c.dos>0?c.bbe/c.dos:0)+'</td><td>'+c.secteur+'</td></tr>';
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
 
@@ -3520,13 +3520,15 @@ function renderPeriode(){
     const fd=[...d].sort((a,b)=>a.date-b.date)[0];
     return{c,fd:fd?.date,bbe:sum(d,'bbe'),nb:d.length,sec:S.secteurs[c]||d[0]?.secteur};
   }).sort((a,b)=>a.fd-b.fd);
-  document.getElementById('periode-new-tbody').innerHTML=nouveaux.length?nouveaux.map(n=>`<tr>
-    <td class="td-client">${n.c}</td>
-    <td>${n.fd?.toLocaleDateString('fr')||'—'}</td>
-    <td class="td-bbe">${fmtEur(n.bbe)}</td>
-    <td>${n.nb}</td>
-    <td style="font-size:10px">${n.sec||'—'}</td>
-  </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Aucun nouveau client sur cette période</td></tr>';
+  document.getElementById('periode-new-tbody').innerHTML=nouveaux.length?nouveaux.map(function(n){
+    return '<tr>'
+      +'<td class="td-client">'+n.c+'</td>'
+      +'<td>'+(n.fd instanceof Date?n.fd.toLocaleDateString('fr'):'—')+'</td>'
+      +'<td class="td-bbe">'+fmtEur(n.bbe)+'</td>'
+      +'<td>'+n.nb+'</td>'
+      +'<td style="font-size:10px">'+(n.sec||'—')+'</td>'
+      +'</tr>';
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Aucun nouveau client sur cette période</td></tr>';
 
   // Saisonnalité
   renderSaisonnalite(data,gran);
