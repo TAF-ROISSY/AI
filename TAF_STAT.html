@@ -6371,29 +6371,26 @@ function downloadFullBackup(){
 
 async function uploadToDrive(fileName, fileContent, mimeType){
   try{
-    var payload = {
-      action: 'upload',
-      fileName: fileName,
-      content: fileContent,
-      mimeType: mimeType || 'application/json',
-      folderId: CFG.DRIVE_FOLDER
-    };
-    // mode:'no-cors' + text/plain = pas de preflight CORS (Apps Script accepte)
-    var resp = await fetch(CFG.DRIVE_PROXY, {
+    // Webhook Make.com → Google Drive (pas de problème CORS)
+    var MAKE_DRIVE_WEBHOOK = 'https://hook.eu2.make.com/tss2iyk9o61kc9dibdvylqdl4wk5ikzp';
+    var resp = await fetch(MAKE_DRIVE_WEBHOOK, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(payload)
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        fileName: fileName,
+        content: fileContent,
+        mimeType: mimeType || 'application/json'
+      })
     });
-    // Avec no-cors la réponse est opaque (on ne peut pas la lire)
-    // L'envoi a bien eu lieu si on arrive ici sans erreur
-    return {ok: true, name: fileName};
+    var data = {};
+    try{ data = await resp.json(); }catch(e){}
+    var ok = resp.ok || data.ok;
+    return {ok: ok, name: fileName, data: data};
   }catch(e){
     console.error('uploadToDrive error:', e);
     return {ok: false, name: fileName, error: e.message};
   }
 }
-
 // ══ SAUVEGARDE DRIVE (réécrite, utilise uploadToDrive) ═══════════
 async function saveToDrive(btnEl){
   if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
