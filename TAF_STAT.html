@@ -235,17 +235,29 @@ body::after {
 
 /* ═══════════════════ TOPBAR ═══════════════════ */
 #topbar {
-  background: rgba(6,14,29,0.95);
+  background: rgba(6,14,29,0.97);
   border-bottom: 1px solid var(--border);
-  padding: 8px 24px;
+  padding: 6px 20px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 5px;
   position: sticky;
   top: 0;
   z-index: 90;
   backdrop-filter: blur(20px);
+  flex-shrink: 0;
+}
+.topbar-row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.topbar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 .fg {
@@ -299,7 +311,7 @@ body::after {
   box-shadow: 0 0 12px rgba(255,184,0,0.1);
 }
 
-.topbar-spacer { flex: 1; }
+.topbar-spacer { display: none; } /* supprimé - layout en 2 lignes */
 
 .btn-primary {
   background: var(--gold);
@@ -866,67 +878,72 @@ canvas { touch-action: pan-y !important; }
 <div id="main">
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="fg"><span class="fl">Année</span>
-      <select class="fsel" id="filter-year" onchange="applyFilters()"><option value="all">Toutes</option></select>
-    </div>
-    <div class="fg"><span class="fl">Vs</span>
-      <select class="fsel" id="filter-compare" onchange="applyFilters()">
-        <option value="none">Aucune comparaison</option>
-        <option value="1" selected>N-1</option>
-      </select>
-    </div>
-    <!-- TOGGLE MÊME PÉRIODE -->
-    <div class="fg" id="same-period-wrap" title="Compare uniquement jusqu'à la même date dans l'année N-1">
-      <span class="fl">Mode</span>
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="filter-same-period" onchange="applyFilters()" style="accent-color:var(--cyan);width:13px;height:13px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap" id="same-period-label">Même période</span>
-      </label>
-    </div>
-    <div class="fg"><span class="fl">Granul.</span>
-      <select class="fsel" id="filter-granularity" onchange="applyFilters()">
-        <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
-      </select>
-    </div>
-    <div class="fg" style="position:relative">
-      <span class="fl">Client</span>
-      <input type="text" class="fsel" id="filter-client-input" placeholder="Tous les clients" 
-        oninput="filterClientDropdown()" onfocus="showClientDropdown()" style="min-width:130px;cursor:text"
-        autocomplete="off">
-      <div id="client-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);z-index:200;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
-        <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:9px;font-family:var(--mono);color:var(--text3)" id="client-dd-count">—</span>
-          <button onclick="clearClientFilter()" style="font-size:9px;font-family:var(--mono);color:var(--red);background:none;border:none;cursor:pointer">Effacer</button>
+    <!-- LIGNE 1 : Filtres + actions -->
+    <div class="topbar-row1">
+      <div class="fg"><span class="fl">Année</span>
+        <select class="fsel" id="filter-year" onchange="applyFilters()"><option value="all">Toutes</option></select>
+      </div>
+      <div class="fg"><span class="fl">Vs</span>
+        <select class="fsel" id="filter-compare" onchange="applyFilters()">
+          <option value="none">Aucune comparaison</option>
+          <option value="1" selected>N-1</option>
+          <option value="2">N-2</option>
+          <option value="3">N-3</option>
+        </select>
+      </div>
+      <div class="fg" id="same-period-wrap" title="Compare jusqu'à la même date N-1">
+        <span class="fl">Mode</span>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="filter-same-period" onchange="applyFilters()" style="accent-color:var(--cyan);width:13px;height:13px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap" id="same-period-label">Même période</span>
+        </label>
+      </div>
+      <div class="fg"><span class="fl">Granul.</span>
+        <select class="fsel" id="filter-granularity" onchange="applyFilters()">
+          <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
+        </select>
+      </div>
+      <div class="fg" style="position:relative">
+        <span class="fl">Client</span>
+        <input type="text" class="fsel" id="filter-client-input" placeholder="Tous les clients"
+          oninput="filterClientDropdown()" onfocus="showClientDropdown()" style="min-width:120px;cursor:text" autocomplete="off">
+        <div id="client-dropdown" style="display:none;position:absolute;top:100%;left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);z-index:200;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+          <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:9px;font-family:var(--mono);color:var(--text3)" id="client-dd-count">—</span>
+            <button onclick="clearClientFilter()" style="font-size:9px;font-family:var(--mono);color:var(--red);background:none;border:none;cursor:pointer">Effacer</button>
+          </div>
+          <div id="client-dd-list"></div>
         </div>
-        <div id="client-dd-list"></div>
+      </div>
+      <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:180px"></div>
+      <select class="fsel" id="filter-secteur" onchange="applyFilters()">
+        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson</option><option value="Fruits & Légumes">🥦 FL</option><option value="Animaux Vivants">🐾 AVI</option><option value="Autre">📦 Autre</option>
+      </select>
+      <!-- Actions inline -->
+      <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="resetAllFilters()" title="Reset filtres">↺</button>
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="openSaveFilterModal()" title="Sauver filtre">🔖</button>
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="exportCSV()" title="Exporter CSV">⬇ CSV</button>
+        <button class="btn-drive" style="font-size:10px;padding:4px 10px" onclick="saveToDrive()">☁️ Drive</button>
+        <button class="btn-primary" style="font-size:10px;padding:4px 10px" onclick="document.getElementById('file-input').click()">+ XLS</button>
+        <button class="btn-pres" style="font-size:10px;padding:4px 10px" onclick="enterPresentationMode()">⛶ Présentation</button>
       </div>
     </div>
-    <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:200px"></div>
-      <select class="fsel" id="filter-secteur" onchange="applyFilters()">
-        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson Frais</option><option value="Fruits & Légumes">🥦 FL</option><option value="Animaux Vivants">🐾 Animaux Vivants</option><option value="Autre">📦 Autre</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:3px">
+    <!-- LIGNE 2 : Presets période -->
+    <div class="topbar-row2">
       <button class="btn-preset active" onclick="setPreset('YTD',this)">Depuis janv.</button>
       <button class="btn-preset" onclick="setPreset('MTD',this)">Ce mois</button>
       <button class="btn-preset" onclick="setPreset('QTD',this)">Ce trimestre</button>
       <button class="btn-preset" onclick="setPreset('LM',this)">Mois préc.</button>
       <button class="btn-preset" onclick="setPreset('LQ',this)">Trim. préc.</button>
       <button class="btn-preset" onclick="setPreset('ALL',this)">Tout</button>
+      <div id="active-filters-inline" style="display:flex;gap:4px;flex-wrap:wrap;margin-left:8px"></div>
     </div>
-    <div class="topbar-spacer"></div>
-    <button class="btn-secondary" style="font-size:10px;color:var(--text3);border-color:var(--border)" onclick="resetAllFilters()" title="Réinitialiser tous les filtres">↺ Reset</button>
-    <button class="btn-secondary" onclick="openSaveFilterModal()">🔖 Sauver filtre</button>
-    <button class="btn-secondary" onclick="exportCSV()">⬇ CSV</button>
-    <button class="btn-drive" onclick="saveToDrive()">☁️ Sauver Drive</button>
-    <button class="btn-primary" onclick="document.getElementById('file-input').click()">➕ XLS</button>
-    <button class="btn-pres" onclick="enterPresentationMode()" title="Mode Présentation (P)">⛶ Présentation</button>
   </div>
 
-  <!-- ACTIVE FILTERS BAR -->
-  <div id="active-filters-bar" style="padding:0 20px;display:none">
-    <div class="active-filters" id="active-filters-content"></div>
-  </div>
+</div>
+
+  <!-- active-filters-bar now inline in topbar-row2 -->
 
   <!-- CONTENT -->
   <div id="content">
