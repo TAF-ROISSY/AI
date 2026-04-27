@@ -63,9 +63,9 @@ body {
   font-family: var(--font);
   background: var(--ink);
   color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  overflow-x: hidden;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
   position: relative;
 }
 
@@ -94,15 +94,16 @@ body::after {
 
 /* ═══════════════════ SIDEBAR ═══════════════════ */
 #sidebar {
+  position: fixed;
+  top: 0; left: 0;
   width: 230px;
-  min-width: 230px;
+  height: 100vh;
   background: linear-gradient(180deg, #060e1d 0%, #040b18 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  position: sticky;
-  top: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 100;
   backdrop-filter: blur(20px);
 }
@@ -224,11 +225,14 @@ body::after {
 
 /* ═══════════════════ MAIN ═══════════════════ */
 #main {
-  flex: 1;
+  position: fixed;
+  top: 0;
+  left: 230px;
+  right: 0;
+  bottom: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  position: relative;
   z-index: 1;
   overflow: hidden;
 }
@@ -2405,14 +2409,23 @@ function setCascade(type,value){
 }
 
 function renderCascadeBar(){
-  const bar=document.getElementById('active-filters-bar');
-  const content=document.getElementById('active-filters-content');
-  if(!S.cascadeFilter){bar.style.display='none';return;}
-  bar.style.display='block';
-  content.innerHTML=`<div class="filter-pill" onclick="clearCascade()">
-    ${S.cascadeFilter.type==='client'?'👤':'🏷️'} ${S.cascadeFilter.value}
-    <span class="pill-x">✕</span>
-  </div>`;
+  // Afficher dans le topbar-row2 (active-filters-inline)
+  var el = document.getElementById('active-filters-inline');
+  // Aussi l'ancienne barre si elle existe encore
+  var bar = document.getElementById('active-filters-bar');
+  var barContent = document.getElementById('active-filters-content');
+  if(!S.cascadeFilter){
+    if(el) el.innerHTML='';
+    if(bar) bar.style.display='none';
+    return;
+  }
+  var icon = S.cascadeFilter.type==='client'?'👤':'🏷️';
+  var pillHtml = '<div class="filter-pill" onclick="clearCascade()">'
+    +icon+' '+S.cascadeFilter.value
+    +'<span class="pill-x">✕</span></div>';
+  if(el) el.innerHTML = pillHtml;
+  if(bar){ bar.style.display='block'; }
+  if(barContent){ barContent.innerHTML = pillHtml; }
 }
 
 function clearCascade(){S.cascadeFilter=null;applyFilters();}
@@ -6205,6 +6218,8 @@ function updateSaveStatus(){
 
 // ══ FIX DRIVE : envoi JSON body au lieu de FormData ══════════════
 // (Le proxy Apps Script attend application/json, pas multipart/form-data)
+
+var PRES={current:0,total:5,charts:{},active:false};
 
 function enterPresentationMode(){
   if(!S.raw.length){toast('Importez des données avant de lancer la présentation');return;}
