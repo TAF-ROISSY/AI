@@ -2544,6 +2544,7 @@ function showView(name){
 }
 
 function renderCurrentView(){
+  console.log('[TAF] renderCurrentView:', S.currentView, 'filtered:', S.filtered.length);
   if(!S.raw.length&&S.currentView!=='import') return;
   const v=S.currentView;
   if(v==='dashboard') renderDashboard();
@@ -2607,6 +2608,8 @@ function aggBy(data,gran){
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function renderDashboard(){
+  try{
+  console.log('[TAF] renderDashboard - filtered:', S.filtered.length, 'raw:', S.raw.length);
   var data=S.filtered, cmp=getCmpData();
   var bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
   var fc=sum(data,'fc'), nbD=data.length, nbC=new Set(data.map(function(d){return d.client;})).size;
@@ -2696,6 +2699,7 @@ function renderDashboard(){
   // Score Santé + Projection BBE
   renderScoreSante();
   renderProjectionBBE();
+  }catch(err){console.error('[TAF] renderDashboard CRASH:',err.message,err.stack.split('\n')[1]);}
 }
 
 
