@@ -63,10 +63,12 @@ body {
   font-family: var(--font);
   background: var(--ink);
   color: var(--text);
-  margin: 0;
-  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   overflow: hidden;
-  height: 100vh;
+  position: relative;
 }
 
 body::before {
@@ -94,18 +96,21 @@ body::after {
 
 /* ═══════════════════ SIDEBAR ═══════════════════ */
 #sidebar {
-  position: fixed;
-  top: 0; left: 0;
   width: 230px;
-  height: 100vh;
+  min-width: 230px;
+  flex-shrink: 0;
+  flex-grow: 0;
   background: linear-gradient(180deg, #060e1d 0%, #040b18 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   z-index: 100;
   backdrop-filter: blur(20px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Logo area */
@@ -225,13 +230,14 @@ body::after {
 
 /* ═══════════════════ MAIN ═══════════════════ */
 #main {
-  margin-left: 230px;
-  width: calc(100vw - 230px);
+  flex: 1;
+  min-width: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* ═══════════════════ TOPBAR ═══════════════════ */
@@ -242,10 +248,9 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  position: relative;
+  flex-shrink: 0;
   z-index: 90;
   backdrop-filter: blur(20px);
-  flex-shrink: 0;
 }
 .topbar-row1 {
   display: flex;
