@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF — VALIDE v1.4.1</title>
+<title>TAF — VALIDE v1.4.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,7 +108,7 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4.1";
+const VERSION="v1.4.2";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
@@ -368,15 +368,15 @@ function App(){
     try{
       const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
       const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
-      const resp=await fetch(WEBHOOK_SEND,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      if(resp.ok){
-        setSent(true);
-        const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
-        setHistory(h=>[entry,...h].slice(0,200));
-        fbSet("/taf_valide/history/"+entry.id,entry);
-        fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
-        notify("✅ Envoyé à "+p.bureau.nom);
-      }else{notify("❌ Erreur envoi ("+resp.status+")",false);}
+      // v1.4.2 : Fix CORS — text/plain évite la preflight OPTIONS, no-cors car Make ne renvoie pas les headers CORS
+      await fetch(WEBHOOK_SEND,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify(payload)});
+      // no-cors → réponse opaque (resp.ok=false toujours). On considère succès si pas d'exception.
+      setSent(true);
+      const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
+      setHistory(h=>[entry,...h].slice(0,200));
+      fbSet("/taf_valide/history/"+entry.id,entry);
+      fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
+      notify("✅ Envoyé à "+p.bureau.nom);
     }catch(err){notify("❌ "+err.message,false);}
     setSending(false);
   }
