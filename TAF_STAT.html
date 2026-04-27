@@ -226,6 +226,7 @@ body::after {
 /* ═══════════════════ MAIN ═══════════════════ */
 #main {
   margin-left: 230px;
+  width: calc(100vw - 230px);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -238,38 +239,44 @@ body::after {
 #topbar {
   background: rgba(6,14,29,0.97);
   border-bottom: 1px solid var(--border);
-  padding: 6px 20px;
+  padding: 5px 20px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  position: sticky;
-  top: 0;
+  gap: 4px;
+  position: relative;
   z-index: 90;
   backdrop-filter: blur(20px);
   flex-shrink: 0;
+  max-height: 90px;
+  overflow: hidden;
 }
 .topbar-row1 {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-height: 32px;
 }
 .topbar-row2 {
   display: flex;
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
+  min-height: 28px;
 }
 
 .fg {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: rgba(255,184,0,0.04);
   border: 1px solid var(--border);
   border-radius: var(--r2);
-  padding: 4px 10px;
+  padding: 3px 8px;
   transition: border-color 0.2s;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .fg:hover { border-color: var(--border2); }
 .fl {
@@ -6371,13 +6378,16 @@ async function uploadToDrive(fileName, fileContent, mimeType){
       mimeType: mimeType || 'application/json',
       folderId: CFG.DRIVE_FOLDER
     };
+    // mode:'no-cors' + text/plain = pas de preflight CORS (Apps Script accepte)
     var resp = await fetch(CFG.DRIVE_PROXY, {
       method: 'POST',
-      body: JSON.stringify(payload),
-      headers: {'Content-Type': 'application/json'}
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify(payload)
     });
-    var json = await resp.json();
-    return {ok: json.success || json.id || json.fileId, name: fileName, data: json};
+    // Avec no-cors la réponse est opaque (on ne peut pas la lire)
+    // L'envoi a bien eu lieu si on arrive ici sans erreur
+    return {ok: true, name: fileName};
   }catch(e){
     console.error('uploadToDrive error:', e);
     return {ok: false, name: fileName, error: e.message};
@@ -6421,6 +6431,24 @@ async function autoSaveAfterImport(){
     try{ await saveToDrive(null); }
     catch(e){ console.warn('Auto Drive save failed:', e); }
   }, 1000);
+}
+
+
+function renderProjection(data){
+  const yearSel=document.getElementById('filter-year').value;
+  if(yearSel==='all'){document.getElementById('projection-content').innerHTML='<div class="empty-state"><div class="empty-text">Sélectionnez une année</div></div>';return;}
+  const year=parseInt(yearSel);
+  const ytd=S.raw.filter(d=>d.year===year);
+  const now=new Date(), doy=getDOY(now), diy=isLeap(year)?366:365, dLeft=diy-doy;
+  const rate=sum(ytd,'bbe')/doy;
+  const doc=document.getElementById('projection-content');
+  doc.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;padding:10px 0">
+    ${[['🐢','Pessimiste',0.8,'var(--red)'],['📊','Réaliste',1,'var(--gold)'],['🚀','Optimiste',1.2,'var(--green)']].map(([icon,label,mult,color])=>{
+      const proj=sum(ytd,'bbe')+rate*mult*dLeft;
+      return '<div style="'+(mult!==1?'':'')+'" >         <div style="font-size:22px;margin-bottom:6px">'+(icon)+'</div>         <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">'+(label)+'</div>         <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:'+(color)+'">'+(fmtEur(proj))+'</div>       </div>';
+    }).join('')}
+  </div>
+  <div style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--mono)">Basé sur ${doy}j · Rythme ${fmtEur(rate)}/jour · ${dLeft} jours restants</div>`;
 }
 </script>
 </body>
