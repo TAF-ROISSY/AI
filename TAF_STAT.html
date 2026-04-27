@@ -1842,10 +1842,13 @@ canvas { touch-action: pan-y !important; }
         </div>
         <div class="chart-card" style="margin:0">
           <div class="chart-title">☁️ Google Drive</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">Config seule (secteurs, objectifs, filtres) — léger et fiable</div>
           <div id="drive-full-status" style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-bottom:10px">—</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-drive" style="font-size:11px" onclick="saveToDrive()">☁️ Sauver sur Drive</button>
+            <button class="btn-drive" style="font-size:11px" onclick="saveToDrive(this)">☁️ Sauver config Drive</button>
+            <button class="btn-secondary" style="font-size:11px" onclick="downloadFullBackup()">⬇ Télécharger backup complet</button>
           </div>
+          <div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:8px">⬇ Backup complet = raw + config (~200Ko) — sauvegardé localement</div>
         </div>
       </div>
 
@@ -6132,17 +6135,7 @@ function restoreFullLocalStorage(){
 
 // ── Sauvegarde Drive ──
 // ── Sauvegarde automatique après import ──
-async function autoSaveAfterImport(){
-  // 1. localStorage complet immédiat
-  saveFullLocalStorage();
-  // 2. Drive en arrière-plan (sans bloquer l'UI)
-  setTimeout(async function(){
-    try{ await saveToDrive(); }
-    catch(e){ console.warn('Auto-save Drive failed:', e); }
-  }, 1500);
-}
 
-// ── Statut Drive dans le sidebar ──
 function updateDriveStatus(){
   var el = document.getElementById('drive-save-status');
   if(!el) return;
@@ -6195,52 +6188,6 @@ function updateSaveStatus(){
 
 // ══ FIX DRIVE : envoi JSON body au lieu de FormData ══════════════
 // (Le proxy Apps Script attend application/json, pas multipart/form-data)
-async function saveToDrive(){
-  if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
-  var btn = event?.currentTarget || event?.target;
-  if(btn && btn.tagName==='BUTTON'){ btn.disabled=true; btn.textContent='☁️ Envoi...'; }
-  try{
-    var payload = buildFullPayload();
-    var now = new Date();
-    var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    var years = S.years.sort().join('-');
-    var filename = 'TAF_STAT_backup_'+years+'_'+dateStr+'.json';
-
-    // Le proxy TAF attend un JSON body avec ces champs
-    var body = JSON.stringify({
-      action: 'upload',
-      folderId: CFG.DRIVE_FOLDER,
-      filename: filename,
-      content: JSON.stringify(payload),
-      mimeType: 'application/json'
-    });
-
-    var res = await fetch(CFG.DRIVE_PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body
-    });
-
-    var data = await res.json();
-    if(data.success || data.id || data.fileId || data.ok){
-      var driveLink = data.url || data.webViewLink || '';
-      toast('Drive OK: ' + filename);
-      localStorage.setItem('taf_stat_last_drive', new Date().toISOString()+'|'+filename);
-      updateDriveStatus();
-      if(document.getElementById('drive-full-status')) updateSaveStatus();
-    } else {
-      throw new Error(JSON.stringify(data).slice(0,100));
-    }
-  }catch(e){
-    console.error('Drive save error:', e);
-    toast('Drive ERROR: '+e.message.slice(0,60));
-  }finally{
-    if(btn && btn.tagName==='BUTTON'){ btn.disabled=false; btn.textContent='☁️ Sauver Drive'; }
-  }
-}
-
-// ══ MODE PRÉSENTATION (restauré) ═════════════════════════════════
-var PRES={current:0,total:5,charts:{},active:false};
 
 function enterPresentationMode(){
   if(!S.raw.length){toast('Importez des données avant de lancer la présentation');return;}
@@ -6339,6 +6286,106 @@ document.addEventListener('keydown',function(e){
   if(PRES.active) return;
   if((e.key==='p'||e.key==='P')&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT') enterPresentationMode();
 });
+
+
+// ══ SAUVEGARDE DRIVE + TÉLÉCHARGEMENT ════════════════════════════
+// Stratégie :
+//   Drive  → config légère (secteurs, objectifs, filtres) ≈ quelques Ko
+//   Téléchargement → backup complet avec raw (> 200Ko)
+
+// ─ Config seule pour Drive ─────────────────────────────────────
+function buildConfigPayload(){
+  return {
+    version: '2.1-config',
+    ts: new Date().toISOString(),
+    years: S.years,
+    totalDossiers: S.raw.length,
+    secteurs: S.secteurs,
+    objectifs: S.objectifs,
+    savedFilters: S.savedFilters||[],
+    loadedMeta: S.loadedMeta,
+    summary: S.years.reduce(function(acc,y){
+      var yd=S.raw.filter(function(d){return d.year===y;});
+      acc[y]={bbe:Math.round(sum(yd,'bbe')),fc:Math.round(sum(yd,'fc')),dossiers:yd.length};
+      return acc;
+    },{})
+  };
+}
+
+// ─ Sauvegarde Drive (config légère, fiable) ────────────────────
+async function saveToDrive(btnEl){
+  if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
+  var btn = btnEl || event?.currentTarget || event?.target;
+  if(btn&&btn.tagName==='BUTTON'){ btn.disabled=true; btn.textContent='☁️ Envoi...'; }
+  try{
+    var payload = buildConfigPayload();
+    var json = JSON.stringify(payload);
+    var now = new Date();
+    var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    var filename = 'TAF_STAT_config_'+S.years.sort().join('-')+'_'+dateStr+'.json';
+
+    // Envoi en application/x-www-form-urlencoded (le plus compatible avec Apps Script)
+    var params = new URLSearchParams();
+    params.append('action', 'upload');
+    params.append('folderId', CFG.DRIVE_FOLDER);
+    params.append('filename', filename);
+    params.append('content', json);
+    params.append('mimeType', 'application/json');
+
+    var res = await fetch(CFG.DRIVE_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    var text = await res.text();
+    var data;
+    try{ data = JSON.parse(text); }catch(e){ data = {ok:false, error:text.slice(0,80)}; }
+
+    if(data.success || data.id || data.fileId || data.ok || res.ok){
+      toast('Drive OK: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
+      localStorage.setItem('taf_stat_last_drive', new Date().toISOString()+'|'+filename+'|'+S.raw.length+'dos');
+      updateDriveStatus();
+      if(document.getElementById('drive-full-status')) updateSaveStatus();
+    } else {
+      throw new Error(data.error||JSON.stringify(data).slice(0,80));
+    }
+  }catch(e){
+    console.error('Drive save error:', e);
+    toast('Drive ERROR: '+e.message.slice(0,60));
+  }finally{
+    if(btn&&btn.tagName==='BUTTON'){ btn.disabled=false; btn.textContent='☁️ Sauver Drive'; }
+  }
+}
+
+// ─ Téléchargement complet (raw inclus) ─────────────────────────
+function downloadFullBackup(){
+  if(!S.raw.length){ toast('Aucune donnée à télécharger'); return; }
+  var payload = buildFullPayload();
+  var json = JSON.stringify(payload);
+  var now = new Date();
+  var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var filename = 'TAF_STAT_backup_'+S.years.sort().join('-')+'_'+dateStr+'_'+S.raw.length+'dos.json';
+  var blob = new Blob([json], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Téléchargement: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
+}
+
+// ─ Sauvegarde automatique post-import ──────────────────────────
+async function autoSaveAfterImport(){
+  // 1. localStorage complet immédiat (raw inclus)
+  saveFullLocalStorage();
+  // 2. Drive config légère (1s après, sans bloquer)
+  setTimeout(async function(){
+    try{ await saveToDrive(null); }
+    catch(e){ console.warn('Auto Drive save failed:', e); }
+  }, 1000);
+}
 
 </script>
 </body>
