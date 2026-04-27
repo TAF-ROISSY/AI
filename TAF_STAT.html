@@ -2110,6 +2110,12 @@ canvas { touch-action: pan-y !important; }
 </div><!-- /pres-overlay -->
 
 <script>
+// Fix scroll: Chart.js ne capte plus les événements wheel/scroll
+if(typeof Chart !== 'undefined'){
+  Chart.defaults.events = ['mousemove','mouseout','click','touchstart','touchmove'];
+}
+
+
 
 // ══════════════════════════════════════════════════════════════
 //  CONFIG
@@ -6456,8 +6462,8 @@ function renderProjection(data){
   <div style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--mono)">Basé sur ${doy}j · Rythme ${fmtEur(rate)}/jour · ${dLeft} jours restants</div>`;
 }
 
-// ══ DIAGNOSTIC LAYOUT ════════════════════════════════════════
-window.addEventListener('load', function(){
+// Diagnostic layout désactivé
+/*window.addEventListener('load', function(){
   setTimeout(function(){
     var ids = ['sidebar','main','topbar','content','view-dashboard','kpi-main'];
     ids.forEach(function(id){
@@ -6474,7 +6480,7 @@ window.addEventListener('load', function(){
       console.log('[SCROLL] content scrollHeight='+ct.scrollHeight+' clientHeight='+ct.clientHeight+' overflow='+getComputedStyle(ct).overflowY);
     }
   }, 2000);
-});
+});*/
 
 // Fix scroll Chart.js: désactiver wheel sur tous les charts
 var _origChart = window.Chart;
