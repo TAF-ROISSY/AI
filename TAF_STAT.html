@@ -6313,52 +6313,7 @@ function buildConfigPayload(){
 }
 
 // ─ Sauvegarde Drive (config légère, fiable) ────────────────────
-async function saveToDrive(btnEl){
-  if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
-  var btn = btnEl || event?.currentTarget || event?.target;
-  if(btn&&btn.tagName==='BUTTON'){ btn.disabled=true; btn.textContent='☁️ Envoi...'; }
-  try{
-    var payload = buildConfigPayload();
-    var json = JSON.stringify(payload);
-    var now = new Date();
-    var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    var filename = 'TAF_STAT_config_'+S.years.sort().join('-')+'_'+dateStr+'.json';
 
-    // Envoi en application/x-www-form-urlencoded (le plus compatible avec Apps Script)
-    var params = new URLSearchParams();
-    params.append('action', 'upload');
-    params.append('folderId', CFG.DRIVE_FOLDER);
-    params.append('filename', filename);
-    params.append('content', json);
-    params.append('mimeType', 'application/json');
-
-    var res = await fetch(CFG.DRIVE_PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    });
-
-    var text = await res.text();
-    var data;
-    try{ data = JSON.parse(text); }catch(e){ data = {ok:false, error:text.slice(0,80)}; }
-
-    if(data.success || data.id || data.fileId || data.ok || res.ok){
-      toast('Drive OK: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
-      localStorage.setItem('taf_stat_last_drive', new Date().toISOString()+'|'+filename+'|'+S.raw.length+'dos');
-      updateDriveStatus();
-      if(document.getElementById('drive-full-status')) updateSaveStatus();
-    } else {
-      throw new Error(data.error||JSON.stringify(data).slice(0,80));
-    }
-  }catch(e){
-    console.error('Drive save error:', e);
-    toast('Drive ERROR: '+e.message.slice(0,60));
-  }finally{
-    if(btn&&btn.tagName==='BUTTON'){ btn.disabled=false; btn.textContent='☁️ Sauver Drive'; }
-  }
-}
-
-// ─ Téléchargement complet (raw inclus) ─────────────────────────
 function downloadFullBackup(){
   if(!S.raw.length){ toast('Aucune donnée à télécharger'); return; }
   var payload = buildFullPayload();
@@ -6377,16 +6332,67 @@ function downloadFullBackup(){
 }
 
 // ─ Sauvegarde automatique post-import ──────────────────────────
+
+async function uploadToDrive(fileName, fileContent, mimeType){
+  try{
+    var payload = {
+      action: 'upload',
+      fileName: fileName,
+      content: fileContent,
+      mimeType: mimeType || 'application/json',
+      folderId: CFG.DRIVE_FOLDER
+    };
+    var resp = await fetch(CFG.DRIVE_PROXY, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {'Content-Type': 'application/json'}
+    });
+    var json = await resp.json();
+    return {ok: json.success || json.id || json.fileId, name: fileName, data: json};
+  }catch(e){
+    console.error('uploadToDrive error:', e);
+    return {ok: false, name: fileName, error: e.message};
+  }
+}
+
+// ══ SAUVEGARDE DRIVE (réécrite, utilise uploadToDrive) ═══════════
+async function saveToDrive(btnEl){
+  if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
+  var btn = btnEl || event?.currentTarget || event?.target;
+  if(btn&&btn.tagName==='BUTTON'){ btn.disabled=true; btn.textContent='☁️ Envoi...'; }
+  try{
+    var payload = buildConfigPayload();
+    var json = JSON.stringify(payload, null, 0);
+    var now = new Date();
+    var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    var filename = 'TAF_STAT_config_'+S.years.sort().join('-')+'_'+dateStr+'.json';
+
+    var r = await uploadToDrive(filename, json, 'application/json');
+
+    if(r.ok){
+      toast('Drive OK: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
+      localStorage.setItem('taf_stat_last_drive', new Date().toISOString()+'|'+filename+'|'+S.raw.length+'dos');
+      updateDriveStatus();
+      if(document.getElementById('drive-full-status')) updateSaveStatus();
+    } else {
+      throw new Error(JSON.stringify(r.data||r.error).slice(0,80));
+    }
+  }catch(e){
+    console.error('Drive save error:', e);
+    toast('Drive ERROR: '+e.message.slice(0,60));
+  }finally{
+    if(btn&&btn.tagName==='BUTTON'){ btn.disabled=false; btn.textContent='☁️ Sauver config Drive'; }
+  }
+}
+
+// Sauvegarde automatique post-import
 async function autoSaveAfterImport(){
-  // 1. localStorage complet immédiat (raw inclus)
   saveFullLocalStorage();
-  // 2. Drive config légère (1s après, sans bloquer)
   setTimeout(async function(){
     try{ await saveToDrive(null); }
     catch(e){ console.warn('Auto Drive save failed:', e); }
   }, 1000);
 }
-
 </script>
 </body>
 </html>
