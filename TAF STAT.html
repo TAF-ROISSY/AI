@@ -65,7 +65,9 @@ body {
   color: var(--text);
   min-height: 100vh;
   display: flex;
-  overflow-x: hidden;
+  flex-direction: row;
+  align-items: stretch;
+  overflow: hidden;
   position: relative;
 }
 
@@ -96,6 +98,8 @@ body::after {
 #sidebar {
   width: 230px;
   min-width: 230px;
+  flex-shrink: 0;
+  flex-grow: 0;
   background: linear-gradient(180deg, #060e1d 0%, #040b18 100%);
   border-right: 1px solid var(--border);
   display: flex;
@@ -105,6 +109,8 @@ body::after {
   top: 0;
   z-index: 100;
   backdrop-filter: blur(20px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Logo area */
@@ -225,38 +231,53 @@ body::after {
 /* ═══════════════════ MAIN ═══════════════════ */
 #main {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* ═══════════════════ TOPBAR ═══════════════════ */
 #topbar {
-  background: rgba(6,14,29,0.95);
+  background: rgba(6,14,29,0.97);
   border-bottom: 1px solid var(--border);
-  padding: 8px 24px;
+  padding: 5px 20px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  position: sticky;
-  top: 0;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
   z-index: 90;
   backdrop-filter: blur(20px);
+}
+.topbar-row1 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-height: 32px;
+}
+.topbar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-height: 28px;
 }
 
 .fg {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: rgba(255,184,0,0.04);
   border: 1px solid var(--border);
   border-radius: var(--r2);
-  padding: 4px 10px;
+  padding: 3px 8px;
   transition: border-color 0.2s;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .fg:hover { border-color: var(--border2); }
 .fl {
@@ -299,7 +320,7 @@ body::after {
   box-shadow: 0 0 12px rgba(255,184,0,0.1);
 }
 
-.topbar-spacer { flex: 1; }
+.topbar-spacer { display: none; } /* supprimé - layout en 2 lignes */
 
 .btn-primary {
   background: var(--gold);
@@ -356,9 +377,11 @@ body::after {
 
 /* ═══════════════════ CONTENT ═══════════════════ */
 #content { flex:1; padding:20px 24px; min-height:0; overflow-y:auto; }
-.view { display:none; }
-.view.active { display:block; animation: reveal 0.3s cubic-bezier(0.4,0,0.2,1); }
-@keyframes reveal { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+/* Chart.js ne bloque plus le scroll */
+canvas { touch-action: pan-y !important; }
+.view { display:none; width:100%; box-sizing:border-box; }
+.view.active { display:block !important; opacity:1 !important; visibility:visible !important; }
+/* @keyframes reveal supprimé */
 
 /* ═══════════════════ IMPORT ═══════════════════ */
 #import-view { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 110px); }
@@ -856,7 +879,7 @@ body::after {
   <div class="sidebar-footer">
     <div class="data-status"><div class="dot" id="data-dot"></div><span id="data-status-text">Aucune donnée</span></div>
     <div id="data-coverage" style="margin-bottom:4px">—</div>
-    <div id="drive-last-save" style="color:var(--text3);font-size:8px">Drive : jamais sauvegardé</div>
+    <div id="drive-last-save" style="color:var(--text3);font-size:8px" id="drive-save-status">Drive : jamais sauvegardé</div>
   </div>
 </nav>
 
@@ -864,67 +887,71 @@ body::after {
 <div id="main">
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="fg"><span class="fl">Année</span>
-      <select class="fsel" id="filter-year" onchange="applyFilters()"><option value="all">Toutes</option></select>
-    </div>
-    <div class="fg"><span class="fl">Vs</span>
-      <select class="fsel" id="filter-compare" onchange="applyFilters()">
-        <option value="none">Aucune comparaison</option>
-        <option value="1" selected>N-1</option>
-      </select>
-    </div>
-    <!-- TOGGLE MÊME PÉRIODE -->
-    <div class="fg" id="same-period-wrap" title="Compare uniquement jusqu'à la même date dans l'année N-1">
-      <span class="fl">Mode</span>
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="filter-same-period" onchange="applyFilters()" style="accent-color:var(--cyan);width:13px;height:13px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap" id="same-period-label">Même période</span>
-      </label>
-    </div>
-    <div class="fg"><span class="fl">Granul.</span>
-      <select class="fsel" id="filter-granularity" onchange="applyFilters()">
-        <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
-      </select>
-    </div>
-    <div class="fg" style="position:relative">
-      <span class="fl">Client</span>
-      <input type="text" class="fsel" id="filter-client-input" placeholder="Tous les clients" 
-        oninput="filterClientDropdown()" onfocus="showClientDropdown()" style="min-width:130px;cursor:text"
-        autocomplete="off">
-      <div id="client-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);z-index:200;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
-        <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:9px;font-family:var(--mono);color:var(--text3)" id="client-dd-count">—</span>
-          <button onclick="clearClientFilter()" style="font-size:9px;font-family:var(--mono);color:var(--red);background:none;border:none;cursor:pointer">Effacer</button>
+    <!-- LIGNE 1 : Filtres + actions -->
+    <div class="topbar-row1">
+      <div class="fg"><span class="fl">Année</span>
+        <select class="fsel" id="filter-year" onchange="applyFilters()"><option value="all">Toutes</option></select>
+      </div>
+      <div class="fg"><span class="fl">Vs</span>
+        <select class="fsel" id="filter-compare" onchange="applyFilters()">
+          <option value="none">Aucune comparaison</option>
+          <option value="1" selected>N-1</option>
+          <option value="2">N-2</option>
+          <option value="3">N-3</option>
+        </select>
+      </div>
+      <div class="fg" id="same-period-wrap" title="Compare jusqu'à la même date N-1">
+        <span class="fl">Mode</span>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="filter-same-period" onchange="applyFilters()" style="accent-color:var(--cyan);width:13px;height:13px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap" id="same-period-label">Même période</span>
+        </label>
+      </div>
+      <div class="fg"><span class="fl">Granul.</span>
+        <select class="fsel" id="filter-granularity" onchange="applyFilters()">
+          <option value="month">Mensuel</option><option value="week">Hebdo</option><option value="quarter">Trimestriel</option><option value="semester">Semestriel</option><option value="year">Annuel</option>
+        </select>
+      </div>
+      <div class="fg" style="position:relative">
+        <span class="fl">Client</span>
+        <input type="text" class="fsel" id="filter-client-input" placeholder="Tous les clients"
+          oninput="filterClientDropdown()" onfocus="showClientDropdown()" style="min-width:120px;cursor:text" autocomplete="off">
+        <div id="client-dropdown" style="display:none;position:absolute;top:100%;left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);z-index:200;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+          <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:9px;font-family:var(--mono);color:var(--text3)" id="client-dd-count">—</span>
+            <button onclick="clearClientFilter()" style="font-size:9px;font-family:var(--mono);color:var(--red);background:none;border:none;cursor:pointer">Effacer</button>
+          </div>
+          <div id="client-dd-list"></div>
         </div>
-        <div id="client-dd-list"></div>
+      </div>
+      <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:180px"></div>
+      <select class="fsel" id="filter-secteur" onchange="applyFilters()">
+        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson</option><option value="Fruits & Légumes">🥦 FL</option><option value="Animaux Vivants">🐾 AVI</option><option value="Autre">📦 Autre</option>
+      </select>
+      <!-- Actions inline -->
+      <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="resetAllFilters()" title="Reset filtres">↺</button>
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="openSaveFilterModal()" title="Sauver filtre">🔖</button>
+        <button class="btn-secondary" style="font-size:10px;padding:4px 9px" onclick="exportCSV()" title="Exporter CSV">⬇ CSV</button>
+        <button class="btn-drive" style="font-size:10px;padding:4px 10px" onclick="saveToDrive()">☁️ Drive</button>
+        <button class="btn-primary" style="font-size:10px;padding:4px 10px" onclick="document.getElementById('file-input').click()">+ XLS</button>
+        <button class="btn-pres" style="font-size:10px;padding:4px 10px" onclick="enterPresentationMode()">⛶ Présentation</button>
       </div>
     </div>
-    <div id="client-pills" style="display:flex;gap:3px;flex-wrap:wrap;max-width:200px"></div>
-      <select class="fsel" id="filter-secteur" onchange="applyFilters()">
-        <option value="all">Tous</option><option value="Poisson Frais">🐟 Poisson Frais</option><option value="Fruits & Légumes">🥦 FL</option><option value="Animaux Vivants">🐾 Animaux Vivants</option><option value="Autre">📦 Autre</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:3px">
+    <!-- LIGNE 2 : Presets période -->
+    <div class="topbar-row2">
       <button class="btn-preset active" onclick="setPreset('YTD',this)">Depuis janv.</button>
       <button class="btn-preset" onclick="setPreset('MTD',this)">Ce mois</button>
       <button class="btn-preset" onclick="setPreset('QTD',this)">Ce trimestre</button>
       <button class="btn-preset" onclick="setPreset('LM',this)">Mois préc.</button>
       <button class="btn-preset" onclick="setPreset('LQ',this)">Trim. préc.</button>
       <button class="btn-preset" onclick="setPreset('ALL',this)">Tout</button>
+      <div id="active-filters-inline" style="display:flex;gap:4px;flex-wrap:wrap;margin-left:8px"></div>
     </div>
-    <div class="topbar-spacer"></div>
-    <button class="btn-secondary" style="font-size:10px;color:var(--text3);border-color:var(--border)" onclick="resetAllFilters()" title="Réinitialiser tous les filtres">↺ Reset</button>
-    <button class="btn-secondary" onclick="openSaveFilterModal()">🔖 Sauver filtre</button>
-    <button class="btn-secondary" onclick="exportCSV()">⬇ CSV</button>
-    <button class="btn-drive" onclick="saveToDrive()">☁️ Sauver Drive</button>
-    <button class="btn-primary" onclick="document.getElementById('file-input').click()">➕ XLS</button>
-    <button class="btn-pres" onclick="enterPresentationMode()" title="Mode Présentation (P)">⛶ Présentation</button>
   </div>
 
-  <!-- ACTIVE FILTERS BAR -->
-  <div id="active-filters-bar" style="padding:0 20px;display:none">
-    <div class="active-filters" id="active-filters-content"></div>
-  </div>
+
+  <!-- active-filters-bar now inline in topbar-row2 -->
 
   <!-- CONTENT -->
   <div id="content">
@@ -1090,6 +1117,23 @@ body::after {
           <canvas id="chart-periode-marge" height="140"></canvas>
         </div>
       </div>
+
+      <!-- Tendance Pluriannuelle -->
+      <div class="chart-card" style="margin-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin:0">📐 Tendance Pluriannuelle — Max / Moy / Min par période</div>
+          <div id="trend-legend" style="display:flex;gap:14px;font-family:var(--mono);font-size:9px;color:var(--text3)">
+            <span style="color:var(--green)">▬ Max</span>
+            <span style="color:var(--cyan)">▬ Moyenne</span>
+            <span style="color:var(--red)">▬ Min</span>
+            <span style="color:rgba(255,184,0,0.5)">▬ Chaque année</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap" id="trend-year-pills"></div>
+        <canvas id="chart-trend-pluriannuel" height="160"></canvas>
+        <div id="trend-stats-band" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px"></div>
+      </div>
+
       <div class="grid-3" style="margin-top:14px">
         <div class="chart-card">
           <div class="chart-title">👥 Clients actifs par période</div>
@@ -1808,10 +1852,45 @@ body::after {
     <!-- RESTAURER -->
     <div id="view-restaurer" class="view">
       <div class="section-header">
-        <div class="section-title"><span class="icon">🔄</span>Restaurer les données</div>
+        <div class="section-title"><span class="icon">🔄</span>Sauvegarde & Restauration</div>
       </div>
 
-      <!-- Auto-save localStorage -->
+      <!-- Statut sauvegarde -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="chart-card" style="margin:0">
+          <div class="chart-title">💾 LocalStorage</div>
+          <div id="ls-full-status" style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-bottom:10px">—</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-primary" style="font-size:11px" onclick="saveFullLocalStorage();updateSaveStatus();toast('LocalStorage mis à jour')">💾 Sauvegarder</button>
+            <button class="btn-secondary" style="font-size:11px" onclick="restoreFullLocalStorage()">🔄 Restaurer</button>
+          </div>
+        </div>
+        <div class="chart-card" style="margin:0">
+          <div class="chart-title">☁️ Google Drive</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">Config seule (secteurs, objectifs, filtres) — léger et fiable</div>
+          <div id="drive-full-status" style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-bottom:10px">—</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-drive" style="font-size:11px" onclick="saveToDrive(this)">☁️ Sauver config Drive</button>
+            <button class="btn-secondary" style="font-size:11px" onclick="downloadFullBackup()">⬇ Télécharger backup complet</button>
+          </div>
+          <div style="font-size:9px;font-family:var(--mono);color:var(--text3);margin-top:8px">⬇ Backup complet = raw + config (~200Ko) — sauvegardé localement</div>
+        </div>
+      </div>
+
+      <!-- Sauvegarde automatique localStorage -->
+      <div class="chart-card" style="margin-bottom:14px">
+        <div class="chart-title">⚙️ Sauvegarde Automatique</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:12px">
+          Après chaque import XLS, les données complètes sont automatiquement sauvegardées en localStorage <strong>et</strong> envoyées sur Drive.
+          Le fichier Drive est nommé <code style="background:var(--mid);padding:2px 6px;border-radius:3px;font-family:var(--mono)">TAF_STAT_backup_YYYY_DATE.json</code>.
+        </div>
+        <div style="background:var(--bg3);border:1px solid rgba(0,245,160,0.15);border-radius:var(--r);padding:12px;font-family:var(--mono);font-size:10px">
+          <div style="color:var(--green);margin-bottom:4px">✅ Auto-save actif</div>
+          <div style="color:var(--text3)">LocalStorage + Drive → déclenché automatiquement à chaque import</div>
+        </div>
+      </div>
+
+      <!-- Auto-save localStorage (ancien système) -->
       <div class="chart-card" style="margin-bottom:14px">
         <div class="chart-title">💾 Sauvegarde Automatique (localStorage)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
@@ -1826,8 +1905,8 @@ body::after {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" style="font-size:11px" onclick="saveToLocalStorage()">💾 Sauvegarder maintenant</button>
-          <button class="btn-secondary" style="font-size:11px" onclick="restoreFromLocalStorage()">🔄 Restaurer depuis localStorage</button>
-          <button class="btn-secondary" style="font-size:11px;color:var(--red);border-color:rgba(255,61,113,0.3)" onclick="clearLocalStorage()">🗑 Effacer les données sauvegardées</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="restoreFromLocalStorage()">🔄 Restaurer (config seule)</button>
+          <button class="btn-secondary" style="font-size:11px;color:var(--red);border-color:rgba(255,61,113,0.3)" onclick="clearLocalStorage()">🗑 Effacer</button>
         </div>
         <div id="autosave-result" style="margin-top:10px;display:none"></div>
       </div>
@@ -1836,12 +1915,12 @@ body::after {
       <div class="chart-card" style="margin-bottom:14px">
         <div class="chart-title">📂 Restaurer depuis un fichier JSON</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:12px">
-          Importez un fichier <code style="background:var(--mid);padding:2px 6px;border-radius:3px;font-family:var(--mono)">TAF_STAT_config_*.json</code> téléchargé précédemment pour restaurer vos catégories, objectifs et filtres sauvegardés.
+          Importez un fichier <code style="background:var(--mid);padding:2px 6px;border-radius:3px;font-family:var(--mono)">TAF_STAT_backup_*.json</code> téléchargé depuis Drive pour restaurer toutes les données.
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="file" id="restore-file-input" accept=".json" onchange="restoreFromFile(this.files[0])" style="display:none">
           <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('restore-file-input').click()">📂 Choisir un fichier JSON</button>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--text3)">Secteurs, objectifs et filtres seront restaurés</span>
+          <span style="font-size:10px;font-family:var(--mono);color:var(--text3)">Secteurs, objectifs, filtres et données raw restaurés</span>
         </div>
         <div id="restore-file-result" style="margin-top:10px;display:none"></div>
       </div>
@@ -1867,6 +1946,13 @@ body::after {
 
 <!-- MODALS -->
 <!-- MODAL DRILL-DOWN PÉRIODE -->
+<div class="modal-overlay" id="modal-kpi-drill" onclick="if(event.target===this)closeModal('modal-kpi-drill')">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-title" id="modal-kpi-drill-title">Détail<button class="modal-close" onclick="closeModal('modal-kpi-drill')">✕</button></div>
+    <div id="modal-kpi-drill-content" style="max-height:70vh;overflow-y:auto;padding:12px 0"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-periode" onclick="if(event.target===this)closeModal('modal-periode')">
   <div class="modal-box" style="width:95vw;max-width:1100px;max-height:90vh;overflow-y:auto">
     <div class="modal-title" id="modal-periode-title">Période<button class="modal-close" onclick="closeModal('modal-periode')">✕</button></div>
@@ -1879,6 +1965,16 @@ body::after {
   <div class="modal-box" style="width:95vw;max-width:1100px;max-height:90vh;overflow-y:auto">
     <div class="modal-title" id="modal-client-drill-title">Client<button class="modal-close" onclick="closeModal('modal-client-drill')">✕</button></div>
     <div id="modal-client-drill-content"></div>
+  </div>
+</div>
+
+</div><!-- #main -->
+
+<!-- Modal Drill Semaine -->
+<div class="modal-overlay" id="modal-week-drill" onclick="if(event.target===this)closeModal('modal-week-drill')">
+  <div class="modal-box" style="width:680px;max-width:95vw">
+    <div class="modal-title" id="modal-week-drill-title">Semaine<button class="modal-close" onclick="closeModal('modal-week-drill')">✕</button></div>
+    <div id="modal-week-drill-content"></div>
   </div>
 </div>
 
@@ -2021,6 +2117,12 @@ body::after {
 </div><!-- /pres-overlay -->
 
 <script>
+// Fix scroll: Chart.js ne capte plus les événements wheel/scroll
+if(typeof Chart !== 'undefined'){
+  Chart.defaults.events = ['mousemove','mouseout','click','touchstart','touchmove'];
+}
+
+
 
 // ══════════════════════════════════════════════════════════════
 //  CONFIG
@@ -2047,7 +2149,8 @@ const S = {
   raw: [],
   filtered: [],
   years: [],
-  preset: 'YTD',
+  periodeGran: 'week',
+    preset: 'YTD',
   currentView: 'import',
   clientPage: 1,
   clientPageSize: 50,
@@ -2200,6 +2303,8 @@ async function handleFileSelect(files){
   prog.style.display='none';
   refreshLoadedFiles();
   initState();
+  // Sauvegarde automatique après import
+  autoSaveAfterImport();
 }
 
 function refreshLoadedFiles(){
@@ -2229,7 +2334,7 @@ function initState(){
   // Datalist comparer
   const allC=[...new Set(S.raw.map(d=>d.client))].sort();
   ['a','b'].forEach(x=>{
-    const dl=document.getElementById(`compare-list-${x}`);
+    const dl=document.getElementById('compare-list-'+x);
     if(dl) dl.innerHTML=allC.map(c=>'<option value="'+(c)+'">').join('');
   });
   const maxYear=Math.max(...S.years), minYear=Math.min(...S.years);
@@ -2241,17 +2346,17 @@ function initState(){
     const cmpYear=maxYear-i;
     if(S.years.includes(cmpYear)){
       const opt=document.createElement('option');
-      opt.value=i; opt.textContent=`N-${i} (${cmpYear})`;
+      opt.value=i; opt.textContent='N-'+i+' ('+cmpYear+')';
       if(i===1) opt.selected=true;
       cmpSel.appendChild(opt);
     }
   }
   // Restaurer la sélection précédente si possible
-  if(currentCmp&&currentCmp!=='1'&&cmpSel.querySelector(`option[value="${currentCmp}"]`)){
+  if(currentCmp&&currentCmp!=='1'&&cmpSel.querySelector('option[value="'+currentCmp+'"]')){
     cmpSel.value=currentCmp;
   }
   document.getElementById('data-dot').classList.add('ok');
-  document.getElementById('data-status-text').textContent=`${S.raw.length} dossiers`;
+  document.getElementById('data-status-text').textContent=S.raw.length+' dossiers';
   document.getElementById('data-coverage').textContent=(Math.min(...S.years))+' → '+(Math.max(...S.years));
   // Dropdowns Parts CA et Impact Perte
   const pcaYear=document.getElementById('pca-year');
@@ -2323,14 +2428,23 @@ function setCascade(type,value){
 }
 
 function renderCascadeBar(){
-  const bar=document.getElementById('active-filters-bar');
-  const content=document.getElementById('active-filters-content');
-  if(!S.cascadeFilter){bar.style.display='none';return;}
-  bar.style.display='block';
-  content.innerHTML=`<div class="filter-pill" onclick="clearCascade()">
-    ${S.cascadeFilter.type==='client'?'👤':'🏷️'} ${S.cascadeFilter.value}
-    <span class="pill-x">✕</span>
-  </div>`;
+  // Afficher dans le topbar-row2 (active-filters-inline)
+  var el = document.getElementById('active-filters-inline');
+  // Aussi l'ancienne barre si elle existe encore
+  var bar = document.getElementById('active-filters-bar');
+  var barContent = document.getElementById('active-filters-content');
+  if(!S.cascadeFilter){
+    if(el) el.innerHTML='';
+    if(bar) bar.style.display='none';
+    return;
+  }
+  var icon = S.cascadeFilter.type==='client'?'👤':'🏷️';
+  var pillHtml = '<div class="filter-pill" onclick="clearCascade()">'
+    +icon+' '+S.cascadeFilter.value
+    +'<span class="pill-x">✕</span></div>';
+  if(el) el.innerHTML = pillHtml;
+  if(bar){ bar.style.display='block'; }
+  if(barContent){ barContent.innerHTML = pillHtml; }
 }
 
 function clearCascade(){S.cascadeFilter=null;applyFilters();}
@@ -2438,13 +2552,14 @@ function renderSamePeriodBanner(cutoff, cmpYear, active){
 function showView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById(`view-${name}`).classList.add('active');
-  document.getElementById(`nav-${name}`)?.classList.add('active');
+  document.getElementById('view-'+name).classList.add('active');
+  document.getElementById('nav-'+name)?.classList.add('active');
   S.currentView=name;
   renderCurrentView();
 }
 
 function renderCurrentView(){
+  console.log('[TAF] renderCurrentView:', S.currentView, 'filtered:', S.filtered.length);
   if(!S.raw.length&&S.currentView!=='import') return;
   const v=S.currentView;
   if(v==='dashboard') renderDashboard();
@@ -2458,6 +2573,7 @@ function renderCurrentView(){
   else if(v==='periode') renderPeriode();
   else if(v==='stats-semaines') renderStatsSemaines();
   else if(v==='import') checkImportAutoSave();
+  else if(v==='restaurer') updateSaveStatus();
   else if(v==='restaurer') renderRestaurer();
   else if(v==='ia-chat'){initIAView();renderSavedPrompts();}
   else if(v==='simulateur'){initIAView();runSimulation();}
@@ -2507,6 +2623,8 @@ function aggBy(data,gran){
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function renderDashboard(){
+  try{
+  console.log('[TAF] renderDashboard - filtered:', S.filtered.length, 'raw:', S.raw.length);
   var data=S.filtered, cmp=getCmpData();
   var bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
   var fc=sum(data,'fc'), nbD=data.length, nbC=new Set(data.map(function(d){return d.client;})).size;
@@ -2596,6 +2714,7 @@ function renderDashboard(){
   // Score Santé + Projection BBE
   renderScoreSante();
   renderProjectionBBE();
+  }catch(err){console.error('[TAF] renderDashboard CRASH:',err.message,err.stack.split('\n')[1]);}
 }
 
 
@@ -2640,13 +2759,13 @@ function renderEvolution(){
   yearsToShow.forEach((y,i)=>{
     const yData=S.raw.filter(d=>d.year===y);
     const periods=aggBy(yData,gran);
-    periods.forEach(p=>allPeriodKeys.add(p.label.replace(`${y}-`,'')));
+    periods.forEach(p=>allPeriodKeys.add(p.label.replace(String(y)+'-','')));
     datasetMap[y]={data:periods,color:palette[i%palette.length]};
   });
   const labels=[...allPeriodKeys].sort();
   const datasets=yearsToShow.map((y,i)=>{
     const pm={};
-    datasetMap[y].data.forEach(p=>{pm[p.label.replace(`${y}-`,'')]=p.bbe;});
+    datasetMap[y].data.forEach(p=>{pm[p.label.replace(String(y)+'-','')]=p.bbe;});
     const isMax=y===Math.max(...S.years);
     return{label:String(y),data:labels.map(l=>pm[l]||0),
       borderColor:datasetMap[y].color,backgroundColor:datasetMap[y].color+(isMax?'18':'06'),
@@ -2663,11 +2782,11 @@ function renderEvolution(){
   const cmp=getCmpData();
   const bbe=sum(data,'bbe'), bbeCmp=sum(cmp,'bbe');
   document.getElementById('kpi-evo').innerHTML=[
-    {label:'BBE Période',value:fmtEur(bbe),d:delta(bbe,bbeCmp)},
-    {label:'CA (F.C.)',value:fmtEur(sum(data,'fc')),d:delta(sum(data,'fc'),sum(cmp,'fc'))},
-    {label:'Dossiers',value:data.length,d:delta(data.length,cmp.length)},
-    {label:'Marge Moy.',value:(sum(data,'fc')>0?(sum(data,'bbe')/sum(data,'fc')*100):0).toFixed(1)+'%'},
-  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+'">'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
+    {l:'BBE Période',v:fmtEur(bbe),d:delta(bbe,bbeCmp)},
+    {l:'CA (F.C.)',v:fmtEur(sum(data,'fc')),d:delta(sum(data,'fc'),sum(cmp,'fc'))},
+    {l:'Dossiers',v:data.length,d:delta(data.length,cmp.length)},
+    {l:'Marge Moy.',v:(sum(data,'fc')>0?(sum(data,'bbe')/sum(data,'fc')*100):0).toFixed(1)+'%'},
+  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+(k.drill?' kpi-clickable" data-drill="'+k.drill+'':'')+'>'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
   const periods=aggBy(data,gran), periodsCmp=aggBy(cmp,gran);
   renderLineChart('chart-ca',periods,periodsCmp,'fc');
   renderBarChart('chart-marge2',periods,'margeAvg','#818cf8');
@@ -2724,7 +2843,21 @@ function filterClientTable(){
     const badge=r.statut==='new'?'<span class="badge-new">NOUVEAU</span>':r.statut==='recovered'?'<span class="badge-recovered">RÉCUPÉRÉ</span>':'<span class="badge-regular">RÉCURRENT</span>';
     const secIcon=r.secteur==='Poisson Frais'?'🐟':r.secteur==='Fruits & Légumes'?'🥦':r.secteur==='Animaux Vivants'?'🐾':'📦';
     const cIdx=S._clientIndex?.[r.client]??-1;
-    return '<tr>       <td style="color:var(--text3)">'+(start+i+1)+'</td>       <td class="td-client" style="cursor:pointer" onclick="openClientModal('+(JSON.stringify(r.client))+')">'+(r.client)+'</td>       <td>'+(badge)+'</td>       <td>'+(r.dossiers)+'</td>       <td class="td-bbe">'+(fmtEur(r.bbe))+'</td>       <td>'+(fmtEur(r.fc))+'</td>       <td>'+(r.marge.toFixed(1))+'%</td>       <td>'+(r.bbeCmp?fmtEur(r.bbeCmp):'—')+'</td>       <td class="td-delta '+(d?.cls||'')+'">'+(d?d.arrow+' '+d.pct+'%':'—')+'</td>       <td>'+(sparkSVG(r.trend))+'</td>       <td>'+(secIcon)+' <span style="font-size:10px">'+(r.secteur)+'</span></td>       <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="setCascade(\'client\','+(JSON.stringify(r.client))+')">🔍</button></td>     </tr>';
+    var _cEsc=r.client.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    return "<tr>"
+      +"<td style=\"color:var(--text3)\">"+(start+i+1)+"</td>"
+      +"<td class=\"td-client\" style=\"cursor:pointer\" onclick=\"openClientModal(decodeURIComponent(this.dataset.c))\" data-c=\""+encodeURIComponent(r.client)+"\">"+(r.client)+"</td>"
+      +"<td>"+(badge)+"</td>"
+      +"<td>"+(r.dossiers)+"</td>"
+      +"<td class=\"td-bbe\">"+(fmtEur(r.bbe))+"</td>"
+      +"<td>"+(fmtEur(r.fc))+"</td>"
+      +"<td>"+(r.marge.toFixed(1))+"%</td>"
+      +"<td>"+(r.bbeCmp?fmtEur(r.bbeCmp):'—')+"</td>"
+      +"<td class=\"td-delta "+(d?.cls||'')+"\">"+(d?d.arrow+' '+d.pct+'%':'—')+"</td>"
+      +"<td>"+(sparkSVG(r.trend))+"</td>"
+      +"<td>"+(secIcon)+' <span style=\"font-size:10px\">'+(r.secteur)+"</span></td>"
+      +"<td><button class=\"btn-secondary\" style=\"font-size:9px;padding:2px 7px\" onclick=\"setCascade('client',decodeURIComponent(this.closest('tr').dataset.c))\">🔍</button></td>"
+      +"</tr>";
   }).join('');
   let pag='<span>'+(total)+' clients · Page '+(S.clientPage)+'/'+(pages||1)+'</span>';
   if(pages>1) for(let p=1;p<=Math.min(pages,10);p++) pag+='<button class="page-btn '+(p===S.clientPage?'active':'')+'" onclick="goPage('+(p)+')">'+(p)+'</button>';
@@ -2879,7 +3012,17 @@ function renderDormants(){
   const tbody=dormants.map(d=>{
     const daysColor=d.daysSince>365?'var(--red)':d.daysSince>180?'var(--orange)':'var(--gold)';
     const cEsc=d.client.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<tr>       <td class="td-client" style="cursor:pointer" onclick="openClientModal('+(JSON.stringify(d.client))+')">'+(d.client)+'</td>       <td style="color:'+(daysColor)+';font-family:var(--mono)">'+(d.daysSince)+'j ('+(d.lastDate.toLocaleDateString('fr'))+')</td>       <td class="td-bbe">'+(fmtEur(d.bbe))+'</td>       <td>'+(d.nb)+'</td>       <td><span style="padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);background:'+(d.priorite==='HAUTE'?'rgba(244,63,94,0.12)':d.priorite==='MOYENNE'?'rgba(240,165,0,0.12)':'rgba(148,163,184,0.08)')+';color:'+(pColor[d.priorite])+'">'+(d.priorite)+'</span></td>       <td style="font-size:10px">'+(d.sec)+'</td>       <td><button class="btn-secondary" style="font-size:9px;padding:2px 7px" onclick="sendClientToCRM('+(JSON.stringify(d.client))+')">📤 CRM</button></td>     </tr>';
+    var _dEsc=d.client.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    return "<tr>"
+      +"<td class=\"td-client\" style=\"cursor:pointer\" data-c=\""+(encodeURIComponent(d.client))+"\""
+      +" onclick=\"openClientModal(decodeURIComponent(this.dataset.c))\">"+(d.client)+"</td>"
+      +"<td style=\"color:"+(daysColor)+";font-family:var(--mono)\">"+(d.daysSince)+"j ("+(d.lastDate.toLocaleDateString('fr'))+")</td>"
+      +"<td class=\"td-bbe\">"+(fmtEur(d.bbe))+"</td>"
+      +"<td>"+(d.nb)+"</td>"
+      +"<td><span style=\"padding:2px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);background:"+(d.priorite==='HAUTE'?'rgba(244,63,94,0.12)':d.priorite==='MOYENNE'?'rgba(240,165,0,0.12)':'rgba(148,163,184,0.08)')+";color:"+(pColor[d.priorite])+"\">"+d.priorite+"</span></td>"
+      +"<td style=\"font-size:10px\">"+(d.sec)+"</td>"
+      +"<td><button class=\"btn-secondary\" style=\"font-size:9px;padding:2px 7px\" onclick=\"sendClientToCRM(decodeURIComponent(this.closest('tr').dataset.c))\">📤 CRM</button></td>"
+      +"</tr>";
   }).join('');
   document.getElementById('dormants-tbody').innerHTML=tbody||'<tr><td colspan="7" style="text-align:center;color:var(--green);padding:20px">✅ Aucun client dormant détecté</td></tr>';
 }
@@ -3241,16 +3384,91 @@ async function saveSecteursDrive(){
 }
 
 function setPeriodeGran(gran,btn){
-  PERIODE_GRAN=gran;
+  S.periodeGran=gran;
   document.querySelectorAll('[id^="pg-"]').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderPeriode();
 }
 
+
+// ══ KPI DRILL-DOWN — Analyse Période ═══════════════
+function dKPI(el){
+  var card=el.closest('[data-c]');
+  if(card){drillClient(card.dataset.c,null,null,null,null);closeModal('modal-kpi-drill');}
+}
+
+function showKpiDrillDown(type){
+  var data=S.filtered;
+  var title='', html='';
+
+  function clientRow(name,v1,v1fmt,v2,v3,n){
+    return '<tr class="kpi-drill-row" data-c="'+name.replace(/"/g,'&quot;')+'" onclick="dKPI(this)" style="cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)">'
+      +'<td style="padding:5px 6px;font-weight:600">'+name+'</td>'
+      +(v1!==undefined?'<td style="padding:5px 6px;text-align:right;color:var(--gold)">'+v1fmt+'</td>':'')
+      +(v2!==undefined?'<td style="padding:5px 6px;text-align:right;color:var(--text2)">'+v2+'</td>':'')
+      +(v3!==undefined?'<td style="padding:5px 6px;text-align:right">'+v3+'</td>':'')
+      +(n!==undefined?'<td style="padding:5px 6px;text-align:right">'+n+'</td>':'')
+      +'</tr>';
+  }
+
+  if(type==='bbe'||type==='ca'){
+    var field=type==='bbe'?'bbe':'fc';
+    title=(type==='bbe'?'BBE':'CA')+' par client — Top 30';
+    var rows=Object.entries(groupBy(data,'client')).map(function(e){return{c:e[0],v:sum(e[1],field),n:e[1].length};}).sort(function(a,b){return b.v-a.v;}).slice(0,30);
+    var total=sum(data,field);
+    html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text3);border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 6px">Client</th><th style="text-align:right;padding:4px 6px">'+(type==='bbe'?'BBE':'CA')+'</th><th style="text-align:right;padding:4px 6px">%</th><th style="text-align:right;padding:4px 6px">Dossiers</th></tr>';
+    rows.forEach(function(r){html+=clientRow(r.c,r.v,fmtEur(r.v),total?((r.v/total)*100).toFixed(1)+'%':'-',undefined,r.n);});
+    html+='</table>';
+  }
+  else if(type==='clients'){
+    title='Clients actifs';
+    var rows=Object.entries(groupBy(data,'client')).map(function(e){return{c:e[0],bbe:sum(e[1],'bbe'),n:e[1].length,sec:S.secteurs[e[0]]||e[1][0]&&e[1][0].secteur||'—'};}).sort(function(a,b){return b.bbe-a.bbe;});
+    html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text3);border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 6px">Client</th><th style="text-align:right;padding:4px 6px">BBE</th><th style="text-align:right;padding:4px 6px">Dossiers</th></tr>';
+    rows.forEach(function(r){html+=clientRow(r.c,r.bbe,fmtEur(r.bbe),undefined,undefined,r.n);});
+    html+='</table>';
+  }
+  else if(type==='dossiers'){
+    title='Dossiers par semaine';
+    var byW={};
+    data.forEach(function(d){var k='S'+(d.week<10?'0':'')+d.week;if(!byW[k]){byW[k]={n:0,bbe:0};}byW[k].n++;byW[k].bbe+=d.bbe;});
+    var rows=Object.entries(byW).sort(function(a,b){return a[0].localeCompare(b[0]);});
+    html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text3);border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 6px">Semaine</th><th style="text-align:right;padding:4px 6px">Dossiers</th><th style="text-align:right;padding:4px 6px">BBE</th></tr>';
+    rows.forEach(function(r){html+='<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:5px 6px;font-weight:600">'+r[0]+'</td><td style="padding:5px 6px;text-align:right">'+r[1].n+'</td><td style="padding:5px 6px;text-align:right;color:var(--gold)">'+fmtEur(r[1].bbe)+'</td></tr>';});
+    html+='</table>';
+  }
+  else if(type==='marge'){
+    title='Marge par client — Top 20';
+    var rows=Object.entries(groupBy(data,'client')).map(function(e){var b=sum(e[1],'bbe'),f=sum(e[1],'fc');return{c:e[0],m:f>0?(b/f*100):0,bbe:b,fc:f};}).filter(function(r){return r.fc>0;}).sort(function(a,b){return b.m-a.m;}).slice(0,20);
+    html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text3);border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 6px">Client</th><th style="text-align:right;padding:4px 6px">Marge</th><th style="text-align:right;padding:4px 6px">BBE</th><th style="text-align:right;padding:4px 6px">CA</th></tr>';
+    rows.forEach(function(r){html+=clientRow(r.c,r.m,r.m.toFixed(1)+'%',fmtEur(r.bbe),fmtEur(r.fc));});
+    html+='</table>';
+  }
+  else if(type==='secteurs'){
+    title='Breakdown par secteur';
+    var total=sum(data,'bbe');
+    var rows=Object.entries(groupBy(data,'secteur')).map(function(e){return{s:e[0],bbe:sum(e[1],'bbe'),n:e[1].length,cl:new Set(e[1].map(function(d){return d.client;})).size};}).sort(function(a,b){return b.bbe-a.bbe;});
+    html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:var(--text3);border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 6px">Secteur</th><th style="text-align:right;padding:4px 6px">BBE</th><th style="text-align:right;padding:4px 6px">%</th><th style="text-align:right;padding:4px 6px">Dossiers</th><th style="text-align:right;padding:4px 6px">Clients</th></tr>';
+    rows.forEach(function(r){html+='<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:5px 6px;font-weight:600">'+r.s+'</td><td style="padding:5px 6px;text-align:right;color:var(--gold)">'+fmtEur(r.bbe)+'</td><td style="padding:5px 6px;text-align:right">'+(total?((r.bbe/total)*100).toFixed(1):0)+'%</td><td style="padding:5px 6px;text-align:right">'+r.n+'</td><td style="padding:5px 6px;text-align:right">'+r.cl+'</td></tr>';});
+    html+='</table>';
+  }
+
+  if(!html) return;
+  var kdt=document.getElementById('modal-kpi-drill-title');
+  kdt.textContent=title;
+  var btn=document.createElement('button');
+  btn.className='modal-close';
+  btn.textContent='✕';
+  btn.onclick=function(){closeModal('modal-kpi-drill');};
+  kdt.appendChild(btn);
+  document.getElementById('modal-kpi-drill-content').innerHTML=html;
+  document.getElementById('modal-kpi-drill').classList.add('active');
+}
+
+
 function renderPeriode(){
   if(!S.raw.length) return;
   const yearSel=document.getElementById('periode-year-sel')?.value||'all';
-  const gran=PERIODE_GRAN;
+  var gran=S.periodeGran||'week';
   let data=yearSel==='all'?S.raw:S.raw.filter(d=>d.year===parseInt(yearSel));
   const cmpYear=yearSel==='all'?null:parseInt(yearSel)-1;
   const cmpData=cmpYear&&S.years.includes(cmpYear)?S.raw.filter(d=>d.year===cmpYear):[];
@@ -3281,15 +3499,15 @@ function renderPeriode(){
 
   // KPI Financier
   document.getElementById('kpi-periode-fin').innerHTML=[
-    {l:'BBE Total',v:fmtEur(bbe),d:delta(bbe,bbeCmp),acc:'gold-accent'},
-    {l:`BBE moy/${labels[gran]}`,v:fmtEur(bbeMoyPer)},
-    {l:'CA Total',v:fmtEur(fc),d:delta(fc,fcCmp)},
-    {l:'Marge Moyenne',v:marg.toFixed(1)+'%'},
-    {l:'BBE / Dossier',v:fmtEur(bbeParDossier)},
-    {l:'BBE / kg',v:bbeParKg.toFixed(2)+'€'},
+    {l:'BBE Total',v:fmtEur(bbe),d:delta(bbe,bbeCmp),acc:'gold-accent',drill:'bbe'},
+    {l:'BBE moy/'+labels[gran],v:fmtEur(bbeMoyPer),drill:'bbe'},
+    {l:'CA Total',v:fmtEur(fc),d:delta(fc,fcCmp),drill:'ca'},
+    {l:'Marge Moyenne',v:marg.toFixed(1)+'%',drill:'marge'},
+    {l:'BBE / Dossier',v:fmtEur(bbeParDossier),drill:'bbe'},
+    {l:'BBE / kg',v:bbeParKg.toFixed(2)+'€',drill:'secteurs'},
     {l:'Meilleure période',v:periods.length?periods.sort((a,b)=>b.bbe-a.bbe)[0].label.replace(/^\d{4}-/,''):'—'},
     {l:'Période la + faible',v:periods.length?[...periods].sort((a,b)=>a.bbe-b.bbe)[0].label.replace(/^\d{4}-/,''):'—'},
-  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+'">'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
+  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+(k.drill?' kpi-clickable" data-drill="'+k.drill+'':'')+'>'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
 
   // KPI Commercial
   const prevAll=yearSel==='all'?new Set():new Set(S.raw.filter(d=>d.year<parseInt(yearSel)).map(d=>d.client));
@@ -3304,25 +3522,25 @@ function renderPeriode(){
   })();
 
   document.getElementById('kpi-periode-com').innerHTML=[
-    {l:'Clients Actifs',v:nbC,d:delta(nbC,new Set(cmpData.map(d=>d.client)).size)},
-    {l:'Nouveaux Clients',v:nbNew,acc:'green-accent'},
-    {l:'Clients Perdus',v:nbLost,acc:nbLost>0?'red-accent':''},
-    {l:'Taux Rétention',v:retention>0?retention.toFixed(1)+'%':'—'},
+    {l:'Clients Actifs',v:nbC,d:delta(nbC,new Set(cmpData.map(d=>d.client)).size),drill:'clients'},
+    {l:'Nouveaux Clients',v:nbNew,acc:'green-accent',drill:'clients'},
+    {l:'Clients Perdus',v:nbLost,acc:nbLost>0?'red-accent':'',drill:'clients'},
+    {l:'Taux Rétention',v:retention>0?retention.toFixed(1)+'%':'—',drill:'clients'},
     {l:'BBE Moy/Client',v:nbC?fmtEur(bbe/nbC):'—'},
-    {l:`Clients moy/${labels[gran]}`,v:nbCMoyPer.toFixed(1)},
+    {l:'Clients moy/'+labels[gran],v:nbCMoyPer.toFixed(1)},
     {l:'Top Client',v:topClient?topClient[0].slice(0,14):'—'},
     {l:'Conc. Top 10',v:concentrationTop10,sub:'du BBE total'},
-  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+'">'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
+  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+(k.drill?' kpi-clickable" data-drill="'+k.drill+'':'')+'>'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
 
   // KPI Opérationnel
   document.getElementById('kpi-periode-ops').innerHTML=[
-    {l:'Dossiers Total',v:nbD,d:delta(nbD,cmpData.length)},
-    {l:`Dossiers moy/${labels[gran]}`,v:nbDMoyPer.toFixed(1)},
+    {l:'Dossiers Total',v:nbD,d:delta(nbD,cmpData.length),drill:'dossiers'},
+    {l:'Dossiers moy/'+labels[gran],v:nbDMoyPer.toFixed(1)},
     {l:'Poids Total (kg)',v:poids.toLocaleString('fr')},
     {l:'Colis Total',v:colis.toLocaleString('fr')},
     {l:'Poids moy/dossier',v:nbD?(poids/nbD).toFixed(0)+' kg':'—'},
     {l:'Dossiers/jour ouvré',v:(nbD/(nbPeriods*(gran==='week'?5:gran==='month'?22:gran==='quarter'?65:130))).toFixed(1)},
-  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+'">'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
+  ].map(function(k){var h='<div class="kpi-card '+(k.acc||'')+(k.drill?' kpi-clickable" data-drill="'+k.drill+'':'')+'>'+'<div class="kpi-label">'+k.l+'</div>'+'<div class="kpi-value">'+k.v+'</div>';if(k.d)h+='<div class="kpi-delta '+k.d.cls+'">'+k.d.arrow+' '+k.d.pct+'%</div>';if(k.sub)h+='<div class="kpi-sub">'+k.sub+'</div>';return h+'</div>';}).join('');
 
   // Records & Insights
   const bbeByWeekNum={};
@@ -3344,6 +3562,7 @@ function renderPeriode(){
   const sortedPeriods=[...periods].sort((a,b)=>a.label.localeCompare(b.label));
   renderLineChart('chart-periode-bbe',sortedPeriods,periodsCmp,'bbe');
   renderBarChart('chart-periode-marge',sortedPeriods,'margeAvg','#818cf8');
+  renderTendancePluriannuelle(gran);
   // Clients par période
   const clientsByPeriod=aggBy(data,gran).map(p=>{const pd=data.filter(d=>{
     if(gran==='week') return d.week===parseInt(p.label.replace(/.*S/,''));
@@ -3378,15 +3597,15 @@ function renderPeriode(){
 
   // Top 10 clients de la période
   const topClients=Object.entries(groupBy(data,'client')).map(([c,d])=>({
-    c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),nb:d.length,poids:sum(d,'poids'),
-    marge:avg(d.filter(x=>x.pct>0).map(x=>x.pct)),sec:S.secteurs[c]||d[0]?.secteur
+    c,bbe:sum(d,'bbe'),fc:sum(d,'fc'),dos:d.length,poids:sum(d,'poids'),
+    marge:avg(d.filter(x=>x.pct>0).map(x=>x.pct))||0,secteur:S.secteurs[c]||d[0]?.secteur||'—'
   })).sort((a,b)=>b.bbe-a.bbe).slice(0,10);
   document.getElementById('periode-top-tbody').innerHTML=topClients.map(function(c,i){
     var cEsc=c.c.replace(/'/g,"\'");
     return '<tr style="cursor:pointer" onclick="drillClient(\''+cEsc+'\',null,null,null,null)">'
       +'<td>'+(i+1)+'</td><td class="td-client">'+c.c+'</td>'
       +'<td class="td-bbe">'+fmtEur(c.bbe)+'</td><td>'+fmtEur(c.fc)+'</td>'
-      +'<td>'+c.marge.toFixed(1)+'%</td><td>'+c.dos+'</td><td>'+c.pds.toFixed(0)+'</td>'
+      +'<td>'+(c.marge||0).toFixed(1)+'%</td><td>'+c.dos+'</td><td>'+(c.poids||0).toFixed(0)+'</td>'
       +'<td>'+fmtEur(c.dos>0?c.bbe/c.dos:0)+'</td><td>'+c.secteur+'</td></tr>';
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text3)">Aucune donnée</td></tr>';
 
@@ -3395,16 +3614,26 @@ function renderPeriode(){
     const fd=[...d].sort((a,b)=>a.date-b.date)[0];
     return{c,fd:fd?.date,bbe:sum(d,'bbe'),nb:d.length,sec:S.secteurs[c]||d[0]?.secteur};
   }).sort((a,b)=>a.fd-b.fd);
-  document.getElementById('periode-new-tbody').innerHTML=nouveaux.length?nouveaux.map(n=>`<tr>
-    <td class="td-client">${n.c}</td>
-    <td>${n.fd?.toLocaleDateString('fr')||'—'}</td>
-    <td class="td-bbe">${fmtEur(n.bbe)}</td>
-    <td>${n.nb}</td>
-    <td style="font-size:10px">${n.sec||'—'}</td>
-  </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Aucun nouveau client sur cette période</td></tr>';
+  document.getElementById('periode-new-tbody').innerHTML=nouveaux.length?nouveaux.map(function(n){
+    return '<tr>'
+      +'<td class="td-client">'+n.c+'</td>'
+      +'<td>'+(n.fd instanceof Date?n.fd.toLocaleDateString('fr'):'—')+'</td>'
+      +'<td class="td-bbe">'+fmtEur(n.bbe)+'</td>'
+      +'<td>'+n.nb+'</td>'
+      +'<td style="font-size:10px">'+(n.sec||'—')+'</td>'
+      +'</tr>';
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Aucun nouveau client sur cette période</td></tr>';
 
   // Saisonnalité
   renderSaisonnalite(data,gran);
+  // Event delegation pour drill-down
+  ['kpi-periode-fin','kpi-periode-com','kpi-periode-ops'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.onclick=function(e){
+      var card=e.target.closest('.kpi-clickable');
+      if(card) showKpiDrillDown(card.dataset.drill);
+    };
+  });
 }
 
 function renderSaisonnalite(data,gran){
@@ -3607,7 +3836,7 @@ function renderGeo(){
 
 function prepareCompare(){
   const allC=[...new Set(S.raw.map(d=>d.client))].sort();
-  ['a','b'].forEach(x=>{const dl=document.getElementById(`compare-list-${x}`);if(dl)dl.innerHTML=allC.map(c=>'<option value="'+(c)+'">').join('');});
+  ['a','b'].forEach(x=>{const dl=document.getElementById('compare-list-'+x);if(dl)dl.innerHTML=allC.map(c=>'<option value="'+(c)+'">').join('');});
 }
 
 function renderCompare(){
@@ -3688,8 +3917,11 @@ function getSwData(){
 function swVal(dossiers, metric){
   if(metric==='bbe') return sum(dossiers,'bbe');
   if(metric==='fc')  return sum(dossiers,'fc');
-  if(metric==='dossiers') return dossiers.length;
-  if(metric==='marge') return avg(dossiers.filter(d=>d.pct>0).map(d=>d.pct));
+  if(metric==='dossiers') return dossiers.reduce(function(s,d){return s+(d.dossiers||0);},0);
+  if(metric==='marge'){
+    var ps=dossiers.filter(function(d){return d.pct>0;}).map(function(d){return d.pct;});
+    return ps.length?avg(ps):0;
+  }
   return 0;
 }
 
@@ -3910,7 +4142,8 @@ function renderSwDetail(){
     const isRecord=rang===1;
     const isBest5=rang<=3;
 
-    return'<tr style="'+(isRecord?'background:rgba(255,184,0,0.05);':'')+'">'
+    var _swyr=document.getElementById('sw-year-sel')?.value||String(S.years[S.years.length-1]);
+    return'<tr style="'+(isRecord?'background:rgba(255,184,0,0.05);':'')+';cursor:pointer" onclick="drillWeek('+w+','+_swyr+')">';
       +'<td style="font-family:var(--mono);font-weight:600;color:var(--gold)">S'+w+(isRecord?' 🏆':'')+(isBest5&&!isRecord?' ⭐':'')+' </td>'
       +'<td style="color:var(--text3);font-size:10px">'+dFrom+' → '+dTo+'</td>'
       +'<td class="td-bbe">'+fmtMetric(val)+'</td>'
@@ -4115,7 +4348,7 @@ function filterPcaTable(ml){
     const risk=r.part>20?'🔴 Critique':r.part>10?'🟡 Élevé':r.part>5?'🟢 Modéré':'⚪ Faible';
     const cc=r.partCum<=50?'var(--green)':r.partCum<=80?'var(--gold)':'var(--red)';
     const bc=r.part>20?'var(--red)':r.part>10?'var(--gold)':'var(--cyan)';
-    return'<tr style="cursor:pointer" onclick="openClientModal('+JSON.stringify(r.client)+')">'
+    var _cE=r.client.replace(/&/g,'&amp;').replace(/"/g,'&quot;'); return'<tr style="cursor:pointer" data-client="'+_cE+'" onclick="openClientModal(this.dataset.client)">'
       +'<td style="color:var(--text3)">'+(start+i+1)+'</td><td class="td-client">'+r.client+'</td>'
       +'<td class="td-bbe">'+fmtEur(r.val)+'</td>'
       +'<td style="font-family:var(--mono);font-weight:600;color:'+bc+'">'+r.part.toFixed(2)+'%<div style="margin-top:2px;height:3px;background:var(--mid);border-radius:2px"><div style="width:'+Math.min(100,r.part*4)+'%;height:100%;background:'+bc+';border-radius:2px"></div></div></td>'
@@ -4270,13 +4503,10 @@ function resetFilters(){
 const LS_KEY='taf_stat_autostate';
 
 function tryAutoRestore(){
-  var saved=localStorage.getItem(LS_KEY);
-  if(!saved){toast('⚠️ Aucun auto-save — Importez un fichier XLS Malta');return;}
+  // Essayer d'abord la sauvegarde complète (v2)
+  if(restoreFullLocalStorage()) return;
+  // Sinon, la config seule (v1)
   restoreFromLocalStorage();
-  setTimeout(function(){
-    if(S.years.length) showView('dashboard');
-    else toast('Auto-save restauré — Chargez vos fichiers XLS Malta');
-  },300);
 }
 
 function checkImportAutoSave(){
@@ -4359,23 +4589,41 @@ function clearLocalStorage(){
 
 function restoreFromFile(file){
   if(!file) return;
-  const reader=new FileReader();
-  reader.onload=function(e){
+  var reader = new FileReader();
+  reader.onload = function(e){
     try{
-      const state=JSON.parse(e.target.result);
-      if(state.secteurs) { S.secteurs={...state.secteurs}; localStorage.setItem('taf_stat_secteurs',JSON.stringify(S.secteurs)); }
-      if(state.objectifs) { S.objectifs={...state.objectifs}; localStorage.setItem('taf_stat_objectifs',JSON.stringify(S.objectifs)); }
-      if(state.savedFilters) { S.savedFilters=[...state.savedFilters]; localStorage.setItem('taf_stat_filters',JSON.stringify(S.savedFilters)); }
-      S.raw.forEach(d=>{ if(S.secteurs[d.client]) d.secteur=S.secteurs[d.client]; });
-      const el=document.getElementById('restore-file-result');
-      el.style.display='block';
-      el.innerHTML='<div class="drive-status ok">✅ Fichier importé : '+Object.keys(state.secteurs||{}).length+' catégories · '+Object.keys(state.objectifs||{}).length+' objectifs · '+state.savedFilters?.length+' filtres</div>';
-      toast('✅ Configuration restaurée depuis '+file.name);
-      renderRestaurer();
+      var data = JSON.parse(e.target.result);
+      // Nouveau format v2 avec raw inclus
+      if(data.version==='2.0' && data.raw && data.raw.length){
+        S.raw = data.raw.map(function(d){
+          var dt = new Date(d.date);
+          return Object.assign({},d,{date:dt});
+        });
+        S.secteurs = data.secteurs||{};
+        S.objectifs = data.objectifs||{};
+        S.savedFilters = data.savedFilters||[];
+        S.loadedMeta = data.loadedMeta||[];
+        S.raw.forEach(function(d){ if(S.secteurs[d.client]) d.secteur=S.secteurs[d.client]; });
+        var ts = data.ts ? new Date(data.ts).toLocaleString('fr') : '—';
+        toast('Restauré: '+S.raw.length+' dossiers depuis fichier ('+ts+')');
+        saveFullLocalStorage();
+        initState();
+      }
+      // Ancien format config seule
+      else if(data.secteurs||data.objectifs||data.savedFilters){
+        if(data.secteurs) S.secteurs = data.secteurs;
+        if(data.objectifs) S.objectifs = data.objectifs;
+        if(data.savedFilters) S.savedFilters = data.savedFilters;
+        S.raw.forEach(function(d){ if(S.secteurs[d.client]) d.secteur=S.secteurs[d.client]; });
+        toast('Config restaurée (catégories, objectifs, filtres)');
+        autoSaveState();
+        if(S.raw.length) initState();
+      } else {
+        toast('Format de fichier non reconnu');
+      }
     }catch(err){
-      const el=document.getElementById('restore-file-result');
-      el.style.display='block';
-      el.innerHTML='<div class="drive-status error">❌ Fichier invalide : '+err.message+'</div>';
+      toast('Erreur: '+err.message.slice(0,50));
+      console.error(err);
     }
   };
   reader.readAsText(file);
@@ -5519,6 +5767,209 @@ function toggleSanteDetail(){
   if(el) el.style.display=el.style.display==='none'?'block':'none';
 }
 
+// ══ TENDANCE PLURIANNUELLE ══════════════════════════════════════
+function renderTendancePluriannuelle(gran){
+  if(!S.raw.length || S.years.length < 1) return;
+  var ctx = document.getElementById('chart-trend-pluriannuel');
+  if(!ctx) return;
+
+  gran = gran || S.periodeGran || 'week';
+
+  // Labels de période selon la granularité (indépendants de l'année)
+  var periodLabels = {
+    week:     Array.from({length:52}, function(_,i){ return 'S'+(i+1); }),
+    month:    ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'],
+    quarter:  ['Q1','Q2','Q3','Q4'],
+    semester: ['S1','S2'],
+    year:     S.years.map(String)
+  }[gran] || ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+  var nPeriods = periodLabels.length;
+
+  // Pour chaque année, calculer le BBE par "slot" de période
+  var yearSel = document.getElementById('periode-year-sel')?.value || 'all';
+  var yearsToUse = yearSel === 'all' ? S.years : S.years; // toujours toutes les années pour la tendance
+
+  var yearSeriesData = yearsToUse.map(function(y){
+    var yd = S.raw.filter(function(d){ return d.year === y; });
+    var slots = Array(nPeriods).fill(0);
+    yd.forEach(function(d){
+      var idx;
+      if(gran === 'week')     idx = Math.min(d.week - 1, nPeriods-1);
+      else if(gran === 'month')    idx = d.month - 1;
+      else if(gran === 'quarter')  idx = d.quarter - 1;
+      else if(gran === 'semester') idx = d.month <= 6 ? 0 : 1;
+      else if(gran === 'year')     idx = yearsToUse.indexOf(y);
+      if(idx >= 0 && idx < nPeriods) slots[idx] += d.bbe;
+    });
+    return { year: y, data: slots };
+  });
+
+  // Calculer Max, Min, Moy par slot
+  var maxBySlot = [], minBySlot = [], moyBySlot = [];
+  var maxYearBySlot = [], minYearBySlot = [];
+
+  for(var i=0; i<nPeriods; i++){
+    var vals = yearSeriesData.map(function(s){ return s.data[i]; }).filter(function(v){ return v>0; });
+    if(vals.length === 0){
+      maxBySlot.push(null); minBySlot.push(null); moyBySlot.push(null);
+      maxYearBySlot.push(null); minYearBySlot.push(null);
+    } else {
+      var max = Math.max.apply(null, vals);
+      var min = Math.min.apply(null, vals);
+      maxBySlot.push(Math.round(max));
+      minBySlot.push(Math.round(min));
+      moyBySlot.push(Math.round(vals.reduce(function(a,v){return a+v;},0)/vals.length));
+      var maxIdx = yearSeriesData.findIndex(function(s){ return s.data[i] === max; });
+      var minIdx = yearSeriesData.findIndex(function(s){ return s.data[i] === min; });
+      maxYearBySlot.push(maxIdx >= 0 ? yearsToUse[maxIdx] : null);
+      minYearBySlot.push(minIdx >= 0 ? yearsToUse[minIdx] : null);
+    }
+  }
+
+  // Palette par année
+  var palette = ['rgba(255,184,0,0.35)','rgba(0,229,255,0.3)','rgba(184,172,255,0.3)',
+                 'rgba(0,245,160,0.3)','rgba(240,165,0,0.3)','rgba(99,102,241,0.3)'];
+
+  var datasets = [];
+
+  // Séries par année (fines, en arrière-plan)
+  yearSeriesData.forEach(function(s, idx){
+    var color = palette[idx % palette.length];
+    datasets.push({
+      label: String(s.year),
+      data: s.data.map(function(v){ return v || null; }),
+      borderColor: color,
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.35,
+      borderDash: [],
+      order: 3,
+      spanGaps: true
+    });
+  });
+
+  // Série MAX
+  datasets.push({
+    label: 'Max ('+maxYearBySlot.filter(Boolean).join('/')+')',
+    data: maxBySlot,
+    borderColor: 'rgba(0,245,160,0.9)',
+    backgroundColor: 'rgba(0,245,160,0.04)',
+    borderWidth: 2.5,
+    pointRadius: 3,
+    pointBackgroundColor: 'rgba(0,245,160,0.8)',
+    tension: 0.35,
+    fill: false,
+    order: 1,
+    spanGaps: true
+  });
+
+  // Série MOY
+  datasets.push({
+    label: 'Moyenne',
+    data: moyBySlot,
+    borderColor: 'rgba(0,229,255,0.9)',
+    backgroundColor: 'rgba(0,229,255,0.07)',
+    borderWidth: 2.5,
+    pointRadius: 3,
+    pointBackgroundColor: 'rgba(0,229,255,0.8)',
+    tension: 0.35,
+    fill: false,
+    order: 1,
+    spanGaps: true
+  });
+
+  // Série MIN
+  datasets.push({
+    label: 'Min ('+minYearBySlot.filter(Boolean).join('/')+')',
+    data: minBySlot,
+    borderColor: 'rgba(255,61,113,0.85)',
+    backgroundColor: 'rgba(255,61,113,0.04)',
+    borderWidth: 2.5,
+    pointRadius: 3,
+    pointBackgroundColor: 'rgba(255,61,113,0.8)',
+    tension: 0.35,
+    fill: false,
+    order: 1,
+    spanGaps: true
+  });
+
+  destroyC('chart-trend-pluriannuel');
+  S.charts['chart-trend-pluriannuel'] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: periodLabels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function(items){ return periodLabels[items[0].dataIndex]; },
+            label: function(item){
+              if(item.raw === null) return null;
+              return ' '+item.dataset.label+' : '+fmtEur(item.raw);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color:'#3A4F6A', font:{size:9} }, grid:{color:'rgba(255,184,0,0.04)'} },
+        y: { ticks: { color:'#3A4F6A', font:{size:9}, callback: function(v){ return fmtK(v); } }, grid:{color:'rgba(255,184,0,0.04)'} }
+      }
+    }
+  });
+
+  // Pills par année
+  var pills = document.getElementById('trend-year-pills');
+  if(pills){
+    pills.innerHTML = yearSeriesData.map(function(s, idx){
+      var color = palette[idx % palette.length];
+      var total = s.data.reduce(function(a,v){return a+v;},0);
+      return '<div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--text2)">'
+        +'<div style="width:16px;height:2px;background:'+color+';border-radius:1px"></div>'
+        +'<span>'+s.year+'</span>'
+        +'<span style="color:var(--text3)">'+fmtEur(total)+'</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  // Bandeau stats récap
+  var statsEl = document.getElementById('trend-stats-band');
+  if(statsEl && maxBySlot.filter(Boolean).length > 0){
+    // Slot avec le max absolu
+    var allMax = Math.max.apply(null, maxBySlot.filter(function(v){return v!==null;}));
+    var allMaxIdx = maxBySlot.indexOf(allMax);
+    var allMin = Math.min.apply(null, minBySlot.filter(function(v){return v!==null;}));
+    var allMinIdx = minBySlot.indexOf(allMin);
+    var totalMoy = moyBySlot.reduce(function(a,v){return a+(v||0);},0);
+    var avgMoy = Math.round(totalMoy / moyBySlot.filter(Boolean).length);
+
+    // Ecart-type (volatilité)
+    var allVals = yearSeriesData.flatMap(function(s){ return s.data.filter(function(v){return v>0;}); });
+    var mean = allVals.reduce(function(a,v){return a+v;},0) / (allVals.length||1);
+    var variance = allVals.reduce(function(a,v){return a+(v-mean)*(v-mean);},0) / (allVals.length||1);
+    var stddev = Math.sqrt(variance);
+    var cv = mean > 0 ? (stddev/mean*100).toFixed(1) : '0';
+
+    statsEl.innerHTML = [
+      {l:'Pic absolu', v:fmtEur(allMax), sub:periodLabels[allMaxIdx]+(maxYearBySlot[allMaxIdx]?' ('+maxYearBySlot[allMaxIdx]+')':''), c:'var(--green)'},
+      {l:'Creux absolu', v:fmtEur(allMin), sub:periodLabels[allMinIdx]+(minYearBySlot[allMinIdx]?' ('+minYearBySlot[allMinIdx]+')':''), c:'var(--red)'},
+      {l:'Moy. de période', v:fmtEur(avgMoy), sub:'sur '+yearsToUse.length+' année'+(yearsToUse.length>1?'s':''), c:'var(--cyan)'},
+      {l:'Volatilité', v:cv+'%', sub:'coeff. variation', c:parseFloat(cv)<20?'var(--green)':parseFloat(cv)<40?'var(--gold)':'var(--red)'},
+    ].map(function(k){
+      return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px">'
+        +'<div style="font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">'+k.l+'</div>'
+        +'<div style="font-size:16px;font-weight:700;color:'+k.c+'">'+k.v+'</div>'
+        +'<div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px">'+k.sub+'</div>'
+        +'</div>';
+    }).join('');
+  }
+}
+
+
 // ══ CONTEXTE PLURIANNUEL ════════════════════════════════════════
 function renderContextePluriannuel(currentData){
   var el=document.getElementById('kpi-pluriannuel');
@@ -5692,6 +6143,440 @@ function renderProjectionBBE(){
 }
 
 
+
+// ══ DRILL-DOWN SEMAINE ════════════════════════════════════════
+function drillWeek(week, year){
+  year=parseInt(year);
+  var wData=S.raw.filter(function(d){return d.year===year&&d.week===week;});
+  if(!wData.length){toast('Aucune donnée pour S'+week+' '+year);return;}
+  var bbe=sum(wData,'bbe'),fc=sum(wData,'fc'),nbD=wData.length;
+  var marge=fc>0?(bbe/fc*100):0;
+  var poids=sum(wData,'poids');
+  var clients=new Set(wData.map(function(d){return d.client;}));
+  var dates=wData.map(function(d){return d.date;}).sort(function(a,b){return a-b;});
+  var dFrom=dates[0]?dates[0].toLocaleDateString('fr',{weekday:'short',day:'numeric',month:'short'}):'—';
+  var dTo=dates[dates.length-1]?dates[dates.length-1].toLocaleDateString('fr',{weekday:'short',day:'numeric',month:'short'}):'—';
+  var prevData=S.raw.filter(function(d){return d.year===year-1&&d.week===week;});
+  var bbePrev=sum(prevData,'bbe');
+  var dlt=bbePrev>0?delta(bbe,bbePrev):null;
+  var byClient=groupBy(wData,'client');
+  var topC=Object.entries(byClient).map(function(e){
+    return{c:e[0],bbe:sum(e[1],'bbe'),dos:e[1].length,sec:S.secteurs[e[0]]||e[1][0].secteur||'—'};
+  }).sort(function(a,b){return b.bbe-a.bbe;}).slice(0,10);
+  openModal('modal-week-drill');
+  document.getElementById('modal-week-drill-title').innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;flex:1">'
+    +'<span>📅 Semaine '+week+' — '+year+'</span>'
+    +'<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+dFrom+' → '+dTo+'</span>'
+    +(dlt?'<span class="kpi-delta '+dlt.cls+'">'+dlt.arrow+' '+dlt.pct+'% vs N-1</span>':'')
+    +'</div><button class="modal-close" onclick="closeModal(\'modal-week-drill\')">✕</button>';
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:16px">';
+  [{l:'BBE',v:fmtEur(bbe),c:'var(--gold)'},{l:'CA',v:fmtEur(fc)},{l:'Marge',v:marge.toFixed(1)+'%'},
+   {l:'Dossiers',v:nbD},{l:'Clients',v:clients.size},{l:'Poids kg',v:poids.toLocaleString('fr')}
+  ].forEach(function(k){
+    html+='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px">'
+      +'<div style="font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:4px">'+k.l+'</div>'
+      +'<div style="font-size:18px;font-weight:700;color:'+(k.c||'var(--text)')+'">'+k.v+'</div></div>';
+  });
+  html+='</div>';
+  html+='<div style="font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Top clients</div>';
+  html+='<div class="taf-table-wrap" style="max-height:180px"><table class="taf-table"><thead><tr><th>#</th><th>Client</th><th>BBE</th><th>Dos.</th><th>Secteur</th></tr></thead><tbody>';
+  topC.forEach(function(r,i){
+    var cE=encodeURIComponent(r.c);
+    var _onclick='onclick="closeModal(\'modal-week-drill\');setTimeout(function(){openClientModal(decodeURIComponent(\'' + cE + '\'));},100)"';
+    html+='<tr style="cursor:pointer" '+_onclick+'>';
+      +'<td style="color:var(--text3)">'+(i+1)+'</td><td class="td-client">'+r.c+'</td>'
+      +'<td class="td-bbe">'+fmtEur(r.bbe)+'</td><td>'+r.dos+'</td><td style="font-size:10px">'+r.sec+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin:14px 0 8px">Tous les dossiers ('+nbD+')</div>';
+  html+='<div class="taf-table-wrap" style="max-height:180px"><table class="taf-table"><thead><tr><th>Date</th><th>Dossier</th><th>Client</th><th>Dep</th><th>Poids</th><th>BBE</th><th>%</th></tr></thead><tbody>';
+  wData.slice().sort(function(a,b){return a.date-b.date;}).forEach(function(d){
+    html+='<tr><td style="font-size:10px">'+d.date.toLocaleDateString('fr')+'</td>'
+      +'<td style="font-family:var(--mono);color:var(--cyan);font-size:10px">'+d.dossier+'</td>'
+      +'<td style="font-size:11px;font-weight:600">'+d.client+'</td>'
+      +'<td>'+d.dep+'</td><td>'+d.poids.toLocaleString('fr')+'</td>'
+      +'<td class="td-bbe">'+fmtEur(d.bbe)+'</td><td>'+d.pct.toFixed(1)+'%</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  document.getElementById('modal-week-drill-content').innerHTML=html;
+}
+
+
+// ══ SAUVEGARDE DRIVE + LOCALSTORAGE COMPLÈTE ════════════════════
+// Format de sauvegarde complet (raw + config)
+function buildFullPayload(){
+  return {
+    version: '2.0',
+    ts: new Date().toISOString(),
+    raw: S.raw.map(function(d){
+      return {
+        date: d.date instanceof Date ? d.date.toISOString().slice(0,10) : String(d.date),
+        year:d.year, month:d.month, week:d.week, quarter:d.quarter,
+        dossier:d.dossier, awb:d.awb||'', dep:d.dep, des:d.des||'', client:d.client,
+        exp:d.exp||'', dest:d.dest||'', secteur:d.secteur||'',
+        colis:d.colis||0, poids:d.poids||0,
+        fc:d.fc||0, bbe:d.bbe||0, pct:d.pct||0
+      };
+    }),
+    secteurs: S.secteurs,
+    objectifs: S.objectifs,
+    savedFilters: S.savedFilters||[],
+    loadedMeta: S.loadedMeta
+  };
+}
+
+// ── Sauvegarde localStorage complète (raw inclus) ──
+function saveFullLocalStorage(){
+  if(!S.raw.length) return;
+  try{
+    var payload = buildFullPayload();
+    localStorage.setItem('taf_stat_full_v2', JSON.stringify(payload));
+    localStorage.setItem('taf_stat_ts', payload.ts);
+    // Aussi mettre à jour l'autostate léger
+    autoSaveState();
+    console.log('LocalStorage: '+S.raw.length+' dossiers sauvegardés');
+  }catch(e){
+    console.warn('LocalStorage full save failed:', e.message);
+    // Si trop volumineux, sauvegarder sans raw
+    autoSaveState();
+  }
+}
+
+// ── Restauration depuis localStorage complet ──
+function restoreFullLocalStorage(){
+  var saved = localStorage.getItem('taf_stat_full_v2');
+  if(!saved){ toast('Aucune sauvegarde complète trouvée'); return false; }
+  try{
+    var payload = JSON.parse(saved);
+    if(!payload.raw||!payload.raw.length){ toast('Sauvegarde vide'); return false; }
+    // Reconstruire S.raw avec des Date objects
+    S.raw = payload.raw.map(function(d){
+      var dt = new Date(d.date);
+      return Object.assign({},d,{date:dt});
+    });
+    S.secteurs = payload.secteurs||{};
+    S.objectifs = payload.objectifs||{};
+    S.savedFilters = payload.savedFilters||[];
+    S.loadedMeta = payload.loadedMeta||[];
+    // Affecter les secteurs sur les dossiers
+    S.raw.forEach(function(d){
+      if(S.secteurs[d.client]) d.secteur=S.secteurs[d.client];
+    });
+    var ts = payload.ts ? new Date(payload.ts).toLocaleString('fr') : '—';
+    toast('Restauré: '+S.raw.length+' dossiers ('+ts+')');
+    initState();
+    return true;
+  }catch(e){
+    console.error('Restauration échouée:', e);
+    toast('Erreur restauration: '+e.message);
+    return false;
+  }
+}
+
+// ── Sauvegarde Drive ──
+// ── Sauvegarde automatique après import ──
+
+function updateDriveStatus(){
+  var el = document.getElementById('drive-save-status');
+  if(!el) return;
+  var saved = localStorage.getItem('taf_stat_last_drive');
+  if(saved){
+    var parts = saved.split('|');
+    var dt = new Date(parts[0]).toLocaleString('fr',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    el.textContent = 'Drive: '+dt;
+    el.style.color = 'var(--green)';
+  } else {
+    el.textContent = 'Drive: jamais sauvegardé';
+    el.style.color = 'var(--text3)';
+  }
+}
+
+
+// ══ STATUT SAUVEGARDE ════════════════════════════════════════
+function updateSaveStatus(){
+  // LocalStorage complet
+  var lsEl = document.getElementById('ls-full-status');
+  if(lsEl){
+    var saved = localStorage.getItem('taf_stat_full_v2');
+    if(saved){
+      try{
+        var p = JSON.parse(saved);
+        var ts = p.ts ? new Date(p.ts).toLocaleString('fr',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+        var nbD = p.raw ? p.raw.length : 0;
+        lsEl.innerHTML = '<span style="color:var(--green)">✅ '+ts+'</span><br><span style="color:var(--text2)">'+nbD+' dossiers · '+Object.keys(p.secteurs||{}).length+' catégories</span>';
+      }catch(e){ lsEl.textContent = 'Erreur lecture'; }
+    } else {
+      lsEl.innerHTML = '<span style="color:var(--text3)">Aucune sauvegarde complète</span>';
+    }
+  }
+  // Drive
+  var drEl = document.getElementById('drive-full-status');
+  if(drEl){
+    var drSaved = localStorage.getItem('taf_stat_last_drive');
+    if(drSaved){
+      var parts = drSaved.split('|');
+      var ts = new Date(parts[0]).toLocaleString('fr',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      drEl.innerHTML = '<span style="color:var(--green)">✅ '+ts+'</span><br><span style="color:var(--text2)">'+(parts[1]||'')+'</span>';
+    } else {
+      drEl.innerHTML = '<span style="color:var(--text3)">Jamais sauvegardé sur Drive</span>';
+    }
+  }
+  // Sidebar footer
+  updateDriveStatus();
+}
+
+
+// ══ FIX DRIVE : envoi JSON body au lieu de FormData ══════════════
+// (Le proxy Apps Script attend application/json, pas multipart/form-data)
+
+var PRES={current:0,total:5,charts:{},active:false};
+
+function enterPresentationMode(){
+  if(!S.raw.length){toast('Importez des données avant de lancer la présentation');return;}
+  PRES.active=true; PRES.current=0;
+  document.getElementById('pres-overlay').classList.add('active');
+  document.body.style.overflow='hidden';
+  buildPresentation();
+  buildPresDots();
+  updatePresHeader(0);
+}
+
+function exitPresentationMode(){
+  PRES.active=false;
+  document.getElementById('pres-overlay').classList.remove('active');
+  document.body.style.overflow='';
+  Object.values(PRES.charts).forEach(function(c){if(c&&c.destroy)c.destroy();});
+  PRES.charts={};
+}
+
+function presNav(dir){
+  var slides=document.querySelectorAll('.pres-slide');
+  var next=PRES.current+dir;
+  if(next<0||next>=slides.length) return;
+  slides[PRES.current].classList.remove('active');
+  PRES.current=next;
+  slides[PRES.current].classList.add('active');
+  updatePresHeader(PRES.current); buildPresDots();
+}
+
+function goPresSlide(i){
+  if(i===PRES.current) return;
+  document.querySelectorAll('.pres-slide')[PRES.current].classList.remove('active');
+  PRES.current=i;
+  document.querySelectorAll('.pres-slide')[i].classList.add('active');
+  updatePresHeader(i); buildPresDots();
+}
+
+function buildPresDots(){
+  var slides=document.querySelectorAll('.pres-slide');
+  var html='';
+  for(var i=0;i<slides.length;i++)
+    html+='<div class="pres-dot'+(i===PRES.current?' active':'')+'" onclick="goPresSlide('+i+')"></div>';
+  var dotsEl=document.getElementById('pres-dots');
+  if(dotsEl) dotsEl.innerHTML=html;
+  var cEl=document.getElementById('pres-counter');
+  if(cEl) cEl.textContent=(PRES.current+1)+' / '+slides.length;
+}
+
+function updatePresHeader(idx){
+  var slides=document.querySelectorAll('.pres-slide');
+  var nameEl=document.getElementById('pres-slide-name');
+  if(nameEl) nameEl.textContent=slides[idx]?slides[idx].getAttribute('data-title'):'';
+  var yr=document.getElementById('filter-year')?.value||'all';
+  var badgeEl=document.getElementById('pres-date-badge');
+  if(badgeEl) badgeEl.textContent=yr==='all'?'Toutes années':yr;
+  buildPresDots();
+}
+
+function buildPresentation(){
+  var data=S.filtered, cmp=getCmpData?getCmpData():[];
+  if(!data.length) return;
+  var bbe=sum(data,'bbe'),fc=sum(data,'fc'),bbeCmp=sum(cmp,'bbe'),fcCmp=sum(cmp,'fc');
+  var nbD=data.length,nbC=new Set(data.map(function(d){return d.client;})).size;
+  var marge=fc>0?(bbe/fc*100):0;
+  var d1=delta(bbe,bbeCmp),d2=delta(nbD,cmp.length),d3=delta(fc,fcCmp);
+  var kpis=[
+    {l:'BBE Total',v:fmtEur(bbe),d:d1},
+    {l:'CA Total',v:fmtEur(fc),d:d3},
+    {l:'Dossiers',v:nbD,d:d2},
+    {l:'Clients Actifs',v:nbC,d:null},
+    {l:'Marge Moyenne',v:marge.toFixed(1)+'%',d:null},
+    {l:'BBE / Dossier',v:fmtEur(nbD?bbe/nbD:0),d:null},
+  ];
+  var kpiEl=document.getElementById('pres-kpi-main');
+  if(kpiEl) kpiEl.innerHTML=kpis.map(function(k){
+    var cls=k.d?(k.d.cls==='up'?'color:var(--green)':'color:var(--red)'):'color:var(--text3)';
+    var dt=k.d?('<div class="pres-kpi-delta" style="'+cls+'">'+k.d.arrow+' '+k.d.pct+'% vs N-1</div>'):'';
+    return '<div class="pres-kpi-card"><div class="pres-kpi-label">'+k.l+'</div><div class="pres-kpi-value">'+k.v+'</div>'+dt+'</div>';
+  }).join('');
+  // Charts et slides simplifiés - les données sont là
+  var cg=groupBy(data,'client');
+  var tc=Object.entries(cg).map(function(e){var d=e[1];return{c:e[0],bbe:sum(d,'bbe'),fc:sum(d,'fc'),nb:d.length,marge:sum(d,'fc')>0?(sum(d,'bbe')/sum(d,'fc')*100):0};}).sort(function(a,b){return b.bbe-a.bbe;}).slice(0,12);
+  var tcEl=document.getElementById('pres-top-clients');
+  if(tcEl) tcEl.innerHTML=tc.map(function(r,i){
+    return '<tr><td style="color:var(--text3);font-size:11px">'+(i+1)+'</td><td class="pres-client-name">'+r.c.slice(0,22)+'</td><td class="pres-bbe">'+fmtEur(r.bbe)+'</td><td style="color:var(--text2)">'+fmtEur(r.fc)+'</td><td>'+r.nb+'</td><td>'+r.marge.toFixed(1)+'%</td></tr>';
+  }).join('');
+}
+
+document.addEventListener('keydown',function(e){
+  if(!PRES.active) return;
+  if(e.key==='Escape') exitPresentationMode();
+  else if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();presNav(1);}
+  else if(e.key==='ArrowLeft'){e.preventDefault();presNav(-1);}
+});
+document.addEventListener('keydown',function(e){
+  if(PRES.active) return;
+  if((e.key==='p'||e.key==='P')&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT') enterPresentationMode();
+});
+
+
+// ══ SAUVEGARDE DRIVE + TÉLÉCHARGEMENT ════════════════════════════
+// Stratégie :
+//   Drive  → config légère (secteurs, objectifs, filtres) ≈ quelques Ko
+//   Téléchargement → backup complet avec raw (> 200Ko)
+
+// ─ Config seule pour Drive ─────────────────────────────────────
+function buildConfigPayload(){
+  return {
+    version: '2.1-config',
+    ts: new Date().toISOString(),
+    years: S.years,
+    totalDossiers: S.raw.length,
+    secteurs: S.secteurs,
+    objectifs: S.objectifs,
+    savedFilters: S.savedFilters||[],
+    loadedMeta: S.loadedMeta,
+    summary: S.years.reduce(function(acc,y){
+      var yd=S.raw.filter(function(d){return d.year===y;});
+      acc[y]={bbe:Math.round(sum(yd,'bbe')),fc:Math.round(sum(yd,'fc')),dossiers:yd.length};
+      return acc;
+    },{})
+  };
+}
+
+// ─ Sauvegarde Drive (config légère, fiable) ────────────────────
+
+function downloadFullBackup(){
+  if(!S.raw.length){ toast('Aucune donnée à télécharger'); return; }
+  var payload = buildFullPayload();
+  var json = JSON.stringify(payload);
+  var now = new Date();
+  var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var filename = 'TAF_STAT_backup_'+S.years.sort().join('-')+'_'+dateStr+'_'+S.raw.length+'dos.json';
+  var blob = new Blob([json], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Téléchargement: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
+}
+
+// ─ Sauvegarde automatique post-import ──────────────────────────
+
+async function uploadToDrive(fileName, fileContent, mimeType){
+  try{
+    // Webhook Make.com → Google Drive (pas de problème CORS)
+    var MAKE_DRIVE_WEBHOOK = 'https://hook.eu2.make.com/tss2iyk9o61kc9dibdvylqdl4wk5ikzp';
+    var resp = await fetch(MAKE_DRIVE_WEBHOOK, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        fileName: fileName,
+        content: fileContent,
+        mimeType: mimeType || 'application/json'
+      })
+    });
+    var data = {};
+    try{ data = await resp.json(); }catch(e){}
+    var ok = resp.ok || data.ok;
+    return {ok: ok, name: fileName, data: data};
+  }catch(e){
+    console.error('uploadToDrive error:', e);
+    return {ok: false, name: fileName, error: e.message};
+  }
+}
+// ══ SAUVEGARDE DRIVE (réécrite, utilise uploadToDrive) ═══════════
+async function saveToDrive(btnEl){
+  if(!S.raw.length){ toast('Aucune donnée à sauvegarder'); return; }
+  var btn = btnEl || event?.currentTarget || event?.target;
+  if(btn&&btn.tagName==='BUTTON'){ btn.disabled=true; btn.textContent='☁️ Envoi...'; }
+  try{
+    var payload = buildConfigPayload();
+    var json = JSON.stringify(payload, null, 0);
+    var now = new Date();
+    var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    var filename = 'TAF_STAT_config_'+S.years.sort().join('-')+'_'+dateStr+'.json';
+
+    var r = await uploadToDrive(filename, json, 'application/json');
+
+    if(r.ok){
+      toast('Drive OK: '+filename+' ('+Math.round(json.length/1024)+'Ko)');
+      localStorage.setItem('taf_stat_last_drive', new Date().toISOString()+'|'+filename+'|'+S.raw.length+'dos');
+      updateDriveStatus();
+      if(document.getElementById('drive-full-status')) updateSaveStatus();
+    } else {
+      throw new Error(JSON.stringify(r.data||r.error).slice(0,80));
+    }
+  }catch(e){
+    console.error('Drive save error:', e);
+    toast('Drive ERROR: '+e.message.slice(0,60));
+  }finally{
+    if(btn&&btn.tagName==='BUTTON'){ btn.disabled=false; btn.textContent='☁️ Sauver config Drive'; }
+  }
+}
+
+// Sauvegarde automatique post-import
+async function autoSaveAfterImport(){
+  saveFullLocalStorage();
+  setTimeout(async function(){
+    try{ await saveToDrive(null); }
+    catch(e){ console.warn('Auto Drive save failed:', e); }
+  }, 1000);
+}
+
+
+function renderProjection(data){
+  const yearSel=document.getElementById('filter-year').value;
+  if(yearSel==='all'){document.getElementById('projection-content').innerHTML='<div class="empty-state"><div class="empty-text">Sélectionnez une année</div></div>';return;}
+  const year=parseInt(yearSel);
+  const ytd=S.raw.filter(d=>d.year===year);
+  const now=new Date(), doy=getDOY(now), diy=isLeap(year)?366:365, dLeft=diy-doy;
+  const rate=sum(ytd,'bbe')/doy;
+  const doc=document.getElementById('projection-content');
+  doc.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;padding:10px 0">
+    ${[['🐢','Pessimiste',0.8,'var(--red)'],['📊','Réaliste',1,'var(--gold)'],['🚀','Optimiste',1.2,'var(--green)']].map(([icon,label,mult,color])=>{
+      const proj=sum(ytd,'bbe')+rate*mult*dLeft;
+      return '<div style="'+(mult!==1?'':'')+'" >         <div style="font-size:22px;margin-bottom:6px">'+(icon)+'</div>         <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">'+(label)+'</div>         <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:'+(color)+'">'+(fmtEur(proj))+'</div>       </div>';
+    }).join('')}
+  </div>
+  <div style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--mono)">Basé sur ${doy}j · Rythme ${fmtEur(rate)}/jour · ${dLeft} jours restants</div>`;
+}
+
+// Diagnostic layout désactivé
+/*window.addEventListener('load', function(){
+  setTimeout(function(){
+    var ids = ['sidebar','main','topbar','content','view-dashboard','kpi-main'];
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el){
+        var r = el.getBoundingClientRect();
+        console.log('[LAYOUT] #'+id+': left='+Math.round(r.left)+' top='+Math.round(r.top)+' width='+Math.round(r.width)+' height='+Math.round(r.height));
+      }
+    });
+    console.log('[LAYOUT] window: '+window.innerWidth+'x'+window.innerHeight);
+    // Test scroll
+    var ct = document.getElementById('content');
+    if(ct){
+      console.log('[SCROLL] content scrollHeight='+ct.scrollHeight+' clientHeight='+ct.clientHeight+' overflow='+getComputedStyle(ct).overflowY);
+    }
+  }, 2000);
+});*/
+
+// Fix scroll Chart.js: désactiver wheel sur tous les charts
+var _origChart = window.Chart;
 </script>
 </body>
 </html>
