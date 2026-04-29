@@ -108,7 +108,7 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4.3";
+const VERSION="v1.4.4";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
@@ -373,18 +373,43 @@ function App(){
       return;
     }
     setSending(true);
+    const sendStartedAt=Date.now();
     try{
       const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
       const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
       // v1.4.2 : Fix CORS — text/plain évite la preflight OPTIONS, no-cors car Make ne renvoie pas les headers CORS
       await fetch(WEBHOOK_SEND,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify(payload)});
-      // no-cors → réponse opaque (resp.ok=false toujours). On considère succès si pas d'exception.
-      setSent(true);
-      const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
-      setHistory(h=>[entry,...h].slice(0,200));
-      fbSet("/taf_valide/history/"+entry.id,entry);
-      fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
-      notify("✅ Envoyé à "+p.bureau.nom);
+      // v1.4.4 : la réponse est opaque (no-cors). On lit le vrai verdict que Make écrit dans Firebase /taf_valide/_status/last
+      // Polling 1.5s/2.5s/4s pour laisser le temps à Make de finir le scénario (pièces jointes lourdes possibles)
+      let verdict=null;
+      for(const wait of [1500,1000,1500]){
+        await new Promise(r=>setTimeout(r,wait));
+        const st=await fbGet("/taf_valide/_status/last.json");
+        if(st&&st.timestamp){
+          const stTime=new Date(st.timestamp).getTime();
+          if(stTime>=sendStartedAt-1000){verdict=st;break;}
+        }
+      }
+      if(verdict){
+        if(verdict.success){
+          setSent(true);
+          const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
+          setHistory(h=>[entry,...h].slice(0,200));
+          fbSet("/taf_valide/history/"+entry.id,entry);
+          fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
+          notify("✅ Envoyé à "+p.bureau.nom+" (confirmé serveur)");
+        }else{
+          notify("❌ Refusé par le serveur : "+(verdict.error||"erreur inconnue")+(verdict.received_email?" (email reçu : « "+verdict.received_email+" »)":""),false);
+        }
+      }else{
+        // Pas de retour serveur — on marque envoyé sans confirmation
+        setSent(true);
+        const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||"",unconfirmed:true};
+        setHistory(h=>[entry,...h].slice(0,200));
+        fbSet("/taf_valide/history/"+entry.id,entry);
+        fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
+        notify("⚠️ Envoyé sans confirmation serveur — vérifiez Outlook");
+      }
     }catch(err){notify("❌ "+err.message,false);}
     setSending(false);
   }
