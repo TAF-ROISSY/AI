@@ -108,7 +108,7 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4.4";
+const VERSION="v1.4.5";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
@@ -173,6 +173,7 @@ function App(){
   const[contactSync,setContactSync]=useState({status:"pending",count:0,msg:""});
   const[teamSync,setTeamSync]=useState({status:"pending",count:0,msg:""});
   const[fbConnected,setFbConnected]=useState(false);
+  const[lastServerStatus,setLastServerStatus]=useState(null); // v1.4.5 : verdict Make persistant
   const[newDeclNom,setNewDeclNom]=useState("");
   const[newDeclPrenom,setNewDeclPrenom]=useState("");
   const[newDeclTitre,setNewDeclTitre]=useState("");
@@ -374,9 +375,13 @@ function App(){
     }
     setSending(true);
     const sendStartedAt=Date.now();
+    setLastServerStatus({status:"sending",bureau:p.bureau.nom,email:p.bureau.email.replace(/\s/g,""),at:new Date().toISOString()});
     try{
       const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
       const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
+      // v1.4.5 : DEBUG console — affiche EXACTEMENT ce qui est envoyé au webhook
+      console.log("%c[TAF VALIDE v"+VERSION+"] Payload webhook →","color:#c9a84c;font-weight:bold",{email:payload.email,bureauName:payload.bureauName,subject:payload.subject,numDecl:payload.numDeclaration,type:payload.typeDeclaration,attachmentsCount:payload.attachments.length,bodyLength:payload.body.length});
+      console.log("%c[TAF VALIDE] Webhook URL →","color:#888",WEBHOOK_SEND);
       // v1.4.2 : Fix CORS — text/plain évite la preflight OPTIONS, no-cors car Make ne renvoie pas les headers CORS
       await fetch(WEBHOOK_SEND,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify(payload)});
       // v1.4.4 : la réponse est opaque (no-cors). On lit le vrai verdict que Make écrit dans Firebase /taf_valide/_status/last
@@ -385,12 +390,15 @@ function App(){
       for(const wait of [1500,1000,1500]){
         await new Promise(r=>setTimeout(r,wait));
         const st=await fbGet("/taf_valide/_status/last.json");
+        console.log("[TAF VALIDE] Polling Firebase /taf_valide/_status/last →",st);
         if(st&&st.timestamp){
           const stTime=new Date(st.timestamp).getTime();
           if(stTime>=sendStartedAt-1000){verdict=st;break;}
         }
       }
+      console.log("%c[TAF VALIDE] Verdict serveur →","color:"+(verdict?.success?"#10b981":"#ef4444")+";font-weight:bold",verdict);
       if(verdict){
+        setLastServerStatus({...verdict,at:new Date().toISOString()});
         if(verdict.success){
           setSent(true);
           const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
@@ -399,9 +407,10 @@ function App(){
           fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
           notify("✅ Envoyé à "+p.bureau.nom+" (confirmé serveur)");
         }else{
-          notify("❌ Refusé par le serveur : "+(verdict.error||"erreur inconnue")+(verdict.received_email?" (email reçu : « "+verdict.received_email+" »)":""),false);
+          notify("❌ Refusé par le serveur : "+(verdict.error||"erreur inconnue")+(verdict.received_email!==undefined?" (email reçu : « "+verdict.received_email+" »)":""),false);
         }
       }else{
+        setLastServerStatus({status:"no_response",bureau:p.bureau.nom,email:p.bureau.email.replace(/\s/g,""),at:new Date().toISOString(),warning:"Aucun verdict serveur reçu après 4s — Make trop lent OU Firebase /taf_valide/_status/last vide"});
         // Pas de retour serveur — on marque envoyé sans confirmation
         setSent(true);
         const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||"",unconfirmed:true};
@@ -410,7 +419,7 @@ function App(){
         fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
         notify("⚠️ Envoyé sans confirmation serveur — vérifiez Outlook");
       }
-    }catch(err){notify("❌ "+err.message,false);}
+    }catch(err){setLastServerStatus({status:"error",error:err.message,at:new Date().toISOString()});notify("❌ "+err.message,false);}
     setSending(false);
   }
 
@@ -531,6 +540,35 @@ function App(){
         <button className="btn btn-blue" onClick={()=>{if(!selBur){notify("Sélectionnez un bureau",false);return;}if(!numDecl||numDecl.length<9){notify("N° requis",false);return;}setShowPreview(true);}}>👁️ Prévisualiser</button>
         <button className="btn btn-gold" disabled={sending} onClick={handleSend}>{sending?<><span className="spin"/> Envoi...</>:<>📨 Envoyer</>}</button>
       </div>
+
+      {/* v1.4.5 : Panneau debug verdict serveur (visible en permanence après tentative d'envoi) */}
+      {lastServerStatus&&(()=>{
+        const s=lastServerStatus;const isOk=s.success===true;const isErr=s.success===false;const isPending=s.status==="sending";const isNoResp=s.status==="no_response";const isExc=s.status==="error";
+        const bg=isOk?"rgba(16,185,129,.08)":isErr?"rgba(239,68,68,.08)":isPending?"rgba(59,130,246,.08)":"rgba(245,158,11,.08)";
+        const bd=isOk?"rgba(16,185,129,.4)":isErr?"rgba(239,68,68,.4)":isPending?"rgba(59,130,246,.4)":"rgba(245,158,11,.4)";
+        const cl=isOk?"var(--green)":isErr?"var(--red)":isPending?"#3b82f6":"#f59e0b";
+        const ico=isOk?"✅":isErr?"❌":isPending?"⏳":isNoResp?"⚠️":"🔥";
+        const ttl=isOk?"Email confirmé envoyé par le serveur":isErr?"Email REFUSÉ par le serveur":isPending?"Envoi en cours…":isNoResp?"Aucune réponse du serveur":"Erreur réseau";
+        return <div style={{marginTop:14,background:bg,border:"1px solid "+bd,borderRadius:10,padding:"14px 18px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <span style={{fontSize:20}}>{ico}</span>
+            <strong style={{color:cl,fontSize:14,flex:1}}>{ttl}</strong>
+            <span style={{fontSize:10,color:"var(--textD)",fontFamily:"'JetBrains Mono',monospace"}}>{s.at?new Date(s.at).toLocaleTimeString("fr-FR"):""}</span>
+            <button className="btn btn-ghost" style={{padding:"3px 8px",fontSize:10}} onClick={()=>setLastServerStatus(null)}>✕</button>
+          </div>
+          {isErr&&<div style={{fontSize:12,color:"var(--text)",marginBottom:6}}>
+            <div><strong>Erreur :</strong> {s.error||"inconnue"}</div>
+            {s.received_email!==undefined&&<div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:11,background:"var(--bg2)",padding:"6px 10px",borderRadius:6,wordBreak:"break-all"}}><span style={{color:"var(--textM)"}}>Email reçu par Make :</span> <span style={{color:"var(--red)",fontWeight:700}}>« {s.received_email===""?"(vide)":s.received_email===null?"(null)":s.received_email} »</span></div>}
+            {s.received_bureauName&&<div style={{marginTop:4,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"var(--textM)"}}>Bureau reçu : « {s.received_bureauName} »</div>}
+          </div>}
+          {isOk&&<div style={{fontSize:12,color:"var(--text)"}}>
+            Bureau : <strong>{s.bureau}</strong> · Email : <span style={{fontFamily:"'JetBrains Mono',monospace",color:"var(--gold)"}}>{s.email}</span>
+          </div>}
+          {isPending&&<div style={{fontSize:12,color:"var(--textM)"}}>Envoi vers <strong>{s.bureau}</strong> ({s.email})…</div>}
+          {isNoResp&&<div style={{fontSize:12,color:"var(--text)"}}>{s.warning}<br/><span style={{fontSize:11,color:"var(--textM)"}}>L'email est peut-être quand même parti — vérifiez Outlook.</span></div>}
+          {isExc&&<div style={{fontSize:12,color:"var(--red)"}}>{s.error}</div>}
+        </div>;
+      })()}
     </>}
 
     {tab==="envoi"&&sent&&<div className="card"><div className="card-b send-success">
