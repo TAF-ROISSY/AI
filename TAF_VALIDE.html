@@ -108,12 +108,19 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4.7";
+const VERSION="v1.4.8";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
 const WEBHOOK_SEND="https://hook.eu2.make.com/a6y5o9xxvrqnwrvdytlo4ij08xgouoih";
 const FB_URL="https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app";
+// v1.4.8 : Limites de sécurité pièces jointes (Outlook 365 limite ~25Mo total ; 35Mo pour le body+headers+PJ encodées en base64 → on prend marge)
+const MAX_FILE_SIZE=18*1024*1024;          // 18 Mo par fichier
+const MAX_TOTAL_SIZE=22*1024*1024;         // 22 Mo total payload
+const MAX_ATTACHMENTS=15;                  // limite raisonnable nombre PJ
+const ALLOWED_EXT=["pdf","jpg","jpeg","png","doc","docx","xls","xlsx","xlsm","csv","txt","eml","msg","zip","xml"];
+const FETCH_TIMEOUT_MS=120000;             // 2 min (PJ lourdes peuvent être longues)
+const MIN_INTERVAL_BETWEEN_SENDS_MS=3000;  // anti double-clic / double-envoi
 const FACTORY_BUREAUX=[];
 const genId=()=>Math.random().toString(36).slice(2,10);
 const ts=()=>new Date().toISOString();
@@ -121,9 +128,19 @@ const fmtDate=(d)=>new Date(d).toLocaleDateString("fr-FR",{day:"2-digit",month:"
 const fmtSize=(b)=>b<1024?(b+"o"):b<1048576?((b/1024).toFixed(1)+"Ko"):((b/1048576).toFixed(1)+"Mo");
 // v1.4.3 : validation email destinataire (regex tolérante : présence @ + domaine + tld)
 const isValidEmail=(e)=>{if(!e||typeof e!=="string")return false;const s=e.replace(/\s/g,"");if(!s)return false;return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);};
-function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);})}
+// v1.4.8 : sanitization nom fichier (retire chars spéciaux qui peuvent casser le parsing côté Make / Outlook)
+const sanitizeFilename=(name)=>{if(!name||typeof name!=="string")return"document.bin";return name.replace(/[\u0000-\u001F\u007F<>:"/\\|?*]/g,"_").replace(/\s+/g," ").trim().slice(0,200)||"document.bin";};
+// v1.4.8 : extraction extension fichier (lowercase, sans le point)
+const getExt=(name)=>{if(!name)return"";const m=name.toLowerCase().match(/\.([a-z0-9]{1,8})$/);return m?m[1]:"";};
+// v1.4.8 : validation un fichier (taille + extension)
+const validateFile=(file)=>{if(!file)return{ok:false,err:"Fichier vide"};if(file.size>MAX_FILE_SIZE)return{ok:false,err:"« "+file.name+" » dépasse "+fmtSize(MAX_FILE_SIZE)+" (taille : "+fmtSize(file.size)+")"};const ext=getExt(file.name);if(ext&&!ALLOWED_EXT.includes(ext))return{ok:false,err:"Type « ."+ext+" » non autorisé pour « "+file.name+" »"};return{ok:true};};
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Lecture base64 impossible : "+file.name));r.readAsDataURL(file);})}
 async function fbGet(path){try{const r=await fetch(FB_URL+path);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
 async function fbSet(path,data){try{const r=await fetch(FB_URL+path+".json",{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return r.ok;}catch(e){return false;}}
+// v1.4.8 : log erreur centralisé dans Firebase (best-effort, non-bloquant)
+async function logError(context,err,extra){try{const id=Date.now()+"_"+Math.random().toString(36).slice(2,8);const payload={context,error:String(err?.message||err||"unknown"),stack:err?.stack?String(err.stack).slice(0,2000):null,version:VERSION,timestamp:ts(),userAgent:navigator.userAgent,...extra};await fetch(FB_URL+"/taf_valide/_errors/"+id+".json",{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(e){/* ignore : ne jamais faire planter sur le log */}}
+// v1.4.8 : fetch avec timeout via AbortController
+async function fetchWithTimeout(url,opts,timeoutMs){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeoutMs||FETCH_TIMEOUT_MS);try{return await fetch(url,{...opts,signal:ctl.signal});}finally{clearTimeout(t);}}
 
 function buildEmailHTML({type,numDecl,declarant}){
   const tl=type==="import"?"IMPORT":"EXPORT";
@@ -174,6 +191,7 @@ function App(){
   const[teamSync,setTeamSync]=useState({status:"pending",count:0,msg:""});
   const[fbConnected,setFbConnected]=useState(false);
   const[lastServerStatus,setLastServerStatus]=useState(null); // v1.4.5 : verdict Make persistant
+  const lastSendAt=useRef(0); // v1.4.8 : anti-double-clic — bloque les envois rapprochés
   const[newDeclNom,setNewDeclNom]=useState("");
   const[newDeclPrenom,setNewDeclPrenom]=useState("");
   const[newDeclTitre,setNewDeclTitre]=useState("");
@@ -353,8 +371,40 @@ function App(){
 
   function notify(msg,ok=true){setToast({msg,ok});setTimeout(()=>setToast(null),3500);}
 
-  async function handleDeclDrop(e){e.preventDefault();e.stopPropagation();const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);if(!files.length)return;const f=files[0];if(!f.name.toLowerCase().endsWith(".pdf")){notify("Fichier PDF uniquement",false);return;}const b64=await fileToBase64(f);setDeclFile({name:f.name,size:f.size,b64});if(e.target&&e.target.value)e.target.value="";}
-  async function handleDocDrop(e){e.preventDefault();e.stopPropagation();const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);if(!files.length)return;const nf=await Promise.all(files.map(async f=>({name:f.name,size:f.size,b64:await fileToBase64(f)})));setDocFiles(prev=>[...prev,...nf]);if(e.target&&e.target.value)e.target.value="";}
+  async function handleDeclDrop(e){
+    e.preventDefault();e.stopPropagation();
+    const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);
+    if(!files.length)return;
+    const f=files[0];
+    // v1.4.8 : validation type (PDF only pour la déclaration)
+    if(!f.name.toLowerCase().endsWith(".pdf")){notify("Fichier PDF uniquement pour la déclaration",false);return;}
+    // v1.4.8 : validation taille
+    const v=validateFile(f);if(!v.ok){notify("⚠️ "+v.err,false);return;}
+    try{
+      const b64=await fileToBase64(f);
+      setDeclFile({name:sanitizeFilename(f.name),size:f.size,b64});
+      if(e.target&&e.target.value)e.target.value="";
+    }catch(err){logError("handleDeclDrop",err,{filename:f.name,size:f.size});notify("❌ Lecture du fichier impossible : "+err.message,false);}
+  }
+  async function handleDocDrop(e){
+    e.preventDefault();e.stopPropagation();
+    const files=e.dataTransfer?Array.from(e.dataTransfer.files):Array.from(e.target.files||[]);
+    if(!files.length)return;
+    // v1.4.8 : limite nombre PJ
+    if(docFiles.length+files.length>MAX_ATTACHMENTS){notify("⚠️ Maximum "+MAX_ATTACHMENTS+" pièces jointes (vous en avez "+docFiles.length+", vous tentez d'en ajouter "+files.length+")",false);return;}
+    // v1.4.8 : validation chaque fichier
+    for(const f of files){const v=validateFile(f);if(!v.ok){notify("⚠️ "+v.err,false);return;}}
+    // v1.4.8 : validation taille totale prévue (déclaration + docs existants + nouveaux)
+    const declSize=declFile?declFile.size:0;
+    const existingSize=docFiles.reduce((s,f)=>s+(f.size||0),0);
+    const newSize=files.reduce((s,f)=>s+f.size,0);
+    if(declSize+existingSize+newSize>MAX_TOTAL_SIZE){notify("⚠️ Taille totale dépasse "+fmtSize(MAX_TOTAL_SIZE)+" — Outlook bloquera l'envoi. Total prévu : "+fmtSize(declSize+existingSize+newSize),false);return;}
+    try{
+      const nf=await Promise.all(files.map(async f=>({name:sanitizeFilename(f.name),size:f.size,b64:await fileToBase64(f)})));
+      setDocFiles(prev=>[...prev,...nf]);
+      if(e.target&&e.target.value)e.target.value="";
+    }catch(err){logError("handleDocDrop",err,{count:files.length});notify("❌ Lecture des fichiers impossible : "+err.message,false);}
+  }
 
   function getPreviewData(){
     const bureau=bureaux.find(b=>b.id===selBur);
@@ -364,45 +414,82 @@ function App(){
   }
 
   async function handleSend(){
-    if(!selBur){notify("Sélectionnez un bureau destinataire",false);return;}
-    if(!numDecl||numDecl.length<9){notify("N° de déclaration requis",false);return;}
-    if(!declFile){notify("Joignez la déclaration PDF",false);return;}
-    const p=getPreviewData();
-    // v1.4.3 : garde-fou email destinataire — corrige erreur Make "Recipient '' is not resolved"
-    if(!p.bureau||!isValidEmail(p.bureau.email)){
-      notify("⚠️ Email du bureau « "+(p.bureau?.nom||"?")+" » manquant ou invalide. Corrigez la fiche dans TAF CONTACT.",false);
-      return;
+    // v1.4.8 : anti-double-clic robuste (en plus du disabled bouton)
+    if(sending){console.warn("[TAF VALIDE] Envoi déjà en cours, ignoré");return;}
+    const now=Date.now();
+    if(now-lastSendAt.current<MIN_INTERVAL_BETWEEN_SENDS_MS){
+      const remaining=Math.ceil((MIN_INTERVAL_BETWEEN_SENDS_MS-(now-lastSendAt.current))/1000);
+      notify("⏸️ Patience — réessayez dans "+remaining+"s (anti-double-envoi)",false);return;
     }
+    // v1.4.8 : validations préalables (étendues)
+    if(!selBur){notify("Sélectionnez un bureau destinataire",false);return;}
+    if(!numDecl||numDecl.length<9){notify("N° de déclaration requis (min 9 caractères)",false);return;}
+    if(!declFile){notify("Joignez la déclaration PDF",false);return;}
+    if(!declFile.b64){notify("⚠️ La déclaration n'a pas été lue correctement, retirez-la et rajoutez-la",false);return;}
+    const p=getPreviewData();
+    if(!p.bureau||!isValidEmail(p.bureau.email)){
+      notify("⚠️ Email du bureau « "+(p.bureau?.nom||"?")+" » manquant ou invalide. Corrigez la fiche dans TAF CONTACT.",false);return;
+    }
+    // v1.4.8 : revalidation taille au moment de l'envoi (au cas où des PJ auraient été ajoutées)
+    const totalSize=(declFile.size||0)+docFiles.reduce((s,f)=>s+(f.size||0),0);
+    if(totalSize>MAX_TOTAL_SIZE){
+      notify("⚠️ Taille totale ("+fmtSize(totalSize)+") dépasse la limite ("+fmtSize(MAX_TOTAL_SIZE)+"). Retirez des pièces jointes.",false);return;
+    }
+    if(docFiles.length+1>MAX_ATTACHMENTS){
+      notify("⚠️ Trop de pièces jointes ("+docFiles.length+" docs + déclaration). Maximum "+MAX_ATTACHMENTS+".",false);return;
+    }
+
+    lastSendAt.current=now;
     setSending(true);
-    const sendStartedAt=Date.now();
+    const sendStartedAt=now;
     setLastServerStatus({status:"sending",bureau:p.bureau.nom,email:p.bureau.email.replace(/\s/g,""),at:new Date().toISOString()});
+
     try{
-      const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
+      // v1.4.8 : construction payload sécurisée (sanitize les noms de fichiers une seconde fois par paranoia)
+      const atts=[];
+      if(declFile&&declFile.b64)atts.push({name:sanitizeFilename(declFile.name),base64:declFile.b64});
+      docFiles.forEach(f=>{if(f&&f.b64)atts.push({name:sanitizeFilename(f.name),base64:f.b64});});
       const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
-      // v1.4.5 : DEBUG console — affiche EXACTEMENT ce qui est envoyé au webhook
-      console.log("%c[TAF VALIDE "+VERSION+"] Payload webhook →","color:#c9a84c;font-weight:bold",{email:payload.email,bureauName:payload.bureauName,subject:payload.subject,numDecl:payload.numDeclaration,type:payload.typeDeclaration,attachmentsCount:payload.attachments.length,bodyLength:payload.body.length});
+      const payloadSize=JSON.stringify(payload).length;
+      console.log("%c[TAF VALIDE "+VERSION+"] Payload webhook →","color:#c9a84c;font-weight:bold",{email:payload.email,bureauName:payload.bureauName,subject:payload.subject,numDecl:payload.numDeclaration,type:payload.typeDeclaration,attachmentsCount:payload.attachments.length,bodyLength:payload.body.length,payloadSizeKB:Math.round(payloadSize/1024)});
       console.log("%c[TAF VALIDE] Webhook URL →","color:#888",WEBHOOK_SEND);
-      // v1.4.6 : ENVOI JSON PROPRE — Make webhook gateway accepte CORS et parse application/json correctement.
-      // Le précédent workaround text/plain+no-cors empêchait Make de parser le body → tous champs vides côté serveur.
+
+      // v1.4.6 : ENVOI JSON PROPRE en CORS — Make accepte CORS et parse application/json
+      // v1.4.8 : timeout via AbortController + retry 1× sur erreur réseau
       let directVerdict=null;
-      try{
-        const resp=await fetch(WEBHOOK_SEND,{method:"POST",mode:"cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-        const txt=await resp.text();
-        console.log("[TAF VALIDE] Réponse directe HTTP "+resp.status+" →",txt);
-        try{directVerdict={...JSON.parse(txt),_httpStatus:resp.status};}catch(e){directVerdict={_httpStatus:resp.status,_rawBody:txt};}
-      }catch(corsErr){
-        console.warn("[TAF VALIDE] Erreur CORS/réseau, fallback no-cors :",corsErr.message);
-        // Fallback : si CORS bloque, on retombe sur l'ancien mode no-cors text/plain
-        // ATTENTION : avec text/plain, Make ne parse pas correctement → solution interne ajoutée côté Make
-        await fetch(WEBHOOK_SEND,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify(payload)});
-      }
-      // v1.4.4/v1.4.5 : Polling Firebase comme backup (si fetch direct CORS-bloqué ou réponse opaque)
+      let networkAttempts=0;
+      const MAX_RETRIES=1;
+      const tryFetch=async()=>{
+        networkAttempts++;
+        try{
+          const resp=await fetchWithTimeout(WEBHOOK_SEND,{method:"POST",mode:"cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},FETCH_TIMEOUT_MS);
+          const txt=await resp.text();
+          console.log("[TAF VALIDE] Réponse directe HTTP "+resp.status+" (essai "+networkAttempts+") →",txt);
+          try{return{...JSON.parse(txt),_httpStatus:resp.status};}catch(e){return{_httpStatus:resp.status,_rawBody:txt};}
+        }catch(corsErr){
+          console.warn("[TAF VALIDE] Erreur CORS/réseau (essai "+networkAttempts+"/"+(MAX_RETRIES+1)+") :",corsErr.message);
+          if(corsErr.name==="AbortError"){throw new Error("Délai d'envoi dépassé ("+(FETCH_TIMEOUT_MS/1000)+"s) — pièces jointes peut-être trop lourdes");}
+          if(networkAttempts<=MAX_RETRIES){
+            await new Promise(r=>setTimeout(r,2000));
+            return tryFetch();
+          }
+          // Fallback ultime : no-cors text/plain (au cas où CORS revient à bloquer)
+          console.warn("[TAF VALIDE] Fallback no-cors text/plain");
+          try{
+            await fetchWithTimeout(WEBHOOK_SEND,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify(payload)},FETCH_TIMEOUT_MS);
+          }catch(fbErr){throw new Error("Impossible de joindre le serveur Make ("+fbErr.message+")");}
+          return null;
+        }
+      };
+      directVerdict=await tryFetch();
+
+      // v1.4.4/v1.4.5 : Polling Firebase comme backup (si réponse opaque)
       let verdict=directVerdict&&directVerdict.success!==undefined?directVerdict:null;
       if(!verdict){
         for(const wait of [1500,1000,1500]){
           await new Promise(r=>setTimeout(r,wait));
           const st=await fbGet("/taf_valide/_status/last.json");
-          console.log("[TAF VALIDE] Polling Firebase /taf_valide/_status/last →",st);
+          console.log("[TAF VALIDE] Polling Firebase →",st);
           if(st&&st.timestamp){
             const stTime=new Date(st.timestamp).getTime();
             if(stTime>=sendStartedAt-1000){verdict=st;break;}
@@ -410,30 +497,41 @@ function App(){
         }
       }
       console.log("%c[TAF VALIDE] Verdict serveur →","color:"+(verdict?.success?"#10b981":"#ef4444")+";font-weight:bold",verdict);
+
       if(verdict){
         setLastServerStatus({...verdict,at:new Date().toISOString()});
         if(verdict.success){
           setSent(true);
-          const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||""};
+          const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||"",totalSize};
           setHistory(h=>[entry,...h].slice(0,200));
           fbSet("/taf_valide/history/"+entry.id,entry);
           fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
           notify("✅ Envoyé à "+p.bureau.nom+" (confirmé serveur)");
         }else{
+          // v1.4.8 : log les rejets serveur dans Firebase
+          logError("server_rejected",verdict.error||"unknown",{verdict,bureau:p.bureau.nom,email:payload.email,numDecl});
           notify("❌ Refusé par le serveur : "+(verdict.error||"erreur inconnue")+(verdict.received_email!==undefined?" (email reçu : « "+verdict.received_email+" »)":""),false);
         }
       }else{
         setLastServerStatus({status:"no_response",bureau:p.bureau.nom,email:p.bureau.email.replace(/\s/g,""),at:new Date().toISOString(),warning:"Aucun verdict serveur reçu après 4s — Make trop lent OU Firebase /taf_valide/_status/last vide"});
-        // Pas de retour serveur — on marque envoyé sans confirmation
         setSent(true);
-        const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||"",unconfirmed:true};
+        const entry={id:genId(),date:ts(),bureau:p.bureau.nom,email:p.bureau.email,numDecl,type,nbDocs:docFiles.length+1,declarant:p.declarant||"",unconfirmed:true,totalSize};
         setHistory(h=>[entry,...h].slice(0,200));
         fbSet("/taf_valide/history/"+entry.id,entry);
         fbSet("/taf_valide/last_sent",{...entry,app:"TAF VALIDE",version:VERSION});
+        logError("no_server_response",{bureau:p.bureau.nom,email:payload.email,numDecl});
         notify("⚠️ Envoyé sans confirmation serveur — vérifiez Outlook");
       }
-    }catch(err){setLastServerStatus({status:"error",error:err.message,at:new Date().toISOString()});notify("❌ "+err.message,false);}
-    setSending(false);
+    }catch(err){
+      // v1.4.8 : capture erreur globale + log Firebase pour audit
+      console.error("[TAF VALIDE] handleSend erreur :",err);
+      logError("handleSend_exception",err,{bureau:p.bureau?.nom,email:p.bureau?.email,numDecl});
+      setLastServerStatus({status:"error",error:err.message||String(err),at:new Date().toISOString()});
+      notify("❌ "+(err.message||"Erreur inconnue"),false);
+    }finally{
+      // v1.4.8 : garantie absolue que le bouton est ré-activé même en cas de bug
+      setSending(false);
+    }
   }
 
   function resetForm(){setSelBur("");setSelDecl("");setDeclFile(null);setDocFiles([]);setSent(false);setNumDecl(type==="import"?"26FRD000":"26FR1000");}
