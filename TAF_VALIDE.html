@@ -108,7 +108,7 @@ select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo} = React;
-const VERSION="v1.4.6";
+const VERSION="v1.4.7";
 const STORAGE_KEY="taf_valide_v1";
 const SENDER_FROM="import@taftrans.fr";
 const SENDER_CC="import@taftrans.fr";
@@ -380,7 +380,7 @@ function App(){
       const atts=[];if(declFile)atts.push({name:declFile.name,base64:declFile.b64});docFiles.forEach(f=>atts.push({name:f.name,base64:f.b64}));
       const payload={email:p.bureau.email.replace(/\s/g,""),from:SENDER_FROM,cc:SENDER_CC,bureauName:p.bureau.nom,subject:p.subject,body:p.bodyHTML,attachments:atts,declarant:p.declarant,numDeclaration:numDecl,typeDeclaration:type};
       // v1.4.5 : DEBUG console — affiche EXACTEMENT ce qui est envoyé au webhook
-      console.log("%c[TAF VALIDE v"+VERSION+"] Payload webhook →","color:#c9a84c;font-weight:bold",{email:payload.email,bureauName:payload.bureauName,subject:payload.subject,numDecl:payload.numDeclaration,type:payload.typeDeclaration,attachmentsCount:payload.attachments.length,bodyLength:payload.body.length});
+      console.log("%c[TAF VALIDE "+VERSION+"] Payload webhook →","color:#c9a84c;font-weight:bold",{email:payload.email,bureauName:payload.bureauName,subject:payload.subject,numDecl:payload.numDeclaration,type:payload.typeDeclaration,attachmentsCount:payload.attachments.length,bodyLength:payload.body.length});
       console.log("%c[TAF VALIDE] Webhook URL →","color:#888",WEBHOOK_SEND);
       // v1.4.6 : ENVOI JSON PROPRE — Make webhook gateway accepte CORS et parse application/json correctement.
       // Le précédent workaround text/plain+no-cors empêchait Make de parser le body → tous champs vides côté serveur.
