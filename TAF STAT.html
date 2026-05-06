@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF STAT — Business Intelligence v1.3</title>
+<title>TAF STAT — Business Intelligence v1.4</title>
 <!-- fonts chargées dans le CSS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -846,7 +846,7 @@ canvas { touch-action: pan-y !important; }
   <div class="sidebar-logo">
     <div class="logo-tag">TAF ROISSY · CDG</div>
     <div class="logo-name">TAF STAT</div>
-    <div class="logo-sub">Business Intelligence · v1.3</div>
+    <div class="logo-sub">Business Intelligence · v1.4</div>
   </div>
   <div class="sidebar-nav">
     <div class="nav-section">Tableaux de bord</div>
@@ -2017,7 +2017,7 @@ canvas { touch-action: pan-y !important; }
 </div>
 
 <div class="taf-tooltip" id="taf-tooltip"></div>
-<div class="version-tag">TAF STAT v1.3</div>
+<div class="version-tag">TAF STAT v1.4</div>
 
 <!-- ══════════════════════════════════════════════
      MODE PRÉSENTATION
@@ -2288,15 +2288,22 @@ async function handleFileSelect(files){
     try{
       const {dossiers,year}=await parseFile(f);
       if(!dossiers.length){prog.textContent='Aucun dossier trouvé dans '+f.name; continue;}
-      // Stratégie : REMPLACER toute l'année importée (Malta exporte toujours le fichier complet)
-      // On supprime les entrées existantes de cette année puis on ajoute tout
+      // Stratégie : dédoublonnage par N° de dossier (clé unique type AI26/00001/000)
+      // Gère à la fois :
+      //   - Réimport d'un fichier annuel complet (tous les IDs matchent → remplacement propre)
+      //   - Import de fichiers mensuels successifs (Jan, Fév, Mars... → fusion correcte)
+      //   - Évite la perte de données quand plusieurs fichiers de la même année sont chargés
       const yr=dossiers[0].year;
-      S.raw=S.raw.filter(function(d){return d.year!==yr;});
+      const newIds=new Set(dossiers.map(function(d){return d.dossier;}).filter(Boolean));
+      S.raw=S.raw.filter(function(d){return !newIds.has(d.dossier);});
       S.raw.push(...dossiers);
       const bbe=dossiers.reduce(function(s,d){return s+d.bbe;},0);
-      // Mettre à jour les métadonnées
-      S.loadedMeta=S.loadedMeta.filter(function(m){return m.year!==String(yr);});
-      S.loadedMeta.push({year:String(yr),name:f.name,count:dossiers.length,bbe:bbe});
+      // Mettre à jour les métadonnées : une entrée PAR FICHIER (pas par année)
+      // pour permettre de voir Janvier, Février, Mars, Avril séparément dans la liste
+      S.loadedMeta=S.loadedMeta.filter(function(m){return m.name!==f.name;});
+      const minDate=dossiers.reduce(function(a,d){return d.date<a?d.date:a;},dossiers[0].date);
+      const maxDate=dossiers.reduce(function(a,d){return d.date>a?d.date:a;},dossiers[0].date);
+      S.loadedMeta.push({year:String(yr),name:f.name,count:dossiers.length,bbe:bbe,minDate:minDate,maxDate:maxDate});
       prog.textContent='OK: '+dossiers.length+' dossiers '+yr;
     } catch(e){console.error(e); prog.textContent='Erreur: '+f.name;}
   }
@@ -2309,12 +2316,22 @@ async function handleFileSelect(files){
 
 function refreshLoadedFiles(){
   const el=document.getElementById('loaded-files');
-  el.innerHTML=[...S.loadedMeta].sort((a,b)=>b.year-a.year).map(f=>`
-    <div class="loaded-file">
-      <span class="file-year">${f.year}</span>
-      <span style="flex:1;color:var(--text2)">${f.count} dossiers</span>
-      <span class="file-bbe">${fmt(f.bbe)} €</span>
-    </div>`).join('');
+  el.innerHTML=[...S.loadedMeta].sort(function(a,b){
+    // Tri par année DESC puis par minDate ASC (Jan, Fév, Mars... dans l'ordre)
+    if(a.year!==b.year) return Number(b.year)-Number(a.year);
+    var da=a.minDate?new Date(a.minDate).getTime():0;
+    var db=b.minDate?new Date(b.minDate).getTime():0;
+    return da-db;
+  }).map(function(f){
+    var label=f.name||'';
+    // Raccourcir nom de fichier si trop long
+    if(label.length>22) label=label.slice(0,20)+'…';
+    return '<div class="loaded-file" title="'+(f.name||'')+'">'+
+      '<span class="file-year">'+f.year+'</span>'+
+      '<span style="flex:1;color:var(--text2);font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+label+' · '+f.count+' doss.</span>'+
+      '<span class="file-bbe">'+fmt(f.bbe)+' €</span>'+
+      '</div>';
+  }).join('');
   if(S.raw.length) document.getElementById('start-btn-wrap').style.display='block';
 }
 
