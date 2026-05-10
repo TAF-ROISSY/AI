@@ -1,0 +1,2248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF VERICHECK v3.1.1 — WFS Vérification</title>
+
+<!--
+  TAF VERICHECK — Vérification factures handlers
+  
+  CHANGELOG:
+  v3.1.1 (2026-05-10)
+  - Intégration Google Drive complète (Apps Script)
+  - LED statut connexion Drive (vert/rouge/orange)
+  - Sauvegarde automatique uploads, analyses, config
+  - Accès multi-ordinateurs via Drive
+  
+  v3.1.0 (2026-05-10)
+  - Modal détail LTA au clic
+  - Configuration catégorie client
+  - Validation LTA
+  - Ouverture litige TAF OPS
+  - Export PDF comptabilité
+  
+  v3.0.0 (2026-05-10)
+  - Architecture multi-handlers (WFS, Air France, GSH, etc.)
+  - Calcul tarifs par type marchandise (Poissons, Animaux, Cargo)
+  - Matching LTA → Dossiers → Clients
+  - Vérification écarts facturé vs théorique
+-->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0d14; --surface:#0f1419; --surface2:#151a21; --surface3:#1a2028;
+  --border:#1e2430; --border2:#2a3242; --border3:#364154;
+  --amber:#f59e0b; --amber2:#fbbf24; --amber-bg:rgba(245,158,11,0.1);
+  --green:#10b981; --green-bg:rgba(16,185,129,0.1);
+  --red:#ef4444; --red-bg:rgba(239,68,68,0.1);
+  --orange:#f97316; --orange-bg:rgba(249,115,22,0.1);
+  --blue:#3b82f6; --blue-bg:rgba(59,130,246,0.1);
+  --text:#e2e8f0; --muted:#64748b; --muted2:#94a3b8;
+  --mono:'JetBrains Mono',monospace; --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--border3)}
+
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between}
+.nav-left{display:flex;align-items:center;gap:16px}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.nav-badge{background:var(--amber);color:#000;font-family:var(--mono);font-size:11px;font-weight:800;padding:4px 10px;border-radius:5px;letter-spacing:1.5px}
+.nav-title{font-size:16px;font-weight:800;letter-spacing:2px}
+.nav-sub{font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;margin-top:2px}
+.version{font-size:10px;font-family:var(--mono);color:var(--border3);background:var(--surface2);padding:3px 9px;border-radius:4px;border:1px solid var(--border)}
+
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:4px}
+.tab{background:none;border:none;color:var(--muted);padding:14px 22px;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.5px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.tab-badge{background:var(--red-bg);color:var(--red);font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:10px;margin-left:6px;border:1px solid rgba(239,68,68,.3)}
+
+.page{padding:32px;max-width:1600px;margin:0 auto}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+.section-title{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.section-title-icon{font-size:18px}
+
+.btn{border:none;border-radius:8px;cursor:pointer;font-family:var(--sans);font-weight:700;letter-spacing:.5px;transition:all .15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:14px;padding:11px 20px}
+.btn-primary{background:var(--amber);color:#000}
+.btn-primary:hover{background:var(--amber2);transform:translateY(-1px)}
+.btn-primary:disabled{background:var(--border2);color:var(--muted);cursor:not-allowed;transform:none}
+.btn-sec{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+.btn-sec:hover{border-color:var(--amber);color:var(--amber)}
+.btn-sm{font-size:13px;padding:8px 16px}
+.btn-xs{font-size:12px;padding:6px 12px}
+
+.upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:40px 28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--amber);background:var(--amber-bg)}
+.upload-zone.loaded{border-color:var(--green);border-style:solid;background:var(--green-bg)}
+.upload-icon{font-size:32px;margin-bottom:12px;opacity:.6}
+.upload-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.upload-sub{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.upload-fname{font-family:var(--mono);font-size:11px;color:var(--green);margin-top:10px;background:rgba(16,185,129,.15);padding:4px 12px;border-radius:5px;border:1px solid rgba(16,185,129,.3)}
+.upload-clear{position:absolute;top:12px;right:12px;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:600}
+.upload-clear:hover{background:rgba(239,68,68,.2)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.stat-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.stat-value{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--mono)}
+.c-green{color:var(--green)}
+.c-red{color:var(--red)}
+.c-amber{color:var(--amber)}
+.c-orange{color:var(--orange)}
+.c-blue{color:var(--blue)}
+.c-muted{color:var(--muted2)}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--surface2);padding:12px 16px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
+.td-lta{color:var(--amber);font-weight:600;letter-spacing:.5px}
+.td-dossier{color:var(--blue);font-weight:600}
+.td-client{color:var(--text);font-weight:600}
+.td-num{text-align:right;font-weight:600}
+.row-ok td{background:rgba(16,185,129,.03)}
+.row-err td{background:rgba(239,68,68,.03)}
+.row-warn td{background:rgba(249,115,22,.03)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+.b-ok{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.b-err{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.b-warn{background:rgba(249,115,22,.15);color:var(--orange);border:1px solid rgba(249,115,22,.3)}
+.b-gray{background:rgba(100,116,139,.15);color:var(--muted2);border:1px solid rgba(100,116,139,.3)}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:8px}
+.form-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.form-input,.form-select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 14px;border-radius:8px;font-family:var(--mono);font-size:13px}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--amber)}
+.form-input::placeholder{color:var(--muted)}
+
+.alert{border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px}
+.alert-info{background:var(--amber-bg);border:1px solid rgba(245,158,11,.3)}
+.alert-success{background:var(--green-bg);border:1px solid rgba(16,185,129,.3)}
+.alert-error{background:var(--red-bg);border:1px solid rgba(239,68,68,.3)}
+.alert-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.alert-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.alert-info .alert-title{color:var(--amber)}
+.alert-success .alert-title{color:var(--green)}
+.alert-error .alert-title{color:var(--red)}
+.alert-body{font-size:13px;color:var(--muted2);line-height:1.6}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:800;letter-spacing:1px}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:24px;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s}
+.modal-close:hover{background:var(--surface2);color:var(--text)}
+.modal-body{padding:24px}
+.modal-footer{padding:20px 24px;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:flex-end}
+
+.empty{text-align:center;padding:60px 40px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
+.empty-title{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--muted2)}
+.empty-text{font-size:13px;font-family:var(--mono)}
+
+.loading{display:inline-flex;align-items:center;gap:8px;color:var(--amber);font-family:var(--mono);font-size:13px}
+.loading-spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.1)}}
+
+.handler-select{background:var(--surface2);border:2px solid var(--border2);border-radius:10px;padding:20px;margin-bottom:20px}
+.handler-select-label{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.handler-select select{width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:12px 16px;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:600}
+.handler-select select:focus{outline:none;border-color:var(--amber)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GOOGLE DRIVE STORAGE API
+// ═══════════════════════════════════════════════════════════════════════════
+const DRIVE_API_URL = 'https://script.google.com/macros/s/AKfycbyKbEYIH1YIXTvQCUFi1sGeAn2XiBRy1-Kb7H8_B_f7V4abI0krUut4mxzu4XguNA34_Q/exec';
+
+async function driveCall(action, params) {
+  const response = await fetch(DRIVE_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...params })
+  });
+  
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Drive API error');
+  }
+  return result.data;
+}
+
+// Upload fichier dans Drive
+async function driveUploadFile(name, data, folderId) {
+  return await driveCall('uploadFile', { name, data, folderId });
+}
+
+// Sauvegarder analyse complète
+async function driveSaveAnalysis(handler, stats, results, factureFileName, dossiersFileName) {
+  return await driveCall('saveAnalysis', {
+    data: { handler, stats, results, factureFileName, dossiersFileName }
+  });
+}
+
+// Sauvegarder config (clients, tarifs, validations)
+async function driveSaveConfig(type, data) {
+  return await driveCall('saveConfig', { type, data });
+}
+
+// Charger config
+async function driveLoadConfig(type) {
+  return await driveCall('loadConfig', { type });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG (Deprecated - Migration vers Drive)
+// ═══════════════════════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  databaseURL: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app"
+};
+
+const DB_PATH = "taf_vericheck_v3";
+const SHARED_CLIENTS_PATH = "taf_shared/clients";
+
+// Handlers disponibles
+const HANDLERS = [
+  { id: 'air_france', label: 'Air France' },
+  { id: 'gsh', label: 'Global Service Handling (GSH)' },
+  { id: 'wfs', label: 'WFS' },
+  { id: 'alyzia', label: 'Alyzia' },
+  { id: 'geh', label: 'GEH' }
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIREBASE HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+async function fbGet(path) {
+  const url = `${FIREBASE_CONFIG.databaseURL}/${DB_PATH}/${path}.json`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function fbSet(path, data) {
+  const url = `${FIREBASE_CONFIG.databaseURL}/${DB_PATH}/${path}.json`;
+  await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+
+async function fbDelete(path) {
+  const url = `${FIREBASE_CONFIG.databaseURL}/${DB_PATH}/${path}.json`;
+  await fetch(url, { method: 'DELETE' });
+}
+
+async function getSharedClients() {
+  const url = `${FIREBASE_CONFIG.databaseURL}/${SHARED_CLIENTS_PATH}.json`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function getClientTypes() {
+  return await fbGet('client_types');
+}
+
+async function setClientType(clientId, typeMarchandise) {
+  await fbSet(`client_types/${clientId}`, { typeMarchandise });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSERS
+// ═══════════════════════════════════════════════════════════════════════════
+function parseFactureCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(';');
+  const rows = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(';');
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h.trim()] = values[idx] || '';
+    });
+    rows.push(row);
+  }
+  
+  return rows;
+}
+
+function groupByLTA(rows) {
+  const grouped = {};
+  
+  rows.forEach(row => {
+    const pref = row['Pref'] || '';
+    const lta = row['No de LTA'] || '';
+    const ltaKey = (pref + lta).replace(/\s/g, '');
+    
+    if (!ltaKey) return;
+    
+    if (!grouped[ltaKey]) {
+      grouped[ltaKey] = {
+        lta: ltaKey,
+        pref: pref,
+        numeroLTA: lta,
+        poids: parseFloat(String(row['Poids'] || '0').replace(',', '.')) || 0,
+        lignes: [],
+        totalHT: 0,
+        totalTTC: 0
+      };
+    }
+    
+    const ht = parseFloat(String(row['Total H.T.'] || '0').replace(',', '.')) || 0;
+    grouped[ltaKey].totalHT += ht;
+    grouped[ltaKey].lignes.push({
+      nature: row[' Nature Frais Annexes'] || '',
+      montantHT: ht
+    });
+  });
+  
+  // Calculer TTC (TVA 20%)
+  Object.values(grouped).forEach(g => {
+    g.totalTTC = g.totalHT * 1.20;
+  });
+  
+  return Object.values(grouped);
+}
+
+function parseDossiersXLS(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      
+      let headerRow = -1;
+      for (let i = 0; i < Math.min(10, json.length); i++) {
+        const row = json[i];
+        if (row && row.includes('Date') && row.includes('Dossiers') && row.includes('Documents')) {
+          headerRow = i;
+          break;
+        }
+      }
+      
+      if (headerRow === -1) {
+        callback([]);
+        return;
+      }
+      
+      const headers = json[headerRow];
+      const dossiers = [];
+      
+      for (let i = headerRow + 1; i < json.length; i++) {
+        const row = json[i];
+        if (!row || row.length === 0) continue;
+        
+        const obj = {};
+        headers.forEach((h, idx) => {
+          obj[h] = row[idx];
+        });
+        
+        const docs = String(obj['Documents'] || '').replace(/\s/g, '');
+        if (docs && docs.length > 5) {
+          obj.ltaClean = docs;
+          dossiers.push(obj);
+        }
+      }
+      
+      callback(dossiers);
+    } catch (err) {
+      console.error('Erreur parse XLS:', err);
+      callback([]);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function matchFactureDossiers(factureGroups, dossiers) {
+  const dossiersIndex = {};
+  dossiers.forEach(d => {
+    if (d.ltaClean) {
+      dossiersIndex[d.ltaClean] = d;
+    }
+  });
+  
+  return factureGroups.map(fg => {
+    const dossier = dossiersIndex[fg.lta];
+    return {
+      ...fg,
+      dossierMalta: dossier ? dossier['Dossiers'] : null,
+      client: dossier ? dossier['Client'] : null,
+      matched: !!dossier
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CALCUL TARIFAIRE
+// ═══════════════════════════════════════════════════════════════════════════
+function calculerTarifTheorique(poids, pref, typeMarchandise, handler, tarifsWFS) {
+  const grille = tarifsWFS?.handlers?.[handler]?.[typeMarchandise];
+  if (!grille) return null;
+  
+  let total = 0;
+  
+  if (typeMarchandise === 'poissons_frais') {
+    // Frais arrivées (fixe)
+    total += grille.frais_arrivees || 0;
+    
+    // Frais frigo (€/kg avec mini)
+    const frigo = Math.max(
+      poids * (grille.frais_frigo_kg || 0),
+      grille.frais_frigo_mini || 0
+    );
+    total += frigo;
+    
+    // Taxe mise à dispo (tranches poids)
+    if (grille.mise_a_dispo) {
+      if (poids < 500) {
+        total += grille.mise_a_dispo['0-500'] || 0;
+      } else if (poids <= 1000) {
+        total += grille.mise_a_dispo['501-1000'] || 0;
+      } else if (poids <= 2000) {
+        total += grille.mise_a_dispo['1001-2000'] || 0;
+      } else {
+        total += (poids / 1000) * (grille.mise_a_dispo['2001+'] || 0);
+      }
+    }
+    
+    // Taxe Qatar (LTA 157-, 072-)
+    if ((pref === '157' || pref === '072') && grille.taxe_qatar) {
+      total += grille.taxe_qatar;
+    }
+    
+  } else if (typeMarchandise === 'animaux_vivants') {
+    // Frais arrivées (fixe)
+    total += grille.frais_arrivees || 0;
+    
+    // Frais transfert (€/kg avec mini)
+    const transfert = Math.max(
+      poids * (grille.frais_transfert_kg || 0),
+      grille.frais_transfert_mini || 0
+    );
+    total += transfert;
+    
+    // Frais UC (par tranche 150kg + base)
+    if (grille.frais_uc_base && grille.frais_uc_tranche) {
+      const nbUC = Math.ceil(poids / grille.frais_uc_tranche);
+      total += nbUC * grille.frais_uc_base;
+    }
+    
+    // Taxe mise à dispo (optionnel, certaines LTA)
+    // TODO: À implémenter selon liste LTA
+    
+  } else if (typeMarchandise === 'cargo') {
+    // Frais arrivées (tranches poids)
+    if (grille.frais_arrivees_tranches) {
+      if (poids < 1000) {
+        total = grille.frais_arrivees_tranches['0-1000'] || 0;
+      } else if (poids < 2000) {
+        total = grille.frais_arrivees_tranches['1000-2000'] || 0;
+      } else if (poids < 3000) {
+        total = grille.frais_arrivees_tranches['2000-3000'] || 0;
+      } else if (poids < 4000) {
+        total = grille.frais_arrivees_tranches['3000-4000'] || 0;
+      } else if (poids < 5000) {
+        total = grille.frais_arrivees_tranches['4000-5000'] || 0;
+      } else if (poids < 6000) {
+        total = grille.frais_arrivees_tranches['5000-6000'] || 0;
+      } else if (poids < 7000) {
+        total = grille.frais_arrivees_tranches['6000-7000'] || 0;
+      } else {
+        total = grille.frais_arrivees_tranches['7000+'] || 0;
+      }
+    }
+    
+    // Taxe mise à dispo (optionnel, à valider par opérateur)
+    // TODO: À implémenter
+  }
+  
+  return total;
+}
+
+function verifierAvecTarifs(matchedData, clients, handler, tarifs) {
+  const clientsIndex = {};
+  clients.forEach(c => {
+    clientsIndex[c.nom.toUpperCase()] = c;
+  });
+  
+  return matchedData.map(item => {
+    if (!item.client) return { ...item, verification: 'no_client' };
+    
+    const clientConfig = clientsIndex[item.client.toUpperCase()];
+    if (!clientConfig || !clientConfig.typeTarif) {
+      return { ...item, verification: 'client_non_config' };
+    }
+    
+    const tarifTheorique = calculerTarifTheorique(
+      item.poids,
+      item.pref,
+      clientConfig.typeTarif,
+      handler,
+      tarifs
+    );
+    
+    if (tarifTheorique === null) {
+      return { ...item, verification: 'tarif_non_config', typeTarif: clientConfig.typeTarif };
+    }
+    
+    const ecart = item.totalHT - tarifTheorique;
+    const ecartPct = tarifTheorique > 0 ? Math.abs(ecart / tarifTheorique * 100) : 0;
+    
+    let statut = 'ok';
+    if (ecartPct > 10) statut = 'erreur';
+    else if (ecartPct > 2) statut = 'avertissement';
+    
+    return {
+      ...item,
+      verification: 'verifie',
+      typeTarif: clientConfig.typeTarif,
+      tarifTheorique,
+      ecart,
+      ecartPct,
+      statut
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
+function App() {
+  const [activeTab, setActiveTab] = useState('upload');
+  const [driveStatus, setDriveStatus] = useState('testing'); // 'ok', 'error', 'testing'
+  
+  const [factureFile, setFactureFile] = useState(null);
+  const [dossiersFile, setDossiersFile] = useState(null);
+  const [selectedHandler, setSelectedHandler] = useState('wfs');
+  const [factureData, setFactureData] = useState([]);
+  const [dossiersData, setDossiersData] = useState([]);
+  const [matchedData, setMatchedData] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  
+  const [clients, setClients] = useState([]);
+  const [tarifsWFS, setTarifsWFS] = useState({});
+  
+  useEffect(() => {
+    testDriveConnection();
+    loadClients();
+    loadTarifs();
+  }, []);
+  
+  async function testDriveConnection() {
+    setDriveStatus('testing');
+    try {
+      // Tester avec un simple appel loadConfig
+      await driveCall('loadConfig', { type: 'test' });
+      setDriveStatus('ok');
+    } catch (err) {
+      console.error('Drive connexion error:', err);
+      setDriveStatus('error');
+    }
+  }
+  
+  async function loadClients() {
+    try {
+      // Essayer de charger depuis Drive d'abord
+      const driveClients = await driveLoadConfig('clients');
+      
+      if (driveClients && Object.keys(driveClients).length > 0) {
+        const merged = [];
+        Object.entries(driveClients).forEach(([id, client]) => {
+          merged.push({
+            id,
+            nom: client.nom || client.name || '',
+            codeCompta: client.codeCompta || client.code || '',
+            typeTarif: client.typeTarif || null,
+            source: 'drive'
+          });
+        });
+        setClients(merged);
+        return;
+      }
+    } catch (err) {
+      console.log('Drive non disponible, tentative Firebase...', err);
+    }
+    
+    // Fallback: essayer Firebase (clients partagés TAF FACTURATION)
+    try {
+      const sharedClients = await getSharedClients();
+      const clientTypes = await getClientTypes();
+      
+      const merged = [];
+      
+      if (sharedClients) {
+        Object.entries(sharedClients).forEach(([id, client]) => {
+          const typeInfo = clientTypes?.[id] || {};
+          merged.push({
+            id,
+            nom: client.nom || client.name || '',
+            codeCompta: client.codeCompta || client.code || '',
+            typeTarif: typeInfo.typeMarchandise || null,
+            source: 'facturation'
+          });
+        });
+      }
+      
+      setClients(merged);
+    } catch (err) {
+      console.error('Erreur chargement clients:', err);
+      setClients([]);
+    }
+  }
+  
+  async function loadTarifs() {
+    try {
+      const data = await driveLoadConfig('tarifs');
+      setTarifsWFS(data || {});
+    } catch (err) {
+      console.error('Erreur chargement tarifs:', err);
+      setTarifsWFS({});
+    }
+  }
+  
+  async function analyzeFacture() {
+    if (!factureFile || !dossiersFile) return;
+    
+    setAnalyzing(true);
+    
+    try {
+      // 1. Upload fichiers dans Drive
+      const factureReader = new FileReader();
+      const dossiersReader = new FileReader();
+      
+      factureReader.onload = async (e) => {
+        const factureBase64 = btoa(e.target.result);
+        await driveUploadFile(factureFile.name, 'data:text/csv;base64,' + factureBase64);
+      };
+      factureReader.readAsBinaryString(factureFile);
+      
+      dossiersReader.onload = async (e) => {
+        const dossiersData = new Uint8Array(e.target.result);
+        const dossiersBase64 = btoa(String.fromCharCode.apply(null, dossiersData));
+        await driveUploadFile(dossiersFile.name, 'data:application/vnd.ms-excel;base64,' + dossiersBase64);
+      };
+      dossiersReader.readAsArrayBuffer(dossiersFile);
+      
+      // 2. Parser et analyser
+      const factureText = await factureFile.text();
+      const factureRows = parseFactureCSV(factureText);
+      const grouped = groupByLTA(factureRows);
+      setFactureData(grouped);
+      
+      parseDossiersXLS(dossiersFile, async (dossiers) => {
+        setDossiersData(dossiers);
+        
+        const matched = matchFactureDossiers(grouped, dossiers);
+        const verified = verifierAvecTarifs(matched, clients, selectedHandler, tarifsWFS);
+        setMatchedData(verified);
+        
+        // 3. Sauvegarder résultats dans Drive
+        const stats = {
+          total: verified.length,
+          matched: verified.filter(m => m.matched).length,
+          verifie: verified.filter(m => m.verification === 'verifie').length,
+          ok: verified.filter(m => m.statut === 'ok').length,
+          avertissement: verified.filter(m => m.statut === 'avertissement').length,
+          erreur: verified.filter(m => m.statut === 'erreur').length,
+          totalHT: verified.reduce((sum, m) => sum + m.totalHT, 0)
+        };
+        
+        await driveSaveAnalysis(
+          selectedHandler,
+          stats,
+          verified,
+          factureFile.name,
+          dossiersFile.name
+        );
+        
+        setAnalyzing(false);
+        setActiveTab('verification');
+      });
+    } catch (err) {
+      console.error('Erreur analyse:', err);
+      alert('Erreur lors de l\'analyse: ' + err.message);
+      setAnalyzing(false);
+    }
+  }
+  
+  const stats = useMemo(() => {
+    const verified = matchedData.filter(m => m.verification === 'verifie');
+    return {
+      total: matchedData.length,
+      matched: matchedData.filter(m => m.matched).length,
+      unmatched: matchedData.filter(m => !m.matched).length,
+      totalHT: matchedData.reduce((sum, m) => sum + m.totalHT, 0),
+      verifie: verified.length,
+      ok: verified.filter(m => m.statut === 'ok').length,
+      avertissement: verified.filter(m => m.statut === 'avertissement').length,
+      erreur: verified.filter(m => m.statut === 'erreur').length
+    };
+  }, [matchedData]);
+  
+  return (
+    <>
+      <div className="nav">
+        <div className="nav-left">
+          <div className="nav-logo">
+            <div className="nav-badge">TAF</div>
+            <div>
+              <div className="nav-title">VERICHECK v3.1.1</div>
+              <div className="nav-sub">VERIFICATION WFS</div>
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* LED Drive Status */}
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              padding: '6px 12px',
+              background: 'var(--surface2)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+            onClick={testDriveConnection}
+            title="Cliquer pour re-tester la connexion Drive"
+          >
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: driveStatus === 'ok' ? '#10b981' : driveStatus === 'error' ? '#ef4444' : '#f59e0b',
+              boxShadow: driveStatus === 'ok' ? '0 0 8px #10b981' : driveStatus === 'error' ? '0 0 8px #ef4444' : '0 0 8px #f59e0b',
+              animation: driveStatus === 'testing' ? 'pulse 1.5s infinite' : 'none'
+            }}></div>
+            <div style={{ 
+              fontSize: '11px', 
+              fontFamily: 'var(--mono)', 
+              color: driveStatus === 'ok' ? '#10b981' : driveStatus === 'error' ? '#ef4444' : '#f59e0b',
+              fontWeight: 600
+            }}>
+              {driveStatus === 'ok' ? 'Drive ✓' : driveStatus === 'error' ? 'Drive ✕' : 'Drive ⟳'}
+            </div>
+          </div>
+          
+          <div className="version">v3.1.1</div>
+        </div>
+      </div>
+      
+      <div className="tabs">
+        <button className={`tab ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => setActiveTab('upload')}>
+          📁 Upload & Analyse
+        </button>
+        <button className={`tab ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => setActiveTab('clients')}>
+          👥 Clients TAF
+        </button>
+        <button className={`tab ${activeTab === 'tarifs' ? 'active' : ''}`} onClick={() => setActiveTab('tarifs')}>
+          💰 Grilles WFS
+        </button>
+        <button className={`tab ${activeTab === 'verification' ? 'active' : ''}`} onClick={() => setActiveTab('verification')}>
+          ✓ Vérification
+          {matchedData.length > 0 && <span className="tab-badge">{matchedData.length}</span>}
+        </button>
+      </div>
+      
+      <div className="page">
+        {activeTab === 'upload' && <TabUpload 
+          factureFile={factureFile}
+          setFactureFile={setFactureFile}
+          dossiersFile={dossiersFile}
+          setDossiersFile={setDossiersFile}
+          selectedHandler={selectedHandler}
+          setSelectedHandler={setSelectedHandler}
+          analyzing={analyzing}
+          onAnalyze={analyzeFacture}
+        />}
+        
+        {activeTab === 'clients' && <TabClients 
+          clients={clients}
+          onReload={loadClients}
+        />}
+        
+        {activeTab === 'tarifs' && <TabTarifs 
+          tarifs={tarifsWFS}
+          onReload={loadTarifs}
+        />}
+        
+        {activeTab === 'verification' && <TabVerification 
+          data={matchedData}
+          stats={stats}
+          handler={selectedHandler}
+        />}
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB: UPLOAD
+// ═══════════════════════════════════════════════════════════════════════════
+function TabUpload({ factureFile, setFactureFile, dossiersFile, setDossiersFile, selectedHandler, setSelectedHandler, analyzing, onAnalyze }) {
+  const [dragFacture, setDragFacture] = useState(false);
+  const [dragDossiers, setDragDossiers] = useState(false);
+  
+  function handleFactureFile(file) {
+    if (file && (file.name.endsWith('.csv') || file.name.endsWith('.CSV'))) {
+      setFactureFile(file);
+    }
+  }
+  
+  function handleDossiersFile(file) {
+    if (file && (file.name.endsWith('.xls') || file.name.endsWith('.xlsx'))) {
+      setDossiersFile(file);
+    }
+  }
+  
+  const canAnalyze = factureFile && dossiersFile && !analyzing;
+  
+  return (
+    <>
+      <div className="section">
+        <div className="section-title">
+          <span className="section-title-icon">📄</span>
+          Facture WFS (CSV)
+        </div>
+        
+        <div
+          className={`upload-zone ${factureFile ? 'loaded' : ''} ${dragFacture ? 'drag' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragFacture(true); }}
+          onDragLeave={() => setDragFacture(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragFacture(false);
+            handleFactureFile(e.dataTransfer.files[0]);
+          }}
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = (e) => handleFactureFile(e.target.files[0]);
+            input.click();
+          }}
+        >
+          <div className="upload-icon">{factureFile ? '✓' : '📥'}</div>
+          <div className="upload-title">
+            {factureFile ? 'Fichier chargé' : 'Cliquez ou déposez le CSV de la facture'}
+          </div>
+          <div className="upload-sub">
+            {factureFile ? factureFile.name : 'Fichier CSV exporté depuis WFS'}
+          </div>
+          {factureFile && (
+            <div className="upload-clear" onClick={(e) => { e.stopPropagation(); setFactureFile(null); }}>
+              ✕
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="section">
+        <div className="section-title">
+          <span className="section-title-icon">📊</span>
+          Dossiers Malta 2026 (XLS)
+        </div>
+        
+        <div
+          className={`upload-zone ${dossiersFile ? 'loaded' : ''} ${dragDossiers ? 'drag' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragDossiers(true); }}
+          onDragLeave={() => setDragDossiers(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragDossiers(false);
+            handleDossiersFile(e.dataTransfer.files[0]);
+          }}
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xls,.xlsx';
+            input.onchange = (e) => handleDossiersFile(e.target.files[0]);
+            input.click();
+          }}
+        >
+          <div className="upload-icon">{dossiersFile ? '✓' : '📥'}</div>
+          <div className="upload-title">
+            {dossiersFile ? 'Fichier chargé' : 'Cliquez ou déposez le fichier des dossiers'}
+          </div>
+          <div className="upload-sub">
+            {dossiersFile ? dossiersFile.name : 'Fichier Excel avec tous vos dossiers 2026'}
+          </div>
+          {dossiersFile && (
+            <div className="upload-clear" onClick={(e) => { e.stopPropagation(); setDossiersFile(null); }}>
+              ✕
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {factureFile && dossiersFile && (
+        <div className="section">
+          <div className="handler-select">
+            <div className="handler-select-label">Compagnie de handling</div>
+            <select value={selectedHandler} onChange={(e) => setSelectedHandler(e.target.value)}>
+              {HANDLERS.map(h => (
+                <option key={h.id} value={h.id}>{h.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <button 
+            className="btn btn-primary" 
+            style={{ width: '100%', fontSize: '15px', padding: '14px' }}
+            disabled={!canAnalyze}
+            onClick={onAnalyze}
+          >
+            {analyzing ? (
+              <><div className="loading-spinner"></div> Analyse en cours...</>
+            ) : (
+              <>🚀 Analyser & Vérifier</>
+            )}
+          </button>
+        </div>
+      )}
+      
+      {!factureFile || !dossiersFile ? (
+        <div className="alert alert-info">
+          <div className="alert-icon">💡</div>
+          <div>
+            <div className="alert-title">Prêt à vérifier vos factures</div>
+            <div className="alert-body">
+              Uploadez le CSV de la facture WFS et le fichier XLS des dossiers Malta, sélectionnez la compagnie de handling, puis cliquez sur "Analyser & Vérifier".
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB: CLIENTS
+// ═══════════════════════════════════════════════════════════════════════════
+function TabClients({ clients, onReload }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editClient, setEditClient] = useState(null);
+  
+  async function saveClient(data) {
+    if (editClient) {
+      await setClientType(editClient.id, data.typeTarif);
+    }
+    setShowModal(false);
+    setEditClient(null);
+    onReload();
+  }
+  
+  return (
+    <>
+      <div className="alert alert-info">
+        <div className="alert-icon">🔄</div>
+        <div>
+          <div className="alert-title">Synchronisation automatique</div>
+          <div className="alert-body">
+            Les clients proviennent automatiquement de <strong>TAF FACTURATION</strong> via Firebase.
+            <br/><br/>
+            Pour chaque client, définissez le <strong>type de marchandise</strong> afin d'appliquer la bonne grille tarifaire WFS.
+          </div>
+        </div>
+      </div>
+      
+      <div className="section">
+        <div className="section-title">
+          <span className="section-title-icon">👥</span>
+          Clients synchronisés depuis TAF FACTURATION
+        </div>
+      </div>
+      
+      {clients.length === 0 ? (
+        <div className="section">
+          <div className="empty">
+            <div className="empty-icon">📋</div>
+            <div className="empty-title">Aucun client trouvé</div>
+            <div className="empty-text">Vérifiez que TAF FACTURATION est configuré pour partager les clients</div>
+          </div>
+        </div>
+      ) : (
+        <div className="section">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Client TAF</th>
+                  <th>Code Compta</th>
+                  <th>Type Marchandise</th>
+                  <th style={{ width: '120px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map(c => (
+                  <tr key={c.id} className={!c.typeTarif ? 'row-warn' : ''}>
+                    <td className="td-client">{c.nom}</td>
+                    <td><span className="badge b-gray">{c.codeCompta}</span></td>
+                    <td>
+                      {c.typeTarif ? (
+                        <span className={`badge ${c.typeTarif === 'animaux_vivants' ? 'b-warn' : c.typeTarif === 'poissons_frais' ? 'b-ok' : 'b-gray'}`}>
+                          {c.typeTarif === 'animaux_vivants' ? '🐾 Animaux vivants' : 
+                           c.typeTarif === 'poissons_frais' ? '🐟 Poissons frais' : 
+                           '📦 Cargo général'}
+                        </span>
+                      ) : (
+                        <span className="badge b-warn">⚠️ À configurer</span>
+                      )}
+                    </td>
+                    <td>
+                      <button className="btn btn-sec btn-xs" onClick={() => { setEditClient(c); setShowModal(true); }}>
+                        {c.typeTarif ? '✏️ Modifier' : '⚙️ Configurer'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      
+      {showModal && <ClientModal 
+        client={editClient}
+        onSave={saveClient}
+        onClose={() => { setShowModal(false); setEditClient(null); }}
+      />}
+    </>
+  );
+}
+
+function ClientModal({ client, onSave, onClose }) {
+  const [form, setForm] = useState(client || { nom: '', codeCompta: '', typeTarif: '' });
+  
+  function upd(field, value) {
+    setForm({ ...form, [field]: value });
+  }
+  
+  function save() {
+    if (!form.typeTarif) return;
+    onSave(form);
+  }
+  
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">Configurer le type de marchandise</div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="alert alert-info" style={{ fontSize: 12, padding: 12, marginBottom: 16 }}>
+            <div className="alert-icon" style={{ fontSize: 16 }}>🔄</div>
+            <div>
+              <div className="alert-body">
+                Client synchronisé depuis <strong>TAF FACTURATION</strong>. Seul le type de marchandise peut être modifié ici.
+              </div>
+            </div>
+          </div>
+          
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Nom du client TAF</label>
+            <input 
+              className="form-input" 
+              value={form.nom} 
+              disabled
+              style={{ opacity: 0.6, cursor: 'not-allowed' }}
+            />
+          </div>
+          
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Code Comptable</label>
+            <input 
+              className="form-input" 
+              value={form.codeCompta} 
+              disabled
+              style={{ opacity: 0.6, cursor: 'not-allowed' }}
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Type de marchandise expédiée</label>
+            <select 
+              className="form-select" 
+              value={form.typeTarif || ''} 
+              onChange={(e) => upd('typeTarif', e.target.value)}
+            >
+              <option value="">-- Sélectionner --</option>
+              <option value="poissons_frais">🐟 Poissons frais (Seafood)</option>
+              <option value="animaux_vivants">🐾 Animaux vivants (AVI)</option>
+              <option value="cargo">📦 Cargo général</option>
+            </select>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-sec" onClick={onClose}>Annuler</button>
+          <button className="btn btn-primary" onClick={save}>💾 Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB: TARIFS
+// ═══════════════════════════════════════════════════════════════════════════
+function TabTarifs({ tarifs, onReload }) {
+  const [selectedHandler, setSelectedHandler] = useState('wfs');
+  const [selectedType, setSelectedType] = useState('poissons_frais');
+  const [editMode, setEditMode] = useState(false);
+  
+  return (
+    <>
+      <div className="alert alert-info">
+        <div className="alert-icon">💡</div>
+        <div>
+          <div className="alert-title">Configuration des grilles tarifaires WFS</div>
+          <div className="alert-body">
+            Configurez les tarifs que <strong>chaque compagnie de handling</strong> est censée appliquer pour chaque type de marchandise.
+            <br/><br/>
+            Ces tarifs servent de référence pour la vérification des factures.
+          </div>
+        </div>
+      </div>
+      
+      <div className="section">
+        <div className="section-title">
+          <span className="section-title-icon">🏢</span>
+          Sélection Handler & Type
+        </div>
+        
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Compagnie de handling</label>
+            <select className="form-select" value={selectedHandler} onChange={(e) => setSelectedHandler(e.target.value)}>
+              {HANDLERS.map(h => (
+                <option key={h.id} value={h.id}>{h.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Type de marchandise</label>
+            <select className="form-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+              <option value="poissons_frais">🐟 Poissons frais</option>
+              <option value="animaux_vivants">🐾 Animaux vivants</option>
+              <option value="cargo">📦 Cargo général</option>
+            </select>
+          </div>
+        </div>
+        
+        <button className="btn btn-primary btn-sm" onClick={() => setEditMode(true)}>
+          ✏️ Modifier les tarifs
+        </button>
+      </div>
+      
+      <TarifDisplay 
+        handler={selectedHandler}
+        type={selectedType}
+        tarifs={tarifs}
+      />
+      
+      {editMode && (
+        <TarifModal
+          handler={selectedHandler}
+          type={selectedType}
+          tarifs={tarifs}
+          onSave={async (data) => {
+            // Charger tarifs actuels
+            const currentTarifs = await driveLoadConfig('tarifs');
+            
+            // Mettre à jour
+            if (!currentTarifs.handlers) currentTarifs.handlers = {};
+            if (!currentTarifs.handlers[selectedHandler]) currentTarifs.handlers[selectedHandler] = {};
+            currentTarifs.handlers[selectedHandler][selectedType] = data;
+            
+            // Sauvegarder dans Drive
+            await driveSaveConfig('tarifs', currentTarifs);
+            
+            onReload();
+            setEditMode(false);
+          }}
+          onClose={() => setEditMode(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function TarifDisplay({ handler, type, tarifs }) {
+  const grille = tarifs?.handlers?.[handler]?.[type];
+  
+  if (!grille) {
+    return (
+      <div className="section">
+        <div className="empty">
+          <div className="empty-icon">📋</div>
+          <div className="empty-title">Tarifs non configurés</div>
+          <div className="empty-text">Cliquez sur "Modifier les tarifs" pour configurer</div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="section">
+      <div className="section-title">
+        <span className="section-title-icon">💰</span>
+        Grille actuelle: {HANDLERS.find(h => h.id === handler)?.label} - {type === 'poissons_frais' ? 'Poissons frais' : type === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo'}
+      </div>
+      
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ligne tarifaire</th>
+              <th>Valeur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(grille).map(([key, value]) => (
+              <tr key={key}>
+                <td style={{ fontFamily: 'var(--sans)', fontWeight: 600 }}>{formatTarifLabel(key)}</td>
+                <td className="td-num">{formatTarifValue(key, value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatTarifLabel(key) {
+  const labels = {
+    frais_arrivees: 'Frais arrivées (fixe)',
+    frais_frigo_kg: 'Frais frigo (€/kg)',
+    frais_frigo_mini: 'Frais frigo (mini perception)',
+    mise_a_dispo: 'Taxe mise à dispo',
+    taxe_qatar: 'Taxe Qatar (LTA 157-, 072-)',
+    frais_transfert_kg: 'Frais transfert (€/kg)',
+    frais_transfert_mini: 'Frais transfert (mini perception)',
+    frais_uc_base: 'Frais UC (base par UC)',
+    frais_uc_tranche: 'Frais UC (tranche kg)',
+    frais_arrivees_tranches: 'Frais arrivées (tranches)'
+  };
+  return labels[key] || key;
+}
+
+function formatTarifValue(key, value) {
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([k, v]) => `${k}: ${v}€`).join(' / ');
+  }
+  return `${value}€`;
+}
+
+function TarifModal({ handler, type, tarifs, onSave, onClose }) {
+  const currentGrille = tarifs?.handlers?.[handler]?.[type] || {};
+  const [form, setForm] = useState(currentGrille);
+  
+  function upd(field, value) {
+    setForm({ ...form, [field]: parseFloat(value) || 0 });
+  }
+  
+  function updNested(parent, key, value) {
+    setForm({
+      ...form,
+      [parent]: {
+        ...form[parent],
+        [key]: parseFloat(value) || 0
+      }
+    });
+  }
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label;
+  const typeLabel = type === 'poissons_frais' ? 'Poissons frais' : type === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo';
+  
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+        <div className="modal-header">
+          <div className="modal-title">Tarifs {handlerLabel} - {typeLabel}</div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          {type === 'poissons_frais' && (
+            <>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Frais arrivées (fixe) €</label>
+                <input 
+                  className="form-input" 
+                  type="number" 
+                  value={form.frais_arrivees || ''} 
+                  onChange={(e) => upd('frais_arrivees', e.target.value)}
+                />
+              </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais frigo (€/kg)</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    step="0.001"
+                    value={form.frais_frigo_kg || ''} 
+                    onChange={(e) => upd('frais_frigo_kg', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais frigo (mini perception) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_frigo_mini || ''} 
+                    onChange={(e) => upd('frais_frigo_mini', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: 16 }}>
+                <label className="form-label" style={{ marginBottom: 12 }}>Taxe mise à dispo (tranches poids)</label>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>0-500 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['0-500'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '0-500', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>501-1000 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['501-1000'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '501-1000', e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-grid" style={{ marginTop: 12 }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>1001-2000 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['1001-2000'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '1001-2000', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>2001+ kg (€/tonne)</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['2001+'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '2001+', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Taxe Qatar (LTA 157-, 072-) €</label>
+                <input 
+                  className="form-input" 
+                  type="number" 
+                  value={form.taxe_qatar || ''} 
+                  onChange={(e) => upd('taxe_qatar', e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          
+          {type === 'animaux_vivants' && (
+            <>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Frais arrivées (fixe) €</label>
+                <input 
+                  className="form-input" 
+                  type="number" 
+                  value={form.frais_arrivees || ''} 
+                  onChange={(e) => upd('frais_arrivees', e.target.value)}
+                />
+              </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais transfert (€/kg)</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    step="0.01"
+                    value={form.frais_transfert_kg || ''} 
+                    onChange={(e) => upd('frais_transfert_kg', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais transfert (mini) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_transfert_mini || ''} 
+                    onChange={(e) => upd('frais_transfert_mini', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais UC (base par UC) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_uc_base || ''} 
+                    onChange={(e) => upd('frais_uc_base', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais UC (tranche) kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_uc_tranche || ''} 
+                    onChange={(e) => upd('frais_uc_tranche', e.target.value)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+          
+          {type === 'cargo' && (
+            <div style={{ marginBottom: 16 }}>
+              <label className="form-label" style={{ marginBottom: 12 }}>Frais arrivées (tranches poids)</label>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>0-1000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['0-1000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '0-1000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>1000-2000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['1000-2000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '1000-2000', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>2000-3000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['2000-3000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '2000-3000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>3000-4000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['3000-4000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '3000-4000', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>4000-5000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['4000-5000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '4000-5000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>5000-6000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['5000-6000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '5000-6000', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>6000-7000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['6000-7000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '6000-7000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>7000+ kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['7000+'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '7000+', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-sec" onClick={onClose}>Annuler</button>
+          <button className="btn btn-primary" onClick={() => onSave(form)}>💾 Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT PDF COMPTA
+// ═══════════════════════════════════════════════════════════════════════════
+function exportPDFCompta(data, stats, handler) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
+  const today = new Date().toLocaleDateString('fr-FR');
+  
+  // Page de garde
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, 297, 40, 'F');
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TAF VERICHECK', 15, 15);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Vérification Facturation WFS', 15, 25);
+  doc.text(`Handler: ${handlerLabel}`, 15, 32);
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text(`Date: ${today}`, 240, 15);
+  
+  // Stats
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(9);
+  let y = 50;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('STATISTIQUES GLOBALES', 15, y);
+  y += 7;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total LTA: ${stats.total}`, 15, y);
+  doc.text(`Vérifiés: ${stats.verifie}`, 70, y);
+  doc.text(`OK: ${stats.ok}`, 125, y);
+  doc.text(`Avertissements: ${stats.avertissement}`, 155, y);
+  doc.text(`Erreurs: ${stats.erreur}`, 215, y);
+  y += 6;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total HT: ${stats.totalHT.toFixed(2)}€`, 15, y);
+  doc.text(`Total TTC: ${(stats.totalHT * 1.20).toFixed(2)}€`, 70, y);
+  
+  y += 10;
+  
+  // Regrouper par LTA pour affichage ligne par ligne
+  const ltas = {};
+  data.forEach(item => {
+    if (!ltas[item.lta]) {
+      ltas[item.lta] = {
+        ...item,
+        lignes: item.lignes || []
+      };
+    }
+  });
+  
+  // Préparer les données pour le tableau
+  const tableData = [];
+  
+  Object.values(ltas).forEach(lta => {
+    // En-tête LTA
+    tableData.push([
+      {
+        content: `LTA ${lta.lta} — ${lta.client || 'Sans client'} — ${lta.typeTarif === 'poissons_frais' ? 'Poissons frais' : lta.typeTarif === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo'}`,
+        colSpan: 9,
+        styles: { 
+          fillColor: [26, 32, 40], 
+          textColor: [245, 158, 11],
+          fontStyle: 'bold',
+          fontSize: 9
+        }
+      }
+    ]);
+    
+    // Lignes de frais
+    if (lta.lignes && lta.lignes.length > 0) {
+      lta.lignes.forEach(ligne => {
+        const statutColor = lta.statut === 'ok' ? [16, 185, 129] : 
+                           lta.statut === 'erreur' ? [239, 68, 68] : 
+                           lta.statut === 'avertissement' ? [249, 115, 22] : [100, 116, 139];
+        
+        const statutText = lta.statut === 'ok' ? '✓ OK' : 
+                          lta.statut === 'erreur' ? `✕ ${lta.ecartPct?.toFixed(1)}%` : 
+                          lta.statut === 'avertissement' ? `⚠ ${lta.ecartPct?.toFixed(1)}%` : 
+                          lta.verification === 'client_non_config' ? 'Config client' :
+                          lta.verification === 'tarif_non_config' ? 'Config tarif' : '-';
+        
+        tableData.push([
+          lta.pref,
+          lta.poids.toFixed(0),
+          ligne.nature || '-',
+          ligne.montantHT.toFixed(2) + '€',
+          (ligne.montantHT * 1.20).toFixed(2) + '€',
+          lta.dossierMalta || '-',
+          lta.client || '-',
+          {
+            content: statutText,
+            styles: { textColor: statutColor, fontStyle: 'bold' }
+          },
+          lta.ecart !== undefined ? (lta.ecart > 0 ? '+' : '') + lta.ecart.toFixed(2) + '€' : '-'
+        ]);
+      });
+    }
+    
+    // Sous-total LTA
+    tableData.push([
+      {
+        content: 'SOUS-TOTAL',
+        colSpan: 3,
+        styles: { fontStyle: 'bold', halign: 'right' }
+      },
+      {
+        content: lta.totalHT.toFixed(2) + '€',
+        styles: { fontStyle: 'bold' }
+      },
+      {
+        content: lta.totalTTC ? lta.totalTTC.toFixed(2) + '€' : '-',
+        styles: { fontStyle: 'bold' }
+      },
+      '', '', '', ''
+    ]);
+    
+    // Ligne vide entre LTA
+    tableData.push(['', '', '', '', '', '', '', '', '']);
+  });
+  
+  // Générer le tableau
+  doc.autoTable({
+    startY: y,
+    head: [[
+      'Préf',
+      'Poids (kg)',
+      'Nature Frais',
+      'Montant HT',
+      'Montant TTC',
+      'Dossier Malta',
+      'Client',
+      'Statut',
+      'Écart'
+    ]],
+    body: tableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 7,
+      cellPadding: 2,
+      lineColor: [46, 52, 64],
+      lineWidth: 0.1
+    },
+    headStyles: {
+      fillColor: [15, 20, 25],
+      textColor: [226, 232, 240],
+      fontStyle: 'bold',
+      fontSize: 7
+    },
+    alternateRowStyles: {
+      fillColor: [250, 250, 250]
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 15 },
+      1: { halign: 'right', cellWidth: 20 },
+      2: { cellWidth: 50 },
+      3: { halign: 'right', cellWidth: 25 },
+      4: { halign: 'right', cellWidth: 25 },
+      5: { cellWidth: 30 },
+      6: { cellWidth: 35 },
+      7: { halign: 'center', cellWidth: 25 },
+      8: { halign: 'right', cellWidth: 22 }
+    },
+    margin: { left: 15, right: 15 }
+  });
+  
+  // Pied de page sur toutes les pages
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`TAF VERICHECK — ${handlerLabel} — ${today}`, 15, 200);
+    doc.text(`Page ${i} / ${pageCount}`, 260, 200);
+  }
+  
+  // Sauvegarder
+  const filename = `TAF_VERICHECK_${handler}_${today.replace(/\//g, '-')}.pdf`;
+  doc.save(filename);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB: VERIFICATION
+// ═══════════════════════════════════════════════════════════════════════════
+function TabVerification({ data, stats, handler }) {
+  const [filter, setFilter] = useState('tous');
+  const [detailModal, setDetailModal] = useState(null);
+  
+  async function saveCategorie(lta, categorie) {
+    if (lta.client) {
+      // Charger clients actuels
+      const currentClients = await driveLoadConfig('clients');
+      
+      // Chercher le client
+      let clientId = null;
+      for (const [id, client] of Object.entries(currentClients)) {
+        if (client.nom?.toUpperCase() === lta.client.toUpperCase()) {
+          clientId = id;
+          break;
+        }
+      }
+      
+      if (!clientId) {
+        // Créer nouveau client
+        clientId = 'client_' + Date.now();
+        currentClients[clientId] = {
+          nom: lta.client,
+          codeCompta: lta.dossierMalta || '',
+          typeTarif: categorie
+        };
+      } else {
+        // Mettre à jour
+        currentClients[clientId].typeTarif = categorie;
+      }
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('clients', currentClients);
+      
+      setDetailModal(null);
+      alert('Catégorie enregistrée dans Google Drive ! Elle sera appliquée aux prochaines factures.');
+      
+      // Recharger clients
+      await loadClients();
+    }
+  }
+  
+  async function validerLTA(lta) {
+    try {
+      // Charger validations existantes
+      const validations = await driveLoadConfig('validations');
+      
+      // Ajouter nouvelle validation
+      validations[lta.lta] = {
+        date: new Date().toISOString(),
+        statut: 'valide',
+        handler: handler,
+        montantHT: lta.totalHT,
+        dossier: lta.dossierMalta
+      };
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('validations', validations);
+      
+      setDetailModal(null);
+      alert('LTA validé et enregistré dans Google Drive !');
+    } catch (err) {
+      alert('Erreur sauvegarde validation: ' + err.message);
+    }
+  }
+  
+  async function ouvrirLitige(lta) {
+    try {
+      // Charger litiges existants
+      const litiges = await driveLoadConfig('litiges');
+      
+      // Créer nouveau litige
+      const litige = {
+        type: 'facturation_wfs',
+        lta: lta.lta,
+        dossier: lta.dossierMalta,
+        client: lta.client,
+        handler: handler,
+        montantFacture: lta.totalHT,
+        montantTheorique: lta.tarifTheorique,
+        ecart: lta.ecart,
+        ecartPct: lta.ecartPct,
+        lignes: lta.lignes,
+        dateCreation: new Date().toISOString(),
+        statut: 'ouvert'
+      };
+      
+      litiges[lta.lta] = litige;
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('litiges', litiges);
+      
+      // Ouvrir TAF OPS dans nouvel onglet
+      const url = `https://taf-roissy.github.io/AI/TAF_OPS.html#litige=${lta.lta}`;
+      window.open(url, '_blank');
+      
+      setDetailModal(null);
+      alert('Dossier litige créé dans Google Drive et ouvert dans TAF OPS !');
+    } catch (err) {
+      alert('Erreur création litige: ' + err.message);
+    }
+  }
+  
+  const filtered = useMemo(() => {
+    if (filter === 'tous') return data;
+    if (filter === 'matches') return data.filter(d => d.matched);
+    if (filter === 'ok') return data.filter(d => d.statut === 'ok');
+    if (filter === 'avertissement') return data.filter(d => d.statut === 'avertissement');
+    if (filter === 'erreur') return data.filter(d => d.statut === 'erreur');
+    return data;
+  }, [data, filter]);
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
+  
+  return (
+    <>
+      {data.length > 0 && (
+        <div className="alert alert-info" style={{ marginBottom: 20 }}>
+          <div className="alert-icon">ℹ️</div>
+          <div>
+            <div className="alert-title">Vérification facturation {handlerLabel}</div>
+            <div className="alert-body">
+              Comparaison entre <strong>ce que {handlerLabel} a facturé</strong> et <strong>ce que {handlerLabel} devrait facturer</strong> selon les grilles tarifaires.
+              <br/><br/>
+              • <strong>Facturé HT</strong> : montant réel facture
+              <br/>
+              • <strong>Théorique HT</strong> : montant calculé selon grilles
+              <br/>
+              • <strong>Écart</strong> : différence (positif = surfacturation)
+              <br/><br/>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => exportPDFCompta(data, stats, handler)}
+                style={{ marginTop: '10px' }}
+              >
+                📥 Exporter PDF pour Comptabilité
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="stats-grid">
+        <div className="stat">
+          <div className="stat-label">Total LTA</div>
+          <div className="stat-value c-muted">{stats.total}</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">Avec dossier</div>
+          <div className="stat-value c-blue">{stats.matched}</div>
+          <div className="stat-sub">Trouvés dans Malta</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">Vérifiés</div>
+          <div className="stat-value c-green">{stats.verifie}</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">OK</div>
+          <div className="stat-value c-green">{stats.ok}</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">Avertissements</div>
+          <div className="stat-value c-orange">{stats.avertissement}</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">Erreurs</div>
+          <div className="stat-value c-red">{stats.erreur}</div>
+        </div>
+        
+        <div className="stat">
+          <div className="stat-label">Total HT</div>
+          <div className="stat-value c-amber">{stats.totalHT.toFixed(2)}€</div>
+        </div>
+      </div>
+      
+      {data.length === 0 ? (
+        <div className="section">
+          <div className="empty">
+            <div className="empty-icon">📊</div>
+            <div className="empty-title">Aucune donnée à vérifier</div>
+            <div className="empty-text">Uploadez des fichiers et analysez-les d'abord</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="section" style={{ padding: '16px 24px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button className={`btn btn-${filter === 'tous' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('tous')}>
+                Tous ({data.length})
+              </button>
+              <button className={`btn btn-${filter === 'matches' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('matches')}>
+                Matchés ({stats.matched})
+              </button>
+              <button className={`btn btn-${filter === 'ok' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('ok')}>
+                ✓ OK ({stats.ok})
+              </button>
+              <button className={`btn btn-${filter === 'avertissement' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('avertissement')}>
+                ⚠️ Avertissements ({stats.avertissement})
+              </button>
+              <button className={`btn btn-${filter === 'erreur' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('erreur')}>
+                ✕ Erreurs ({stats.erreur})
+              </button>
+            </div>
+          </div>
+          
+          <div className="section">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>LTA</th>
+                    <th>Dossier</th>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Poids (kg)</th>
+                    <th>Facturé HT</th>
+                    <th>Facturé TTC</th>
+                    <th>Théorique HT</th>
+                    <th>Écart HT</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((item, idx) => (
+                    <tr 
+                      key={idx} 
+                      className={
+                        item.statut === 'ok' ? 'row-ok' : 
+                        item.statut === 'erreur' ? 'row-err' : 
+                        item.statut === 'avertissement' ? 'row-warn' : ''
+                      }
+                      onClick={() => setDetailModal(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="td-lta">{item.lta}</td>
+                      <td className="td-dossier">{item.dossierMalta || '-'}</td>
+                      <td className="td-client">{item.client || '-'}</td>
+                      <td>
+                        {item.typeTarif ? (
+                          <span className={`badge ${item.typeTarif === 'animaux_vivants' ? 'b-warn' : item.typeTarif === 'poissons_frais' ? 'b-ok' : 'b-gray'}`}>
+                            {item.typeTarif === 'animaux_vivants' ? '🐾' : item.typeTarif === 'poissons_frais' ? '🐟' : '📦'}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="td-num">{item.poids.toFixed(0)}</td>
+                      <td className="td-num">{item.totalHT.toFixed(2)}€</td>
+                      <td className="td-num">{item.totalTTC ? item.totalTTC.toFixed(2) + '€' : '-'}</td>
+                      <td className="td-num">{item.tarifTheorique ? item.tarifTheorique.toFixed(2) + '€' : '-'}</td>
+                      <td className="td-num" style={{ color: item.ecart > 0 ? 'var(--red)' : item.ecart < 0 ? 'var(--green)' : 'inherit' }}>
+                        {item.ecart !== undefined ? (item.ecart > 0 ? '+' : '') + item.ecart.toFixed(2) + '€' : '-'}
+                      </td>
+                      <td>
+                        {item.statut === 'ok' && <span className="badge b-ok">✓ OK</span>}
+                        {item.statut === 'avertissement' && <span className="badge b-warn">⚠️ {item.ecartPct.toFixed(1)}%</span>}
+                        {item.statut === 'erreur' && <span className="badge b-err">✕ {item.ecartPct.toFixed(1)}%</span>}
+                        {item.verification === 'client_non_config' && <span className="badge b-warn">Config client</span>}
+                        {item.verification === 'tarif_non_config' && <span className="badge b-warn">Config tarif</span>}
+                        {item.verification === 'no_client' && <span className="badge b-gray">Sans dossier</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {stats.erreur > 0 && (
+            <div className="alert alert-error">
+              <div className="alert-icon">⚠️</div>
+              <div>
+                <div className="alert-title">{stats.erreur} erreur(s) détectée(s)</div>
+                <div className="alert-body">
+                  Écarts supérieurs à 10% détectés. Vérifiez les LTA marquées en rouge.
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      
+      {detailModal && (
+        <LTADetailModal
+          lta={detailModal}
+          handler={handler}
+          onSaveCategorie={(cat) => saveCategorie(detailModal, cat)}
+          onValider={() => validerLTA(detailModal)}
+          onOuvrirLitige={() => ouvrirLitige(detailModal)}
+          onClose={() => setDetailModal(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL DETAIL LTA
+// ═══════════════════════════════════════════════════════════════════════════
+function LTADetailModal({ lta, handler, onSaveCategorie, onValider, onOuvrirLitige, onClose }) {
+  const [selectedCategorie, setSelectedCategorie] = useState(lta.typeTarif || '');
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
+  const hasError = lta.statut === 'erreur' || lta.statut === 'avertissement';
+  
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Détail LTA {lta.lta}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+              {lta.client || 'Sans client'} • Dossier {lta.dossierMalta || 'N/A'}
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="modal-body">
+          {/* Info globale */}
+          <div style={{ 
+            background: 'var(--surface2)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '8px', 
+            padding: '16px',
+            marginBottom: '20px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px'
+          }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Poids</div>
+              <div style={{ fontSize: 18, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.poids.toFixed(0)} kg</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Handler</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{handlerLabel}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Statut</div>
+              <div>
+                {lta.statut === 'ok' && <span className="badge b-ok" style={{ fontSize: 13 }}>✓ OK</span>}
+                {lta.statut === 'avertissement' && <span className="badge b-warn" style={{ fontSize: 13 }}>⚠️ {lta.ecartPct.toFixed(1)}%</span>}
+                {lta.statut === 'erreur' && <span className="badge b-err" style={{ fontSize: 13 }}>✕ {lta.ecartPct.toFixed(1)}%</span>}
+                {lta.verification === 'client_non_config' && <span className="badge b-warn" style={{ fontSize: 13 }}>Config client</span>}
+              </div>
+            </div>
+          </div>
+          
+          {/* Lignes de factures */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>
+              📋 Lignes de facturation
+            </div>
+            
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nature frais</th>
+                    <th>Montant HT</th>
+                    <th>Montant TTC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lta.lignes && lta.lignes.length > 0 ? (
+                    lta.lignes.map((ligne, idx) => (
+                      <tr key={idx}>
+                        <td>{ligne.nature || 'Frais annexe'}</td>
+                        <td className="td-num">{ligne.montantHT.toFixed(2)}€</td>
+                        <td className="td-num">{(ligne.montantHT * 1.20).toFixed(2)}€</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>Détail non disponible</td>
+                    </tr>
+                  )}
+                  <tr style={{ background: 'var(--surface2)', fontWeight: 700 }}>
+                    <td>TOTAL</td>
+                    <td className="td-num">{lta.totalHT.toFixed(2)}€</td>
+                    <td className="td-num">{lta.totalTTC ? lta.totalTTC.toFixed(2) : (lta.totalHT * 1.20).toFixed(2)}€</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Vérification calcul */}
+          {lta.tarifTheorique && (
+            <div style={{ 
+              background: hasError ? 'var(--red-bg)' : 'var(--green-bg)', 
+              border: `1px solid ${hasError ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: 20
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: hasError ? 'var(--red)' : 'var(--green)', marginBottom: 12 }}>
+                💰 Vérification tarifaire
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Facturé HT</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.totalHT.toFixed(2)}€</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Théorique HT</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.tarifTheorique.toFixed(2)}€</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Écart</div>
+                  <div style={{ 
+                    fontSize: 20, 
+                    fontFamily: 'var(--mono)', 
+                    fontWeight: 700,
+                    color: lta.ecart > 0 ? 'var(--red)' : lta.ecart < 0 ? 'var(--green)' : 'inherit'
+                  }}>
+                    {lta.ecart > 0 ? '+' : ''}{lta.ecart.toFixed(2)}€
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Configuration catégorie */}
+          <div style={{ 
+            background: 'var(--amber-bg)', 
+            border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: 20
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 12 }}>
+              🏷️ Catégorie marchandise
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <select 
+                className="form-select" 
+                value={selectedCategorie}
+                onChange={(e) => setSelectedCategorie(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="">-- Sélectionner --</option>
+                <option value="poissons_frais">🐟 Poissons frais</option>
+                <option value="animaux_vivants">🐾 Animaux vivants</option>
+                <option value="cargo">📦 Cargo général</option>
+              </select>
+              
+              <button 
+                className="btn btn-primary btn-sm"
+                onClick={() => selectedCategorie && onSaveCategorie(selectedCategorie)}
+                disabled={!selectedCategorie || selectedCategorie === lta.typeTarif}
+              >
+                💾 Enregistrer
+              </button>
+            </div>
+            
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 8 }}>
+              Cette catégorie sera appliquée automatiquement aux prochaines factures de ce client.
+            </div>
+          </div>
+        </div>
+        
+        <div className="modal-footer">
+          <button className="btn btn-sec" onClick={onClose}>Fermer</button>
+          
+          {lta.statut === 'ok' && (
+            <button className="btn btn-primary" onClick={onValider}>
+              ✓ Valider LTA
+            </button>
+          )}
+          
+          {hasError && (
+            <button 
+              className="btn btn-primary" 
+              onClick={onOuvrirLitige}
+              style={{ background: 'var(--red)', color: '#fff' }}
+            >
+              ⚠️ Ouvrir Litige TAF OPS
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>
