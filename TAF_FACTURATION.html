@@ -361,6 +361,43 @@ window.SECURE_CONFIG = {
     _callbacks = [];
     // Déclencher un event DOM pour que React puisse écouter
     window.dispatchEvent(new CustomEvent('TAFClientsReady', { detail: clients }));
+    
+    // SYNCHRONISATION AUTOMATIQUE VERS FIREBASE
+    syncToFirebase(clients);
+  }
+  
+  function syncToFirebase(clients) {
+    if (!clients || clients.length === 0) return;
+    
+    // Convertir array en objet pour Firebase
+    var firebaseClients = {};
+    clients.forEach(function(c, idx) {
+      var clientId = c.id || ('client_' + idx);
+      firebaseClients[clientId] = {
+        nom: c.rs || c.nom || '',
+        codeCompta: c.siret || c.code || '',
+        email: c.email || c.emailcompta || '',
+        secteur: c.secteur || '',
+        typeTarif: c.typeTarif || null,
+        source: 'taf_facturation',
+        _original: c
+      };
+    });
+    
+    // Écrire dans Firebase taf_shared/clients
+    var firebaseUrl = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_shared/clients.json';
+    fetch(firebaseUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(firebaseClients)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      console.log('✅ SYNC FIREBASE:', Object.keys(firebaseClients).length, 'clients synchronisés');
+    })
+    .catch(function(e){
+      console.log('⚠️ Erreur sync Firebase:', e.message);
+    });
   }
 
   function loadFromLocal() {
