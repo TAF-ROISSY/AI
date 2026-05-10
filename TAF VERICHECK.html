@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3 — WFS Simple</title>
+<title>TAF VERICHECK v3.1 — WFS Vérification</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -28,7 +30,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border3)}
 
-/* NAV */
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between}
 .nav-left{display:flex;align-items:center;gap:16px}
 .nav-logo{display:flex;align-items:center;gap:12px}
@@ -37,31 +38,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .nav-sub{font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;margin-top:2px}
 .version{font-size:10px;font-family:var(--mono);color:var(--border3);background:var(--surface2);padding:3px 9px;border-radius:4px;border:1px solid var(--border)}
 
-/* TABS */
 .tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:4px}
 .tab{background:none;border:none;color:var(--muted);padding:14px 22px;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.5px}
 .tab:hover{color:var(--text)}
 .tab.active{color:var(--amber);border-bottom-color:var(--amber)}
 .tab-badge{background:var(--red-bg);color:var(--red);font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:10px;margin-left:6px;border:1px solid rgba(239,68,68,.3)}
 
-/* LAYOUT */
-.page{padding:32px;max-width:1400px;margin:0 auto}
+.page{padding:32px;max-width:1600px;margin:0 auto}
 .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
 .section-title{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .section-title-icon{font-size:18px}
 
-/* BUTTONS */
 .btn{border:none;border-radius:8px;cursor:pointer;font-family:var(--sans);font-weight:700;letter-spacing:.5px;transition:all .15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:14px;padding:11px 20px}
 .btn-primary{background:var(--amber);color:#000}
 .btn-primary:hover{background:var(--amber2);transform:translateY(-1px)}
 .btn-primary:disabled{background:var(--border2);color:var(--muted);cursor:not-allowed;transform:none}
 .btn-sec{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
 .btn-sec:hover{border-color:var(--amber);color:var(--amber)}
-.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.3);font-size:13px;padding:8px 16px}
 .btn-sm{font-size:13px;padding:8px 16px}
 .btn-xs{font-size:12px;padding:6px 12px}
 
-/* UPLOAD */
 .upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:40px 28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--amber);background:var(--amber-bg)}
 .upload-zone.loaded{border-color:var(--green);border-style:solid;background:var(--green-bg)}
@@ -72,7 +68,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .upload-clear{position:absolute;top:12px;right:12px;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:600}
 .upload-clear:hover{background:rgba(239,68,68,.2)}
 
-/* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
 .stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
 .stat-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
@@ -85,7 +80,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .c-blue{color:var(--blue)}
 .c-muted{color:var(--muted2)}
 
-/* TABLE */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:20px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{background:var(--surface2);padding:12px 16px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
@@ -101,14 +95,12 @@ tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
 .row-err td{background:rgba(239,68,68,.03)}
 .row-warn td{background:rgba(249,115,22,.03)}
 
-/* BADGES */
 .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono);white-space:nowrap}
 .b-ok{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
 .b-err{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
 .b-warn{background:rgba(249,115,22,.15);color:var(--orange);border:1px solid rgba(249,115,22,.3)}
 .b-gray{background:rgba(100,116,139,.15);color:var(--muted2);border:1px solid rgba(100,116,139,.3)}
 
-/* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .form-group{display:flex;flex-direction:column;gap:8px}
 .form-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
@@ -116,7 +108,6 @@ tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
 .form-input:focus,.form-select:focus{outline:none;border-color:var(--amber)}
 .form-input::placeholder{color:var(--muted)}
 
-/* ALERT */
 .alert{border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px}
 .alert-info{background:var(--amber-bg);border:1px solid rgba(245,158,11,.3)}
 .alert-success{background:var(--green-bg);border:1px solid rgba(16,185,129,.3)}
@@ -128,9 +119,8 @@ tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
 .alert-error .alert-title{color:var(--red)}
 .alert-body{font-size:13px;color:var(--muted2);line-height:1.6}
 
-/* MODAL */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .modal-title{font-size:16px;font-weight:800;letter-spacing:1px}
 .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:24px;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s}
@@ -138,16 +128,19 @@ tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
 .modal-body{padding:24px}
 .modal-footer{padding:20px 24px;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:flex-end}
 
-/* EMPTY STATE */
 .empty{text-align:center;padding:60px 40px;color:var(--muted)}
 .empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
 .empty-title{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--muted2)}
 .empty-text{font-size:13px;font-family:var(--mono)}
 
-/* LOADING */
 .loading{display:inline-flex;align-items:center;gap:8px;color:var(--amber);font-family:var(--mono);font-size:13px}
 .loading-spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.handler-select{background:var(--surface2);border:2px solid var(--border2);border-radius:10px;padding:20px;margin-bottom:20px}
+.handler-select-label{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.handler-select select{width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:12px 16px;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:600}
+.handler-select select:focus{outline:none;border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -164,6 +157,16 @@ const FIREBASE_CONFIG = {
 };
 
 const DB_PATH = "taf_vericheck_v3";
+const SHARED_CLIENTS_PATH = "taf_shared/clients";
+
+// Handlers disponibles
+const HANDLERS = [
+  { id: 'air_france', label: 'Air France' },
+  { id: 'gsh', label: 'Global Service Handling (GSH)' },
+  { id: 'wfs', label: 'WFS' },
+  { id: 'alyzia', label: 'Alyzia' },
+  { id: 'geh', label: 'GEH' }
+];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FIREBASE HELPERS
@@ -183,27 +186,28 @@ async function fbSet(path, data) {
   });
 }
 
-async function fbPush(path, data) {
-  const url = `${FIREBASE_CONFIG.databaseURL}/${DB_PATH}/${path}.json`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  const json = await res.json();
-  return json.name;
-}
-
 async function fbDelete(path) {
   const url = `${FIREBASE_CONFIG.databaseURL}/${DB_PATH}/${path}.json`;
   await fetch(url, { method: 'DELETE' });
 }
 
+async function getSharedClients() {
+  const url = `${FIREBASE_CONFIG.databaseURL}/${SHARED_CLIENTS_PATH}.json`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function getClientTypes() {
+  return await fbGet('client_types');
+}
+
+async function setClientType(clientId, typeMarchandise) {
+  await fbSet(`client_types/${clientId}`, { typeMarchandise });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PARSERS
 // ═══════════════════════════════════════════════════════════════════════════
-
-// Parse CSV facture WFS
 function parseFactureCSV(text) {
   const lines = text.split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
@@ -223,7 +227,6 @@ function parseFactureCSV(text) {
   return rows;
 }
 
-// Grouper les lignes par LTA et calculer total HT
 function groupByLTA(rows) {
   const grouped = {};
   
@@ -241,7 +244,8 @@ function groupByLTA(rows) {
         numeroLTA: lta,
         poids: parseFloat(String(row['Poids'] || '0').replace(',', '.')) || 0,
         lignes: [],
-        totalHT: 0
+        totalHT: 0,
+        totalTTC: 0
       };
     }
     
@@ -253,10 +257,14 @@ function groupByLTA(rows) {
     });
   });
   
+  // Calculer TTC (TVA 20%)
+  Object.values(grouped).forEach(g => {
+    g.totalTTC = g.totalHT * 1.20;
+  });
+  
   return Object.values(grouped);
 }
 
-// Parse fichier dossiers XLS
 function parseDossiersXLS(file, callback) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -266,7 +274,6 @@ function parseDossiersXLS(file, callback) {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
       
-      // Trouver la ligne avec les headers (chercher "Date", "Dossiers", "Documents")
       let headerRow = -1;
       for (let i = 0; i < Math.min(10, json.length); i++) {
         const row = json[i];
@@ -293,7 +300,6 @@ function parseDossiersXLS(file, callback) {
           obj[h] = row[idx];
         });
         
-        // Extraire LTA du champ Documents
         const docs = String(obj['Documents'] || '').replace(/\s/g, '');
         if (docs && docs.length > 5) {
           obj.ltaClean = docs;
@@ -310,7 +316,6 @@ function parseDossiersXLS(file, callback) {
   reader.readAsArrayBuffer(file);
 }
 
-// Matcher facture avec dossiers
 function matchFactureDossiers(factureGroups, dossiers) {
   const dossiersIndex = {};
   dossiers.forEach(d => {
@@ -330,71 +335,94 @@ function matchFactureDossiers(factureGroups, dossiers) {
   });
 }
 
-// Calculer tarif théorique selon type
-function calculerTarifTheorique(poids, typeTarif, tarifs) {
-  if (!tarifs[typeTarif]) return null;
+// ═══════════════════════════════════════════════════════════════════════════
+// CALCUL TARIFAIRE
+// ═══════════════════════════════════════════════════════════════════════════
+function calculerTarifTheorique(poids, pref, typeMarchandise, handler, tarifsWFS) {
+  const grille = tarifsWFS?.handlers?.[handler]?.[typeMarchandise];
+  if (!grille) return null;
   
-  const grille = tarifs[typeTarif];
   let total = 0;
   
-  if (typeTarif === 'animaux_vivants') {
-    // Intervention + Station + Transfert
-    total += (grille.intervention || 135);
-    total += (grille.station || 140); // 47+45+48 base
+  if (typeMarchandise === 'poissons_frais') {
+    // Frais arrivées (fixe)
+    total += grille.frais_arrivees || 0;
     
-    // Transfert: 0.10€/kg minimum 120€
-    const transfert = Math.max(poids * 0.10, 120);
+    // Frais frigo (€/kg avec mini)
+    const frigo = Math.max(
+      poids * (grille.frais_frigo_kg || 0),
+      grille.frais_frigo_mini || 0
+    );
+    total += frigo;
+    
+    // Taxe mise à dispo (tranches poids)
+    if (grille.mise_a_dispo) {
+      if (poids < 500) {
+        total += grille.mise_a_dispo['0-500'] || 0;
+      } else if (poids <= 1000) {
+        total += grille.mise_a_dispo['501-1000'] || 0;
+      } else if (poids <= 2000) {
+        total += grille.mise_a_dispo['1001-2000'] || 0;
+      } else {
+        total += (poids / 1000) * (grille.mise_a_dispo['2001+'] || 0);
+      }
+    }
+    
+    // Taxe Qatar (LTA 157-, 072-)
+    if ((pref === '157' || pref === '072') && grille.taxe_qatar) {
+      total += grille.taxe_qatar;
+    }
+    
+  } else if (typeMarchandise === 'animaux_vivants') {
+    // Frais arrivées (fixe)
+    total += grille.frais_arrivees || 0;
+    
+    // Frais transfert (€/kg avec mini)
+    const transfert = Math.max(
+      poids * (grille.frais_transfert_kg || 0),
+      grille.frais_transfert_mini || 0
+    );
     total += transfert;
     
-    // Sortie compagnie
-    total += (grille.sortie || 25);
-    
-  } else if (typeTarif === 'poissons_frais') {
-    // Intervention
-    total += (grille.intervention || 132);
-    
-    // Handling (WFS par défaut)
-    total += (grille.handling_base || 118);
-    total += poids * (grille.handling_kg || 0.115);
-    
-    // Mise à dispo selon poids
-    if (poids < 500) {
-      total += 24;
-    } else if (poids <= 1000) {
-      total += 39;
-    } else if (poids <= 2000) {
-      total += 69;
-    } else {
-      total += (poids / 1000) * 49; // 49€ par tonne
+    // Frais UC (par tranche 150kg + base)
+    if (grille.frais_uc_base && grille.frais_uc_tranche) {
+      const nbUC = Math.ceil(poids / grille.frais_uc_tranche);
+      total += nbUC * grille.frais_uc_base;
     }
     
-  } else if (typeTarif === 'cargo') {
-    // Frais d'arrivée selon paliers de poids
-    if (poids < 1000) {
-      total = 180;
-    } else if (poids < 2000) {
-      total = 200;
-    } else if (poids < 3000) {
-      total = 235;
-    } else if (poids < 4000) {
-      total = 280;
-    } else if (poids < 5000) {
-      total = 310;
-    } else if (poids < 6000) {
-      total = 350;
-    } else if (poids < 7000) {
-      total = 390;
-    } else {
-      total = 440;
+    // Taxe mise à dispo (optionnel, certaines LTA)
+    // TODO: À implémenter selon liste LTA
+    
+  } else if (typeMarchandise === 'cargo') {
+    // Frais arrivées (tranches poids)
+    if (grille.frais_arrivees_tranches) {
+      if (poids < 1000) {
+        total = grille.frais_arrivees_tranches['0-1000'] || 0;
+      } else if (poids < 2000) {
+        total = grille.frais_arrivees_tranches['1000-2000'] || 0;
+      } else if (poids < 3000) {
+        total = grille.frais_arrivees_tranches['2000-3000'] || 0;
+      } else if (poids < 4000) {
+        total = grille.frais_arrivees_tranches['3000-4000'] || 0;
+      } else if (poids < 5000) {
+        total = grille.frais_arrivees_tranches['4000-5000'] || 0;
+      } else if (poids < 6000) {
+        total = grille.frais_arrivees_tranches['5000-6000'] || 0;
+      } else if (poids < 7000) {
+        total = grille.frais_arrivees_tranches['6000-7000'] || 0;
+      } else {
+        total = grille.frais_arrivees_tranches['7000+'] || 0;
+      }
     }
+    
+    // Taxe mise à dispo (optionnel, à valider par opérateur)
+    // TODO: À implémenter
   }
   
   return total;
 }
 
-// Vérifier avec tarifs
-function verifierAvecTarifs(matchedData, clients, tarifs) {
-  // Index clients par nom
+function verifierAvecTarifs(matchedData, clients, handler, tarifs) {
   const clientsIndex = {};
   clients.forEach(c => {
     clientsIndex[c.nom.toUpperCase()] = c;
@@ -404,13 +432,24 @@ function verifierAvecTarifs(matchedData, clients, tarifs) {
     if (!item.client) return { ...item, verification: 'no_client' };
     
     const clientConfig = clientsIndex[item.client.toUpperCase()];
-    if (!clientConfig) return { ...item, verification: 'client_non_config' };
+    if (!clientConfig || !clientConfig.typeTarif) {
+      return { ...item, verification: 'client_non_config' };
+    }
     
-    const tarifTheorique = calculerTarifTheorique(item.poids, clientConfig.typeTarif, tarifs);
-    if (tarifTheorique === null) return { ...item, verification: 'tarif_non_config', typeTarif: clientConfig.typeTarif };
+    const tarifTheorique = calculerTarifTheorique(
+      item.poids,
+      item.pref,
+      clientConfig.typeTarif,
+      handler,
+      tarifs
+    );
+    
+    if (tarifTheorique === null) {
+      return { ...item, verification: 'tarif_non_config', typeTarif: clientConfig.typeTarif };
+    }
     
     const ecart = item.totalHT - tarifTheorique;
-    const ecartPct = Math.abs(ecart / tarifTheorique * 100);
+    const ecartPct = tarifTheorique > 0 ? Math.abs(ecart / tarifTheorique * 100) : 0;
     
     let statut = 'ok';
     if (ecartPct > 10) statut = 'erreur';
@@ -434,27 +473,42 @@ function verifierAvecTarifs(matchedData, clients, tarifs) {
 function App() {
   const [activeTab, setActiveTab] = useState('upload');
   
-  // Upload
   const [factureFile, setFactureFile] = useState(null);
   const [dossiersFile, setDossiersFile] = useState(null);
+  const [selectedHandler, setSelectedHandler] = useState('wfs');
   const [factureData, setFactureData] = useState([]);
   const [dossiersData, setDossiersData] = useState([]);
   const [matchedData, setMatchedData] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   
-  // Paramétrage
   const [clients, setClients] = useState([]);
   const [tarifsWFS, setTarifsWFS] = useState({});
   
-  // Load data from Firebase
   useEffect(() => {
     loadClients();
     loadTarifs();
   }, []);
   
   async function loadClients() {
-    const data = await fbGet('clients');
-    setClients(data ? Object.entries(data).map(([id, v]) => ({ id, ...v })) : []);
+    const sharedClients = await getSharedClients();
+    const clientTypes = await getClientTypes();
+    
+    const merged = [];
+    
+    if (sharedClients) {
+      Object.entries(sharedClients).forEach(([id, client]) => {
+        const typeInfo = clientTypes?.[id] || {};
+        merged.push({
+          id,
+          nom: client.nom || client.name || '',
+          codeCompta: client.codeCompta || client.code || '',
+          typeTarif: typeInfo.typeMarchandise || null,
+          source: 'facturation'
+        });
+      });
+    }
+    
+    setClients(merged);
   }
   
   async function loadTarifs() {
@@ -462,28 +516,22 @@ function App() {
     setTarifsWFS(data || {});
   }
   
-  // Analyse facture
   async function analyzeFacture() {
     if (!factureFile || !dossiersFile) return;
     
     setAnalyzing(true);
     
     try {
-      // Parse facture CSV
       const factureText = await factureFile.text();
       const factureRows = parseFactureCSV(factureText);
       const grouped = groupByLTA(factureRows);
       setFactureData(grouped);
       
-      // Parse dossiers XLS
       parseDossiersXLS(dossiersFile, (dossiers) => {
         setDossiersData(dossiers);
         
-        // Match
         const matched = matchFactureDossiers(grouped, dossiers);
-        
-        // Vérifier avec tarifs
-        const verified = verifierAvecTarifs(matched, clients, tarifsWFS);
+        const verified = verifierAvecTarifs(matched, clients, selectedHandler, tarifsWFS);
         setMatchedData(verified);
         
         setAnalyzing(false);
@@ -495,7 +543,6 @@ function App() {
     }
   }
   
-  // Stats
   const stats = useMemo(() => {
     const verified = matchedData.filter(m => m.verification === 'verifie');
     return {
@@ -517,12 +564,12 @@ function App() {
           <div className="nav-logo">
             <div className="nav-badge">TAF</div>
             <div>
-              <div className="nav-title">VERICHECK v3</div>
-              <div className="nav-sub">WFS SIMPLE</div>
+              <div className="nav-title">VERICHECK v3.1</div>
+              <div className="nav-sub">VERIFICATION WFS</div>
             </div>
           </div>
         </div>
-        <div className="version">v3.0.0</div>
+        <div className="version">v3.1.0</div>
       </div>
       
       <div className="tabs">
@@ -545,8 +592,10 @@ function App() {
         {activeTab === 'upload' && <TabUpload 
           factureFile={factureFile}
           setFactureFile={setFactureFile}
+          dossiersFile={setDossiersFile}
           dossiersFile={dossiersFile}
-          setDossiersFile={setDossiersFile}
+          selectedHandler={selectedHandler}
+          setSelectedHandler={setSelectedHandler}
           analyzing={analyzing}
           onAnalyze={analyzeFacture}
         />}
@@ -564,8 +613,7 @@ function App() {
         {activeTab === 'verification' && <TabVerification 
           data={matchedData}
           stats={stats}
-          clients={clients}
-          tarifs={tarifsWFS}
+          handler={selectedHandler}
         />}
       </div>
     </>
@@ -575,7 +623,7 @@ function App() {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB: UPLOAD
 // ═══════════════════════════════════════════════════════════════════════════
-function TabUpload({ factureFile, setFactureFile, dossiersFile, setDossiersFile, analyzing, onAnalyze }) {
+function TabUpload({ factureFile, setFactureFile, dossiersFile, setDossiersFile, selectedHandler, setSelectedHandler, analyzing, onAnalyze }) {
   const [dragFacture, setDragFacture] = useState(false);
   const [dragDossiers, setDragDossiers] = useState(false);
   
@@ -671,32 +719,43 @@ function TabUpload({ factureFile, setFactureFile, dossiersFile, setDossiersFile,
         </div>
       </div>
       
-      <div className="section">
-        <button 
-          className="btn btn-primary" 
-          style={{ width: '100%', fontSize: '15px', padding: '14px' }}
-          disabled={!canAnalyze}
-          onClick={onAnalyze}
-        >
-          {analyzing ? (
-            <><div className="loading-spinner"></div> Analyse en cours...</>
-          ) : (
-            <>🚀 Analyser & Matcher</>
-          )}
-        </button>
-      </div>
+      {factureFile && dossiersFile && (
+        <div className="section">
+          <div className="handler-select">
+            <div className="handler-select-label">Compagnie de handling</div>
+            <select value={selectedHandler} onChange={(e) => setSelectedHandler(e.target.value)}>
+              {HANDLERS.map(h => (
+                <option key={h.id} value={h.id}>{h.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <button 
+            className="btn btn-primary" 
+            style={{ width: '100%', fontSize: '15px', padding: '14px' }}
+            disabled={!canAnalyze}
+            onClick={onAnalyze}
+          >
+            {analyzing ? (
+              <><div className="loading-spinner"></div> Analyse en cours...</>
+            ) : (
+              <>🚀 Analyser & Vérifier</>
+            )}
+          </button>
+        </div>
+      )}
       
-      {!canAnalyze && !analyzing && (
+      {!factureFile || !dossiersFile ? (
         <div className="alert alert-info">
           <div className="alert-icon">💡</div>
           <div>
             <div className="alert-title">Prêt à vérifier vos factures</div>
             <div className="alert-body">
-              Uploadez le CSV de la facture WFS et le fichier XLS des dossiers Malta, puis cliquez sur "Analyser & Matcher".
+              Uploadez le CSV de la facture WFS et le fichier XLS des dossiers Malta, sélectionnez la compagnie de handling, puis cliquez sur "Analyser & Vérifier".
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
@@ -710,32 +769,23 @@ function TabClients({ clients, onReload }) {
   
   async function saveClient(data) {
     if (editClient) {
-      await fbSet(`clients/${editClient.id}`, data);
-    } else {
-      await fbPush('clients', data);
+      await setClientType(editClient.id, data.typeTarif);
     }
     setShowModal(false);
     setEditClient(null);
     onReload();
   }
   
-  async function deleteClient(id) {
-    if (!confirm('Supprimer ce client ?')) return;
-    await fbDelete(`clients/${id}`);
-    onReload();
-  }
-  
   return (
     <>
       <div className="alert alert-info">
-        <div className="alert-icon">💡</div>
+        <div className="alert-icon">🔄</div>
         <div>
-          <div className="alert-title">À quoi sert ce module ?</div>
+          <div className="alert-title">Synchronisation automatique</div>
           <div className="alert-body">
-            Pour chaque client TAF, on définit le <strong>type de marchandise</strong> qu'il expédie. 
-            Cela permet d'appliquer la bonne grille tarifaire WFS lors de la vérification.
+            Les clients proviennent automatiquement de <strong>TAF FACTURATION</strong> via Firebase.
             <br/><br/>
-            <strong>Exemple :</strong> URBAN FISH → Animaux vivants → Grille WFS "Animaux vivants"
+            Pour chaque client, définissez le <strong>type de marchandise</strong> afin d'appliquer la bonne grille tarifaire WFS.
           </div>
         </div>
       </div>
@@ -743,20 +793,16 @@ function TabClients({ clients, onReload }) {
       <div className="section">
         <div className="section-title">
           <span className="section-title-icon">👥</span>
-          Mapping Clients → Type de marchandise
+          Clients synchronisés depuis TAF FACTURATION
         </div>
-        
-        <button className="btn btn-primary btn-sm" onClick={() => { setEditClient(null); setShowModal(true); }}>
-          + Ajouter client
-        </button>
       </div>
       
       {clients.length === 0 ? (
         <div className="section">
           <div className="empty">
             <div className="empty-icon">📋</div>
-            <div className="empty-title">Aucun client configuré</div>
-            <div className="empty-text">Ajoutez vos clients TAF avec leur type de marchandise</div>
+            <div className="empty-title">Aucun client trouvé</div>
+            <div className="empty-text">Vérifiez que TAF FACTURATION est configuré pour partager les clients</div>
           </div>
         </div>
       ) : (
@@ -773,18 +819,24 @@ function TabClients({ clients, onReload }) {
               </thead>
               <tbody>
                 {clients.map(c => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={!c.typeTarif ? 'row-warn' : ''}>
                     <td className="td-client">{c.nom}</td>
                     <td><span className="badge b-gray">{c.codeCompta}</span></td>
-                    <td><span className={`badge ${c.typeTarif === 'animaux_vivants' ? 'b-warn' : c.typeTarif === 'poissons_frais' ? 'b-ok' : 'b-gray'}`}>
-                      {c.typeTarif === 'animaux_vivants' ? '🐾 Animaux vivants' : 
-                       c.typeTarif === 'poissons_frais' ? '🐟 Poissons frais' : 
-                       '📦 Cargo général'}
-                    </span></td>
                     <td>
-                      <button className="btn btn-sec btn-xs" onClick={() => { setEditClient(c); setShowModal(true); }}>✏️</button>
-                      {' '}
-                      <button className="btn btn-danger btn-xs" onClick={() => deleteClient(c.id)}>🗑️</button>
+                      {c.typeTarif ? (
+                        <span className={`badge ${c.typeTarif === 'animaux_vivants' ? 'b-warn' : c.typeTarif === 'poissons_frais' ? 'b-ok' : 'b-gray'}`}>
+                          {c.typeTarif === 'animaux_vivants' ? '🐾 Animaux vivants' : 
+                           c.typeTarif === 'poissons_frais' ? '🐟 Poissons frais' : 
+                           '📦 Cargo général'}
+                        </span>
+                      ) : (
+                        <span className="badge b-warn">⚠️ À configurer</span>
+                      )}
+                    </td>
+                    <td>
+                      <button className="btn btn-sec btn-xs" onClick={() => { setEditClient(c); setShowModal(true); }}>
+                        {c.typeTarif ? '✏️ Modifier' : '⚙️ Configurer'}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -804,14 +856,14 @@ function TabClients({ clients, onReload }) {
 }
 
 function ClientModal({ client, onSave, onClose }) {
-  const [form, setForm] = useState(client || { nom: '', codeCompta: '', typeTarif: 'cargo' });
+  const [form, setForm] = useState(client || { nom: '', codeCompta: '', typeTarif: '' });
   
   function upd(field, value) {
     setForm({ ...form, [field]: value });
   }
   
   function save() {
-    if (!form.nom || !form.codeCompta) return;
+    if (!form.typeTarif) return;
     onSave(form);
   }
   
@@ -819,15 +871,15 @@ function ClientModal({ client, onSave, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div className="modal-title">{client ? 'Modifier' : 'Ajouter'} un client TAF</div>
+          <div className="modal-title">Configurer le type de marchandise</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          <div className="alert alert-info" style={{ fontSize: 12, padding: 12 }}>
-            <div className="alert-icon" style={{ fontSize: 16 }}>ℹ️</div>
+          <div className="alert alert-info" style={{ fontSize: 12, padding: 12, marginBottom: 16 }}>
+            <div className="alert-icon" style={{ fontSize: 16 }}>🔄</div>
             <div>
               <div className="alert-body">
-                Le type de marchandise permet d'appliquer la bonne grille tarifaire <strong>WFS</strong> lors de la vérification.
+                Client synchronisé depuis <strong>TAF FACTURATION</strong>. Seul le type de marchandise peut être modifié ici.
               </div>
             </div>
           </div>
@@ -837,8 +889,8 @@ function ClientModal({ client, onSave, onClose }) {
             <input 
               className="form-input" 
               value={form.nom} 
-              onChange={(e) => upd('nom', e.target.value)}
-              placeholder="Ex: URBAN FISH, ORCA, MOALIA"
+              disabled
+              style={{ opacity: 0.6, cursor: 'not-allowed' }}
             />
           </div>
           
@@ -847,8 +899,8 @@ function ClientModal({ client, onSave, onClose }) {
             <input 
               className="form-input" 
               value={form.codeCompta} 
-              onChange={(e) => upd('codeCompta', e.target.value)}
-              placeholder="Ex: URB001"
+              disabled
+              style={{ opacity: 0.6, cursor: 'not-allowed' }}
             />
           </div>
           
@@ -856,11 +908,12 @@ function ClientModal({ client, onSave, onClose }) {
             <label className="form-label">Type de marchandise expédiée</label>
             <select 
               className="form-select" 
-              value={form.typeTarif} 
+              value={form.typeTarif || ''} 
               onChange={(e) => upd('typeTarif', e.target.value)}
             >
-              <option value="animaux_vivants">🐾 Animaux vivants (AVI)</option>
+              <option value="">-- Sélectionner --</option>
               <option value="poissons_frais">🐟 Poissons frais (Seafood)</option>
+              <option value="animaux_vivants">🐾 Animaux vivants (AVI)</option>
               <option value="cargo">📦 Cargo général</option>
             </select>
           </div>
@@ -878,189 +931,418 @@ function ClientModal({ client, onSave, onClose }) {
 // TAB: TARIFS
 // ═══════════════════════════════════════════════════════════════════════════
 function TabTarifs({ tarifs, onReload }) {
-  const [editType, setEditType] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  
-  async function saveTarif(type, data) {
-    await fbSet(`tarifs/${type}`, data);
-    setShowModal(false);
-    setEditType(null);
-    onReload();
-  }
+  const [selectedHandler, setSelectedHandler] = useState('wfs');
+  const [selectedType, setSelectedType] = useState('poissons_frais');
+  const [editMode, setEditMode] = useState(false);
   
   return (
     <>
       <div className="alert alert-info">
         <div className="alert-icon">💡</div>
         <div>
-          <div className="alert-title">À quoi sert ce module ?</div>
+          <div className="alert-title">Configuration des grilles tarifaires WFS</div>
           <div className="alert-body">
-            Ici vous configurez les <strong>grilles tarifaires WFS</strong> - c'est-à-dire ce que WFS est censé facturer pour chaque type de marchandise.
+            Configurez les tarifs que <strong>chaque compagnie de handling</strong> est censée appliquer pour chaque type de marchandise.
             <br/><br/>
-            L'application calculera le montant théorique selon ces grilles et le comparera avec ce que WFS a réellement facturé.
-            <br/><br/>
-            <strong>Les tarifs par défaut sont déjà configurés</strong> selon les barèmes WFS standards. Vous pouvez les ajuster si nécessaire.
+            Ces tarifs servent de référence pour la vérification des factures.
           </div>
         </div>
       </div>
       
       <div className="section">
         <div className="section-title">
-          <span className="section-title-icon">💰</span>
-          Grilles tarifaires WFS (ce que WFS facture)
+          <span className="section-title-icon">🏢</span>
+          Sélection Handler & Type
         </div>
-      </div>
-      
-      <div className="section">
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, letterSpacing: '1px' }}>Animaux vivants</h3>
-        <button className="btn btn-sec btn-sm" onClick={() => { setEditType('animaux_vivants'); setShowModal(true); }}>
-          ✏️ Configurer
-        </button>
-        {tarifs.animaux_vivants && (
-          <div style={{ marginTop: 12, fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--muted)' }}>
-            Intervention: {tarifs.animaux_vivants.intervention}€ • Station: {tarifs.animaux_vivants.station}€
+        
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Compagnie de handling</label>
+            <select className="form-select" value={selectedHandler} onChange={(e) => setSelectedHandler(e.target.value)}>
+              {HANDLERS.map(h => (
+                <option key={h.id} value={h.id}>{h.label}</option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
-      
-      <div className="section">
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, letterSpacing: '1px' }}>Poissons frais</h3>
-        <button className="btn btn-sec btn-sm" onClick={() => { setEditType('poissons_frais'); setShowModal(true); }}>
-          ✏️ Configurer
-        </button>
-        {tarifs.poissons_frais && (
-          <div style={{ marginTop: 12, fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--muted)' }}>
-            Intervention: {tarifs.poissons_frais.intervention}€ • Handling: {tarifs.poissons_frais.handling}€
+          
+          <div className="form-group">
+            <label className="form-label">Type de marchandise</label>
+            <select className="form-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+              <option value="poissons_frais">🐟 Poissons frais</option>
+              <option value="animaux_vivants">🐾 Animaux vivants</option>
+              <option value="cargo">📦 Cargo général</option>
+            </select>
           </div>
-        )}
-      </div>
-      
-      <div className="section">
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, letterSpacing: '1px' }}>Cargo général</h3>
-        <button className="btn btn-sec btn-sm" onClick={() => { setEditType('cargo'); setShowModal(true); }}>
-          ✏️ Configurer
+        </div>
+        
+        <button className="btn btn-primary btn-sm" onClick={() => setEditMode(true)}>
+          ✏️ Modifier les tarifs
         </button>
-        {tarifs.cargo && (
-          <div style={{ marginTop: 12, fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--muted)' }}>
-            Base: {tarifs.cargo.base}€ • Au kg: {tarifs.cargo.parKg}€/kg
-          </div>
-        )}
       </div>
       
-      {showModal && <TarifModal 
-        type={editType}
-        tarif={tarifs[editType]}
-        onSave={(data) => saveTarif(editType, data)}
-        onClose={() => { setShowModal(false); setEditType(null); }}
-      />}
+      <TarifDisplay 
+        handler={selectedHandler}
+        type={selectedType}
+        tarifs={tarifs}
+      />
+      
+      {editMode && (
+        <TarifModal
+          handler={selectedHandler}
+          type={selectedType}
+          tarifs={tarifs}
+          onSave={async (data) => {
+            await fbSet(`tarifs/handlers/${selectedHandler}/${selectedType}`, data);
+            onReload();
+            setEditMode(false);
+          }}
+          onClose={() => setEditMode(false)}
+        />
+      )}
     </>
   );
 }
 
-function TarifModal({ type, tarif, onSave, onClose }) {
-  const [form, setForm] = useState(tarif || {});
+function TarifDisplay({ handler, type, tarifs }) {
+  const grille = tarifs?.handlers?.[handler]?.[type];
+  
+  if (!grille) {
+    return (
+      <div className="section">
+        <div className="empty">
+          <div className="empty-icon">📋</div>
+          <div className="empty-title">Tarifs non configurés</div>
+          <div className="empty-text">Cliquez sur "Modifier les tarifs" pour configurer</div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="section">
+      <div className="section-title">
+        <span className="section-title-icon">💰</span>
+        Grille actuelle: {HANDLERS.find(h => h.id === handler)?.label} - {type === 'poissons_frais' ? 'Poissons frais' : type === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo'}
+      </div>
+      
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ligne tarifaire</th>
+              <th>Valeur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(grille).map(([key, value]) => (
+              <tr key={key}>
+                <td style={{ fontFamily: 'var(--sans)', fontWeight: 600 }}>{formatTarifLabel(key)}</td>
+                <td className="td-num">{formatTarifValue(key, value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatTarifLabel(key) {
+  const labels = {
+    frais_arrivees: 'Frais arrivées (fixe)',
+    frais_frigo_kg: 'Frais frigo (€/kg)',
+    frais_frigo_mini: 'Frais frigo (mini perception)',
+    mise_a_dispo: 'Taxe mise à dispo',
+    taxe_qatar: 'Taxe Qatar (LTA 157-, 072-)',
+    frais_transfert_kg: 'Frais transfert (€/kg)',
+    frais_transfert_mini: 'Frais transfert (mini perception)',
+    frais_uc_base: 'Frais UC (base par UC)',
+    frais_uc_tranche: 'Frais UC (tranche kg)',
+    frais_arrivees_tranches: 'Frais arrivées (tranches)'
+  };
+  return labels[key] || key;
+}
+
+function formatTarifValue(key, value) {
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([k, v]) => `${k}: ${v}€`).join(' / ');
+  }
+  return `${value}€`;
+}
+
+function TarifModal({ handler, type, tarifs, onSave, onClose }) {
+  const currentGrille = tarifs?.handlers?.[handler]?.[type] || {};
+  const [form, setForm] = useState(currentGrille);
   
   function upd(field, value) {
     setForm({ ...form, [field]: parseFloat(value) || 0 });
   }
   
-  const titles = {
-    animaux_vivants: 'Animaux vivants',
-    poissons_frais: 'Poissons frais',
-    cargo: 'Cargo général'
-  };
+  function updNested(parent, key, value) {
+    setForm({
+      ...form,
+      [parent]: {
+        ...form[parent],
+        [key]: parseFloat(value) || 0
+      }
+    });
+  }
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label;
+  const typeLabel = type === 'poissons_frais' ? 'Poissons frais' : type === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo';
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
         <div className="modal-header">
-          <div className="modal-title">Tarifs {titles[type]}</div>
+          <div className="modal-title">Tarifs {handlerLabel} - {typeLabel}</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          {type === 'animaux_vivants' && (
+          {type === 'poissons_frais' && (
             <>
               <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label">Intervention (€)</label>
+                <label className="form-label">Frais arrivées (fixe) €</label>
                 <input 
                   className="form-input" 
                   type="number" 
-                  step="0.01"
-                  value={form.intervention || ''} 
-                  onChange={(e) => upd('intervention', e.target.value)}
+                  value={form.frais_arrivees || ''} 
+                  onChange={(e) => upd('frais_arrivees', e.target.value)}
                 />
               </div>
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label">Station animalière (€)</label>
-                <input 
-                  className="form-input" 
-                  type="number" 
-                  step="0.01"
-                  value={form.station || ''} 
-                  onChange={(e) => upd('station', e.target.value)}
-                />
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais frigo (€/kg)</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    step="0.001"
+                    value={form.frais_frigo_kg || ''} 
+                    onChange={(e) => upd('frais_frigo_kg', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais frigo (mini perception) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_frigo_mini || ''} 
+                    onChange={(e) => upd('frais_frigo_mini', e.target.value)}
+                  />
+                </div>
               </div>
+              
+              <div style={{ marginBottom: 16 }}>
+                <label className="form-label" style={{ marginBottom: 12 }}>Taxe mise à dispo (tranches poids)</label>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>0-500 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['0-500'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '0-500', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>501-1000 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['501-1000'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '501-1000', e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-grid" style={{ marginTop: 12 }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>1001-2000 kg</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['1001-2000'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '1001-2000', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ fontSize: 11, color: 'var(--muted2)' }}>2001+ kg (€/tonne)</label>
+                    <input 
+                      className="form-input" 
+                      type="number" 
+                      value={form.mise_a_dispo?.['2001+'] || ''} 
+                      onChange={(e) => updNested('mise_a_dispo', '2001+', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              
               <div className="form-group">
-                <label className="form-label">Transfert (€)</label>
+                <label className="form-label">Taxe Qatar (LTA 157-, 072-) €</label>
                 <input 
                   className="form-input" 
                   type="number" 
-                  step="0.01"
-                  value={form.transfert || ''} 
-                  onChange={(e) => upd('transfert', e.target.value)}
+                  value={form.taxe_qatar || ''} 
+                  onChange={(e) => upd('taxe_qatar', e.target.value)}
                 />
               </div>
             </>
           )}
           
-          {type === 'poissons_frais' && (
+          {type === 'animaux_vivants' && (
             <>
               <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label">Intervention (€)</label>
+                <label className="form-label">Frais arrivées (fixe) €</label>
                 <input 
                   className="form-input" 
                   type="number" 
-                  step="0.01"
-                  value={form.intervention || ''} 
-                  onChange={(e) => upd('intervention', e.target.value)}
+                  value={form.frais_arrivees || ''} 
+                  onChange={(e) => upd('frais_arrivees', e.target.value)}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Handling (€)</label>
-                <input 
-                  className="form-input" 
-                  type="number" 
-                  step="0.01"
-                  value={form.handling || ''} 
-                  onChange={(e) => upd('handling', e.target.value)}
-                />
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais transfert (€/kg)</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    step="0.01"
+                    value={form.frais_transfert_kg || ''} 
+                    onChange={(e) => upd('frais_transfert_kg', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais transfert (mini) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_transfert_mini || ''} 
+                    onChange={(e) => upd('frais_transfert_mini', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Frais UC (base par UC) €</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_uc_base || ''} 
+                    onChange={(e) => upd('frais_uc_base', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Frais UC (tranche) kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_uc_tranche || ''} 
+                    onChange={(e) => upd('frais_uc_tranche', e.target.value)}
+                  />
+                </div>
               </div>
             </>
           )}
           
           {type === 'cargo' && (
-            <>
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label">Base forfaitaire (€)</label>
-                <input 
-                  className="form-input" 
-                  type="number" 
-                  step="0.01"
-                  value={form.base || ''} 
-                  onChange={(e) => upd('base', e.target.value)}
-                />
+            <div style={{ marginBottom: 16 }}>
+              <label className="form-label" style={{ marginBottom: 12 }}>Frais arrivées (tranches poids)</label>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>0-1000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['0-1000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '0-1000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>1000-2000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['1000-2000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '1000-2000', e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Prix au kg (€/kg)</label>
-                <input 
-                  className="form-input" 
-                  type="number" 
-                  step="0.01"
-                  value={form.parKg || ''} 
-                  onChange={(e) => upd('parKg', e.target.value)}
-                />
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>2000-3000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['2000-3000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '2000-3000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>3000-4000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['3000-4000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '3000-4000', e.target.value)}
+                  />
+                </div>
               </div>
-            </>
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>4000-5000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['4000-5000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '4000-5000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>5000-6000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['5000-6000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '5000-6000', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>6000-7000 kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['6000-7000'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '6000-7000', e.target.value)}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ fontSize: 11, color: 'var(--muted2)' }}>7000+ kg</label>
+                  <input 
+                    className="form-input" 
+                    type="number" 
+                    value={form.frais_arrivees_tranches?.['7000+'] || ''} 
+                    onChange={(e) => updNested('frais_arrivees_tranches', '7000+', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
         <div className="modal-footer">
@@ -1073,31 +1355,213 @@ function TarifModal({ type, tarif, onSave, onClose }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// EXPORT PDF COMPTA
+// ═══════════════════════════════════════════════════════════════════════════
+function exportPDFCompta(data, stats, handler) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('landscape', 'mm', 'a4');
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
+  const today = new Date().toLocaleDateString('fr-FR');
+  
+  // Page de garde
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, 297, 40, 'F');
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TAF VERICHECK', 15, 15);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Vérification Facturation WFS', 15, 25);
+  doc.text(`Handler: ${handlerLabel}`, 15, 32);
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text(`Date: ${today}`, 240, 15);
+  
+  // Stats
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(9);
+  let y = 50;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('STATISTIQUES GLOBALES', 15, y);
+  y += 7;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total LTA: ${stats.total}`, 15, y);
+  doc.text(`Vérifiés: ${stats.verifie}`, 70, y);
+  doc.text(`OK: ${stats.ok}`, 125, y);
+  doc.text(`Avertissements: ${stats.avertissement}`, 155, y);
+  doc.text(`Erreurs: ${stats.erreur}`, 215, y);
+  y += 6;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total HT: ${stats.totalHT.toFixed(2)}€`, 15, y);
+  doc.text(`Total TTC: ${(stats.totalHT * 1.20).toFixed(2)}€`, 70, y);
+  
+  y += 10;
+  
+  // Regrouper par LTA pour affichage ligne par ligne
+  const ltas = {};
+  data.forEach(item => {
+    if (!ltas[item.lta]) {
+      ltas[item.lta] = {
+        ...item,
+        lignes: item.lignes || []
+      };
+    }
+  });
+  
+  // Préparer les données pour le tableau
+  const tableData = [];
+  
+  Object.values(ltas).forEach(lta => {
+    // En-tête LTA
+    tableData.push([
+      {
+        content: `LTA ${lta.lta} — ${lta.client || 'Sans client'} — ${lta.typeTarif === 'poissons_frais' ? 'Poissons frais' : lta.typeTarif === 'animaux_vivants' ? 'Animaux vivants' : 'Cargo'}`,
+        colSpan: 9,
+        styles: { 
+          fillColor: [26, 32, 40], 
+          textColor: [245, 158, 11],
+          fontStyle: 'bold',
+          fontSize: 9
+        }
+      }
+    ]);
+    
+    // Lignes de frais
+    if (lta.lignes && lta.lignes.length > 0) {
+      lta.lignes.forEach(ligne => {
+        const statutColor = lta.statut === 'ok' ? [16, 185, 129] : 
+                           lta.statut === 'erreur' ? [239, 68, 68] : 
+                           lta.statut === 'avertissement' ? [249, 115, 22] : [100, 116, 139];
+        
+        const statutText = lta.statut === 'ok' ? '✓ OK' : 
+                          lta.statut === 'erreur' ? `✕ ${lta.ecartPct?.toFixed(1)}%` : 
+                          lta.statut === 'avertissement' ? `⚠ ${lta.ecartPct?.toFixed(1)}%` : 
+                          lta.verification === 'client_non_config' ? 'Config client' :
+                          lta.verification === 'tarif_non_config' ? 'Config tarif' : '-';
+        
+        tableData.push([
+          lta.pref,
+          lta.poids.toFixed(0),
+          ligne.nature || '-',
+          ligne.montantHT.toFixed(2) + '€',
+          (ligne.montantHT * 1.20).toFixed(2) + '€',
+          lta.dossierMalta || '-',
+          lta.client || '-',
+          {
+            content: statutText,
+            styles: { textColor: statutColor, fontStyle: 'bold' }
+          },
+          lta.ecart !== undefined ? (lta.ecart > 0 ? '+' : '') + lta.ecart.toFixed(2) + '€' : '-'
+        ]);
+      });
+    }
+    
+    // Sous-total LTA
+    tableData.push([
+      {
+        content: 'SOUS-TOTAL',
+        colSpan: 3,
+        styles: { fontStyle: 'bold', halign: 'right' }
+      },
+      {
+        content: lta.totalHT.toFixed(2) + '€',
+        styles: { fontStyle: 'bold' }
+      },
+      {
+        content: lta.totalTTC ? lta.totalTTC.toFixed(2) + '€' : '-',
+        styles: { fontStyle: 'bold' }
+      },
+      '', '', '', ''
+    ]);
+    
+    // Ligne vide entre LTA
+    tableData.push(['', '', '', '', '', '', '', '', '']);
+  });
+  
+  // Générer le tableau
+  doc.autoTable({
+    startY: y,
+    head: [[
+      'Préf',
+      'Poids (kg)',
+      'Nature Frais',
+      'Montant HT',
+      'Montant TTC',
+      'Dossier Malta',
+      'Client',
+      'Statut',
+      'Écart'
+    ]],
+    body: tableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 7,
+      cellPadding: 2,
+      lineColor: [46, 52, 64],
+      lineWidth: 0.1
+    },
+    headStyles: {
+      fillColor: [15, 20, 25],
+      textColor: [226, 232, 240],
+      fontStyle: 'bold',
+      fontSize: 7
+    },
+    alternateRowStyles: {
+      fillColor: [250, 250, 250]
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 15 },
+      1: { halign: 'right', cellWidth: 20 },
+      2: { cellWidth: 50 },
+      3: { halign: 'right', cellWidth: 25 },
+      4: { halign: 'right', cellWidth: 25 },
+      5: { cellWidth: 30 },
+      6: { cellWidth: 35 },
+      7: { halign: 'center', cellWidth: 25 },
+      8: { halign: 'right', cellWidth: 22 }
+    },
+    margin: { left: 15, right: 15 }
+  });
+  
+  // Pied de page sur toutes les pages
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`TAF VERICHECK — ${handlerLabel} — ${today}`, 15, 200);
+    doc.text(`Page ${i} / ${pageCount}`, 260, 200);
+  }
+  
+  // Sauvegarder
+  const filename = `TAF_VERICHECK_${handler}_${today.replace(/\//g, '-')}.pdf`;
+  doc.save(filename);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TAB: VERIFICATION
 // ═══════════════════════════════════════════════════════════════════════════
-function TabVerification({ data, stats, clients, tarifs }) {
-  const [filter, setFilter] = useState('all');
+function TabVerification({ data, stats, handler }) {
+  const [filter, setFilter] = useState('tous');
   
   const filtered = useMemo(() => {
-    if (filter === 'matched') return data.filter(d => d.matched);
-    if (filter === 'unmatched') return data.filter(d => !d.matched);
+    if (filter === 'tous') return data;
+    if (filter === 'matches') return data.filter(d => d.matched);
     if (filter === 'ok') return data.filter(d => d.statut === 'ok');
-    if (filter === 'erreur') return data.filter(d => d.statut === 'erreur');
     if (filter === 'avertissement') return data.filter(d => d.statut === 'avertissement');
+    if (filter === 'erreur') return data.filter(d => d.statut === 'erreur');
     return data;
   }, [data, filter]);
   
-  function fmtEur(n) {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
-  }
-  
-  function getRowClass(item) {
-    if (!item.matched) return 'row-warn';
-    if (item.statut === 'ok') return 'row-ok';
-    if (item.statut === 'erreur') return 'row-err';
-    if (item.statut === 'avertissement') return 'row-warn';
-    return '';
-  }
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
   
   return (
     <>
@@ -1105,15 +1569,23 @@ function TabVerification({ data, stats, clients, tarifs }) {
         <div className="alert alert-info" style={{ marginBottom: 20 }}>
           <div className="alert-icon">ℹ️</div>
           <div>
-            <div className="alert-title">Vérification de la facturation WFS</div>
+            <div className="alert-title">Vérification facturation {handlerLabel}</div>
             <div className="alert-body">
-              Cette vérification compare <strong>ce que WFS a facturé</strong> avec <strong>ce que WFS devrait facturer</strong> selon ses grilles tarifaires.
+              Comparaison entre <strong>ce que {handlerLabel} a facturé</strong> et <strong>ce que {handlerLabel} devrait facturer</strong> selon les grilles tarifaires.
               <br/><br/>
-              • <strong>Facturé HT</strong> : montant réel sur la facture WFS
+              • <strong>Facturé HT</strong> : montant réel facture
               <br/>
-              • <strong>Théorique HT</strong> : montant calculé selon les grilles WFS
+              • <strong>Théorique HT</strong> : montant calculé selon grilles
               <br/>
-              • <strong>Écart</strong> : différence entre les deux (positif = surfacturation)
+              • <strong>Écart</strong> : différence (positif = surfacturation)
+              <br/><br/>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => exportPDFCompta(data, stats, handler)}
+                style={{ marginTop: '10px' }}
+              >
+                📥 Exporter PDF pour Comptabilité
+              </button>
             </div>
           </div>
         </div>
@@ -1122,32 +1594,38 @@ function TabVerification({ data, stats, clients, tarifs }) {
       <div className="stats-grid">
         <div className="stat">
           <div className="stat-label">Total LTA</div>
-          <div className="stat-value c-blue">{stats.total}</div>
+          <div className="stat-value c-muted">{stats.total}</div>
         </div>
+        
         <div className="stat">
-          <div className="stat-label">Matchés</div>
-          <div className="stat-value c-green">{stats.matched}</div>
-          <div className="stat-sub">{stats.total > 0 ? Math.round(stats.matched / stats.total * 100) : 0}%</div>
+          <div className="stat-label">Avec dossier</div>
+          <div className="stat-value c-blue">{stats.matched}</div>
+          <div className="stat-sub">Trouvés dans Malta</div>
         </div>
+        
         <div className="stat">
           <div className="stat-label">Vérifiés</div>
-          <div className="stat-value c-amber">{stats.verifie}</div>
+          <div className="stat-value c-green">{stats.verifie}</div>
         </div>
+        
         <div className="stat">
-          <div className="stat-label">✓ OK</div>
+          <div className="stat-label">OK</div>
           <div className="stat-value c-green">{stats.ok}</div>
         </div>
+        
         <div className="stat">
-          <div className="stat-label">⚠ Avertissements</div>
+          <div className="stat-label">Avertissements</div>
           <div className="stat-value c-orange">{stats.avertissement}</div>
         </div>
+        
         <div className="stat">
-          <div className="stat-label">✕ Erreurs</div>
+          <div className="stat-label">Erreurs</div>
           <div className="stat-value c-red">{stats.erreur}</div>
         </div>
+        
         <div className="stat">
           <div className="stat-label">Total HT</div>
-          <div className="stat-value c-blue">{fmtEur(stats.totalHT)}</div>
+          <div className="stat-value c-amber">{stats.totalHT.toFixed(2)}€</div>
         </div>
       </div>
       
@@ -1156,116 +1634,99 @@ function TabVerification({ data, stats, clients, tarifs }) {
           <div className="empty">
             <div className="empty-icon">📊</div>
             <div className="empty-title">Aucune donnée à vérifier</div>
-            <div className="empty-text">Uploadez et analysez une facture d'abord</div>
+            <div className="empty-text">Uploadez des fichiers et analysez-les d'abord</div>
           </div>
         </div>
       ) : (
-        <div className="section">
-          <div style={{ marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-sec'} btn-sm`} onClick={() => setFilter('all')}>
-              Tous ({data.length})
-            </button>
-            <button className={`btn ${filter === 'matched' ? 'btn-primary' : 'btn-sec'} btn-sm`} onClick={() => setFilter('matched')}>
-              Matchés ({stats.matched})
-            </button>
-            <button className={`btn ${filter === 'ok' ? 'btn-primary' : 'btn-sec'} btn-sm`} onClick={() => setFilter('ok')}>
-              ✓ OK ({stats.ok})
-            </button>
-            <button className={`btn ${filter === 'avertissement' ? 'btn-primary' : 'btn-sec'} btn-sm`} onClick={() => setFilter('avertissement')}>
-              ⚠ Avertissement ({stats.avertissement})
-            </button>
-            <button className={`btn ${filter === 'erreur' ? 'btn-primary' : 'btn-sec'} btn-sm`} onClick={() => setFilter('erreur')}>
-              ✕ Erreur ({stats.erreur})
-            </button>
+        <>
+          <div className="section" style={{ padding: '16px 24px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button className={`btn btn-${filter === 'tous' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('tous')}>
+                Tous ({data.length})
+              </button>
+              <button className={`btn btn-${filter === 'matches' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('matches')}>
+                Matchés ({stats.matched})
+              </button>
+              <button className={`btn btn-${filter === 'ok' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('ok')}>
+                ✓ OK ({stats.ok})
+              </button>
+              <button className={`btn btn-${filter === 'avertissement' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('avertissement')}>
+                ⚠️ Avertissements ({stats.avertissement})
+              </button>
+              <button className={`btn btn-${filter === 'erreur' ? 'primary' : 'sec'} btn-sm`} onClick={() => setFilter('erreur')}>
+                ✕ Erreurs ({stats.erreur})
+              </button>
+            </div>
           </div>
           
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>LTA</th>
-                  <th>Dossier</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Poids</th>
-                  <th>Facturé HT</th>
-                  <th>Théorique HT</th>
-                  <th>Écart</th>
-                  <th>Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item, idx) => (
-                  <tr key={idx} className={getRowClass(item)}>
-                    <td className="td-lta">{item.numeroLTA}</td>
-                    <td className="td-dossier" style={{ fontSize: 11 }}>{item.dossierMalta || '—'}</td>
-                    <td className="td-client" style={{ fontSize: 12 }}>{item.client || '—'}</td>
-                    <td>
-                      {item.typeTarif && (
-                        <span className={`badge ${
-                          item.typeTarif === 'animaux_vivants' ? 'b-warn' : 
-                          item.typeTarif === 'poissons_frais' ? 'b-ok' : 
-                          'b-gray'
-                        }`} style={{ fontSize: 9 }}>
-                          {item.typeTarif === 'animaux_vivants' ? 'AVI' : 
-                           item.typeTarif === 'poissons_frais' ? 'SF' : 
-                           'CARGO'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="td-num" style={{ fontSize: 12 }}>{item.poids.toFixed(1)} kg</td>
-                    <td className="td-num" style={{ fontWeight: 700 }}>{fmtEur(item.totalHT)}</td>
-                    <td className="td-num" style={{ color: 'var(--muted2)' }}>
-                      {item.tarifTheorique !== undefined ? fmtEur(item.tarifTheorique) : '—'}
-                    </td>
-                    <td className="td-num" style={{ 
-                      fontWeight: 700,
-                      color: item.ecart > 0 ? 'var(--red)' : item.ecart < 0 ? 'var(--green)' : 'var(--muted)'
-                    }}>
-                      {item.ecart !== undefined ? (
-                        <>
-                          {item.ecart > 0 ? '+' : ''}{fmtEur(item.ecart)}
-                          <div style={{ fontSize: 10, marginTop: 2, opacity: 0.7 }}>
-                            {item.ecartPct.toFixed(1)}%
-                          </div>
-                        </>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      {!item.matched ? (
-                        <span className="badge b-warn">⚠ Non matché</span>
-                      ) : item.verification === 'client_non_config' ? (
-                        <span className="badge b-gray">Client non config</span>
-                      ) : item.verification === 'tarif_non_config' ? (
-                        <span className="badge b-gray">Tarif non config</span>
-                      ) : item.statut === 'ok' ? (
-                        <span className="badge b-ok">✓ OK</span>
-                      ) : item.statut === 'avertissement' ? (
-                        <span className="badge b-warn">⚠ Avertissement</span>
-                      ) : item.statut === 'erreur' ? (
-                        <span className="badge b-err">✕ Erreur</span>
-                      ) : (
-                        <span className="badge b-gray">—</span>
-                      )}
-                    </td>
+          <div className="section">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>LTA</th>
+                    <th>Dossier</th>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Poids (kg)</th>
+                    <th>Facturé HT</th>
+                    <th>Facturé TTC</th>
+                    <th>Théorique HT</th>
+                    <th>Écart HT</th>
+                    <th>Statut</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filtered.map((item, idx) => (
+                    <tr key={idx} className={
+                      item.statut === 'ok' ? 'row-ok' : 
+                      item.statut === 'erreur' ? 'row-err' : 
+                      item.statut === 'avertissement' ? 'row-warn' : ''
+                    }>
+                      <td className="td-lta">{item.lta}</td>
+                      <td className="td-dossier">{item.dossierMalta || '-'}</td>
+                      <td className="td-client">{item.client || '-'}</td>
+                      <td>
+                        {item.typeTarif ? (
+                          <span className={`badge ${item.typeTarif === 'animaux_vivants' ? 'b-warn' : item.typeTarif === 'poissons_frais' ? 'b-ok' : 'b-gray'}`}>
+                            {item.typeTarif === 'animaux_vivants' ? '🐾' : item.typeTarif === 'poissons_frais' ? '🐟' : '📦'}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="td-num">{item.poids.toFixed(0)}</td>
+                      <td className="td-num">{item.totalHT.toFixed(2)}€</td>
+                      <td className="td-num">{item.totalTTC ? item.totalTTC.toFixed(2) + '€' : '-'}</td>
+                      <td className="td-num">{item.tarifTheorique ? item.tarifTheorique.toFixed(2) + '€' : '-'}</td>
+                      <td className="td-num" style={{ color: item.ecart > 0 ? 'var(--red)' : item.ecart < 0 ? 'var(--green)' : 'inherit' }}>
+                        {item.ecart !== undefined ? (item.ecart > 0 ? '+' : '') + item.ecart.toFixed(2) + '€' : '-'}
+                      </td>
+                      <td>
+                        {item.statut === 'ok' && <span className="badge b-ok">✓ OK</span>}
+                        {item.statut === 'avertissement' && <span className="badge b-warn">⚠️ {item.ecartPct.toFixed(1)}%</span>}
+                        {item.statut === 'erreur' && <span className="badge b-err">✕ {item.ecartPct.toFixed(1)}%</span>}
+                        {item.verification === 'client_non_config' && <span className="badge b-warn">Config client</span>}
+                        {item.verification === 'tarif_non_config' && <span className="badge b-warn">Config tarif</span>}
+                        {item.verification === 'no_client' && <span className="badge b-gray">Sans dossier</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
           
           {stats.erreur > 0 && (
-            <div className="alert alert-error" style={{ marginTop: 16 }}>
+            <div className="alert alert-error">
               <div className="alert-icon">⚠️</div>
               <div>
-                <div className="alert-title">{stats.erreur} erreur{stats.erreur > 1 ? 's' : ''} détectée{stats.erreur > 1 ? 's' : ''}</div>
+                <div className="alert-title">{stats.erreur} erreur(s) détectée(s)</div>
                 <div className="alert-body">
-                  Écarts tarifaires supérieurs à 10%. Vérifiez la configuration des tarifs ou contactez le service facturation.
+                  Écarts supérieurs à 10% détectés. Vérifiez les LTA marquées en rouge.
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
     </>
   );
@@ -1274,7 +1735,7 @@ function TabVerification({ data, stats, clients, tarifs }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════════════════════
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.render(<App />, document.getElementById('root'));
 </script>
 </body>
 </html>
