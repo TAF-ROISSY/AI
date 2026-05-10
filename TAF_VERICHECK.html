@@ -3,12 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.1.6 — WFS Vérification</title>
+<title>TAF VERICHECK v3.1.7 — WFS Vérification</title>
 
 <!--
   TAF VERICHECK — Vérification factures handlers
   
   CHANGELOG:
+  v3.1.7 (2026-05-10)
+  - 🔧 FIX CRITIQUE : loadClients not defined
+  - Passage correct de onReloadClients au TabVerification
+  - App maintenant 100% fonctionnelle
+  
   v3.1.6 (2026-05-10)
   - ✅ PERSISTANCE AUTO : localStorage sauvegarde + restauration automatique
   - Bouton "Effacer" pour nettoyer les données
@@ -769,7 +774,7 @@ function App() {
           <div className="nav-logo">
             <div className="nav-badge">TAF</div>
             <div>
-              <div className="nav-title">VERICHECK v3.1.6</div>
+              <div className="nav-title">VERICHECK v3.1.7</div>
               <div className="nav-sub">VERIFICATION WFS</div>
             </div>
           </div>
@@ -830,7 +835,7 @@ function App() {
             </button>
           )}
           
-          <div className="version">v3.1.6</div>
+          <div className="version">v3.1.7</div>
         </div>
       </div>
       
@@ -876,6 +881,7 @@ function App() {
           data={matchedData}
           stats={stats}
           handler={selectedHandler}
+          onReloadClients={loadClients}
         />}
       </div>
     </>
@@ -1821,7 +1827,7 @@ function exportPDFCompta(data, stats, handler) {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB: VERIFICATION
 // ═══════════════════════════════════════════════════════════════════════════
-function TabVerification({ data, stats, handler }) {
+function TabVerification({ data, stats, handler, onReloadClients }) {
   const [filter, setFilter] = useState('tous');
   const [detailModal, setDetailModal] = useState(null);
   
@@ -1859,7 +1865,7 @@ function TabVerification({ data, stats, handler }) {
       alert('Catégorie enregistrée dans Google Drive ! Elle sera appliquée aux prochaines factures.');
       
       // Recharger clients
-      await loadClients();
+      if (onReloadClients) await onReloadClients();
     }
   }
   
