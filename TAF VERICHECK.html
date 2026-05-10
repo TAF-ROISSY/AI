@@ -150,7 +150,48 @@ tbody td{padding:12px 16px;font-family:var(--mono);vertical-align:middle}
 const { useState, useEffect, useMemo } = React;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIREBASE CONFIG
+// GOOGLE DRIVE STORAGE API
+// ═══════════════════════════════════════════════════════════════════════════
+const DRIVE_API_URL = 'https://script.google.com/macros/s/AKfycbyKbEYIH1YIXTvQCUFi1sGeAn2XiBRy1-Kb7H8_B_f7V4abI0krUut4mxzu4XguNA34_Q/exec';
+
+async function driveCall(action, params) {
+  const response = await fetch(DRIVE_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...params })
+  });
+  
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Drive API error');
+  }
+  return result.data;
+}
+
+// Upload fichier dans Drive
+async function driveUploadFile(name, data, folderId) {
+  return await driveCall('uploadFile', { name, data, folderId });
+}
+
+// Sauvegarder analyse complète
+async function driveSaveAnalysis(handler, stats, results, factureFileName, dossiersFileName) {
+  return await driveCall('saveAnalysis', {
+    data: { handler, stats, results, factureFileName, dossiersFileName }
+  });
+}
+
+// Sauvegarder config (clients, tarifs, validations)
+async function driveSaveConfig(type, data) {
+  return await driveCall('saveConfig', { type, data });
+}
+
+// Charger config
+async function driveLoadConfig(type) {
+  return await driveCall('loadConfig', { type });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG (Deprecated - Migration vers Drive)
 // ═══════════════════════════════════════════════════════════════════════════
 const FIREBASE_CONFIG = {
   databaseURL: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app"
@@ -490,30 +531,63 @@ function App() {
   }, []);
   
   async function loadClients() {
-    const sharedClients = await getSharedClients();
-    const clientTypes = await getClientTypes();
-    
-    const merged = [];
-    
-    if (sharedClients) {
-      Object.entries(sharedClients).forEach(([id, client]) => {
-        const typeInfo = clientTypes?.[id] || {};
-        merged.push({
-          id,
-          nom: client.nom || client.name || '',
-          codeCompta: client.codeCompta || client.code || '',
-          typeTarif: typeInfo.typeMarchandise || null,
-          source: 'facturation'
+    try {
+      // Essayer de charger depuis Drive d'abord
+      const driveClients = await driveLoadConfig('clients');
+      
+      if (driveClients && Object.keys(driveClients).length > 0) {
+        const merged = [];
+        Object.entries(driveClients).forEach(([id, client]) => {
+          merged.push({
+            id,
+            nom: client.nom || client.name || '',
+            codeCompta: client.codeCompta || client.code || '',
+            typeTarif: client.typeTarif || null,
+            source: 'drive'
+          });
         });
-      });
+        setClients(merged);
+        return;
+      }
+    } catch (err) {
+      console.log('Drive non disponible, tentative Firebase...', err);
     }
     
-    setClients(merged);
+    // Fallback: essayer Firebase (clients partagés TAF FACTURATION)
+    try {
+      const sharedClients = await getSharedClients();
+      const clientTypes = await getClientTypes();
+      
+      const merged = [];
+      
+      if (sharedClients) {
+        Object.entries(sharedClients).forEach(([id, client]) => {
+          const typeInfo = clientTypes?.[id] || {};
+          merged.push({
+            id,
+            nom: client.nom || client.name || '',
+            codeCompta: client.codeCompta || client.code || '',
+            typeTarif: typeInfo.typeMarchandise || null,
+            source: 'facturation'
+          });
+        });
+      }
+      
+      setClients(merged);
+    } catch (err) {
+      console.error('Erreur chargement clients:', err);
+      setClients([]);
+    }
   }
   
   async function loadTarifs() {
-    const data = await fbGet('tarifs');
-    setTarifsWFS(data || {});
+    try {
+      const data = await driveLoadConfig('tarifs');
+      setTarifsWFS(data || {});
+    } catch (err) {
+      console.error('Erreur chargement tarifs:', err);
+      setTarifsWFS({});
+    }
   }
   
   async function analyzeFacture() {
@@ -522,23 +596,61 @@ function App() {
     setAnalyzing(true);
     
     try {
+      // 1. Upload fichiers dans Drive
+      const factureReader = new FileReader();
+      const dossiersReader = new FileReader();
+      
+      factureReader.onload = async (e) => {
+        const factureBase64 = btoa(e.target.result);
+        await driveUploadFile(factureFile.name, 'data:text/csv;base64,' + factureBase64);
+      };
+      factureReader.readAsBinaryString(factureFile);
+      
+      dossiersReader.onload = async (e) => {
+        const dossiersData = new Uint8Array(e.target.result);
+        const dossiersBase64 = btoa(String.fromCharCode.apply(null, dossiersData));
+        await driveUploadFile(dossiersFile.name, 'data:application/vnd.ms-excel;base64,' + dossiersBase64);
+      };
+      dossiersReader.readAsArrayBuffer(dossiersFile);
+      
+      // 2. Parser et analyser
       const factureText = await factureFile.text();
       const factureRows = parseFactureCSV(factureText);
       const grouped = groupByLTA(factureRows);
       setFactureData(grouped);
       
-      parseDossiersXLS(dossiersFile, (dossiers) => {
+      parseDossiersXLS(dossiersFile, async (dossiers) => {
         setDossiersData(dossiers);
         
         const matched = matchFactureDossiers(grouped, dossiers);
         const verified = verifierAvecTarifs(matched, clients, selectedHandler, tarifsWFS);
         setMatchedData(verified);
         
+        // 3. Sauvegarder résultats dans Drive
+        const stats = {
+          total: verified.length,
+          matched: verified.filter(m => m.matched).length,
+          verifie: verified.filter(m => m.verification === 'verifie').length,
+          ok: verified.filter(m => m.statut === 'ok').length,
+          avertissement: verified.filter(m => m.statut === 'avertissement').length,
+          erreur: verified.filter(m => m.statut === 'erreur').length,
+          totalHT: verified.reduce((sum, m) => sum + m.totalHT, 0)
+        };
+        
+        await driveSaveAnalysis(
+          selectedHandler,
+          stats,
+          verified,
+          factureFile.name,
+          dossiersFile.name
+        );
+        
         setAnalyzing(false);
         setActiveTab('verification');
       });
     } catch (err) {
       console.error('Erreur analyse:', err);
+      alert('Erreur lors de l\'analyse: ' + err.message);
       setAnalyzing(false);
     }
   }
@@ -992,7 +1104,17 @@ function TabTarifs({ tarifs, onReload }) {
           type={selectedType}
           tarifs={tarifs}
           onSave={async (data) => {
-            await fbSet(`tarifs/handlers/${selectedHandler}/${selectedType}`, data);
+            // Charger tarifs actuels
+            const currentTarifs = await driveLoadConfig('tarifs');
+            
+            // Mettre à jour
+            if (!currentTarifs.handlers) currentTarifs.handlers = {};
+            if (!currentTarifs.handlers[selectedHandler]) currentTarifs.handlers[selectedHandler] = {};
+            currentTarifs.handlers[selectedHandler][selectedType] = data;
+            
+            // Sauvegarder dans Drive
+            await driveSaveConfig('tarifs', currentTarifs);
+            
             onReload();
             setEditMode(false);
           }}
@@ -1551,6 +1673,106 @@ function exportPDFCompta(data, stats, handler) {
 // ═══════════════════════════════════════════════════════════════════════════
 function TabVerification({ data, stats, handler }) {
   const [filter, setFilter] = useState('tous');
+  const [detailModal, setDetailModal] = useState(null);
+  
+  async function saveCategorie(lta, categorie) {
+    if (lta.client) {
+      // Charger clients actuels
+      const currentClients = await driveLoadConfig('clients');
+      
+      // Chercher le client
+      let clientId = null;
+      for (const [id, client] of Object.entries(currentClients)) {
+        if (client.nom?.toUpperCase() === lta.client.toUpperCase()) {
+          clientId = id;
+          break;
+        }
+      }
+      
+      if (!clientId) {
+        // Créer nouveau client
+        clientId = 'client_' + Date.now();
+        currentClients[clientId] = {
+          nom: lta.client,
+          codeCompta: lta.dossierMalta || '',
+          typeTarif: categorie
+        };
+      } else {
+        // Mettre à jour
+        currentClients[clientId].typeTarif = categorie;
+      }
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('clients', currentClients);
+      
+      setDetailModal(null);
+      alert('Catégorie enregistrée dans Google Drive ! Elle sera appliquée aux prochaines factures.');
+      
+      // Recharger clients
+      await loadClients();
+    }
+  }
+  
+  async function validerLTA(lta) {
+    try {
+      // Charger validations existantes
+      const validations = await driveLoadConfig('validations');
+      
+      // Ajouter nouvelle validation
+      validations[lta.lta] = {
+        date: new Date().toISOString(),
+        statut: 'valide',
+        handler: handler,
+        montantHT: lta.totalHT,
+        dossier: lta.dossierMalta
+      };
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('validations', validations);
+      
+      setDetailModal(null);
+      alert('LTA validé et enregistré dans Google Drive !');
+    } catch (err) {
+      alert('Erreur sauvegarde validation: ' + err.message);
+    }
+  }
+  
+  async function ouvrirLitige(lta) {
+    try {
+      // Charger litiges existants
+      const litiges = await driveLoadConfig('litiges');
+      
+      // Créer nouveau litige
+      const litige = {
+        type: 'facturation_wfs',
+        lta: lta.lta,
+        dossier: lta.dossierMalta,
+        client: lta.client,
+        handler: handler,
+        montantFacture: lta.totalHT,
+        montantTheorique: lta.tarifTheorique,
+        ecart: lta.ecart,
+        ecartPct: lta.ecartPct,
+        lignes: lta.lignes,
+        dateCreation: new Date().toISOString(),
+        statut: 'ouvert'
+      };
+      
+      litiges[lta.lta] = litige;
+      
+      // Sauvegarder dans Drive
+      await driveSaveConfig('litiges', litiges);
+      
+      // Ouvrir TAF OPS dans nouvel onglet
+      const url = `https://taf-roissy.github.io/AI/TAF_OPS.html#litige=${lta.lta}`;
+      window.open(url, '_blank');
+      
+      setDetailModal(null);
+      alert('Dossier litige créé dans Google Drive et ouvert dans TAF OPS !');
+    } catch (err) {
+      alert('Erreur création litige: ' + err.message);
+    }
+  }
   
   const filtered = useMemo(() => {
     if (filter === 'tous') return data;
@@ -1678,11 +1900,16 @@ function TabVerification({ data, stats, handler }) {
                 </thead>
                 <tbody>
                   {filtered.map((item, idx) => (
-                    <tr key={idx} className={
-                      item.statut === 'ok' ? 'row-ok' : 
-                      item.statut === 'erreur' ? 'row-err' : 
-                      item.statut === 'avertissement' ? 'row-warn' : ''
-                    }>
+                    <tr 
+                      key={idx} 
+                      className={
+                        item.statut === 'ok' ? 'row-ok' : 
+                        item.statut === 'erreur' ? 'row-err' : 
+                        item.statut === 'avertissement' ? 'row-warn' : ''
+                      }
+                      onClick={() => setDetailModal(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td className="td-lta">{item.lta}</td>
                       <td className="td-dossier">{item.dossierMalta || '-'}</td>
                       <td className="td-client">{item.client || '-'}</td>
@@ -1728,7 +1955,211 @@ function TabVerification({ data, stats, handler }) {
           )}
         </>
       )}
+      
+      {detailModal && (
+        <LTADetailModal
+          lta={detailModal}
+          handler={handler}
+          onSaveCategorie={(cat) => saveCategorie(detailModal, cat)}
+          onValider={() => validerLTA(detailModal)}
+          onOuvrirLitige={() => ouvrirLitige(detailModal)}
+          onClose={() => setDetailModal(null)}
+        />
+      )}
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL DETAIL LTA
+// ═══════════════════════════════════════════════════════════════════════════
+function LTADetailModal({ lta, handler, onSaveCategorie, onValider, onOuvrirLitige, onClose }) {
+  const [selectedCategorie, setSelectedCategorie] = useState(lta.typeTarif || '');
+  
+  const handlerLabel = HANDLERS.find(h => h.id === handler)?.label || handler;
+  const hasError = lta.statut === 'erreur' || lta.statut === 'avertissement';
+  
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Détail LTA {lta.lta}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+              {lta.client || 'Sans client'} • Dossier {lta.dossierMalta || 'N/A'}
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="modal-body">
+          {/* Info globale */}
+          <div style={{ 
+            background: 'var(--surface2)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '8px', 
+            padding: '16px',
+            marginBottom: '20px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px'
+          }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Poids</div>
+              <div style={{ fontSize: 18, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.poids.toFixed(0)} kg</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Handler</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{handlerLabel}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Statut</div>
+              <div>
+                {lta.statut === 'ok' && <span className="badge b-ok" style={{ fontSize: 13 }}>✓ OK</span>}
+                {lta.statut === 'avertissement' && <span className="badge b-warn" style={{ fontSize: 13 }}>⚠️ {lta.ecartPct.toFixed(1)}%</span>}
+                {lta.statut === 'erreur' && <span className="badge b-err" style={{ fontSize: 13 }}>✕ {lta.ecartPct.toFixed(1)}%</span>}
+                {lta.verification === 'client_non_config' && <span className="badge b-warn" style={{ fontSize: 13 }}>Config client</span>}
+              </div>
+            </div>
+          </div>
+          
+          {/* Lignes de factures */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>
+              📋 Lignes de facturation
+            </div>
+            
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nature frais</th>
+                    <th>Montant HT</th>
+                    <th>Montant TTC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lta.lignes && lta.lignes.length > 0 ? (
+                    lta.lignes.map((ligne, idx) => (
+                      <tr key={idx}>
+                        <td>{ligne.nature || 'Frais annexe'}</td>
+                        <td className="td-num">{ligne.montantHT.toFixed(2)}€</td>
+                        <td className="td-num">{(ligne.montantHT * 1.20).toFixed(2)}€</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--muted)' }}>Détail non disponible</td>
+                    </tr>
+                  )}
+                  <tr style={{ background: 'var(--surface2)', fontWeight: 700 }}>
+                    <td>TOTAL</td>
+                    <td className="td-num">{lta.totalHT.toFixed(2)}€</td>
+                    <td className="td-num">{lta.totalTTC ? lta.totalTTC.toFixed(2) : (lta.totalHT * 1.20).toFixed(2)}€</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Vérification calcul */}
+          {lta.tarifTheorique && (
+            <div style={{ 
+              background: hasError ? 'var(--red-bg)' : 'var(--green-bg)', 
+              border: `1px solid ${hasError ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: 20
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: hasError ? 'var(--red)' : 'var(--green)', marginBottom: 12 }}>
+                💰 Vérification tarifaire
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Facturé HT</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.totalHT.toFixed(2)}€</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Théorique HT</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--mono)', fontWeight: 700 }}>{lta.tarifTheorique.toFixed(2)}€</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--muted2)', marginBottom: 4 }}>Écart</div>
+                  <div style={{ 
+                    fontSize: 20, 
+                    fontFamily: 'var(--mono)', 
+                    fontWeight: 700,
+                    color: lta.ecart > 0 ? 'var(--red)' : lta.ecart < 0 ? 'var(--green)' : 'inherit'
+                  }}>
+                    {lta.ecart > 0 ? '+' : ''}{lta.ecart.toFixed(2)}€
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Configuration catégorie */}
+          <div style={{ 
+            background: 'var(--amber-bg)', 
+            border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: 20
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 12 }}>
+              🏷️ Catégorie marchandise
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <select 
+                className="form-select" 
+                value={selectedCategorie}
+                onChange={(e) => setSelectedCategorie(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="">-- Sélectionner --</option>
+                <option value="poissons_frais">🐟 Poissons frais</option>
+                <option value="animaux_vivants">🐾 Animaux vivants</option>
+                <option value="cargo">📦 Cargo général</option>
+              </select>
+              
+              <button 
+                className="btn btn-primary btn-sm"
+                onClick={() => selectedCategorie && onSaveCategorie(selectedCategorie)}
+                disabled={!selectedCategorie || selectedCategorie === lta.typeTarif}
+              >
+                💾 Enregistrer
+              </button>
+            </div>
+            
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 8 }}>
+              Cette catégorie sera appliquée automatiquement aux prochaines factures de ce client.
+            </div>
+          </div>
+        </div>
+        
+        <div className="modal-footer">
+          <button className="btn btn-sec" onClick={onClose}>Fermer</button>
+          
+          {lta.statut === 'ok' && (
+            <button className="btn btn-primary" onClick={onValider}>
+              ✓ Valider LTA
+            </button>
+          )}
+          
+          {hasError && (
+            <button 
+              className="btn btn-primary" 
+              onClick={onOuvrirLitige}
+              style={{ background: 'var(--red)', color: '#fff' }}
+            >
+              ⚠️ Ouvrir Litige TAF OPS
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
