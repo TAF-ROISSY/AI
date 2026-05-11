@@ -3,12 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.1.8 — WFS Vérification</title>
+<title>TAF VERICHECK v3.1.9 — WFS Vérification</title>
 
 <!--
   TAF VERICHECK — Vérification factures handlers
   
   CHANGELOG:
+  v3.1.9 (2026-05-10)
+  - 🔧 DEBUG enregistrement tarifs (console.log ajoutés)
+  - ✅ Try-catch sur sauvegarde avec message d'erreur
+  - Fix texte "WFS" → texte générique
+  
   v3.1.8 (2026-05-10)
   - ❌ Retiré WFS des handlers
   - ✅ Ajouté FH et SFS
@@ -780,7 +785,7 @@ function App() {
           <div className="nav-logo">
             <div className="nav-badge">TAF</div>
             <div>
-              <div className="nav-title">VERICHECK v3.1.8</div>
+              <div className="nav-title">VERICHECK v3.1.9</div>
               <div className="nav-sub">VERIFICATION WFS</div>
             </div>
           </div>
@@ -841,7 +846,7 @@ function App() {
             </button>
           )}
           
-          <div className="version">v3.1.8</div>
+          <div className="version">v3.1.9</div>
         </div>
       </div>
       
@@ -1214,7 +1219,7 @@ function TabTarifs({ tarifs, onReload }) {
       <div className="alert alert-info">
         <div className="alert-icon">💡</div>
         <div>
-          <div className="alert-title">Configuration des grilles tarifaires WFS</div>
+          <div className="alert-title">Configuration des grilles tarifaires</div>
           <div className="alert-body">
             Configurez les tarifs que <strong>chaque compagnie de handling</strong> est censée appliquer pour chaque type de marchandise.
             <br/><br/>
@@ -1249,7 +1254,10 @@ function TabTarifs({ tarifs, onReload }) {
           </div>
         </div>
         
-        <button className="btn btn-primary btn-sm" onClick={() => setEditMode(true)}>
+        <button className="btn btn-primary btn-sm" onClick={() => {
+          console.log('[VERICHECK] Ouverture modal tarifs');
+          setEditMode(true);
+        }}>
           ✏️ Modifier les tarifs
         </button>
       </div>
@@ -1266,19 +1274,30 @@ function TabTarifs({ tarifs, onReload }) {
           type={selectedType}
           tarifs={tarifs}
           onSave={async (data) => {
-            // Charger tarifs actuels
-            const currentTarifs = await driveLoadConfig('tarifs');
-            
-            // Mettre à jour
-            if (!currentTarifs.handlers) currentTarifs.handlers = {};
-            if (!currentTarifs.handlers[selectedHandler]) currentTarifs.handlers[selectedHandler] = {};
-            currentTarifs.handlers[selectedHandler][selectedType] = data;
-            
-            // Sauvegarder dans Drive
-            await driveSaveConfig('tarifs', currentTarifs);
-            
-            onReload();
-            setEditMode(false);
+            try {
+              console.log('[VERICHECK] Début sauvegarde tarifs:', { handler: selectedHandler, type: selectedType });
+              
+              // Charger tarifs actuels
+              const currentTarifs = await driveLoadConfig('tarifs');
+              console.log('[VERICHECK] Tarifs chargés:', currentTarifs);
+              
+              // Mettre à jour
+              if (!currentTarifs.handlers) currentTarifs.handlers = {};
+              if (!currentTarifs.handlers[selectedHandler]) currentTarifs.handlers[selectedHandler] = {};
+              currentTarifs.handlers[selectedHandler][selectedType] = data;
+              
+              console.log('[VERICHECK] Tarifs mis à jour:', currentTarifs);
+              
+              // Sauvegarder dans Drive
+              await driveSaveConfig('tarifs', currentTarifs);
+              
+              console.log('[VERICHECK] ✅ Tarifs sauvegardés avec succès');
+              onReload();
+              setEditMode(false);
+            } catch (error) {
+              console.error('[VERICHECK] ❌ Erreur sauvegarde tarifs:', error);
+              alert('Erreur lors de la sauvegarde: ' + error.message);
+            }
           }}
           onClose={() => setEditMode(false)}
         />
@@ -1357,6 +1376,8 @@ function formatTarifValue(key, value) {
 function TarifModal({ handler, type, tarifs, onSave, onClose }) {
   const currentGrille = tarifs?.handlers?.[handler]?.[type] || {};
   const [form, setForm] = useState(currentGrille);
+  
+  console.log('[VERICHECK] Modal tarifs rendu:', { handler, type, currentGrille });
   
   function upd(field, value) {
     setForm({ ...form, [field]: parseFloat(value) || 0 });
