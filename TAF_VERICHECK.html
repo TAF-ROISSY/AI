@@ -3,12 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAF VERICHECK v3.1.7 — WFS Vérification</title>
+<title>TAF VERICHECK v3.1.8 — WFS Vérification</title>
 
 <!--
   TAF VERICHECK — Vérification factures handlers
   
   CHANGELOG:
+  v3.1.8 (2026-05-10)
+  - ❌ Retiré WFS des handlers
+  - ✅ Ajouté FH et SFS
+  - Handler par défaut changé: Air France
+  
   v3.1.7 (2026-05-10)
   - 🔧 FIX CRITIQUE : loadClients not defined
   - Passage correct de onReloadClients au TabVerification
@@ -255,8 +260,9 @@ const SHARED_CLIENTS_PATH = "taf_shared/clients";
 // Handlers disponibles
 const HANDLERS = [
   { id: 'air_france', label: 'Air France' },
+  { id: 'fh', label: 'FH' },
   { id: 'gsh', label: 'Global Service Handling (GSH)' },
-  { id: 'wfs', label: 'WFS' },
+  { id: 'sfs', label: 'SFS' },
   { id: 'alyzia', label: 'Alyzia' },
   { id: 'geh', label: 'GEH' }
 ];
@@ -569,7 +575,7 @@ function App() {
   
   const [factureFile, setFactureFile] = useState(null);
   const [dossiersFile, setDossiersFile] = useState(null);
-  const [selectedHandler, setSelectedHandler] = useState('wfs');
+  const [selectedHandler, setSelectedHandler] = useState('air_france');
   const [factureData, setFactureData] = useState([]);
   const [dossiersData, setDossiersData] = useState([]);
   const [matchedData, setMatchedData] = useState([]);
@@ -591,7 +597,7 @@ function App() {
       if (saved) {
         const data = JSON.parse(saved);
         setMatchedData(data.verified || []);
-        setSelectedHandler(data.handler || 'wfs');
+        setSelectedHandler(data.handler || 'air_france');
         console.log('✅ Données restaurées:', {
           nb: data.verified?.length || 0,
           facture: data.factureFile,
@@ -774,7 +780,7 @@ function App() {
           <div className="nav-logo">
             <div className="nav-badge">TAF</div>
             <div>
-              <div className="nav-title">VERICHECK v3.1.7</div>
+              <div className="nav-title">VERICHECK v3.1.8</div>
               <div className="nav-sub">VERIFICATION WFS</div>
             </div>
           </div>
@@ -835,7 +841,7 @@ function App() {
             </button>
           )}
           
-          <div className="version">v3.1.7</div>
+          <div className="version">v3.1.8</div>
         </div>
       </div>
       
@@ -1199,7 +1205,7 @@ function ClientModal({ client, onSave, onClose }) {
 // TAB: TARIFS
 // ═══════════════════════════════════════════════════════════════════════════
 function TabTarifs({ tarifs, onReload }) {
-  const [selectedHandler, setSelectedHandler] = useState('wfs');
+  const [selectedHandler, setSelectedHandler] = useState('air_france');
   const [selectedType, setSelectedType] = useState('poissons_frais');
   const [editMode, setEditMode] = useState(false);
   
