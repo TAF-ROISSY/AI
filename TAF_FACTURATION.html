@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.7 (14 avril)</title>
+  <title>TAF — Facturation Pro AI v10.9 (13 mai)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -11722,34 +11722,41 @@ function App(){
               </div>
             </Card>}
             <MaltaBlock onSendEmail={sendEmailToClient} res={sfRes} malta={sfMalta} setMalta={setSfMalta} notes={sfNotes} setNotes={setSfNotes} docNum={sfDocNum} setDocNum={setSfDocNum} client={sfClient} module="Seafood" compagnie={sfComp} poids={sfPoids} numDec={sfNumDec} setNumDec={setSfNumDec} droits={sfDroits} setDroits={setSfDroits} taxeVeto={sfTaxeVeto} setTaxeVeto={setSfTaxeVeto} lta={sfLta} setLta={setSfLta}/>
-            <InvoicePanel result={sfRes} clientName={sfClient} compName={sfComp} notes={sfNotes} maltaRef={sfMalta} docNum={sfDocNum} numDec={sfNumDec} droits={sfDroits} taxeVeto={sfTaxeVeto}
-              hideDebours={true}
-              onValidate={sfRes?()=>validateDossier("Seafood",sfClient,sfComp,sfPoids,sfRes,sfMalta,sfNotes,setSfDocNum,sfLta,sfNumDec,sfDroits,sfTaxeVeto):null}/>
-            {/* Débours en bas de page */}
-            {sfRes&&sfRes.debours&&sfRes.debours.length>0&&<div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)",marginTop:"0"}}>
-              <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
-                <span style={{color:"#fff",fontSize:"13px",opacity:0.8}}>{sfComp}</span>
+            {/* Conteneur flex pour afficher cotation et débours côte à côte */}
+            <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 55%",minWidth:"400px"}}>
+                <InvoicePanel result={sfRes} clientName={sfClient} compName={sfComp} notes={sfNotes} maltaRef={sfMalta} docNum={sfDocNum} numDec={sfNumDec} droits={sfDroits} taxeVeto={sfTaxeVeto}
+                  hideDebours={true}
+                  onValidate={sfRes?()=>validateDossier("Seafood",sfClient,sfComp,sfPoids,sfRes,sfMalta,sfNotes,setSfDocNum,sfLta,sfNumDec,sfDroits,sfTaxeVeto):null}/>
               </div>
-              <div style={{padding:"14px 20px"}}>
-                <div style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",marginBottom:"8px",padding:"4px 0",borderBottom:"1px solid "+T.offWhite}}>
-                  <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Tiers</span>
-                  <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Prestation</span>
-                  <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase",textAlign:"right"}}>Montant</span>
+              {/* Débours en bas de page */}
+              {sfRes&&sfRes.debours&&sfRes.debours.length>0&&<div style={{flex:"1 1 45%",minWidth:"350px"}}>
+                <div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)"}}>
+                  <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
+                    <span style={{color:"#fff",fontSize:"13px",opacity:0.8}}>{sfComp}</span>
+                  </div>
+                  <div style={{padding:"14px 20px"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",marginBottom:"8px",padding:"4px 0",borderBottom:"1px solid "+T.offWhite}}>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Tiers</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Prestation</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase",textAlign:"right"}}>Montant</span>
+                    </div>
+                    {sfRes.debours.map(function(d,i){
+                      return <div key={i} style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",padding:"7px 0",borderBottom:"1px solid "+T.offWhite,alignItems:"center"}}>
+                        <span style={{fontSize:"12px",color:T.orangeD,fontWeight:"700"}}>{d.tiers}</span>
+                        <span style={{fontSize:"13px",color:T.text}}>{d.prestation}</span>
+                        <span style={{fontSize:"14px",fontWeight:"800",color:T.orangeD,textAlign:"right"}}>{d.montant.toFixed(2)} €</span>
+                      </div>;
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"12px 0 4px",marginTop:"6px",borderTop:"2px solid "+T.orangeD,alignItems:"center"}}>
+                      <span style={{fontSize:"12px",color:T.textL,fontWeight:"700"}}>TOTAL DÉBOURS</span>
+                      <span style={{fontSize:"18px",fontWeight:"900",color:T.orangeD}}>{sfRes.debours.reduce(function(s,d){return s+d.montant;},0).toFixed(2)} €</span>
+                    </div>
+                  </div>
                 </div>
-                {sfRes.debours.map(function(d,i){
-                  return <div key={i} style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",padding:"7px 0",borderBottom:"1px solid "+T.offWhite,alignItems:"center"}}>
-                    <span style={{fontSize:"12px",color:T.orangeD,fontWeight:"700"}}>{d.tiers}</span>
-                    <span style={{fontSize:"13px",color:T.text}}>{d.prestation}</span>
-                    <span style={{fontSize:"14px",fontWeight:"800",color:T.orangeD,textAlign:"right"}}>{d.montant.toFixed(2)} €</span>
-                  </div>;
-                })}
-                <div style={{display:"flex",justifyContent:"space-between",padding:"12px 0 4px",marginTop:"6px",borderTop:"2px solid "+T.orangeD,alignItems:"center"}}>
-                  <span style={{fontSize:"12px",color:T.textL,fontWeight:"700"}}>TOTAL DÉBOURS</span>
-                  <span style={{fontSize:"18px",fontWeight:"900",color:T.orangeD}}>{sfRes.debours.reduce(function(s,d){return s+d.montant;},0).toFixed(2)} €</span>
-                </div>
-              </div>
-            </div>}
+              </div>}
+            </div>
 
             {/* Tableau compagnies cliquable — tout en bas */}
             {Object.keys(compSF).length>0&&<div className="no-print"><Card title="Débours par compagnie — cliquez pour choisir" action={<span style={{fontSize:"11px",color:T.grayD}}>Cliquez pour sélectionner</span>}>
@@ -13452,7 +13459,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   if (window.__TAF_MONITOR__) return; // évite double injection
   var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
   var APP_NAME  = 'TAF FACTURATION';
-  var APP_VER   = 'v10.7';
+  var APP_VER   = 'v10.9';
   var HB_MS     = 30000;
   if (!DB_URL) {
     console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
