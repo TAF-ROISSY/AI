@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.17 (13 mai)</title>
+  <title>TAF — Facturation Pro AI v10.18 (13 mai)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -6203,17 +6203,26 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
     if(files.length===1){
       saveDeclPDF(dossier.id, files[0]).then(function(){
         setDeclUrl(URL.createObjectURL(files[0]));
+        setSendStatus('pending');
       });
     } else {
       /* Fusionner plusieurs PDFs */
+      setSendStatus('pending');
       mergeMultiplePDFFiles(files).then(function(result){
-        if(!result) return;
+        if(!result) {
+          alert("❌ Erreur lors de la fusion des PDFs. Vérifiez que pdf-lib est chargé.");
+          return;
+        }
         var blob=new Blob([result.buf],{type:"application/pdf"});
         var fakeFile=new File([blob], "declarations_merged.pdf",{type:"application/pdf"});
         saveDeclPDF(dossier.id, fakeFile).then(function(){
           setDeclUrl(URL.createObjectURL(blob));
+          alert("✅ "+files.length+" déclarations fusionnées en 1 PDF ("+result.pages+" pages)");
         });
         console.log("[TAF] ✅ "+files.length+" déclarations fusionnées → "+result.pages+" pages");
+      }).catch(function(err){
+        alert("❌ Erreur fusion PDF: "+err.message);
+        console.error("[TAF] Merge error:", err);
       });
     }
   }
@@ -6259,15 +6268,22 @@ function PopupDossier({ dossier, onClose, onSave, makeWebhook }) {
       });
     } else {
       mergeMultiplePDFFiles(files).then(function(result){
-        if(!result) return;
+        if(!result) {
+          alert("❌ Erreur lors de la fusion des factures Malta. Vérifiez que pdf-lib est chargé.");
+          return;
+        }
         var blob=new Blob([result.buf],{type:"application/pdf"});
         var fakeFile=new File([blob], "factures_merged.pdf",{type:"application/pdf"});
         saveMaltaPDF(dossier.id, fakeFile).then(function(){
           setHasMalta(true);
           setMaltaName(files.length+" factures fusionnées ("+result.pages+" pages)");
           setMaltaUrl(URL.createObjectURL(blob));
+          alert("✅ "+files.length+" factures Malta fusionnées en 1 PDF ("+result.pages+" pages)");
         });
         console.log("[TAF] ✅ "+files.length+" factures Malta fusionnées → "+result.pages+" pages");
+      }).catch(function(err){
+        alert("❌ Erreur fusion factures Malta: "+err.message);
+        console.error("[TAF] Merge Malta error:", err);
       });
     }
   }
@@ -13470,7 +13486,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   if (window.__TAF_MONITOR__) return; // évite double injection
   var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
   var APP_NAME  = 'TAF FACTURATION';
-  var APP_VER   = 'v10.17';
+  var APP_VER   = 'v10.18';
   var HB_MS     = 30000;
   if (!DB_URL) {
     console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
