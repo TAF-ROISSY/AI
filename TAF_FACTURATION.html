@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.9 (13 mai)</title>
+  <title>TAF — Facturation Pro AI v10.10 (13 mai)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -157,6 +157,23 @@
     /* ══ NAVIGATION DROPDOWN ══════════════════════════════════════════════ */
     .taf-nav-group:hover .taf-nav-dropdown{display:block!important;}
     .taf-nav-group:hover>button{background:rgba(255,255,255,.1)!important;color:#fff!important;}
+    
+    /* ══ LAYOUT COTATION + DÉBOURS CÔTE À CÔTE ════════════════════════════ */
+    .invoice-debours-flex{
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    .invoice-debours-flex > .invoice-col{
+      flex:1 1 55%;
+      min-width:400px;
+    }
+    .invoice-debours-flex > .debours-col{
+      flex:1 1 45%;
+      min-width:350px;
+    }
+    
     @media print{
       /* ══ RESET GENERAL IMPRESSION ══════════════════════════════════════════ */
       *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
@@ -10733,8 +10750,10 @@ function App(){
     setSaving(true);
     const docNum=await generateDocNum(module);
     if(setDocNum) setDocNum(docNum);
+    /* BUGFIX: Ajouter timestamp pour ID unique et éviter collision PDFs */
+    const uniqueId=docNum+"_"+Date.now();
     const itemsStr=result.items.map(function(i){return i.code+":"+i.label+":"+i.montant.toFixed(2);}).join("|");
-    const rec={id:docNum,date:dateStr,module,client,compagnie,poids:poids||"",total:result.total.toFixed(2),debours:debTotal.toFixed(2),marge:marge.toFixed(2),margePct,items:itemsStr,malta:malta||"",notes:notes||"",lta:lta||"",numDec:numDec||"",droits:droits||"",taxeVeto:taxeVeto||"",statut:"Validé"};
+    const rec={id:uniqueId,docNum:docNum,date:dateStr,module,client,compagnie,poids:poids||"",total:result.total.toFixed(2),debours:debTotal.toFixed(2),marge:marge.toFixed(2),margePct,items:itemsStr,malta:malta||"",notes:notes||"",lta:lta||"",numDec:numDec||"",droits:droits||"",taxeVeto:taxeVeto||"",statut:"Validé"};
     const res=await apiSave("dossiers",rec);
     if(res.ok){
       setDossiers(function(p){ var nd=[{...rec},...p];
@@ -10748,7 +10767,8 @@ function App(){
       var clientData=clientsSF[client]||clientsAVI[client]||clientsFL[client]||clientsCargo[client]||clientsICA[client];
       if(clientData) clientEmail=clientData.emails||clientData.email||"";
       var pendingEntry={
-        id:docNum,
+        id:uniqueId,
+        docNum:docNum,
         date:new Date().toISOString(),
         type:module,
         client:client||"",
@@ -10767,7 +10787,7 @@ function App(){
       };
       var pendList=loadPending();
       /* Eviter les doublons si déjà présent */
-      var existIdx=pendList.findIndex(function(p){return p.id===docNum;});
+      var existIdx=pendList.findIndex(function(p){return p.id===uniqueId;});
       if(existIdx<0) pendList.unshift(pendingEntry);
       else pendList[existIdx]=pendingEntry;
       savePending(pendList);
@@ -11723,14 +11743,14 @@ function App(){
             </Card>}
             <MaltaBlock onSendEmail={sendEmailToClient} res={sfRes} malta={sfMalta} setMalta={setSfMalta} notes={sfNotes} setNotes={setSfNotes} docNum={sfDocNum} setDocNum={setSfDocNum} client={sfClient} module="Seafood" compagnie={sfComp} poids={sfPoids} numDec={sfNumDec} setNumDec={setSfNumDec} droits={sfDroits} setDroits={setSfDroits} taxeVeto={sfTaxeVeto} setTaxeVeto={setSfTaxeVeto} lta={sfLta} setLta={setSfLta}/>
             {/* Conteneur flex pour afficher cotation et débours côte à côte */}
-            <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
-              <div style={{flex:"1 1 55%",minWidth:"400px"}}>
+            <div className="invoice-debours-flex">
+              <div className="invoice-col">
                 <InvoicePanel result={sfRes} clientName={sfClient} compName={sfComp} notes={sfNotes} maltaRef={sfMalta} docNum={sfDocNum} numDec={sfNumDec} droits={sfDroits} taxeVeto={sfTaxeVeto}
                   hideDebours={true}
                   onValidate={sfRes?()=>validateDossier("Seafood",sfClient,sfComp,sfPoids,sfRes,sfMalta,sfNotes,setSfDocNum,sfLta,sfNumDec,sfDroits,sfTaxeVeto):null}/>
               </div>
               {/* Débours en bas de page */}
-              {sfRes&&sfRes.debours&&sfRes.debours.length>0&&<div style={{flex:"1 1 45%",minWidth:"350px"}}>
+              {sfRes&&sfRes.debours&&sfRes.debours.length>0&&<div className="debours-col">
                 <div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)"}}>
                   <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
@@ -13459,7 +13479,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   if (window.__TAF_MONITOR__) return; // évite double injection
   var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
   var APP_NAME  = 'TAF FACTURATION';
-  var APP_VER   = 'v10.9';
+  var APP_VER   = 'v10.10';
   var HB_MS     = 30000;
   if (!DB_URL) {
     console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
