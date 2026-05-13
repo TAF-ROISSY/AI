@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.14 (13 mai)</title>
+  <title>TAF — Facturation Pro AI v10.15 (13 mai)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -10179,10 +10179,6 @@ function MaltaBlock({mod,client,res,malta,setMalta,notes,setNotes,docNum,setDocN
             var body=encodeURIComponent("Facture "+docNum+" - "+client+"\nDossier Malta: "+malta+"\nMontant: "+res.total.toFixed(2)+" EUR");
             window.location.href="mailto:import@taftrans.fr?subject="+subj+"&body="+body;
           }}>Email</Btn>}
-          <button onClick={function(){if(onSendEmail) onSendEmail(module,client,compagnie,poids,res,malta,notes,docNum,numDec,droits,taxeVeto,lta);}}
-            style={{padding:"8px 14px",background:"linear-gradient(135deg,#e8601a,#d44b00)",color:"#fff",border:"none",borderRadius:"6px",fontSize:"12px",fontWeight:"700",cursor:"pointer",display:"flex",alignItems:"center",gap:"6px",whiteSpace:"nowrap",boxShadow:"0 2px 8px rgba(232,96,26,.3)"}}>
-            📧 Envoyer au client
-          </button>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:"10px",background:"#f0f4ff",border:"1px solid #c5d0e8",borderRadius:"8px",padding:"12px"}}>
           <div>
@@ -11685,6 +11681,7 @@ function App(){
             <ClientOptionsPanel clientRecord={clientsSF[sfClient]} selectedOpts={sfOpts} setSelectedOpts={setSfOpts} poids={sfPoids}/>
 
 
+            <MaltaBlock onSendEmail={sendEmailToClient} res={sfRes} malta={sfMalta} setMalta={setSfMalta} notes={sfNotes} setNotes={setSfNotes} docNum={sfDocNum} setDocNum={setSfDocNum} client={sfClient} module="Seafood" compagnie={sfComp} poids={sfPoids} numDec={sfNumDec} setNumDec={setSfNumDec} droits={sfDroits} setDroits={setSfDroits} taxeVeto={sfTaxeVeto} setTaxeVeto={setSfTaxeVeto} lta={sfLta} setLta={setSfLta}/>
             {/* Conteneur flex pour afficher cotation et débours côte à côte */}
             <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
               <div style={{flex:"1 1 55%",minWidth:"300px"}}>
@@ -11776,7 +11773,6 @@ function App(){
                 <span style={{fontSize:"13px",color:"#4a5668"}}>= {calcTransportFromClient(clientsSF[sfClient],parseFloat(sfPoids)||0,sfPalettes).toFixed(2)} €</span>
               </div>
             </Card>}
-            <MaltaBlock onSendEmail={sendEmailToClient} res={sfRes} malta={sfMalta} setMalta={setSfMalta} notes={sfNotes} setNotes={setSfNotes} docNum={sfDocNum} setDocNum={setSfDocNum} client={sfClient} module="Seafood" compagnie={sfComp} poids={sfPoids} numDec={sfNumDec} setNumDec={setSfNumDec} droits={sfDroits} setDroits={setSfDroits} taxeVeto={sfTaxeVeto} setTaxeVeto={setSfTaxeVeto} lta={sfLta} setLta={setSfLta}/>
             {/* Tableau compagnies cliquable — tout en bas */}
             {Object.keys(compSF).length>0&&<div className="no-print"><Card title="Débours par compagnie — cliquez pour choisir" action={<span style={{fontSize:"11px",color:T.grayD}}>Cliquez pour sélectionner</span>}>
               <div style={{overflowX:"auto"}}>
@@ -13478,7 +13474,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   if (window.__TAF_MONITOR__) return; // évite double injection
   var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
   var APP_NAME  = 'TAF FACTURATION';
-  var APP_VER   = 'v10.14';
+  var APP_VER   = 'v10.15';
   var HB_MS     = 30000;
   if (!DB_URL) {
     console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
