@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TAF — Facturation Pro AI v10.18 (13 mai)</title>
+  <title>TAF — Facturation Pro AI v10.19 (13 mai)</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
@@ -11965,8 +11965,41 @@ function App(){
               </div>
             </Card>}
             <MaltaBlock onSendEmail={sendEmailToClient} res={aviRes} malta={aviMalta} setMalta={setAviMalta} notes={aviNotes} setNotes={setAviNotes} docNum={aviDocNum} setDocNum={setAviDocNum} client={aviClient} module="AVI" compagnie={aviComp} poids={aviPoids} numDec={aviNumDec} setNumDec={setAviNumDec} droits={aviDroits} setDroits={setAviDroits} taxeVeto={aviTaxeVeto} setTaxeVeto={setAviTaxeVeto} lta={aviLta} setLta={setAviLta}/>
-            <InvoicePanel result={aviRes} clientName={aviClient} compName={aviComp} notes={aviNotes} maltaRef={aviMalta} docNum={aviDocNum} numDec={aviNumDec} droits={aviDroits} taxeVeto={aviTaxeVeto}
-              onValidate={aviRes?()=>validateDossier("AVI",aviClient,aviComp,aviPoids,aviRes,aviMalta,aviNotes,setAviDocNum,aviLta,aviNumDec,aviDroits,aviTaxeVeto):null}/>
+            {/* Conteneur flex pour afficher cotation et débours côte à côte */}
+            <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 55%",minWidth:"300px"}}>
+                <InvoicePanel result={aviRes} clientName={aviClient} compName={aviComp} notes={aviNotes} maltaRef={aviMalta} docNum={aviDocNum} numDec={aviNumDec} droits={aviDroits} taxeVeto={aviTaxeVeto}
+                  hideDebours={true}
+                  onValidate={aviRes?()=>validateDossier("AVI",aviClient,aviComp,aviPoids,aviRes,aviMalta,aviNotes,setAviDocNum,aviLta,aviNumDec,aviDroits,aviTaxeVeto):null}/>
+              </div>
+              {/* Débours côte à côte */}
+              {aviRes&&aviRes.debours&&aviRes.debours.length>0&&<div style={{flex:"1 1 40%",minWidth:"280px"}}>
+                <div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)"}}>
+                  <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
+                    <span style={{color:"#fff",fontSize:"13px",opacity:0.8}}>{aviComp}</span>
+                  </div>
+                  <div style={{padding:"14px 20px"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",marginBottom:"8px",padding:"4px 0",borderBottom:"1px solid "+T.offWhite}}>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Tiers</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Prestation</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase",textAlign:"right"}}>Montant</span>
+                    </div>
+                    {aviRes.debours.map(function(d,i){
+                      return <div key={i} style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",padding:"7px 0",borderBottom:"1px solid "+T.offWhite,alignItems:"center"}}>
+                        <span style={{fontSize:"12px",color:T.orangeD,fontWeight:"700"}}>{d.tiers}</span>
+                        <span style={{fontSize:"13px",color:T.text}}>{d.prestation}</span>
+                        <span style={{fontSize:"14px",fontWeight:"800",color:T.orangeD,textAlign:"right"}}>{d.montant.toFixed(2)} €</span>
+                      </div>;
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"12px 0 4px",marginTop:"6px",borderTop:"2px solid "+T.orangeD,alignItems:"center"}}>
+                      <span style={{fontSize:"12px",color:T.textL,fontWeight:"700"}}>TOTAL DÉBOURS</span>
+                      <span style={{fontSize:"18px",fontWeight:"900",color:T.orangeD}}>{aviRes.debours.reduce(function(s,d){return s+d.montant;},0).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+              </div>}
+            </div>
           </>}
 
           {/* ══ FL ══ */}
@@ -12095,8 +12128,41 @@ function App(){
               </div>
             </Card>}
             <MaltaBlock onSendEmail={sendEmailToClient} res={flRes} malta={flMalta} setMalta={setFlMalta} notes={flNotes} setNotes={setFlNotes} docNum={flDocNum} setDocNum={setFlDocNum} client={flClient} module="FL" compagnie={flComp} poids={flPoids} numDec={flNumDec} setNumDec={setFlNumDec} droits={flDroits} setDroits={setFlDroits} taxeVeto={flTaxeVeto} setTaxeVeto={setFlTaxeVeto} lta={flLta} setLta={setFlLta}/>
-            <InvoicePanel result={flRes} clientName={flClient} compName={flComp} notes={flNotes} maltaRef={flMalta} docNum={flDocNum} numDec={flNumDec} droits={flDroits} taxeVeto={flTaxeVeto}
-              onValidate={flRes?()=>validateDossier("Fruits & Légumes",flClient,flComp,flPoids,flRes,flMalta,flNotes,setFlDocNum,flLta,flNumDec,flDroits,flTaxeVeto):null}/>
+            {/* Conteneur flex pour afficher cotation et débours côte à côte */}
+            <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 55%",minWidth:"300px"}}>
+                <InvoicePanel result={flRes} clientName={flClient} compName={flComp} notes={flNotes} maltaRef={flMalta} docNum={flDocNum} numDec={flNumDec} droits={flDroits} taxeVeto={flTaxeVeto}
+                  hideDebours={true}
+                  onValidate={flRes?()=>validateDossier("Fruits & Légumes",flClient,flComp,flPoids,flRes,flMalta,flNotes,setFlDocNum,flLta,flNumDec,flDroits,flTaxeVeto):null}/>
+              </div>
+              {/* Débours côte à côte */}
+              {flRes&&flRes.debours&&flRes.debours.length>0&&<div style={{flex:"1 1 40%",minWidth:"280px"}}>
+                <div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)"}}>
+                  <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
+                    <span style={{color:"#fff",fontSize:"13px",opacity:0.8}}>{flComp}</span>
+                  </div>
+                  <div style={{padding:"14px 20px"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",marginBottom:"8px",padding:"4px 0",borderBottom:"1px solid "+T.offWhite}}>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Tiers</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Prestation</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase",textAlign:"right"}}>Montant</span>
+                    </div>
+                    {flRes.debours.map(function(d,i){
+                      return <div key={i} style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",padding:"7px 0",borderBottom:"1px solid "+T.offWhite,alignItems:"center"}}>
+                        <span style={{fontSize:"12px",color:T.orangeD,fontWeight:"700"}}>{d.tiers}</span>
+                        <span style={{fontSize:"13px",color:T.text}}>{d.prestation}</span>
+                        <span style={{fontSize:"14px",fontWeight:"800",color:T.orangeD,textAlign:"right"}}>{d.montant.toFixed(2)} €</span>
+                      </div>;
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"12px 0 4px",marginTop:"6px",borderTop:"2px solid "+T.orangeD,alignItems:"center"}}>
+                      <span style={{fontSize:"12px",color:T.textL,fontWeight:"700"}}>TOTAL DÉBOURS</span>
+                      <span style={{fontSize:"18px",fontWeight:"900",color:T.orangeD}}>{flRes.debours.reduce(function(s,d){return s+d.montant;},0).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+              </div>}
+            </div>
           </>}
 
           {/* ══ CARGO ══ */}
@@ -12254,8 +12320,41 @@ function App(){
               </div>
             </Card>}
             <MaltaBlock onSendEmail={sendEmailToClient} res={cgRes} malta={cgMalta} setMalta={setCgMalta} notes={cgNotes} setNotes={setCgNotes} docNum={cgDocNum} setDocNum={setCgDocNum} client={cgClient} module="Cargo" compagnie={cgComp} poids={cgPoids} numDec={cgNumDec} setNumDec={setCgNumDec} droits={cgDroits} setDroits={setCgDroits} taxeVeto={cgTaxeVeto} setTaxeVeto={setCgTaxeVeto} lta={cgLta} setLta={setCgLta}/>
-            <InvoicePanel result={cgRes} clientName={cgClient} compName={cgComp} notes={cgNotes} maltaRef={cgMalta} docNum={cgDocNum} numDec={cgNumDec} droits={cgDroits} taxeVeto={cgTaxeVeto}
-              onValidate={cgRes?()=>validateDossier("Cargo",cgClient,cgComp,cgPoids,cgRes,cgMalta,cgNotes,setCgDocNum,cgLta,cgNumDec,cgDroits,cgTaxeVeto):null}/>
+            {/* Conteneur flex pour afficher cotation et débours côte à côte */}
+            <div style={{display:"flex",gap:"16px",alignItems:"flex-start",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 55%",minWidth:"300px"}}>
+                <InvoicePanel result={cgRes} clientName={cgClient} compName={cgComp} notes={cgNotes} maltaRef={cgMalta} docNum={cgDocNum} numDec={cgNumDec} droits={cgDroits} taxeVeto={cgTaxeVeto}
+                  hideDebours={true}
+                  onValidate={cgRes?()=>validateDossier("Cargo",cgClient,cgComp,cgPoids,cgRes,cgMalta,cgNotes,setCgDocNum,cgLta,cgNumDec,cgDroits,cgTaxeVeto):null}/>
+              </div>
+              {/* Débours côte à côte */}
+              {cgRes&&cgRes.debours&&cgRes.debours.length>0&&<div style={{flex:"1 1 40%",minWidth:"280px"}}>
+                <div style={{background:"#fff",border:"1px solid "+T.gray,borderRadius:"10px",overflow:"hidden",boxShadow:"0 2px 8px rgba(26,42,74,.06)"}}>
+                  <div style={{background:T.orangeD,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{color:"#fff",fontWeight:"800",fontSize:"14px",letterSpacing:"1px"}}>DÉBOURS — Frais compagnie</span>
+                    <span style={{color:"#fff",fontSize:"13px",opacity:0.8}}>{cgComp}</span>
+                  </div>
+                  <div style={{padding:"14px 20px"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",marginBottom:"8px",padding:"4px 0",borderBottom:"1px solid "+T.offWhite}}>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Tiers</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase"}}>Prestation</span>
+                      <span style={{fontSize:"10px",color:T.grayD,fontWeight:"700",textTransform:"uppercase",textAlign:"right"}}>Montant</span>
+                    </div>
+                    {cgRes.debours.map(function(d,i){
+                      return <div key={i} style={{display:"grid",gridTemplateColumns:"110px 1fr 100px",gap:"8px",padding:"7px 0",borderBottom:"1px solid "+T.offWhite,alignItems:"center"}}>
+                        <span style={{fontSize:"12px",color:T.orangeD,fontWeight:"700"}}>{d.tiers}</span>
+                        <span style={{fontSize:"13px",color:T.text}}>{d.prestation}</span>
+                        <span style={{fontSize:"14px",fontWeight:"800",color:T.orangeD,textAlign:"right"}}>{d.montant.toFixed(2)} €</span>
+                      </div>;
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"12px 0 4px",marginTop:"6px",borderTop:"2px solid "+T.orangeD,alignItems:"center"}}>
+                      <span style={{fontSize:"12px",color:T.textL,fontWeight:"700"}}>TOTAL DÉBOURS</span>
+                      <span style={{fontSize:"18px",fontWeight:"900",color:T.orangeD}}>{cgRes.debours.reduce(function(s,d){return s+d.montant;},0).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+              </div>}
+            </div>
           </>}
 
           {/* ══ ICA ══ */}
@@ -13486,7 +13585,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
   if (window.__TAF_MONITOR__) return; // évite double injection
   var DB_URL    = (window.TAF_MONITOR_DB || localStorage.getItem('taf_monitor_db_url') || '').replace(/\/+$/, '');
   var APP_NAME  = 'TAF FACTURATION';
-  var APP_VER   = 'v10.18';
+  var APP_VER   = 'v10.19';
   var HB_MS     = 30000;
   if (!DB_URL) {
     console.warn('[TAF Monitor] URL Firebase non configurée. Définir window.TAF_MONITOR_DB ou localStorage.taf_monitor_db_url');
