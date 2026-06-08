@@ -393,6 +393,8 @@
     font-size: 15px; font-weight: 800; cursor: pointer; letter-spacing: 1px; width: 100%; margin-top: 8px;
   }
 
+  @keyframes alertPulse { 0%,100%{box-shadow:0 0 0 0 rgba(230,57,70,0.5)} 50%{box-shadow:0 0 0 8px rgba(230,57,70,0)} }
+
   /* ── RESPONSIVE ── */
   @media(max-width:600px) {
     .match-grid { grid-template-columns: 1fr; }
@@ -512,6 +514,9 @@
     <div class="header-right">
       <div class="user-badge"><span class="user-dot"></span><span id="user-name-display">—</span></div>
       <button class="btn-admin" onclick="openAdminModal()">⚙️ ADMIN</button>
+      <button id="alert-btn" onclick="showTab('matchs')" style="display:none;position:relative;background:linear-gradient(135deg,var(--red),#c0392b);border:none;border-radius:8px;padding:6px 14px;color:#fff;font-family:'Exo 2';font-size:12px;font-weight:800;cursor:pointer;animation:alertPulse 1.5s infinite;letter-spacing:.5px">
+        ⚠️ <span id="alert-count">0</span> PRONO MANQUANT
+      </button>
     </div>
   </div>
   <div id="nav">
@@ -522,7 +527,15 @@
     <button class="nav-btn" id="admin-tab-btn" style="display:none;color:var(--red)" onclick="showTab('admin')">🔧 SAISIE SCORES</button>
   </div>
 
-  <div id="content">
+  <!-- BANNIÈRE ALERTES PRONOS MANQUANTS -->
+  <div id="alert-banner" style="display:none;background:linear-gradient(135deg,rgba(230,57,70,0.15),rgba(230,57,70,0.08));border-bottom:1px solid rgba(230,57,70,0.4);padding:10px 24px;cursor:pointer" onclick="showTab('matchs')">
+    <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:18px">⚠️</span>
+      <span style="font-family:'Exo 2';font-weight:800;font-size:13px;color:var(--red)">PRONOS MANQUANTS</span>
+      <span style="font-size:13px;color:var(--text)" id="alert-text"></span>
+      <span style="font-size:11px;color:var(--muted);margin-left:auto">Clique pour saisir →</span>
+    </div>
+  </div>
 
     <!-- CLASSEMENT -->
     <div class="tab active" id="tab-classement">
@@ -903,6 +916,8 @@ function doLoginStep() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initListeners();
+    // Vérifier alertes toutes les 5 minutes
+    setInterval(checkAlerts, 5 * 60 * 1000);
   }
 }
 document.addEventListener('keydown', e => {
@@ -1081,7 +1096,51 @@ function showTab(name) {
   currentTab = name;
   renderTab(name);
 }
-function refreshCurrentTab() { renderTab(currentTab); }
+function refreshCurrentTab() { renderTab(currentTab); checkAlerts(); }
+
+// ═══════════════════════════════════════════════
+//  ALERTES PRONOS MANQUANTS (24h avant kick-off)
+// ═══════════════════════════════════════════════
+function checkAlerts() {
+  if (!currentUser) return;
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const myPronos = allPronostics[currentUser] || {};
+
+  // Matchs qui commencent dans moins de 24h sans prono saisi
+  const missing = ALL_MATCHES.filter(m => {
+    if (!m.kickoff) return false;
+    if (m.score1 !== null) return false; // déjà joué
+    const ko = new Date(m.kickoff);
+    if (ko <= now) return false; // déjà commencé
+    if (ko > in24h) return false; // plus de 24h
+    const prono = myPronos[m.id];
+    return !prono || prono.s1 === undefined; // pas de prono
+  });
+
+  const btn = document.getElementById('alert-btn');
+  const banner = document.getElementById('alert-banner');
+  const alertText = document.getElementById('alert-text');
+  const alertCount = document.getElementById('alert-count');
+
+  if (missing.length === 0) {
+    if (btn) btn.style.display = 'none';
+    if (banner) banner.style.display = 'none';
+    return;
+  }
+
+  // Afficher les alertes
+  if (btn) { btn.style.display = ''; alertCount.textContent = missing.length; }
+  if (banner) banner.style.display = '';
+
+  // Texte descriptif
+  const noms = missing.map(m => {
+    const ko = new Date(m.kickoff);
+    const heures = Math.round((ko - now) / 3600000);
+    return `${m.team1} vs ${m.team2} (dans ${heures}h)`;
+  });
+  if (alertText) alertText.textContent = noms.join(' · ');
+}
 function renderTab(name) {
   if (name==='classement') renderClassement();
   else if (name==='groupes') renderGroupes();
