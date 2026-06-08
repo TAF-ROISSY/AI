@@ -456,7 +456,10 @@
     <div class="login-year">2026</div>
     <div class="login-sub">Coupe du Monde FIFA • Équipe TAF Trans</div>
     <input class="login-input" id="login-pseudo" type="text" placeholder="Ton prénom / pseudo" maxlength="20" autocomplete="off">
-    <button class="login-btn" onclick="doLogin()">ENTRER</button>
+    <div id="login-pin-row" style="display:none">
+      <input class="login-input" id="login-pin" type="password" placeholder="Code PIN 🔒" maxlength="6" inputmode="numeric" style="letter-spacing:6px;font-family:'Russo One';font-size:20px;text-align:center">
+    </div>
+    <button class="login-btn" id="login-btn-main" onclick="doLoginStep()">ENTRER</button>
     <p class="login-info">🏟️ 104 matchs · 48 équipes · Du 11 juin au 19 juillet</p>
     <div class="points-system">
       <div class="points-title">⚡ Système de points</div>
@@ -582,13 +585,17 @@
         <div class="admin-panel" style="margin-bottom:16px">
           <div class="admin-title" id="joueur-form-title">➕ AJOUTER UN JOUEUR</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <div style="flex:1;min-width:160px">
+            <div style="flex:1;min-width:140px">
               <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px">PRÉNOM / PSEUDO</div>
               <input id="joueur-pseudo" class="admin-match-select" type="text" placeholder="Ex: Christophe" maxlength="20" style="margin:0">
             </div>
-            <div style="flex:1;min-width:160px">
+            <div style="flex:1;min-width:140px">
               <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px">ÉQUIPE FAVORITE 🏳️</div>
               <input id="joueur-equipe" class="admin-match-select" type="text" placeholder="Ex: France" maxlength="30" style="margin:0">
+            </div>
+            <div style="min-width:120px">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px">CODE PIN 🔒 <span style="color:var(--red)">*</span></div>
+              <input id="joueur-pin" class="admin-match-select" type="text" placeholder="Ex: 1234" maxlength="6" pattern="[0-9]*" inputmode="numeric" style="margin:0;letter-spacing:4px;font-family:'Russo One';font-size:16px">
             </div>
             <input type="hidden" id="joueur-edit-id">
             <div style="display:flex;gap:8px">
@@ -596,6 +603,7 @@
               <button onclick="cancelEditJoueur()" id="joueur-cancel-btn" style="display:none;background:var(--dark4);color:var(--muted);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 16px;cursor:pointer;font-family:'Exo 2';font-weight:700;font-size:14px">✕ Annuler</button>
             </div>
           </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted)">💡 Le PIN est demandé à chaque connexion. Communique-le en privé à chaque joueur.</div>
         </div>
 
         <!-- Liste des joueurs -->
@@ -780,28 +788,46 @@ let auditLog = {};
 // ═══════════════════════════════════════════════
 //  LOGIN
 // ═══════════════════════════════════════════════
-function doLogin() {
-  const pseudo = document.getElementById('login-pseudo').value.trim();
-  if (!pseudo) { showToast("Saisis ton prénom !", "error"); return; }
+let loginStep = 1; // 1 = pseudo, 2 = pin
+let loginFoundUser = null;
 
-  // Chercher dans les joueurs enregistrés (insensible à la casse)
-  const match = Object.entries(participants).find(([uid, p]) =>
-    (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
-  );
-
-  if (!match) {
-    showToast("Pseudo non reconnu. Demande à l'admin de t'ajouter !", "error");
-    return;
+function doLoginStep() {
+  if (loginStep === 1) {
+    const pseudo = document.getElementById('login-pseudo').value.trim();
+    if (!pseudo) { showToast("Saisis ton prénom !", "error"); return; }
+    const match = Object.entries(participants).find(([uid, p]) =>
+      (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
+    );
+    if (!match) { showToast("Pseudo non reconnu. Demande à l'admin !", "error"); return; }
+    loginFoundUser = match;
+    // Passer à l'étape PIN
+    loginStep = 2;
+    document.getElementById('login-pseudo').disabled = true;
+    document.getElementById('login-pseudo').style.opacity = '0.5';
+    document.getElementById('login-pin-row').style.display = '';
+    document.getElementById('login-btn-main').textContent = 'VALIDER LE PIN';
+    document.getElementById('login-pin').focus();
+  } else {
+    const pin = document.getElementById('login-pin').value.trim();
+    if (!pin) { showToast("Saisis ton code PIN !", "error"); return; }
+    const [uid, data] = loginFoundUser;
+    if (String(data.pin) !== String(pin)) {
+      showToast("Code PIN incorrect !", "error");
+      document.getElementById('login-pin').value = '';
+      document.getElementById('login-pin').focus();
+      return;
+    }
+    // Connexion OK
+    currentUser = uid;
+    document.getElementById('user-name-display').textContent = data.pseudo;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initListeners();
   }
-
-  const [uid, data] = match;
-  currentUser = uid;
-  document.getElementById('user-name-display').textContent = data.pseudo;
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  initListeners();
 }
-document.getElementById('login-pseudo').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLoginStep();
+});
 
 // ═══════════════════════════════════════════════
 //  FIREBASE LISTENERS
@@ -1234,6 +1260,7 @@ function renderJoueurs() {
     <div class="joueur-stats">
       <span class="joueur-pts">${p.pts||0} pts</span>
       <span style="font-size:11px;color:var(--muted)">⭐${p.exact||0} ✓${p.vainqueur||0}</span>
+      <span style="font-size:11px;background:rgba(255,215,0,0.1);color:${p.pin?'var(--gold)':'var(--red)'};border:1px solid ${p.pin?'rgba(255,215,0,0.3)':'rgba(230,57,70,0.3)'};padding:2px 8px;border-radius:6px">${p.pin ? '🔒 PIN ••••' : '⚠️ Sans PIN'}</span>
     </div>
     <div class="joueur-actions">
       <button class="btn-edit-joueur" onclick="editJoueur('${uid}')">✏️ Éditer</button>
@@ -1245,8 +1272,10 @@ function renderJoueurs() {
 function saveJoueur() {
   const pseudo = document.getElementById('joueur-pseudo').value.trim();
   const equipe = document.getElementById('joueur-equipe').value.trim();
+  const pin = document.getElementById('joueur-pin').value.trim();
   const editId = document.getElementById('joueur-edit-id').value;
   if (!pseudo) { showToast("Saisis un prénom !", "error"); return; }
+  if (!pin || !/^\d{4,6}$/.test(pin)) { showToast("PIN requis : 4 à 6 chiffres !", "error"); return; }
   const doublon = Object.entries(participants).find(([uid,p]) =>
     (p.pseudo||'').toLowerCase()===pseudo.toLowerCase() && uid!==editId
   );
@@ -1254,7 +1283,7 @@ function saveJoueur() {
   const uid = editId || pseudo.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+'_'+Date.now().toString(36);
   const ex = (editId && participants[editId]) || {};
   db.ref(`taf_prono/participants/${uid}`).set({
-    pseudo, equipe: equipe||'',
+    pseudo, equipe: equipe||'', pin,
     pts:ex.pts||0, exact:ex.exact||0, vainqueur:ex.vainqueur||0, total:ex.total||0
   })
   .then(()=>{ showToast(editId?`${pseudo} modifié ✓`:`${pseudo} ajouté ✓`,"success"); cancelEditJoueur(); })
@@ -1265,6 +1294,7 @@ function editJoueur(uid) {
   const p = participants[uid]; if(!p) return;
   document.getElementById('joueur-pseudo').value = p.pseudo||'';
   document.getElementById('joueur-equipe').value = p.equipe||'';
+  document.getElementById('joueur-pin').value = p.pin||'';
   document.getElementById('joueur-edit-id').value = uid;
   document.getElementById('joueur-form-title').textContent = `✏️ MODIFIER — ${p.pseudo}`;
   document.getElementById('joueur-save-btn').textContent = '💾 MODIFIER';
@@ -1275,6 +1305,7 @@ function editJoueur(uid) {
 function cancelEditJoueur() {
   document.getElementById('joueur-pseudo').value='';
   document.getElementById('joueur-equipe').value='';
+  document.getElementById('joueur-pin').value='';
   document.getElementById('joueur-edit-id').value='';
   document.getElementById('joueur-form-title').textContent='➕ AJOUTER UN JOUEUR';
   document.getElementById('joueur-save-btn').textContent='💾 ENREGISTRER';
