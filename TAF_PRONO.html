@@ -842,6 +842,7 @@ function initListeners() {
 // ═══════════════════════════════════════════════
 function renderAudit() {
   if (!isAdmin) return;
+  if (!document.getElementById('audit-stats')) return; // DOM pas encore visible
   const filter = document.getElementById('audit-filter')?.value || 'all';
   let entries = Object.entries(auditLog).map(([k,v])=>({key:k,...v}))
     .sort((a,b) => new Date(b.ts) - new Date(a.ts));
@@ -1208,8 +1209,8 @@ function showAdminSub(name) {
     document.getElementById('asub-'+s).classList.toggle('active', s===name);
   });
   if (name==='audit') renderAudit();
-  if (name==='joueurs') renderJoueurs();
-  if (name==='scores') renderAdmin();
+  else if (name==='joueurs') renderJoueurs();
+  else if (name==='scores') renderAdmin();
 }
 
 // ═══════════════════════════════════════════════
@@ -1296,14 +1297,16 @@ function deleteJoueur(uid) {
 // ═══════════════════════════════════════════════
 function renderAdmin() {
   if(!isAdmin) return;
+  // Ne remplir le select que si le sous-onglet scores est visible
   const sel = document.getElementById('admin-match-sel');
+  if (!sel) return;
   const prev = sel.value;
-  sel.innerHTML = ALL_MATCHES.map(m=>`<option value="${m.id}" ${m.score1!==null?'style="color:var(--green)"':''}>
-    #${m.num} [${m.phase}] ${m.team1} vs ${m.team2} ${m.score1!==null?`(${m.score1}-${m.score2})`:''}
-  </option>`).join('');
-  if(prev) sel.value=prev;
+  sel.innerHTML = ALL_MATCHES.map(m => {
+    const hasScore = m.score1 !== null;
+    return `<option value="${m.id}" ${hasScore ? 'style="color:#2DC653"' : ''}>#${m.num} [${m.phase}] ${m.team1} vs ${m.team2}${hasScore ? ` ✓ ${m.score1}-${m.score2}` : ''}</option>`;
+  }).join('');
+  if(prev) sel.value = prev;
   loadAdminMatch();
-  renderAudit();
 }
 
 function loadAdminMatch() {
