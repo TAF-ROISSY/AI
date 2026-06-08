@@ -1331,15 +1331,20 @@ function renderAdmin() {
   const sel = document.getElementById('admin-match-sel');
   if (!sel) return;
   const prev = sel.value;
-  sel.innerHTML = '';
+
+  // Suppression propre de tous les enfants sans innerHTML
+  while (sel.options.length > 0) sel.remove(0);
+
   ALL_MATCHES.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.id;
     const hasScore = m.score1 !== null;
-    opt.textContent = `#${m.num} [${m.phase}] ${m.team1} vs ${m.team2}${hasScore ? ` ✓ ${m.score1}-${m.score2}` : ''}`;
+    const label = '#' + m.num + ' [' + m.phase.trim() + '] '
+      + m.team1.trim() + ' vs ' + m.team2.trim()
+      + (hasScore ? ' \u2713 ' + m.score1 + '-' + m.score2 : '');
+    const opt = new Option(label, m.id);
     if (hasScore) opt.style.color = '#2DC653';
-    sel.appendChild(opt);
+    sel.add(opt);
   });
+
   if (prev) sel.value = prev;
   loadAdminMatch();
 }
