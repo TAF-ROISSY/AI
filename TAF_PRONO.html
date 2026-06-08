@@ -482,6 +482,12 @@
         </div>
       </div>
     </div>
+
+    <!-- MINI CLASSEMENT TOP 3 -->
+    <div id="login-top3" style="display:none;margin-top:20px;border-top:1px solid rgba(255,215,0,0.15);padding-top:18px">
+      <div style="font-family:'Exo 2';font-size:11px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;text-align:center">🏆 Classement actuel</div>
+      <div id="login-top3-rows"></div>
+    </div>
     <button onclick="openAdminModal()" style="
       margin-top:16px; background:none; border:none; color:rgba(255,255,255,0.15);
       font-family:'Exo 2'; font-size:11px; font-weight:600; letter-spacing:2px;
@@ -1367,11 +1373,38 @@ function showToast(msg, type='success') {
   toastTimer = setTimeout(()=>el.className='', 3000);
 }
 
-// Init — charger participants dès le début pour la vérification login
+// Init — charger participants dès le début pour la vérification login + top 3
 db.ref('taf_prono/participants').once('value').then(snap => {
   participants = snap.val() || {};
+  renderLoginTop3();
 });
 document.getElementById('login-pseudo').focus();
+
+function renderLoginTop3() {
+  const sorted = Object.values(participants)
+    .filter(p => p.pseudo)
+    .sort((a,b) => ((b.pts||0)-(a.pts||0)) || ((b.exact||0)-(a.exact||0)))
+    .slice(0, 3);
+  if (!sorted.length) return;
+
+  const medals = ['🥇','🥈','🥉'];
+  const colors = ['#FFD700','#C0C0C0','#CD7F32'];
+  const bgs = ['rgba(255,215,0,0.08)','rgba(192,192,192,0.06)','rgba(205,127,50,0.06)'];
+  const borders = ['rgba(255,215,0,0.25)','rgba(192,192,192,0.15)','rgba(205,127,50,0.15)'];
+
+  document.getElementById('login-top3-rows').innerHTML = sorted.map((p,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
+      background:${bgs[i]};border:1px solid ${borders[i]};border-radius:8px;
+      margin-bottom:7px;transition:all .2s">
+      <span style="font-size:20px;width:28px;text-align:center">${medals[i]}</span>
+      <span style="flex:1;font-weight:800;font-size:14px">${p.pseudo}</span>
+      ${p.equipe ? `<span style="font-size:11px;color:var(--muted)">${p.equipe}</span>` : ''}
+      <span style="font-family:'Russo One';font-size:18px;color:${colors[i]}">${p.pts||0}</span>
+      <span style="font-size:11px;color:var(--muted)">pts</span>
+    </div>`).join('');
+
+  document.getElementById('login-top3').style.display = '';
+}
 </script>
 </body>
 </html>
