@@ -624,7 +624,6 @@
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <select id="admin-champion-select" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;color:#fff;font-family:'Exo 2';font-weight:700;font-size:14px;padding:10px 12px;outline:none">
               <option value="">-- Sélectionner le champion --</option>
-              ${ALL_TEAMS.map(t=>`<option value="${t}">${t}</option>`).join('')}
             </select>
             <button onclick="saveOfficialChampion()" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);border:none;border-radius:8px;padding:11px 20px;font-family:'Russo One';font-size:14px;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 15px rgba(255,165,0,0.3)">
               🏆 VALIDER
@@ -1689,7 +1688,12 @@ function updateAdminChampionDisplay() {
   const el = document.getElementById('admin-champion-val');
   if (el) el.textContent = officialChampion || 'Non défini';
   const sel = document.getElementById('admin-champion-select');
-  if (sel && officialChampion) sel.value = officialChampion;
+  if (!sel) return;
+  // Remplir les options si pas encore fait
+  if (sel.options.length <= 1) {
+    ALL_TEAMS.forEach(t => sel.add(new Option(t, t)));
+  }
+  if (officialChampion) sel.value = officialChampion;
 }
   const id = document.getElementById('admin-match-sel').value;
   const m = MATCHES_BY_ID[id];
