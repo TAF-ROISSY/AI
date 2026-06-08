@@ -585,14 +585,28 @@
           "></div>
         </div>
         <input type="hidden" id="admin-match-sel">
+
+          <!-- Équipes (éditables pour les phases finales) -->
+          <div id="admin-teams-row" style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+            <input id="admin-team1-input" class="admin-match-select" type="text" placeholder="Équipe 1" style="margin:0;flex:1;font-weight:800">
+            <span style="color:var(--muted);font-weight:700;font-size:18px">VS</span>
+            <input id="admin-team2-input" class="admin-match-select" type="text" placeholder="Équipe 2" style="margin:0;flex:1;font-weight:800;text-align:right">
+          </div>
+          <div id="admin-teams-hint" style="font-size:11px;color:rgba(255,165,0,0.7);margin-bottom:10px;display:none">
+            ⚠️ Match éliminatoire — modifie les équipes si nécessaire avant de saisir le score.
+          </div>
+
           <div class="admin-score-row">
-            <span id="admin-team1" style="font-family:'Exo 2';font-size:16px;font-weight:800;flex:1">—</span>
+            <span id="admin-team1" style="font-family:'Exo 2';font-size:14px;font-weight:800;flex:1;color:var(--muted)"></span>
             <input class="admin-input" id="admin-score1" type="number" min="0" max="20" placeholder="0">
             <span style="color:var(--muted);font-weight:700;font-size:20px">—</span>
             <input class="admin-input" id="admin-score2" type="number" min="0" max="20" placeholder="0">
-            <span id="admin-team2" style="font-family:'Exo 2';font-size:16px;font-weight:800;flex:1;text-align:right">—</span>
+            <span id="admin-team2" style="font-family:'Exo 2';font-size:14px;font-weight:800;flex:1;text-align:right;color:var(--muted)"></span>
           </div>
-          <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
+            <button onclick="saveMatchTeams()" id="btn-save-teams" style="display:none;background:linear-gradient(135deg,#FF8C00,#FFA500);color:var(--dark);border:none;border-radius:8px;padding:11px 18px;font-family:'Exo 2';font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px">✏️ METTRE À JOUR LES ÉQUIPES</button>
+          </div>
         </div>
       </div>
 
@@ -850,6 +864,17 @@ document.addEventListener('keydown', e => {
 //  FIREBASE LISTENERS
 // ═══════════════════════════════════════════════
 function initListeners() {
+  // Overrides équipes phases finales
+  db.ref('taf_prono/matchs_override').on('value', snap => {
+    const overrides = snap.val() || {};
+    Object.entries(overrides).forEach(([id, v]) => {
+      if (MATCHES_BY_ID[id]) {
+        MATCHES_BY_ID[id].team1 = v.team1;
+        MATCHES_BY_ID[id].team2 = v.team2;
+      }
+    });
+    refreshCurrentTab();
+  });
   // Scores officiels
   db.ref('taf_prono/scores').on('value', snap => {
     officialScores = snap.val() || {};
@@ -1421,10 +1446,47 @@ function loadAdminMatch() {
   const id = document.getElementById('admin-match-sel').value;
   const m = MATCHES_BY_ID[id];
   if(!m) return;
+
+  const isKnockout = !m.groupe || m.groupe === 'Éliminatoires';
+
+  // Remplir les inputs équipes
+  document.getElementById('admin-team1-input').value = m.team1;
+  document.getElementById('admin-team2-input').value = m.team2;
+  document.getElementById('admin-team1-input').readOnly = !isKnockout;
+  document.getElementById('admin-team2-input').readOnly = !isKnockout;
+  document.getElementById('admin-team1-input').style.opacity = isKnockout ? '1' : '0.6';
+  document.getElementById('admin-team2-input').style.opacity = isKnockout ? '1' : '0.6';
+
+  // Hint + bouton équipes uniquement pour les éliminatoires
+  document.getElementById('admin-teams-hint').style.display = isKnockout ? '' : 'none';
+  document.getElementById('btn-save-teams').style.display = isKnockout ? '' : 'none';
+
+  // Labels recap
   document.getElementById('admin-team1').textContent = m.team1;
   document.getElementById('admin-team2').textContent = m.team2;
-  document.getElementById('admin-score1').value = m.score1!==null?m.score1:'';
-  document.getElementById('admin-score2').value = m.score2!==null?m.score2:'';
+
+  // Scores
+  document.getElementById('admin-score1').value = m.score1 !== null ? m.score1 : '';
+  document.getElementById('admin-score2').value = m.score2 !== null ? m.score2 : '';
+}
+
+function saveMatchTeams() {
+  const id = document.getElementById('admin-match-sel').value;
+  const m = MATCHES_BY_ID[id];
+  if (!m) return;
+  const t1 = document.getElementById('admin-team1-input').value.trim();
+  const t2 = document.getElementById('admin-team2-input').value.trim();
+  if (!t1 || !t2) { showToast("Saisis les 2 équipes !", "error"); return; }
+  // Mettre à jour en mémoire + Firebase
+  m.team1 = t1; m.team2 = t2;
+  db.ref('taf_prono/matchs_override/' + id).set({ team1: t1, team2: t2 })
+    .then(() => {
+      showToast(t1 + ' vs ' + t2 + ' mis à jour ✓', "success");
+      document.getElementById('admin-team1').textContent = t1;
+      document.getElementById('admin-team2').textContent = t2;
+      renderAdmin(); // Rafraîchir le dropdown
+    })
+    .catch(() => showToast("Erreur Firebase", "error"));
 }
 
 function saveOfficialScore() {
