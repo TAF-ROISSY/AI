@@ -943,12 +943,23 @@ function doLoginStep() {
   if (loginStep === 1) {
     const pseudo = document.getElementById('login-pseudo').value.trim();
     if (!pseudo) { showToast("Saisis ton prénom !", "error"); return; }
+
+    // Si participants pas encore chargés, recharger et réessayer
+    if (Object.keys(participants).length === 0) {
+      showToast("Chargement en cours...", "success");
+      db.ref('taf_prono/participants').once('value').then(snap => {
+        participants = snap.val() || {};
+        renderLoginTop3();
+        doLoginStep(); // Réessayer
+      });
+      return;
+    }
+
     const match = Object.entries(participants).find(([uid, p]) =>
       (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
     );
     if (!match) { showToast("Pseudo non reconnu. Demande à l'admin !", "error"); return; }
     loginFoundUser = match;
-    // Passer à l'étape PIN
     loginStep = 2;
     document.getElementById('login-pseudo').disabled = true;
     document.getElementById('login-pseudo').style.opacity = '0.5';
