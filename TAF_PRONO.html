@@ -630,6 +630,15 @@
             </button>
           </div>
         </div>
+
+        <!-- RESET COMPLET -->
+        <div class="admin-panel" style="border-color:rgba(230,57,70,0.4);margin-top:16px">
+          <div class="admin-title">🗑️ RESET COMPLET</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Remet tous les points, pronostics, scores et champion à zéro. Les joueurs sont conservés.</p>
+          <button onclick="resetAll()" style="background:linear-gradient(135deg,var(--red),#c0392b);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-family:'Exo 2';font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px">
+            🗑️ RESET COMPLET
+          </button>
+        </div>
       </div>
 
       <!-- SUB: JOUEURS -->
@@ -1686,6 +1695,24 @@ function loadAdminMatch() {
   // Scores
   document.getElementById('admin-score1').value = m.score1 !== null ? m.score1 : '';
   document.getElementById('admin-score2').value = m.score2 !== null ? m.score2 : '';
+}
+
+function resetAll() {
+  if (!confirm('RESET COMPLET ?\n\nTous les pronostics, scores et points seront supprimés.\nLes joueurs sont conservés.\n\nIrréversible !')) return;
+  const tasks = [
+    db.ref('taf_prono/pronostics').remove(),
+    db.ref('taf_prono/scores').remove(),
+    db.ref('taf_prono/audit').remove(),
+    db.ref('taf_prono/champions').remove(),
+    db.ref('taf_prono/champion_officiel').remove(),
+    db.ref('taf_prono/matchs_override').remove(),
+  ];
+  Object.keys(participants).forEach(uid => {
+    tasks.push(db.ref('taf_prono/participants/'+uid).update({pts:0,exact:0,vainqueur:0,total:0}));
+  });
+  Promise.all(tasks)
+    .then(() => { showToast('Reset complet effectué ✓','success'); officialChampion=null; renderAdmin(); })
+    .catch(() => showToast('Erreur lors du reset','error'));
 }
 
 function saveOfficialChampion() {
