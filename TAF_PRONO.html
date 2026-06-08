@@ -482,10 +482,17 @@
         </div>
       </div>
     </div>
+    <button onclick="openAdminModal()" style="
+      margin-top:16px; background:none; border:none; color:rgba(255,255,255,0.15);
+      font-family:'Exo 2'; font-size:11px; font-weight:600; letter-spacing:2px;
+      cursor:pointer; transition:all .3s; padding:6px 12px; border-radius:6px;
+      text-transform:uppercase;
+    " onmouseover="this.style.color='rgba(230,57,70,0.7)';this.style.background='rgba(230,57,70,0.08)'"
+       onmouseout="this.style.color='rgba(255,255,255,0.15)';this.style.background='none'">
+      ⚙️ Accès Administrateur
+    </button>
   </div>
 </div>
-
-<!-- ══ APP ══ -->
 <div id="app">
   <div id="header">
     <div class="header-left">
@@ -1326,12 +1333,21 @@ function checkAdmin() {
   if(pwd===ADMIN_PASSWORD) {
     isAdmin=true;
     closeAdminModal();
+    // Si on vient de la page login (pas encore connecté) → passer en mode admin direct
+    if (!currentUser) {
+      currentUser = '__admin__';
+      document.getElementById('user-name-display').textContent = '🔧 Admin';
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      initListeners();
+    }
     document.getElementById('admin-tab-btn').style.display='';
-    // Activer le listener audit maintenant qu'on est admin
+    // Activer le listener audit
     db.ref('taf_prono/audit').on('value', snap => {
       auditLog = snap.val() || {};
       if (currentTab === 'admin') renderAudit();
     });
+    showTab('admin');
     showToast("Accès admin accordé ✓","success");
   } else {
     showToast("Mot de passe incorrect","error");
