@@ -544,6 +544,13 @@
 
     <!-- MATCHS / PRONOSTICS -->
     <div class="tab" id="tab-matchs">
+      <!-- BLOC CHAMPION -->
+      <div id="champion-bloc" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,140,0,0.05));border:2px solid rgba(255,215,0,0.3);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden">
+        <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:80px;opacity:0.06;pointer-events:none">🏆</div>
+        <div style="font-family:'Russo One';font-size:16px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">🏆 CHAMPION DU MONDE</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Choisis le vainqueur du tournoi — <strong style="color:var(--gold)">+10 points</strong> si tu as raison. Choix définitif, non modifiable.</div>
+        <div id="champion-content"></div>
+      </div>
       <div id="matchs-content"></div>
     </div>
 
@@ -604,9 +611,24 @@
             <input class="admin-input" id="admin-score2" type="number" min="0" max="20" placeholder="0">
             <span id="admin-team2" style="font-family:'Exo 2';font-size:14px;font-weight:800;flex:1;text-align:right;color:var(--muted)"></span>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
             <button onclick="saveMatchTeams()" id="btn-save-teams" style="display:none;background:linear-gradient(135deg,#FF8C00,#FFA500);color:var(--dark);border:none;border-radius:8px;padding:11px 18px;font-family:'Exo 2';font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px">✏️ METTRE À JOUR LES ÉQUIPES</button>
+          </div>
+        </div>
+
+        <!-- CHAMPION OFFICIEL -->
+        <div class="admin-panel" style="border-color:rgba(255,215,0,0.4);margin-top:16px">
+          <div class="admin-title" style="color:var(--gold)">🏆 DÉFINIR LE CHAMPION OFFICIEL (+10 pts)</div>
+          <div id="admin-champion-current" style="margin-bottom:12px;font-size:13px;color:var(--muted)">Champion actuel : <span id="admin-champion-val" style="color:var(--gold);font-weight:700">Non défini</span></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select id="admin-champion-select" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;color:#fff;font-family:'Exo 2';font-weight:700;font-size:14px;padding:10px 12px;outline:none">
+              <option value="">-- Sélectionner le champion --</option>
+              ${ALL_TEAMS.map(t=>`<option value="${t}">${t}</option>`).join('')}
+            </select>
+            <button onclick="saveOfficialChampion()" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);border:none;border-radius:8px;padding:11px 20px;font-family:'Russo One';font-size:14px;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 15px rgba(255,165,0,0.3)">
+              🏆 VALIDER
+            </button>
           </div>
         </div>
       </div>
@@ -823,6 +845,7 @@ let allPronostics = {};
 let officialScores = {};
 let participants = {};
 let auditLog = {};
+let championsData = {}; // { userId: { equipe, lockedAt } }
 
 // ═══════════════════════════════════════════════
 //  LOGIN
@@ -906,6 +929,19 @@ function initListeners() {
       if (currentTab === 'admin') renderAudit();
     });
   }
+  // Champion officiel
+  db.ref('taf_prono/champion_officiel').on('value', snap => {
+    officialChampion = snap.val();
+    recalcAllPoints();
+    if (currentTab === 'matchs') renderChampion();
+  });
+  // Choix champion
+  db.ref('taf_prono/champions').on('value', snap => {
+    championsData = snap.val() || {};
+    if (currentTab === 'matchs') renderChampion();
+    recalcAllPoints();
+    refreshCurrentTab();
+  });
   // Participants
   db.ref('taf_prono/participants').on('value', snap => {
     participants = snap.val() || {};
@@ -992,7 +1028,6 @@ function getPoints(result) {
 }
 
 function recalcAllPoints() {
-  // Recalculer pour chaque participant
   const stats = {};
   Object.entries(allPronostics).forEach(([uid, pronos]) => {
     let pts=0, exact=0, vainqueur=0, total=0;
@@ -1005,9 +1040,12 @@ function recalcAllPoints() {
       if (r==='exact') exact++;
       if (r==='vainqueur') vainqueur++;
     });
+    // Bonus champion +10 pts
+    if (officialChampion && championsData[uid] && championsData[uid].equipe === officialChampion) {
+      pts += 10;
+    }
     stats[uid] = { pts, exact, vainqueur, total };
   });
-  // Mettre à jour Firebase
   Object.entries(stats).forEach(([uid, s]) => {
     db.ref(`taf_prono/participants/${uid}`).update(s);
   });
@@ -1032,6 +1070,86 @@ function renderTab(name) {
   else if (name==='matchs') renderMatchs();
   else if (name==='stats') renderStats();
   else if (name==='admin') renderAdmin();
+}
+
+// ═══════════════════════════════════════════════
+//  CHAMPION DU MONDE
+// ═══════════════════════════════════════════════
+// Liste de toutes les équipes qualifiées
+const ALL_TEAMS = [
+  "Mexique","Afrique du Sud","Corée du Sud","Tchéquie",
+  "Canada","Bosnie-Herzégovine","Qatar","Suisse",
+  "Espagne","Croatie","Tunisie","Maroc",
+  "États-Unis","Paraguay","Uruguay","Panama",
+  "France","Sénégal","Irak","Norvège",
+  "Argentine","Algérie","Autriche","Jordanie",
+  "Angleterre","Pays-Bas","Côte d'Ivoire","Écosse",
+  "Allemagne","Colombie","Japon","Ouzbékistan",
+  "Brésil","Portugal","Équateur","Cap-Vert",
+  "Belgique","Australie","Curaçao",
+  "Iran","Arabie Saoudite","Pologne"
+].sort();
+
+// Champion officiel saisi par l'admin (stocké dans Firebase)
+let officialChampion = null;
+
+function renderChampion() {
+  const el = document.getElementById('champion-content');
+  if (!el) return;
+
+  const myChoice = championsData[currentUser];
+  const locked = !!myChoice;
+
+  if (locked) {
+    // Choix fait — afficher en lecture seule
+    const isCorrect = officialChampion && myChoice.equipe === officialChampion;
+    const isPending = !officialChampion;
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="background:rgba(255,215,0,0.12);border:2px solid rgba(255,215,0,0.4);border-radius:10px;padding:12px 20px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:28px">🏆</span>
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px">TON CHAMPION</div>
+            <div style="font-family:'Russo One';font-size:20px;color:var(--gold)">${myChoice.equipe}</div>
+          </div>
+        </div>
+        <div>
+          ${isPending ? `<span style="background:rgba(139,151,176,0.15);color:var(--muted);padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">⏳ En attente du résultat</span>` :
+            isCorrect ? `<span style="background:rgba(45,198,83,0.2);color:#2DC653;padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">🎉 BRAVO ! +10 points</span>` :
+            `<span style="background:rgba(230,57,70,0.15);color:#FF6B7A;padding:4px 12px;border-radius:10px;font-size:12px;font-weight:700">✗ Pas cette fois</span>`}
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">🔒 Choix verrouillé — non modifiable</div>
+        </div>
+      </div>`;
+  } else {
+    // Pas encore de choix — afficher le sélecteur
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <select id="champion-select" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;color:#fff;font-family:'Exo 2';font-weight:700;font-size:15px;padding:11px 14px;outline:none;cursor:pointer">
+            <option value="">-- Choisis une équipe --</option>
+            ${ALL_TEAMS.map(t => `<option value="${t}">${t}</option>`).join('')}
+          </select>
+        </div>
+        <button onclick="saveChampion()"
+          style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);border:none;border-radius:8px;padding:12px 22px;font-family:'Russo One';font-size:15px;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 15px rgba(255,165,0,0.3);white-space:nowrap">
+          🏆 VALIDER MON CHAMPION
+        </button>
+      </div>
+      <div style="font-size:11px;color:rgba(230,57,70,0.8);margin-top:8px">⚠️ Attention : ce choix sera définitif et ne pourra plus être modifié !</div>`;
+  }
+}
+
+function saveChampion() {
+  const sel = document.getElementById('champion-select');
+  if (!sel || !sel.value) { showToast("Choisis une équipe !", "error"); return; }
+  if (!confirm('Confirmes-tu ton choix : ' + sel.value + ' champion du monde ?\nATTENTION : ce choix sera définitif !')) return;
+  db.ref('taf_prono/champions/' + currentUser).set({
+    equipe: sel.value,
+    pseudo: (participants[currentUser]||{}).pseudo || currentUser,
+    lockedAt: new Date().toISOString()
+  })
+  .then(() => { showToast('Champion : ' + sel.value + ' verrouillé ! 🏆', "success"); renderChampion(); })
+  .catch(() => showToast("Erreur Firebase", "error"));
 }
 
 // ═══════════════════════════════════════════════
@@ -1110,6 +1228,7 @@ function renderGroupes() {
 // ═══════════════════════════════════════════════
 function renderMatchs() {
   const el = document.getElementById('matchs-content');
+  renderChampion(); // Rafraîchir le bloc champion
   const myPronos = (allPronostics[currentUser]||{});
   const now = new Date();
 
@@ -1526,6 +1645,7 @@ function renderAdmin() {
   }
 
   loadAdminMatch();
+  updateAdminChampionDisplay();
 }
 
 function loadAdminMatch() {
@@ -1556,7 +1676,21 @@ function loadAdminMatch() {
   document.getElementById('admin-score2').value = m.score2 !== null ? m.score2 : '';
 }
 
-function saveMatchTeams() {
+function saveOfficialChampion() {
+  const val = document.getElementById('admin-champion-select')?.value;
+  if (!val) { showToast("Choisis une équipe !", "error"); return; }
+  if (!confirm('Définir ' + val + ' comme champion officiel ? Les points seront attribués immédiatement.')) return;
+  db.ref('taf_prono/champion_officiel').set(val)
+    .then(() => { showToast('Champion officiel : ' + val + ' ✓', "success"); updateAdminChampionDisplay(); })
+    .catch(() => showToast("Erreur Firebase", "error"));
+}
+
+function updateAdminChampionDisplay() {
+  const el = document.getElementById('admin-champion-val');
+  if (el) el.textContent = officialChampion || 'Non défini';
+  const sel = document.getElementById('admin-champion-select');
+  if (sel && officialChampion) sel.value = officialChampion;
+}
   const id = document.getElementById('admin-match-sel').value;
   const m = MATCHES_BY_ID[id];
   if (!m) return;
