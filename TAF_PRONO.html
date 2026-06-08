@@ -559,6 +559,7 @@
       <!-- SOUS-ONGLETS ADMIN -->
       <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,215,0,0.15);margin-bottom:20px">
         <button class="admin-sub-btn active" onclick="showAdminSub('scores')" id="asub-scores">⚽ SCORES</button>
+        <button class="admin-sub-btn" onclick="showAdminSub('elim')" id="asub-elim">🏆 ÉLIMINATOIRES</button>
         <button class="admin-sub-btn" onclick="showAdminSub('joueurs')" id="asub-joueurs">👥 JOUEURS</button>
         <button class="admin-sub-btn" onclick="showAdminSub('audit')" id="asub-audit">📋 AUDIT</button>
       </div>
@@ -660,6 +661,13 @@
         </div>
         <div id="audit-stats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
         <div id="audit-table"></div>
+      </div>
+
+      <!-- SUB: ÉLIMINATOIRES -->
+      <div id="admin-sub-elim" style="display:none">
+        <div style="font-family:'Russo One';font-size:16px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🏆 GESTION DES MATCHS ÉLIMINATOIRES</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:20px">Définis les équipes qualifiées pour chaque match. Les joueurs pourront ensuite poser leurs pronostics.</p>
+        <div id="elim-panels"></div>
       </div>
 
     </div>
@@ -1272,13 +1280,78 @@ function renderStats() {
 //  SOUS-ONGLETS ADMIN
 // ═══════════════════════════════════════════════
 function showAdminSub(name) {
-  ['scores','joueurs','audit'].forEach(s => {
+  ['scores','elim','joueurs','audit'].forEach(s => {
     document.getElementById('admin-sub-'+s).style.display = s===name ? '' : 'none';
     document.getElementById('asub-'+s).classList.toggle('active', s===name);
   });
   if (name==='audit') renderAudit();
   else if (name==='joueurs') renderJoueurs();
   else if (name==='scores') renderAdmin();
+  else if (name==='elim') renderElim();
+}
+
+// ═══════════════════════════════════════════════
+//  ÉLIMINATOIRES
+// ═══════════════════════════════════════════════
+const ELIM_PHASES = [
+  { label: '32es de finale', ids: Array.from({length:16}, (_,i) => 'R32_'+(i+1)) },
+  { label: '16es de finale', ids: Array.from({length:8},  (_,i) => 'R16_'+(i+1)) },
+  { label: 'Quarts de finale', ids: ['QF_1','QF_2','QF_3','QF_4'] },
+  { label: 'Demi-finales',     ids: ['SF_1','SF_2'] },
+  { label: '3ème place',       ids: ['3P'] },
+  { label: 'Finale',           ids: ['FIN'] },
+];
+
+function renderElim() {
+  const el = document.getElementById('elim-panels');
+  if (!el) return;
+  el.innerHTML = ELIM_PHASES.map(phase => `
+    <div style="margin-bottom:24px">
+      <div style="font-family:'Exo 2';font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,165,0,0.8);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,165,0,0.15)">
+        ${phase.label}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px">
+        ${phase.ids.map(id => {
+          const m = MATCHES_BY_ID[id];
+          if (!m) return '';
+          const isDefined = m.team1 !== 'À déterminer' && m.team2 !== 'À déterminer';
+          const hasScore = m.score1 !== null;
+          return `<div style="background:linear-gradient(135deg,rgba(13,26,56,0.9),rgba(8,14,28,0.95));border:1px solid ${isDefined ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.08)'};border-radius:10px;padding:12px 14px">
+            <div style="font-size:10px;color:var(--muted);font-weight:800;letter-spacing:1px;margin-bottom:8px">
+              MATCH #${m.num}
+              ${hasScore ? '<span style="color:#2DC653;margin-left:8px">✓ JOUÉ</span>' : isDefined ? '<span style="color:var(--gold);margin-left:8px">⚽ DÉFINI</span>' : '<span style="color:var(--muted);margin-left:8px">⏳ EN ATTENTE</span>'}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <input id="elim-t1-${id}" type="text" value="${m.team1}" placeholder="Équipe 1"
+                style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--white);font-family:'Exo 2';font-weight:700;font-size:13px;padding:7px 10px;outline:none;${hasScore?'opacity:0.5':''}}"
+                ${hasScore ? 'disabled' : ''}>
+              <span style="color:var(--muted);font-weight:700;font-size:12px">VS</span>
+              <input id="elim-t2-${id}" type="text" value="${m.team2}" placeholder="Équipe 2"
+                style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--white);font-family:'Exo 2';font-weight:700;font-size:13px;padding:7px 10px;outline:none;text-align:right;${hasScore?'opacity:0.5':''}}"
+                ${hasScore ? 'disabled' : ''}>
+            </div>
+            ${!hasScore ? `<button onclick="saveElimMatch('${id}')"
+              style="width:100%;background:linear-gradient(135deg,rgba(255,165,0,0.2),rgba(255,165,0,0.1));border:1px solid rgba(255,165,0,0.4);color:var(--gold);border-radius:6px;padding:7px;font-family:'Exo 2';font-size:12px;font-weight:800;cursor:pointer;letter-spacing:1px;transition:all .2s"
+              onmouseover="this.style.background='rgba(255,165,0,0.25)'"
+              onmouseout="this.style.background='linear-gradient(135deg,rgba(255,165,0,0.2),rgba(255,165,0,0.1))'">
+              ✓ VALIDER LES ÉQUIPES
+            </button>` : `<div style="text-align:center;font-size:12px;color:#2DC653;font-weight:700">${m.score1} — ${m.score2}</div>`}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function saveElimMatch(id) {
+  const t1 = document.getElementById('elim-t1-'+id)?.value.trim();
+  const t2 = document.getElementById('elim-t2-'+id)?.value.trim();
+  if (!t1 || !t2 || t1==='À déterminer' || t2==='À déterminer') {
+    showToast("Saisis les 2 équipes !", "error"); return;
+  }
+  if (MATCHES_BY_ID[id]) { MATCHES_BY_ID[id].team1 = t1; MATCHES_BY_ID[id].team2 = t2; }
+  db.ref('taf_prono/matchs_override/'+id).set({ team1: t1, team2: t2 })
+    .then(() => { showToast(t1 + ' vs ' + t2 + ' ✓', "success"); renderElim(); })
+    .catch(() => showToast("Erreur Firebase", "error"));
 }
 
 // ═══════════════════════════════════════════════
