@@ -1305,41 +1305,54 @@ const ELIM_PHASES = [
 function renderElim() {
   const el = document.getElementById('elim-panels');
   if (!el) return;
-  el.innerHTML = ELIM_PHASES.map(phase => `
-    <div style="margin-bottom:24px">
-      <div style="font-family:'Exo 2';font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,165,0,0.8);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,165,0,0.15)">
-        ${phase.label}
+
+  el.innerHTML = ELIM_PHASES.map(phase => {
+    const rows = phase.ids.map(id => {
+      const m = MATCHES_BY_ID[id];
+      if (!m) return '';
+      const isDefined = m.team1 !== 'À déterminer' && m.team2 !== 'À déterminer';
+      const hasScore = m.score1 !== null;
+      const statusColor = hasScore ? '#2DC653' : isDefined ? 'var(--gold)' : 'var(--muted)';
+      const statusLabel = hasScore ? '✓ JOUÉ' : isDefined ? '⚽ DÉFINI' : '⏳ EN ATTENTE';
+
+      return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;color:var(--muted);font-weight:800;letter-spacing:1px">MATCH #${m.num}</span>
+          <span style="font-size:11px;color:${statusColor};font-weight:700">${statusLabel}${hasScore ? ' · ' + m.score1 + '–' + m.score2 : ''}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:${hasScore ? '0' : '10px'}">
+          <input id="elim-t1-${id}" type="text" value="${m.team1 === 'À déterminer' ? '' : m.team1}"
+            placeholder="Équipe 1" ${hasScore ? 'disabled' : ''}
+            style="flex:1;min-width:0;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+            border-radius:6px;color:#fff;font-family:'Exo 2';font-weight:700;font-size:14px;
+            padding:9px 12px;outline:none;box-sizing:border-box;${hasScore ? 'opacity:0.5' : ''}">
+          <span style="color:var(--muted);font-size:12px;font-weight:700;flex-shrink:0">VS</span>
+          <input id="elim-t2-${id}" type="text" value="${m.team2 === 'À déterminer' ? '' : m.team2}"
+            placeholder="Équipe 2" ${hasScore ? 'disabled' : ''}
+            style="flex:1;min-width:0;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+            border-radius:6px;color:#fff;font-family:'Exo 2';font-weight:700;font-size:14px;
+            padding:9px 12px;outline:none;box-sizing:border-box;${hasScore ? 'opacity:0.5' : ''}">
+        </div>
+        ${!hasScore ? `<button onclick="saveElimMatch('${id}')"
+          style="width:100%;background:rgba(255,165,0,0.15);border:1px solid rgba(255,165,0,0.35);
+          color:var(--gold);border-radius:6px;padding:8px;font-family:'Exo 2';font-size:12px;
+          font-weight:800;cursor:pointer;letter-spacing:1px;transition:background .2s"
+          onmouseover="this.style.background='rgba(255,165,0,0.28)'"
+          onmouseout="this.style.background='rgba(255,165,0,0.15)'">
+          ✓ VALIDER
+        </button>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:28px">
+      <div style="font-family:'Exo 2';font-size:12px;font-weight:800;letter-spacing:2px;
+        color:rgba(255,165,0,0.9);text-transform:uppercase;margin-bottom:12px;
+        padding:8px 12px;background:rgba(255,165,0,0.08);border-left:3px solid var(--gold2);border-radius:0 6px 6px 0">
+        🏆 ${phase.label} — ${phase.ids.length} match${phase.ids.length > 1 ? 's' : ''}
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px">
-        ${phase.ids.map(id => {
-          const m = MATCHES_BY_ID[id];
-          if (!m) return '';
-          const isDefined = m.team1 !== 'À déterminer' && m.team2 !== 'À déterminer';
-          const hasScore = m.score1 !== null;
-          return `<div style="background:linear-gradient(135deg,rgba(13,26,56,0.9),rgba(8,14,28,0.95));border:1px solid ${isDefined ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.08)'};border-radius:10px;padding:12px 14px">
-            <div style="font-size:10px;color:var(--muted);font-weight:800;letter-spacing:1px;margin-bottom:8px">
-              MATCH #${m.num}
-              ${hasScore ? '<span style="color:#2DC653;margin-left:8px">✓ JOUÉ</span>' : isDefined ? '<span style="color:var(--gold);margin-left:8px">⚽ DÉFINI</span>' : '<span style="color:var(--muted);margin-left:8px">⏳ EN ATTENTE</span>'}
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-              <input id="elim-t1-${id}" type="text" value="${m.team1}" placeholder="Équipe 1"
-                style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--white);font-family:'Exo 2';font-weight:700;font-size:13px;padding:7px 10px;outline:none;${hasScore?'opacity:0.5':''}}"
-                ${hasScore ? 'disabled' : ''}>
-              <span style="color:var(--muted);font-weight:700;font-size:12px">VS</span>
-              <input id="elim-t2-${id}" type="text" value="${m.team2}" placeholder="Équipe 2"
-                style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:var(--white);font-family:'Exo 2';font-weight:700;font-size:13px;padding:7px 10px;outline:none;text-align:right;${hasScore?'opacity:0.5':''}}"
-                ${hasScore ? 'disabled' : ''}>
-            </div>
-            ${!hasScore ? `<button onclick="saveElimMatch('${id}')"
-              style="width:100%;background:linear-gradient(135deg,rgba(255,165,0,0.2),rgba(255,165,0,0.1));border:1px solid rgba(255,165,0,0.4);color:var(--gold);border-radius:6px;padding:7px;font-family:'Exo 2';font-size:12px;font-weight:800;cursor:pointer;letter-spacing:1px;transition:all .2s"
-              onmouseover="this.style.background='rgba(255,165,0,0.25)'"
-              onmouseout="this.style.background='linear-gradient(135deg,rgba(255,165,0,0.2),rgba(255,165,0,0.1))'">
-              ✓ VALIDER LES ÉQUIPES
-            </button>` : `<div style="text-align:center;font-size:12px;color:#2DC653;font-weight:700">${m.score1} — ${m.score2}</div>`}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`).join('');
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
 function saveElimMatch(id) {
