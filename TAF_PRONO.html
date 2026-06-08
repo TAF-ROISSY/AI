@@ -567,7 +567,24 @@
       <div id="admin-sub-scores">
         <div class="admin-panel">
           <div class="admin-title">⚽ SAISIE DES SCORES OFFICIELS</div>
-          <select class="admin-match-select" id="admin-match-sel" onchange="loadAdminMatch()"></select>
+          <div style="position:relative;margin-bottom:12px" id="match-dropdown-wrapper">
+          <div id="match-dropdown-selected" onclick="toggleMatchDropdown()" style="
+            width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+            border-radius:8px;color:var(--white);font-size:13px;padding:10px 36px 10px 12px;
+            cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+            font-family:'Exo 2';user-select:none;
+          ">
+            <span id="match-dropdown-label">Sélectionner un match...</span>
+            <span style="color:var(--muted);font-size:10px">▼</span>
+          </div>
+          <div id="match-dropdown-list" style="
+            display:none;position:absolute;top:100%;left:0;right:0;z-index:500;
+            background:#1a2035;border:1px solid rgba(255,215,0,0.2);border-radius:8px;
+            max-height:280px;overflow-y:auto;margin-top:4px;
+            box-shadow:0 8px 30px rgba(0,0,0,0.6);
+          "></div>
+        </div>
+        <input type="hidden" id="admin-match-sel">
           <div class="admin-score-row">
             <span id="admin-team1" style="font-family:'Exo 2';font-size:16px;font-weight:800;flex:1">—</span>
             <input class="admin-input" id="admin-score1" type="number" min="0" max="20" placeholder="0">
@@ -1326,26 +1343,77 @@ function deleteJoueur(uid) {
 // ═══════════════════════════════════════════════
 //  ADMIN
 // ═══════════════════════════════════════════════
+function toggleMatchDropdown() {
+  const list = document.getElementById('match-dropdown-list');
+  if (!list) return;
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectMatch(id, label) {
+  document.getElementById('admin-match-sel').value = id;
+  document.getElementById('match-dropdown-label').textContent = label;
+  document.getElementById('match-dropdown-list').style.display = 'none';
+  // Mettre en surbrillance l'option sélectionnée
+  document.querySelectorAll('.ddopt').forEach(el => {
+    el.style.background = el.dataset.id === id ? 'rgba(255,215,0,0.12)' : '';
+  });
+  loadAdminMatch();
+}
+
+// Fermer dropdown si clic ailleurs
+document.addEventListener('click', e => {
+  const w = document.getElementById('match-dropdown-wrapper');
+  if (w && !w.contains(e.target)) {
+    const list = document.getElementById('match-dropdown-list');
+    if (list) list.style.display = 'none';
+  }
+});
+
 function renderAdmin() {
   if(!isAdmin) return;
-  const sel = document.getElementById('admin-match-sel');
-  if (!sel) return;
-  const prev = sel.value;
+  const list = document.getElementById('match-dropdown-list');
+  if (!list) return;
 
-  // Suppression propre de tous les enfants sans innerHTML
-  while (sel.options.length > 0) sel.remove(0);
+  const currentId = document.getElementById('admin-match-sel').value;
+  list.innerHTML = '';
 
+  // Grouper par phase pour des séparateurs
+  let lastPhase = '';
   ALL_MATCHES.forEach(m => {
     const hasScore = m.score1 !== null;
-    const label = '#' + m.num + ' [' + m.phase.trim() + '] '
-      + m.team1.trim() + ' vs ' + m.team2.trim()
+    const label = '#' + m.num + ' ' + m.team1.trim() + ' vs ' + m.team2.trim()
       + (hasScore ? ' \u2713 ' + m.score1 + '-' + m.score2 : '');
-    const opt = new Option(label, m.id);
-    if (hasScore) opt.style.color = '#2DC653';
-    sel.add(opt);
+
+    // Séparateur de phase
+    if (m.phase !== lastPhase) {
+      lastPhase = m.phase;
+      const sep = document.createElement('div');
+      sep.style.cssText = 'padding:6px 12px 4px;font-size:10px;font-weight:800;letter-spacing:2px;color:rgba(255,215,0,0.5);text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.06);margin-top:2px';
+      sep.textContent = m.phase;
+      list.appendChild(sep);
+    }
+
+    const opt = document.createElement('div');
+    opt.className = 'ddopt';
+    opt.dataset.id = m.id;
+    opt.style.cssText = 'padding:9px 14px;font-size:13px;cursor:pointer;font-family:Exo 2,sans-serif;'
+      + 'color:' + (hasScore ? '#2DC653' : '#EEF2FF') + ';'
+      + (m.id === currentId ? 'background:rgba(255,215,0,0.12);' : '');
+    opt.textContent = label;
+    opt.onmouseover = function() { if(m.id !== document.getElementById('admin-match-sel').value) this.style.background='rgba(255,255,255,0.06)'; };
+    opt.onmouseout = function() { if(m.id !== document.getElementById('admin-match-sel').value) this.style.background=''; };
+    opt.onclick = () => selectMatch(m.id, '#' + m.num + ' ' + m.team1.trim() + ' vs ' + m.team2.trim());
+    list.appendChild(opt);
   });
 
-  if (prev) sel.value = prev;
+  // Afficher le label du match courant
+  if (currentId && MATCHES_BY_ID[currentId]) {
+    const m = MATCHES_BY_ID[currentId];
+    document.getElementById('match-dropdown-label').textContent = '#' + m.num + ' ' + m.team1.trim() + ' vs ' + m.team2.trim();
+  } else if (ALL_MATCHES.length > 0) {
+    selectMatch(ALL_MATCHES[0].id, '#' + ALL_MATCHES[0].num + ' ' + ALL_MATCHES[0].team1.trim() + ' vs ' + ALL_MATCHES[0].team2.trim());
+  }
+
   loadAdminMatch();
 }
 
