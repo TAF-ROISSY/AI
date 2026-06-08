@@ -400,6 +400,49 @@
     #header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
     .logo { font-size: 20px; }
   }
+
+  /* ── SOUS-ONGLETS ADMIN ── */
+  .admin-sub-btn {
+    background: none; border: none; border-bottom: 3px solid transparent;
+    color: var(--muted); padding: 10px 20px; font-family: 'Exo 2'; font-size: 13px;
+    font-weight: 800; letter-spacing: 1px; cursor: pointer; transition: all .2s;
+    text-transform: uppercase;
+  }
+  .admin-sub-btn.active { color: var(--red); border-bottom-color: var(--red); }
+  .admin-sub-btn:hover { color: var(--text); }
+
+  /* ── JOUEURS ── */
+  .joueur-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(13,26,56,0.8), rgba(8,14,28,0.9));
+    border: 1px solid rgba(255,215,0,0.1); border-radius: 10px; margin-bottom: 8px;
+    transition: all .2s;
+  }
+  .joueur-row:hover { border-color: rgba(255,215,0,0.25); background: rgba(255,215,0,0.04); }
+  .joueur-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Russo One'; font-size: 16px; color: var(--dark); flex-shrink: 0;
+  }
+  .joueur-info { flex: 1; }
+  .joueur-name { font-weight: 800; font-size: 15px; }
+  .joueur-equipe { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .joueur-stats { display: flex; gap: 10px; align-items: center; }
+  .joueur-pts { font-family: 'Russo One'; font-size: 18px; color: var(--gold); }
+  .joueur-actions { display: flex; gap: 6px; }
+  .btn-edit-joueur {
+    background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3);
+    color: var(--gold); padding: 5px 12px; border-radius: 6px;
+    font-family: 'Exo 2'; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
+  }
+  .btn-edit-joueur:hover { background: rgba(255,215,0,0.2); }
+  .btn-del-joueur {
+    background: rgba(230,57,70,0.1); border: 1px solid rgba(230,57,70,0.3);
+    color: var(--red); padding: 5px 12px; border-radius: 6px;
+    font-family: 'Exo 2'; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
+  }
+  .btn-del-joueur:hover { background: rgba(230,57,70,0.2); }
 </style>
 </head>
 <body>
@@ -447,7 +490,7 @@
   <div id="header">
     <div class="header-left">
       <div class="logo">TAF <span>PRONO</span></div>
-      <span class="badge-version">v1.0</span>
+      <span class="badge-version">v1.1</span>
       <span style="color:var(--muted);font-size:12px;">🌍 Coupe du Monde 2026</span>
     </div>
     <div class="header-right">
@@ -496,36 +539,77 @@
 
     <!-- ADMIN -->
     <div class="tab" id="tab-admin">
-      <div class="admin-panel">
-        <div class="admin-title">⚠️ SAISIE DES SCORES OFFICIELS</div>
-        <select class="admin-match-select" id="admin-match-sel" onchange="loadAdminMatch()"></select>
-        <div class="admin-score-row">
-          <span id="admin-team1" style="font-family:'Barlow Condensed';font-size:16px;font-weight:700;flex:1">—</span>
-          <input class="admin-input" id="admin-score1" type="number" min="0" max="20" placeholder="0">
-          <span style="color:var(--muted);font-weight:700;font-size:20px">—</span>
-          <input class="admin-input" id="admin-score2" type="number" min="0" max="20" placeholder="0">
-          <span id="admin-team2" style="font-family:'Barlow Condensed';font-size:16px;font-weight:700;flex:1;text-align:right">—</span>
-        </div>
-        <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
+
+      <!-- SOUS-ONGLETS ADMIN -->
+      <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,215,0,0.15);margin-bottom:20px">
+        <button class="admin-sub-btn active" onclick="showAdminSub('scores')" id="asub-scores">⚽ SCORES</button>
+        <button class="admin-sub-btn" onclick="showAdminSub('joueurs')" id="asub-joueurs">👥 JOUEURS</button>
+        <button class="admin-sub-btn" onclick="showAdminSub('audit')" id="asub-audit">📋 AUDIT</button>
       </div>
 
-      <!-- AUDIT LOG -->
-      <div style="margin-top:24px">
+      <!-- SUB: SCORES -->
+      <div id="admin-sub-scores">
+        <div class="admin-panel">
+          <div class="admin-title">⚽ SAISIE DES SCORES OFFICIELS</div>
+          <select class="admin-match-select" id="admin-match-sel" onchange="loadAdminMatch()"></select>
+          <div class="admin-score-row">
+            <span id="admin-team1" style="font-family:'Exo 2';font-size:16px;font-weight:800;flex:1">—</span>
+            <input class="admin-input" id="admin-score1" type="number" min="0" max="20" placeholder="0">
+            <span style="color:var(--muted);font-weight:700;font-size:20px">—</span>
+            <input class="admin-input" id="admin-score2" type="number" min="0" max="20" placeholder="0">
+            <span id="admin-team2" style="font-family:'Exo 2';font-size:16px;font-weight:800;flex:1;text-align:right">—</span>
+          </div>
+          <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
+        </div>
+      </div>
+
+      <!-- SUB: JOUEURS -->
+      <div id="admin-sub-joueurs" style="display:none">
+        <!-- Formulaire ajout/édition -->
+        <div class="admin-panel" style="margin-bottom:16px">
+          <div class="admin-title" id="joueur-form-title">➕ AJOUTER UN JOUEUR</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:160px">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px">PRÉNOM / PSEUDO</div>
+              <input id="joueur-pseudo" class="admin-match-select" type="text" placeholder="Ex: Christophe" maxlength="20" style="margin:0">
+            </div>
+            <div style="flex:1;min-width:160px">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px">ÉQUIPE FAVORITE 🏳️</div>
+              <input id="joueur-equipe" class="admin-match-select" type="text" placeholder="Ex: France" maxlength="30" style="margin:0">
+            </div>
+            <input type="hidden" id="joueur-edit-id">
+            <div style="display:flex;gap:8px">
+              <button class="btn-admin-save" onclick="saveJoueur()" id="joueur-save-btn">💾 ENREGISTRER</button>
+              <button onclick="cancelEditJoueur()" id="joueur-cancel-btn" style="display:none;background:var(--dark4);color:var(--muted);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 16px;cursor:pointer;font-family:'Exo 2';font-weight:700;font-size:14px">✕ Annuler</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Liste des joueurs -->
+        <div style="font-family:'Russo One';font-size:16px;color:var(--gold);letter-spacing:2px;margin-bottom:12px">
+          JOUEURS ENREGISTRÉS <span id="joueurs-count" style="font-size:13px;color:var(--muted);font-family:'Exo 2';font-weight:700"></span>
+        </div>
+        <div id="joueurs-list"></div>
+      </div>
+
+      <!-- SUB: AUDIT -->
+      <div id="admin-sub-audit" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:2px">📋 HISTORIQUE DES PRONOS</div>
+          <div style="font-family:'Russo One';font-size:16px;color:var(--gold);letter-spacing:2px">📋 HISTORIQUE DES PRONOS</div>
           <div style="display:flex;gap:8px;align-items:center">
             <select id="audit-filter" onchange="renderAudit()" style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:13px;outline:none">
               <option value="all">Tous les événements</option>
-              <option value="suspicious">⚠️ Tentatives suspectes</option>
+              <option value="suspicious">⚠️ Suspects</option>
               <option value="MODIFICATION">Modifications</option>
               <option value="CREATION">Créations</option>
             </select>
-            <button onclick="renderAudit()" style="background:var(--dark4);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px">🔄 Actualiser</button>
+            <button onclick="renderAudit()" style="background:var(--dark4);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px">🔄</button>
           </div>
         </div>
         <div id="audit-stats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
         <div id="audit-table"></div>
       </div>
+
     </div>
 
   </div>
@@ -686,14 +770,22 @@ let auditLog = {};
 function doLogin() {
   const pseudo = document.getElementById('login-pseudo').value.trim();
   if (!pseudo) { showToast("Saisis ton prénom !", "error"); return; }
-  currentUser = pseudo.toLowerCase().replace(/\s+/g,'_');
-  document.getElementById('user-name-display').textContent = pseudo;
+
+  // Chercher dans les joueurs enregistrés (insensible à la casse)
+  const match = Object.entries(participants).find(([uid, p]) =>
+    (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
+  );
+
+  if (!match) {
+    showToast("Pseudo non reconnu. Demande à l'admin de t'ajouter !", "error");
+    return;
+  }
+
+  const [uid, data] = match;
+  currentUser = uid;
+  document.getElementById('user-name-display').textContent = data.pseudo;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  // Enregistrer participant
-  db.ref(`taf_prono/participants/${currentUser}`).once('value').then(snap => {
-    if (!snap.exists()) db.ref(`taf_prono/participants/${currentUser}`).set({ pseudo, pts:0, exact:0, vainqueur:0 });
-  });
   initListeners();
 }
 document.getElementById('login-pseudo').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
@@ -1095,6 +1187,98 @@ function renderStats() {
 }
 
 // ═══════════════════════════════════════════════
+//  SOUS-ONGLETS ADMIN
+// ═══════════════════════════════════════════════
+function showAdminSub(name) {
+  ['scores','joueurs','audit'].forEach(s => {
+    document.getElementById('admin-sub-'+s).style.display = s===name ? '' : 'none';
+    document.getElementById('asub-'+s).classList.toggle('active', s===name);
+  });
+  if (name==='audit') renderAudit();
+  if (name==='joueurs') renderJoueurs();
+  if (name==='scores') renderAdmin();
+}
+
+// ═══════════════════════════════════════════════
+//  GESTION JOUEURS
+// ═══════════════════════════════════════════════
+function renderJoueurs() {
+  const list = document.getElementById('joueurs-list');
+  if (!list) return;
+  const joueurs = Object.entries(participants).sort((a,b) => (b[1].pts||0)-(a[1].pts||0));
+  document.getElementById('joueurs-count').textContent = `(${joueurs.length})`;
+  if (!joueurs.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px;font-size:14px">Aucun joueur. Ajoutez-en un ci-dessus !</div>`;
+    return;
+  }
+  list.innerHTML = joueurs.map(([uid, p]) => `<div class="joueur-row">
+    <div class="joueur-avatar">${(p.pseudo||'?')[0].toUpperCase()}</div>
+    <div class="joueur-info">
+      <div class="joueur-name">${p.pseudo||uid}</div>
+      <div class="joueur-equipe">${p.equipe ? '🏳️ '+p.equipe : '<span style="color:var(--muted);font-style:italic">Pas d\'équipe favorite</span>'}</div>
+    </div>
+    <div class="joueur-stats">
+      <span class="joueur-pts">${p.pts||0} pts</span>
+      <span style="font-size:11px;color:var(--muted)">⭐${p.exact||0} ✓${p.vainqueur||0}</span>
+    </div>
+    <div class="joueur-actions">
+      <button class="btn-edit-joueur" onclick="editJoueur('${uid}')">✏️ Éditer</button>
+      <button class="btn-del-joueur" onclick="deleteJoueur('${uid}')">🗑️</button>
+    </div>
+  </div>`).join('');
+}
+
+function saveJoueur() {
+  const pseudo = document.getElementById('joueur-pseudo').value.trim();
+  const equipe = document.getElementById('joueur-equipe').value.trim();
+  const editId = document.getElementById('joueur-edit-id').value;
+  if (!pseudo) { showToast("Saisis un prénom !", "error"); return; }
+  const doublon = Object.entries(participants).find(([uid,p]) =>
+    (p.pseudo||'').toLowerCase()===pseudo.toLowerCase() && uid!==editId
+  );
+  if (doublon) { showToast("Ce pseudo existe déjà !", "error"); return; }
+  const uid = editId || pseudo.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+'_'+Date.now().toString(36);
+  const ex = (editId && participants[editId]) || {};
+  db.ref(`taf_prono/participants/${uid}`).set({
+    pseudo, equipe: equipe||'',
+    pts:ex.pts||0, exact:ex.exact||0, vainqueur:ex.vainqueur||0, total:ex.total||0
+  })
+  .then(()=>{ showToast(editId?`${pseudo} modifié ✓`:`${pseudo} ajouté ✓`,"success"); cancelEditJoueur(); })
+  .catch(()=>showToast("Erreur Firebase","error"));
+}
+
+function editJoueur(uid) {
+  const p = participants[uid]; if(!p) return;
+  document.getElementById('joueur-pseudo').value = p.pseudo||'';
+  document.getElementById('joueur-equipe').value = p.equipe||'';
+  document.getElementById('joueur-edit-id').value = uid;
+  document.getElementById('joueur-form-title').textContent = `✏️ MODIFIER — ${p.pseudo}`;
+  document.getElementById('joueur-save-btn').textContent = '💾 MODIFIER';
+  document.getElementById('joueur-cancel-btn').style.display = '';
+  document.getElementById('joueur-pseudo').focus();
+}
+
+function cancelEditJoueur() {
+  document.getElementById('joueur-pseudo').value='';
+  document.getElementById('joueur-equipe').value='';
+  document.getElementById('joueur-edit-id').value='';
+  document.getElementById('joueur-form-title').textContent='➕ AJOUTER UN JOUEUR';
+  document.getElementById('joueur-save-btn').textContent='💾 ENREGISTRER';
+  document.getElementById('joueur-cancel-btn').style.display='none';
+}
+
+function deleteJoueur(uid) {
+  const p = participants[uid]; if(!p) return;
+  if (!confirm(`Supprimer ${p.pseudo} ? Ses pronostics seront aussi supprimés.`)) return;
+  Promise.all([
+    db.ref(`taf_prono/participants/${uid}`).remove(),
+    db.ref(`taf_prono/pronostics/${uid}`).remove()
+  ])
+  .then(()=>showToast(`${p.pseudo} supprimé`,"success"))
+  .catch(()=>showToast("Erreur Firebase","error"));
+}
+
+// ═══════════════════════════════════════════════
 //  ADMIN
 // ═══════════════════════════════════════════════
 function renderAdmin() {
@@ -1167,7 +1351,10 @@ function showToast(msg, type='success') {
   toastTimer = setTimeout(()=>el.className='', 3000);
 }
 
-// Init
+// Init — charger participants dès le début pour la vérification login
+db.ref('taf_prono/participants').once('value').then(snap => {
+  participants = snap.val() || {};
+});
 document.getElementById('login-pseudo').focus();
 </script>
 </body>
