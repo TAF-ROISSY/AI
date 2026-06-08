@@ -944,28 +944,25 @@ function doLoginStep() {
     const pseudo = document.getElementById('login-pseudo').value.trim();
     if (!pseudo) { showToast("Saisis ton prénom !", "error"); return; }
 
-    // Si participants pas encore chargés, recharger et réessayer
-    if (Object.keys(participants).length === 0) {
-      showToast("Chargement en cours...", "success");
-      db.ref('taf_prono/participants').once('value').then(snap => {
-        participants = snap.val() || {};
-        renderLoginTop3();
-        doLoginStep(); // Réessayer
-      });
-      return;
-    }
+    // Recharger depuis Firebase à chaque tentative pour être sûr
+    db.ref('taf_prono/participants').once('value').then(snap => {
+      participants = snap.val() || {};
+      const match = Object.entries(participants).find(([uid, p]) =>
+        (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
+      );
+      if (!match) {
+        showToast("Pseudo non reconnu. Demande à l'admin !", "error");
+        return;
+      }
+      loginFoundUser = match;
+      loginStep = 2;
+      document.getElementById('login-pseudo').disabled = true;
+      document.getElementById('login-pseudo').style.opacity = '0.5';
+      document.getElementById('login-pin-row').style.display = '';
+      document.getElementById('login-btn-main').textContent = 'VALIDER LE PIN';
+      document.getElementById('login-pin').focus();
+    }).catch(() => showToast("Erreur de connexion, réessaie", "error"));
 
-    const match = Object.entries(participants).find(([uid, p]) =>
-      (p.pseudo || '').toLowerCase() === pseudo.toLowerCase()
-    );
-    if (!match) { showToast("Pseudo non reconnu. Demande à l'admin !", "error"); return; }
-    loginFoundUser = match;
-    loginStep = 2;
-    document.getElementById('login-pseudo').disabled = true;
-    document.getElementById('login-pseudo').style.opacity = '0.5';
-    document.getElementById('login-pin-row').style.display = '';
-    document.getElementById('login-btn-main').textContent = 'VALIDER LE PIN';
-    document.getElementById('login-pin').focus();
   } else {
     const pin = document.getElementById('login-pin').value.trim();
     if (!pin) { showToast("Saisis ton code PIN !", "error"); return; }
@@ -1901,8 +1898,19 @@ function showToast(msg, type='success') {
   toastTimer = setTimeout(()=>el.className='', 3000);
 }
 
-// Init — charger participants dès le début pour la vérification login + top 3
-db.ref('taf_prono/participants').once('value').then(snap => {
+// Init — charger participants + top3, avec retry si Firebase pas prêt
+let fbReady = false;
+firebase.database().ref('.info/connected').on('value', snap => {
+  if (snap.val() === true && !fbReady) {
+    fbReady = true;
+    db.ref('taf_prono/participants').once('value').then(snap => {
+      participants = snap.val() || {};
+      renderLoginTop3();
+    });
+  }
+});
+// Listener temps réel pour le top3 login
+db.ref('taf_prono/participants').on('value', snap => {
   participants = snap.val() || {};
   renderLoginTop3();
 });
