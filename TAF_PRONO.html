@@ -312,6 +312,24 @@
         </div>
         <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
       </div>
+
+      <!-- AUDIT LOG -->
+      <div style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:2px">📋 HISTORIQUE DES PRONOS</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="audit-filter" onchange="renderAudit()" style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:13px;outline:none">
+              <option value="all">Tous les événements</option>
+              <option value="suspicious">⚠️ Tentatives suspectes</option>
+              <option value="MODIFICATION">Modifications</option>
+              <option value="CREATION">Créations</option>
+            </select>
+            <button onclick="renderAudit()" style="background:var(--dark4);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px">🔄 Actualiser</button>
+          </div>
+        </div>
+        <div id="audit-stats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+        <div id="audit-table"></div>
+      </div>
     </div>
 
   </div>
@@ -378,33 +396,60 @@ const GROUPES_OFFICIELS = {
   L: ["Mexique","Pologne","Corée du Sud","Tchéquie"]
 };
 
-// Matchs de groupe (48 matchs, format simplifié — les 3 matchs par groupe)
+// Matchs de groupe avec dates/heures réelles (heure française = ET+6)
+// kickoff = timestamp ISO, utilisé pour le verrouillage automatique
 function genGroupMatches() {
   const matches = [];
-  let id = 1;
-  const phases = ["Phase de groupes"];
-  // Dates de début tournoi
-  const startDate = new Date("2026-06-11");
-  let day = 0;
+  let num = 1;
+  // Horaires approximatifs des matchs de groupe (heure de Paris)
+  // Chaque groupe : J1 semaine 1, J2 semaine 2, J3 semaine 3
+  const grpSlots = {
+    A:[["2026-06-11T21:00","2026-06-11T22:00"],["2026-06-15T21:00","2026-06-15T18:00"],["2026-06-19T21:00","2026-06-19T21:00"]],
+    B:[["2026-06-12T21:00","2026-06-12T18:00"],["2026-06-16T21:00","2026-06-16T18:00"],["2026-06-20T21:00","2026-06-20T21:00"]],
+    C:[["2026-06-12T00:00","2026-06-12T03:00"],["2026-06-16T00:00","2026-06-16T03:00"],["2026-06-20T00:00","2026-06-20T00:00"]],
+    D:[["2026-06-13T21:00","2026-06-13T18:00"],["2026-06-17T21:00","2026-06-17T18:00"],["2026-06-21T21:00","2026-06-21T21:00"]],
+    E:[["2026-06-14T21:00","2026-06-14T18:00"],["2026-06-16T23:00","2026-06-17T02:00"],["2026-06-22T21:00","2026-06-22T21:00"]],
+    F:[["2026-06-13T00:00","2026-06-13T03:00"],["2026-06-17T00:00","2026-06-17T03:00"],["2026-06-21T00:00","2026-06-21T00:00"]],
+    G:[["2026-06-14T00:00","2026-06-14T03:00"],["2026-06-18T00:00","2026-06-18T03:00"],["2026-06-22T00:00","2026-06-22T00:00"]],
+    H:[["2026-06-15T00:00","2026-06-15T03:00"],["2026-06-19T00:00","2026-06-19T03:00"],["2026-06-23T00:00","2026-06-23T00:00"]],
+    I:[["2026-06-18T21:00","2026-06-18T18:00"],["2026-06-22T21:00","2026-06-22T18:00"],["2026-06-26T21:00","2026-06-26T21:00"]],
+    J:[["2026-06-19T21:00","2026-06-19T18:00"],["2026-06-23T21:00","2026-06-23T18:00"],["2026-06-27T21:00","2026-06-27T21:00"]],
+    K:[["2026-06-20T21:00","2026-06-20T18:00"],["2026-06-24T21:00","2026-06-24T18:00"],["2026-06-28T21:00","2026-06-28T21:00"]],
+    L:[["2026-06-21T21:00","2026-06-21T18:00"],["2026-06-25T21:00","2026-06-25T18:00"],["2026-06-29T21:00","2026-06-29T21:00"]]
+  };
   for (const [grp, teams] of Object.entries(GROUPES_OFFICIELS)) {
-    // 3 matchs par groupe : 0v1, 0v2, 1v2 → mais format round-robin : 0v1, 2v3, 0v2, 1v3, 0v3, 1v2
+    const slots = grpSlots[grp] || [];
     const combos = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
     combos.forEach(([a,b], i) => {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + Math.floor(id/4));
+      const slotIdx = Math.floor(i/2);
+      const slotSub = i%2;
+      const kickoff = slots[slotIdx] ? slots[slotIdx][slotSub] : `2026-06-${11+slotIdx}T21:00`;
+      const ko = new Date(kickoff);
       matches.push({
         id: `G${grp}M${i+1}`,
-        num: id++,
+        num: num++,
         phase: `Groupe ${grp}`,
         groupe: grp,
         team1: teams[a],
         team2: teams[b],
-        date: d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + " " + (19 + (i%3)*2) + "h",
+        kickoff,
+        date: ko.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + " " + ko.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
         score1: null, score2: null
       });
     });
   }
   return matches;
+}
+
+// Vérifie si un match est verrouillé (commencé ou score officiel saisi)
+function isMatchLocked(m) {
+  if (m.score1 !== null) return { locked: true, reason: 'score' };
+  if (m.kickoff) {
+    const now = new Date();
+    const ko = new Date(m.kickoff);
+    if (now >= ko) return { locked: true, reason: 'kickoff' };
+  }
+  return { locked: false };
 }
 
 // Phases finales
@@ -434,9 +479,10 @@ const ADMIN_PASSWORD = "taf2026";
 // ═══════════════════════════════════════════════
 let currentUser = null;
 let isAdmin = false;
-let allPronostics = {}; // { userId: { matchId: {s1,s2} } }
-let officialScores = {}; // { matchId: {s1,s2} }
-let participants = {}; // { userId: { pseudo, pts, exact, vainqueur } }
+let allPronostics = {};
+let officialScores = {};
+let participants = {};
+let auditLog = {};
 
 // ═══════════════════════════════════════════════
 //  LOGIN
@@ -476,11 +522,77 @@ function initListeners() {
     recalcAllPoints();
     refreshCurrentTab();
   });
+  // Audit log (admin seulement)
+  if (isAdmin) {
+    db.ref('taf_prono/audit').on('value', snap => {
+      auditLog = snap.val() || {};
+      if (currentTab === 'admin') renderAudit();
+    });
+  }
   // Participants
   db.ref('taf_prono/participants').on('value', snap => {
     participants = snap.val() || {};
     refreshCurrentTab();
   });
+}
+
+// ═══════════════════════════════════════════════
+//  AUDIT RENDER
+// ═══════════════════════════════════════════════
+function renderAudit() {
+  if (!isAdmin) return;
+  const filter = document.getElementById('audit-filter')?.value || 'all';
+  let entries = Object.entries(auditLog).map(([k,v])=>({key:k,...v}))
+    .sort((a,b) => new Date(b.ts) - new Date(a.ts));
+
+  if (filter === 'suspicious') entries = entries.filter(e => e.suspicious);
+  else if (filter !== 'all') entries = entries.filter(e => e.action === filter);
+
+  const total = Object.keys(auditLog).length;
+  const suspicious = Object.values(auditLog).filter(e=>e.suspicious).length;
+  const modifs = Object.values(auditLog).filter(e=>e.action==='MODIFICATION').length;
+  const uniqueUsers = new Set(Object.values(auditLog).map(e=>e.userId)).size;
+
+  document.getElementById('audit-stats').innerHTML = [
+    {val: total, label: 'Événements total', color: 'var(--gold)'},
+    {val: suspicious, label: '⚠️ Tentatives suspectes', color: suspicious > 0 ? 'var(--red)' : 'var(--green)'},
+    {val: modifs, label: 'Modifications', color: '#64B5F6'},
+    {val: uniqueUsers, label: 'Participants actifs', color: 'var(--muted)'},
+  ].map(s=>`<div style="background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;text-align:center">
+    <div style="font-family:'Bebas Neue';font-size:28px;color:${s.color}">${s.val}</div>
+    <div style="font-size:11px;color:var(--muted)">${s.label}</div>
+  </div>`).join('');
+
+  if (!entries.length) {
+    document.getElementById('audit-table').innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px;font-size:14px">Aucun événement</div>`;
+    return;
+  }
+
+  document.getElementById('audit-table').innerHTML = `
+    <table class="ranking-table">
+      <thead><tr>
+        <th>Date / Heure</th><th>Participant</th><th>Match</th>
+        <th>Action</th><th>Prono saisi</th><th>Prono précédent</th><th>Statut</th>
+      </tr></thead>
+      <tbody>${entries.map(e => {
+        const actionLabel = {
+          CREATION:'✏️ Création', MODIFICATION:'✏️ Modification', TENTATIVE_APRES_MATCH:'🚨 APRÈS MATCH'
+        }[e.action] || e.action;
+        const actionColor = e.suspicious ? 'var(--red)' : e.action==='MODIFICATION' ? '#64B5F6' : 'var(--green)';
+        return `<tr style="${e.suspicious?'background:rgba(192,57,43,0.08)':''}">
+          <td style="font-size:12px;color:var(--muted);white-space:nowrap">${e.tsHuman||e.ts?.slice(0,19).replace('T',' ')}</td>
+          <td style="font-weight:600">${e.pseudo||e.userId}</td>
+          <td style="font-size:12px">${e.match}</td>
+          <td><span style="color:${actionColor};font-weight:700;font-size:12px">${actionLabel}</span></td>
+          <td style="color:var(--gold);font-weight:700">${e.prono}</td>
+          <td style="color:var(--muted)">${e.prevProno||'—'}</td>
+          <td>${e.suspicious
+            ?`<span style="background:rgba(192,57,43,0.2);color:var(--red);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">⚠️ SUSPECT</span>`
+            :`<span style="background:rgba(39,174,96,0.15);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px">✓ OK</span>`
+          }</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
 }
 
 // ═══════════════════════════════════════════════
@@ -635,7 +747,9 @@ function renderMatchs() {
     <div class="match-grid">
       ${matches.map(m => {
         const prono = myPronos[m.id]||{};
-        const locked = m.score1 !== null; // verrouillé si score officiel saisi
+        const { locked, reason } = isMatchLocked(m);
+        const lockIcon = locked ? (reason==='kickoff' ? '⏰' : '🔒') : '';
+        const lockLabel = locked ? (reason==='kickoff' ? `<span class="match-lock">⏰ En cours</span>` : `<span class="match-lock">🔒 Terminé</span>`) : '';
         const result = prono.s1!==undefined && prono.s2!==undefined && locked
           ? calcResult(prono.s1, prono.s2, m.score1, m.score2) : null;
         const resultBadge = result ? {
@@ -647,7 +761,7 @@ function renderMatchs() {
         return `<div class="match-card ${locked?'locked':''}">
           <div class="match-meta">
             <span class="match-group">GRP ${m.groupe} · #${m.num}</span>
-            <span>${locked?`<span class="match-lock">🔒</span>`:''} ${m.date}</span>
+            <span>${lockLabel} ${m.date}</span>
           </div>
           <div class="match-teams">
             <span class="team-name">${m.team1}</span>
@@ -684,10 +798,54 @@ function saveProno(matchId) {
   const s2 = document.getElementById('p2_'+matchId)?.value;
   if (s1==='' || s2==='' || s1===null || s2===null) { showToast("Saisis les 2 scores !", "error"); return; }
   const m = MATCHES_BY_ID[matchId];
-  if (m && m.score1!==null) { showToast("Match déjà joué, prono verrouillé","error"); return; }
-  db.ref(`taf_prono/pronostics/${currentUser}/${matchId}`).set({s1:parseInt(s1),s2:parseInt(s2)})
-    .then(()=>showToast(`Prono ${m.team1} ${s1}–${s2} ${m.team2} enregistré !`,"success"))
-    .catch(()=>showToast("Erreur Firebase","error"));
+  if (!m) return;
+
+  // Double vérification côté client : score officiel OU match commencé
+  const lock = isMatchLocked(m);
+  if (lock.locked) {
+    const reason = lock.reason === 'kickoff' ? "Le match a déjà commencé ⏰" : "Match terminé, prono verrouillé 🔒";
+    showToast(reason, "error");
+    // Log tentative de triche
+    logAudit(matchId, s1, s2, 'TENTATIVE_APRES_MATCH', lock.reason);
+    return;
+  }
+
+  const prevProno = (allPronostics[currentUser]||{})[matchId];
+  const action = prevProno ? 'MODIFICATION' : 'CREATION';
+
+  db.ref(`taf_prono/pronostics/${currentUser}/${matchId}`).set({
+    s1: parseInt(s1), s2: parseInt(s2),
+    updatedAt: new Date().toISOString()
+  })
+  .then(() => {
+    showToast(`Prono ${m.team1} ${s1}–${s2} ${m.team2} enregistré !`, "success");
+    // Log audit normal
+    logAudit(matchId, s1, s2, action, null, prevProno);
+  })
+  .catch(() => showToast("Erreur Firebase", "error"));
+}
+
+// ═══════════════════════════════════════════════
+//  LOG D'AUDIT
+// ═══════════════════════════════════════════════
+function logAudit(matchId, s1, s2, action, lockReason, prevProno) {
+  const m = MATCHES_BY_ID[matchId];
+  const now = new Date();
+  const entry = {
+    ts: now.toISOString(),
+    tsHuman: now.toLocaleString('fr-FR'),
+    userId: currentUser,
+    pseudo: (participants[currentUser]||{}).pseudo || currentUser,
+    matchId,
+    match: m ? `${m.team1} vs ${m.team2}` : matchId,
+    action,
+    prono: `${s1}-${s2}`,
+    prevProno: prevProno ? `${prevProno.s1}-${prevProno.s2}` : null,
+    lockReason: lockReason || null,
+    kickoff: m?.kickoff || null,
+    suspicious: action.includes('TENTATIVE') ? true : false
+  };
+  db.ref('taf_prono/audit').push(entry);
 }
 
 // ═══════════════════════════════════════════════
@@ -752,6 +910,7 @@ function renderAdmin() {
   </option>`).join('');
   if(prev) sel.value=prev;
   loadAdminMatch();
+  renderAudit();
 }
 
 function loadAdminMatch() {
@@ -788,6 +947,11 @@ function checkAdmin() {
     isAdmin=true;
     closeAdminModal();
     document.getElementById('admin-tab-btn').style.display='';
+    // Activer le listener audit maintenant qu'on est admin
+    db.ref('taf_prono/audit').on('value', snap => {
+      auditLog = snap.val() || {};
+      if (currentTab === 'admin') renderAudit();
+    });
     showToast("Accès admin accordé ✓","success");
   } else {
     showToast("Mot de passe incorrect","error");
