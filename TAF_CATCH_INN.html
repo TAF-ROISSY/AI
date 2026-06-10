@@ -240,6 +240,10 @@ body {
             </div>
           </div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:16px;cursor:pointer;font-size:13px;color:#64748b;user-select:none;">
+          <input type="checkbox" id="test-mode" style="width:15px;height:15px;accent-color:#004170;cursor:pointer;">
+          Mode test — envoyer uniquement à <strong>import@taftrans.fr</strong>
+        </label>
         <button class="send-btn" id="send-btn" onclick="sendMail()" disabled>
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           Envoyer au bureau de douane
@@ -337,8 +341,13 @@ document.getElementById('ref').addEventListener('input', function() {
   checkReady();
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('test-mode').addEventListener('change', checkReady);
+});
+
 function checkReady() {
-  document.getElementById('send-btn').disabled = !(getRef().length > 0 && dest !== null);
+  const testMode = document.getElementById('test-mode') && document.getElementById('test-mode').checked;
+  document.getElementById('send-btn').disabled = !(getRef().length > 0 && (dest !== null || testMode));
 }
 
 function hideToasts() {
@@ -412,11 +421,17 @@ async function sendMail() {
     const res = await fetch(WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: EMAILS[dest], cc: 'import@taftrans.fr', from: 'import@taftrans.fr', subject: buildSujet(ref), body: buildBody(ref) })
+      body: JSON.stringify(
+        document.getElementById('test-mode').checked
+          ? { to: 'import@taftrans.fr', from: 'import@taftrans.fr', subject: '[TEST] ' + buildSujet(ref), body: buildBody(ref) }
+          : { to: EMAILS[dest], cc: 'import@taftrans.fr', from: 'import@taftrans.fr', subject: buildSujet(ref), body: buildBody(ref) }
+      )
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await saveHistorique(ref, dest, EMAILS[dest]);
-    document.getElementById('toast-ok-msg').textContent = `Mail envoyé à ${EMAILS[dest]} — Réf. ${ref}`;
+    document.getElementById('toast-ok-msg').textContent = document.getElementById('test-mode').checked
+      ? `[TEST] Mail envoyé à import@taftrans.fr — Réf. ${ref}`
+      : `Mail envoyé à ${EMAILS[dest]} — Réf. ${ref}`;
     document.getElementById('toast-ok').style.display = 'flex';
     document.getElementById('ref').value = '';
     document.getElementById('pv-ref').textContent = '—';
