@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAF · Régularisation Certificats de Capture</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#071a21;
+  --bg2:#0a212a;
+  --surface:#0d2630;
+  --surface2:#123240;
+  --surface3:#17404f;
+  --border:rgba(255,255,255,.08);
+  --border2:rgba(255,255,255,.15);
+  --text:#e7f3f4;
+  --text-dim:#8fb0b8;
+  --text-dimmer:#587d85;
+  --accent:#2dd4bf;
+  --accent-light:#7fe8da;
+  --accent-dim:rgba(45,212,191,.13);
+  --amber:#f0a93a;
+  --amber-dim:rgba(240,169,58,.14);
+  --blue:#4f9fe0;
+  --blue-dim:rgba(79,159,224,.14);
+  --green:#3ecf8e;
+  --green-dim:rgba(62,207,142,.14);
+  --danger:#e2574c;
+  --danger-dim:rgba(226,87,76,.14);
+  --radius:10px;
+  --radius-lg:18px;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(45,212,191,.07), transparent 45%),
+    radial-gradient(circle at 90% 15%, rgba(79,159,224,.06), transparent 40%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-display);
+  font-size:14px;
+  line-height:1.5;
+  min-height:100vh;
+  padding-bottom:70px;
+}
+::selection{background:var(--accent-dim);color:var(--accent-light)}
+a{color:inherit}
+
+/* ---------- layout shell ---------- */
+.wrap{max-width:1320px;margin:0 auto;padding:32px 28px 24px}
+
+/* ---------- header ---------- */
+.header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px;flex-wrap:wrap}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.eyebrow::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-dim)}
+h1{font-size:27px;font-weight:600;letter-spacing:-.01em}
+h1 .muted{color:var(--text-dim);font-weight:400}
+.header-meta{font-size:12px;color:var(--text-dimmer);margin-top:6px;font-family:var(--font-mono)}
+.header-actions{display:flex;gap:10px;align-items:center}
+
+/* ---------- buttons ---------- */
+.btn{
+  font-family:var(--font-display);font-size:13px;font-weight:500;
+  padding:10px 16px;border-radius:var(--radius);border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text);cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:all .15s ease;white-space:nowrap;
+}
+.btn:hover{background:var(--surface3);border-color:var(--accent)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#04201c;font-weight:600}
+.btn-primary:hover{background:var(--accent-light);border-color:var(--accent-light)}
+.btn-ghost{background:transparent;border-color:var(--border)}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+
+/* ---------- tide gauge (signature element) ---------- */
+.tide-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:22px 24px;margin-bottom:22px;position:relative;overflow:hidden;
+}
+.tide-card::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg, transparent 60%, rgba(45,212,191,.04));
+}
+.tide-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.tide-title{font-size:12px;font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+.tide-pct{font-size:26px;font-weight:700;font-family:var(--font-mono);color:var(--green)}
+.tide-pct span{font-size:13px;color:var(--text-dimmer);font-weight:400;margin-left:4px}
+.tide-bar{
+  height:16px;border-radius:999px;background:var(--bg2);overflow:hidden;display:flex;
+  border:1px solid var(--border);
+}
+.tide-seg{height:100%;width:0;transition:width 1s cubic-bezier(.16,1,.3,1);position:relative}
+.tide-seg.attente{background:linear-gradient(90deg,var(--amber),#d99428)}
+.tide-seg.cours{background:linear-gradient(90deg,var(--blue),#3a82c4)}
+.tide-seg.valide{background:linear-gradient(90deg,var(--green),#26ad72)}
+.tide-legend{display:flex;gap:22px;margin-top:13px;flex-wrap:wrap}
+.tide-legend-item{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim)}
+.tide-dot{width:9px;height:9px;border-radius:50%}
+.tide-dot.attente{background:var(--amber)}
+.tide-dot.cours{background:var(--blue)}
+.tide-dot.valide{background:var(--green)}
+.tide-legend-item b{color:var(--text);font-family:var(--font-mono);font-weight:600}
+
+/* ---------- stat cards ---------- */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;cursor:pointer;transition:all .15s ease;position:relative;
+}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.stat-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.stat-label{font-size:11px;font-family:var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--text-dimmer);margin-bottom:8px}
+.stat-value{font-size:26px;font-weight:700;font-family:var(--font-mono)}
+.stat-card[data-k="tous"] .stat-value{color:var(--text)}
+.stat-card[data-k="en_attente"] .stat-value{color:var(--amber)}
+.stat-card[data-k="en_cours"] .stat-value{color:var(--blue)}
+.stat-card[data-k="valide"] .stat-value{color:var(--green)}
+
+/* ---------- toolbar ---------- */
+.toolbar{
+  display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;
+}
+.search-box{flex:1 1 240px;position:relative;min-width:220px}
+.search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-dimmer)}
+.search-box input{
+  width:100%;padding:9px 12px 9px 34px;border-radius:var(--radius);border:1px solid var(--border2);
+  background:var(--bg2);color:var(--text);font-family:var(--font-display);font-size:13px;
+}
+.search-box input:focus{outline:none;border-color:var(--accent)}
+.field-group{display:flex;align-items:center;gap:6px}
+.field-group label{font-size:11px;color:var(--text-dimmer);font-family:var(--font-mono);white-space:nowrap}
+.field-group input[type="date"]{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);
+  padding:8px 9px;font-family:var(--font-mono);font-size:12.5px;color-scheme:dark;
+}
+.field-group input[type="date"]:focus{outline:none;border-color:var(--accent)}
+.divider-v{width:1px;height:24px;background:var(--border)}
+
+/* ---------- table ---------- */
+.table-wrap{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  overflow:hidden;
+}
+table{width:100%;border-collapse:collapse}
+thead th{
+  text-align:left;font-size:11px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-dimmer);font-weight:500;padding:13px 14px;border-bottom:1px solid var(--border);
+  background:var(--bg2);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap;
+}
+thead th:hover{color:var(--accent)}
+thead th .arrow{opacity:.5;margin-left:3px;font-size:10px}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s ease}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:last-child{border-bottom:none}
+td{padding:12px 14px;font-size:13px;vertical-align:middle}
+td.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-dim)}
+td.client{font-weight:600}
+td.tiers{color:var(--text-dim)}
+.pays-tag{font-family:var(--font-mono);font-size:11px;color:var(--text-dimmer);border:1px solid var(--border);border-radius:5px;padding:1px 6px}
+
+select.status-select{
+  font-family:var(--font-display);font-weight:600;font-size:12px;border-radius:999px;
+  padding:6px 26px 6px 12px;border:1px solid transparent;cursor:pointer;appearance:none;
+  -webkit-appearance:none;background-repeat:no-repeat;background-position:right 9px center;background-size:9px;
+}
+select.status-select.en_attente{background-color:var(--amber-dim);color:var(--amber);border-color:rgba(240,169,58,.3)}
+select.status-select.en_cours{background-color:var(--blue-dim);color:var(--blue);border-color:rgba(79,159,224,.3)}
+select.status-select.valide{background-color:var(--green-dim);color:var(--green);border-color:rgba(62,207,142,.3)}
+select.status-select:focus{outline:none}
+
+.maj-cell{font-size:11.5px;color:var(--text-dimmer);font-family:var(--font-mono)}
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-dimmer)}
+.empty-state svg{width:40px;height:40px;margin-bottom:14px;opacity:.4}
+
+/* ---------- pagination ---------- */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.pagination-info{font-size:12px;color:var(--text-dimmer);font-family:var(--font-mono)}
+.pagination-controls{display:flex;align-items:center;gap:8px}
+.page-btn{
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:7px;
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;
+}
+.page-btn:hover{border-color:var(--accent)}
+.page-btn:disabled{opacity:.35;cursor:not-allowed}
+.page-size-select{
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:7px;
+  padding:6px 9px;font-family:var(--font-mono);font-size:12px;cursor:pointer;
+}
+
+/* ---------- modal ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(3,12,16,.7);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{
+  background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);
+  width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;padding:26px;
+  transform:translateY(12px);transition:transform .2s ease;
+}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal h2{font-size:18px;margin-bottom:18px;font-weight:600}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.modal-grid .full{grid-column:1/-1}
+.field label{display:block;font-size:11px;color:var(--text-dimmer);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.field input,.field select{
+  width:100%;padding:9px 11px;border-radius:var(--radius);border:1px solid var(--border2);
+  background:var(--bg2);color:var(--text);font-family:var(--font-display);font-size:13px;
+}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px}
+
+/* ---------- toast ---------- */
+.toast-stack{position:fixed;bottom:24px;left:24px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{
+  background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:11px 16px;font-size:13px;display:flex;align-items:center;gap:9px;box-shadow:0 8px 24px rgba(0,0,0,.35);
+  animation:toastIn .25s ease;min-width:220px;
+}
+.toast.success{border-color:rgba(62,207,142,.35)}
+.toast.error{border-color:rgba(226,87,76,.4)}
+.toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.toast.success .toast-dot{background:var(--green)}
+.toast.error .toast-dot{background:var(--danger)}
+.toast.info .toast-dot{background:var(--accent)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ---------- version badge ---------- */
+.version-badge{
+  position:fixed;bottom:14px;right:16px;font-family:var(--font-mono);font-size:10.5px;
+  color:var(--text-dimmer);background:var(--surface);border:1px solid var(--border);
+  border-radius:999px;padding:5px 11px;z-index:50;letter-spacing:.03em;
+}
+.version-badge b{color:var(--accent)}
+
+/* ---------- loading ---------- */
+.loading-row{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--text-dimmer);font-family:var(--font-mono);font-size:12px}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media (max-width:900px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:20px 14px}
+  table{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <div class="eyebrow">TAF TRANS · Douane CDG</div>
+      <h1>Régularisation <span class="muted">/</span> Certificats de capture</h1>
+      <div class="header-meta" id="header-meta">Chargement des dossiers…</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Resynchroniser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.36M21 4v6h-6"/></svg>
+        Sync
+      </button>
+      <button class="btn btn-ghost btn-sm" id="btn-export">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-primary btn-sm" id="btn-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Nouveau dossier
+      </button>
+    </div>
+  </div>
+
+  <!-- signature element : tide gauge -->
+  <div class="tide-card">
+    <div class="tide-top">
+      <div class="tide-title">Niveau de régularisation</div>
+      <div class="tide-pct" id="tide-pct">0%<span>validés</span></div>
+    </div>
+    <div class="tide-bar">
+      <div class="tide-seg attente" id="seg-attente"></div>
+      <div class="tide-seg cours" id="seg-cours"></div>
+      <div class="tide-seg valide" id="seg-valide"></div>
+    </div>
+    <div class="tide-legend">
+      <div class="tide-legend-item"><span class="tide-dot attente"></span>En attente · <b id="lg-attente">0</b></div>
+      <div class="tide-legend-item"><span class="tide-dot cours"></span>En cours · <b id="lg-cours">0</b></div>
+      <div class="tide-legend-item"><span class="tide-dot valide"></span>Validés · <b id="lg-valide">0</b></div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card active" data-k="tous">
+      <div class="stat-label">Total dossiers</div>
+      <div class="stat-value" id="stat-tous">0</div>
+    </div>
+    <div class="stat-card" data-k="en_attente">
+      <div class="stat-label">En attente</div>
+      <div class="stat-value" id="stat-en_attente">0</div>
+    </div>
+    <div class="stat-card" data-k="en_cours">
+      <div class="stat-label">En cours</div>
+      <div class="stat-value" id="stat-en_cours">0</div>
+    </div>
+    <div class="stat-card" data-k="valide">
+      <div class="stat-label">Validés</div>
+      <div class="stat-value" id="stat-valide">0</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="search-input" placeholder="Rechercher client, tiers, déclaration, LRN…">
+    </div>
+    <div class="divider-v"></div>
+    <div class="field-group">
+      <label>Du</label>
+      <input type="date" id="date-from">
+    </div>
+    <div class="field-group">
+      <label>Au</label>
+      <input type="date" id="date-to">
+    </div>
+    <button class="btn btn-ghost btn-sm" id="btn-reset-filters">Réinitialiser</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-sort="declaration">Déclaration <span class="arrow"></span></th>
+          <th data-sort="lrn">LRN / Réf. interne <span class="arrow"></span></th>
+          <th data-sort="date_creation">Date création <span class="arrow"></span></th>
+          <th data-sort="client">Client <span class="arrow"></span></th>
+          <th data-sort="tiers">Tiers</th>
+          <th>Pays</th>
+          <th data-sort="statut">Statut <span class="arrow"></span></th>
+          <th>Mise à jour</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="8"><div class="loading-row"><div class="spinner"></div>Connexion à la base TAF…</div></td></tr>
+      </tbody>
+    </table>
+    <div class="pagination">
+      <div class="pagination-info" id="pagination-info">—</div>
+      <div class="pagination-controls">
+        <select class="page-size-select" id="page-size">
+          <option value="25">25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
+          <option value="99999">Tout afficher</option>
+        </select>
+        <button class="page-btn" id="page-prev">‹</button>
+        <span class="pagination-info" id="page-indicator" style="min-width:70px;text-align:center">1 / 1</span>
+        <button class="page-btn" id="page-next">›</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- modal ajout dossier -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>Nouveau dossier de régularisation</h2>
+    <div class="modal-grid">
+      <div class="field"><label>Déclaration *</label><input type="text" id="f-declaration" placeholder="26FRD000…"></div>
+      <div class="field"><label>LRN</label><input type="text" id="f-lrn" placeholder="I20260…"></div>
+      <div class="field full"><label>Réf. interne</label><input type="text" id="f-ref"></div>
+      <div class="field"><label>Client *</label><input type="text" id="f-client"></div>
+      <div class="field"><label>Tiers</label><input type="text" id="f-tiers"></div>
+      <div class="field"><label>Pays tiers</label><input type="text" id="f-pays" maxlength="2" placeholder="SN, LK, MV…" style="text-transform:uppercase"></div>
+      <div class="field"><label>Statut</label>
+        <select id="f-statut">
+          <option value="en_attente">En attente</option>
+          <option value="en_cours">En cours</option>
+          <option value="valide">Validé</option>
+        </select>
+      </div>
+      <div class="field"><label>Date création</label><input type="date" id="f-date"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancel-add">Annuler</button>
+      <button class="btn btn-primary" id="btn-confirm-add">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<div class="version-badge">TAF CATCH REGUL · <b>v1.0</b></div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const FB_BASE = 'https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app/taf_catch_regul/dossiers';
+const PAYS_NAMES = {PF:'Polynésie française',LK:'Sri Lanka',SN:'Sénégal',GN:'Guinée',MV:'Maldives',SC:'Seychelles',CL:'Chili',PH:'Philippines',ZA:'Afrique du Sud'};
+const STATUT_LABELS = {en_attente:'En attente', en_cours:'En cours', valide:'Validé'};
+
+/* ===================== STATE ===================== */
+let dossiers = {};          // {id: record}
+let filtered = [];
+let currentPage = 1;
+let pageSize = 25;
+let statusFilter = 'tous';
+let searchQuery = '';
+let dateFrom = '';
+let dateTo = '';
+let sortKey = 'date_creation';
+let sortDir = 'desc';
+
+/* ===================== SEED DATA (import initial xls) ===================== */
+const SEED_DATA = [{"id":"d0001","lrn":"I20260201084535210","ref_interne":"224/244/83116062/MARENOVA","declaration":"26FRD0001524232CR9","date_creation":"01/02/2026 08:51","date_declaration":"01/02/2026 14:27","date_bae":"01/02/2026 14:27","client":"MARE NOVA","tiers":"PACIFIC TUNA","pays":"PF","statut":"en_attente","maj_le":""},{"id":"d0002","lrn":"I20260201085733345","ref_interne":"222/176 2257 8010/moalia","declaration":"26FRD0001524305CR4","date_creation":"01/02/2026 09:07","date_declaration":"01/02/2026 11:41","date_bae":"01/02/2026 12:11","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0003","lrn":"I20260201113622455","ref_interne":"226/05702954195/ikagel/sacep//01","declaration":"26FRD0001525136CR5","date_creation":"01/02/2026 11:40","date_declaration":"01/02/2026 11:41","date_bae":"01/02/2026 11:42","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0004","lrn":"I20260201114022440","ref_interne":"226/05702954195/ikagel/mandiang/01","declaration":"26FRD0001525148CR1","date_creation":"01/02/2026 11:42","date_declaration":"01/02/2026 11:44","date_bae":"01/02/2026 11:44","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0005","lrn":"I20260201123455028","ref_interne":"225/057/5753-5140//01","declaration":"26FRD0001525509CR1","date_creation":"01/02/2026 12:37","date_declaration":"01/02/2026 12:38","date_bae":"01/02/2026 12:56","client":"CAPMARIN","tiers":"SNURAM","pays":"GN","statut":"en_attente","maj_le":""},{"id":"d0006","lrn":"I20260202075436513","ref_interne":"229/PROSOL/ORCA/176 24193131","declaration":"26FRD0001541639CR1","date_creation":"02/02/2026 08:04","date_declaration":"02/02/2026 11:01","date_bae":"02/02/2026 11:01","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0007","lrn":"I20260203105422520","ref_interne":"0245/ 17628516364/ ORCAMAREE","declaration":"26FRD0001634609CR0","date_creation":"03/02/2026 10:56","date_declaration":"03/02/2026 10:57","date_bae":"03/02/2026 10:57","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0008","lrn":"I20260203110553953","ref_interne":"246/490/0205-6084//","declaration":"26FRD0001636073CR5","date_creation":"03/02/2026 11:06","date_declaration":"03/02/2026 11:07","date_bae":"03/02/2026 11:26","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0009","lrn":"I20260203162944181","ref_interne":"17622888843/MOALIA","declaration":"26FRD0001663214CR0","date_creation":"03/02/2026 16:57","date_declaration":"04/02/2026 10:27","date_bae":"04/02/2026 10:48","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0010","lrn":"I20260203172930270","ref_interne":"0255/ MOALIA/ 15743852115/ BLUESALT","declaration":"26FRD0001667656CR0","date_creation":"03/02/2026 17:37","date_declaration":"04/02/2026 15:53","date_bae":"04/02/2026 15:53","client":"MOALIA","tiers":"BLUES SALWATER MALDIVES LTD","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0011","lrn":"I20260204074004782","ref_interne":"259/EAST/ORCA/17622888865","declaration":"26FRD0001689941CR7","date_creation":"04/02/2026 07:44","date_declaration":"04/02/2026 15:20","date_bae":"04/02/2026 15:20","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0012","lrn":"I20260204074221040","ref_interne":"0260/ IKAGEL/ 05702967543/ MANDIANG","declaration":"26FRD0001691166CR1","date_creation":"04/02/2026 08:01","date_declaration":"04/02/2026 09:35","date_bae":"04/02/2026 09:36","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0013","lrn":"I20260204080300009","ref_interne":"0260/ IKAGEL/ 05702967543/ SACEP","declaration":"26FRD0001692700CR4","date_creation":"04/02/2026 08:10","date_declaration":"04/02/2026 09:35","date_bae":"04/02/2026 09:35","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0014","lrn":"I20260205075322776","ref_interne":"265/176/22448436/ORCA","declaration":"26FRD0001766126CR4","date_creation":"05/02/2026 08:59","date_declaration":"05/02/2026 10:56","date_bae":"05/02/2026 10:56","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0015","lrn":"I20260205110028098","ref_interne":"264/176/2288-8773/001","declaration":"26FRD0001775133CR7","date_creation":"05/02/2026 11:03","date_declaration":"05/02/2026 11:04","date_bae":"05/02/2026 11:22","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0016","lrn":"I20260206085243322","ref_interne":"0272/ORCAMAREE/ 17622889123/ EAST","declaration":"26FRD0001837078CR0","date_creation":"06/02/2026 08:59","date_declaration":"06/02/2026 15:24","date_bae":"06/02/2026 15:25","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0017","lrn":"I20260208070403377","ref_interne":"287/SACEP/IKAGEL/057/03191661","declaration":"26FRD0001905847CR2","date_creation":"08/02/2026 07:15","date_declaration":"08/02/2026 10:28","date_bae":"08/02/2026 10:28","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0018","lrn":"I20260208071454874","ref_interne":"287/MANDIANG/IKAGEL/05703191661","declaration":"26FRD0001905881CR4","date_creation":"08/02/2026 07:27","date_declaration":"08/02/2026 10:28","date_bae":"08/02/2026 10:28","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0019","lrn":"I20260208073731507","ref_interne":"288/CAPMARIN/49002058910","declaration":"26FRD0001905984CR1","date_creation":"08/02/2026 07:50","date_declaration":"08/02/2026 11:54","date_bae":"09/02/2026 11:24","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0020","lrn":"I20260208115742727","ref_interne":"290/APOLLO/MOALIA/17622889193","declaration":"26FRD0001907347CR8","date_creation":"08/02/2026 11:59","date_declaration":"08/02/2026 12:01","date_bae":"08/02/2026 12:59","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0021","lrn":"I20260209074044979","ref_interne":"292/PROSOL/ORCA/176 22448440","declaration":"26FRD0001925286CR7","date_creation":"09/02/2026 07:44","date_declaration":"09/02/2026 11:05","date_bae":"09/02/2026 11:06","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0022","lrn":"17621231976","ref_interne":"17621231976/ORCA/302","declaration":"26FRD0001963942CR5","date_creation":"09/02/2026 14:47","date_declaration":"10/02/2026 14:58","date_bae":"10/02/2026 14:58","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0023","lrn":"I20260210103338847","ref_interne":"0312/ CAPMARIN/ 49002059072","declaration":"26FRD0002006214CR0","date_creation":"10/02/2026 10:35","date_declaration":"10/02/2026 10:36","date_bae":"10/02/2026 10:55","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0024","lrn":"I20260211074620205","ref_interne":"321/APOLLO/MOALIA 176/22885505D","declaration":"26FRD0002065138CR3","date_creation":"11/02/2026 07:55","date_declaration":"11/02/2026 11:35","date_bae":"11/02/2026 11:53","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0025","lrn":"I20260211075538811","ref_interne":"324/MANDIANG/CAPMARIN/490 02059116","declaration":"26FRD0002066178CR4","date_creation":"11/02/2026 08:13","date_declaration":"11/02/2026 10:33","date_bae":"11/02/2026 11:19","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0026","lrn":"I20260211080753942","ref_interne":"0322/IKAGEL/ 05702840106/ SACEP","declaration":"26FRD0002066618CR9","date_creation":"11/02/2026 08:19","date_declaration":"11/02/2026 09:28","date_bae":"11/02/2026 09:28","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0027","lrn":"I20260211081858066","ref_interne":"0322/IKAGEL/ 05702840106/ MANDIANG","declaration":"26FRD0002067620CR1","date_creation":"11/02/2026 08:37","date_declaration":"11/02/2026 09:29","date_bae":"11/02/2026 09:29","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0028","lrn":"I20260211085546041","ref_interne":"0323/CAPMARIN/ 057-57435221","declaration":"26FRD0002071639CR0","date_creation":"11/02/2026 09:27","date_declaration":"11/02/2026 10:01","date_bae":"11/02/2026 10:42","client":"CAPMARIN","tiers":"SNURAM PECHE","pays":"GN","statut":"en_attente","maj_le":""},{"id":"d0029","lrn":"17621231965","ref_interne":"17621231965/320","declaration":"26FRD0002072320CR2","date_creation":"11/02/2026 09:31","date_declaration":"11/02/2026 15:18","date_bae":"11/02/2026 15:18","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0030","lrn":"I20260212081053791","ref_interne":"332/EASTBAY/ORCA 176/22889296","declaration":"26FRD0002138127CR0","date_creation":"12/02/2026 09:21","date_declaration":"12/02/2026 11:52","date_bae":"12/02/2026 11:52","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0031","lrn":"I20260212081519049","ref_interne":"331/APOLLO/MOALIA/176 22889296","declaration":"26FRD0002139438CR4","date_creation":"12/02/2026 09:33","date_declaration":"12/02/2026 11:51","date_bae":"12/02/2026 12:05","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0032","lrn":"I20260212094626713","ref_interne":"0327/ MYTILIMER/ 176-15861786","declaration":"26FRD0002141223CR3","date_creation":"12/02/2026 09:51","date_declaration":"12/02/2026 11:41","date_bae":"12/02/2026 11:41","client":"MYTILIMER","tiers":"LUSITANIA MARKETING","pays":"ZA","statut":"en_attente","maj_le":""},{"id":"d0033","lrn":"17622573261","ref_interne":"17622573261/343/ORCA","declaration":"26FRD0002204559CR0","date_creation":"13/02/2026 10:05","date_declaration":"13/02/2026 14:59","date_bae":"13/02/2026 14:59","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0034","lrn":"I20260215084006290","ref_interne":"351/MANDIANG/CAPMARIN/49002059190","declaration":"26FRD0002275937CR0","date_creation":"15/02/2026 08:51","date_declaration":"15/02/2026 11:32","date_bae":"15/02/2026 13:00","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0035","lrn":"I20260215085209940","ref_interne":"349/APOLLO/MOALIA/17622889451","declaration":"26FRD0002275976CR4","date_creation":"15/02/2026 09:01","date_declaration":"15/02/2026 11:32","date_bae":"15/02/2026 13:01","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0036","lrn":"I20260215091057754","ref_interne":"350/MANDIANG/IKAGEL/05702916292","declaration":"26FRD0002276049CR5","date_creation":"15/02/2026 09:23","date_declaration":"15/02/2026 11:32","date_bae":"15/02/2026 11:32","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0037","lrn":"I20260215092327347","ref_interne":"350/SACEP/IKAGEL/05702916292","declaration":"26FRD0002276066CR6","date_creation":"15/02/2026 09:29","date_declaration":"15/02/2026 11:32","date_bae":"15/02/2026 11:32","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0038","lrn":"I20260216084031775","ref_interne":"353/EASTBAY/ORCA/17628507544","declaration":"26FRD0002293079CR3","date_creation":"16/02/2026 08:46","date_declaration":"16/02/2026 15:45","date_bae":"16/02/2026 15:45","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0039","lrn":"I20260216100548308","ref_interne":"352/MANDIANG/IKAGEL/05701588882","declaration":"26FRD0002301165CR5","date_creation":"16/02/2026 10:09","date_declaration":"16/02/2026 10:11","date_bae":"16/02/2026 10:11","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0040","lrn":"I20260217080245149","ref_interne":"360/oceana/orca/17621233240","declaration":"26FRD0002363697CR3","date_creation":"17/02/2026 08:13","date_declaration":"17/02/2026 15:17","date_bae":"17/02/2026 15:17","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0041","lrn":"I20260217083034010","ref_interne":"364/MANDIANG/CAPMARIN/49002059330","declaration":"26FRD0002366235CR1","date_creation":"17/02/2026 08:42","date_declaration":"17/02/2026 11:13","date_bae":"17/02/2026 11:33","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0042","lrn":"I20260218075533645","ref_interne":"375/176/2288-5505/375","declaration":"26FRD0002430688CR8","date_creation":"18/02/2026 08:05","date_declaration":"18/02/2026 10:15","date_bae":"18/02/2026 10:43","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0043","lrn":"I20260218074818315","ref_interne":"0377/IKAGEL/057-0297-0030/ MANDIANG","declaration":"26FRD0002430780CR5","date_creation":"18/02/2026 08:06","date_declaration":"18/02/2026 09:20","date_bae":"18/02/2026 09:20","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0044","lrn":"I20260218080749541","ref_interne":"0377/IKAGEL/057-0297-0030/ SACEP","declaration":"26FRD0002431220CR5","date_creation":"18/02/2026 08:16","date_declaration":"18/02/2026 09:20","date_bae":"18/02/2026 09:20","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0045","lrn":"I20260218083005954","ref_interne":"0376/ CAPMARIN/ 490-02059396","declaration":"26FRD0002434259CR3","date_creation":"18/02/2026 08:50","date_declaration":"18/02/2026 09:50","date_bae":"18/02/2026 10:45","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0046","lrn":"I20260218095316909","ref_interne":"374/157/4385-3552/002","declaration":"26FRD0002439103CR5","date_creation":"18/02/2026 09:55","date_declaration":"18/02/2026 09:55","date_bae":"18/02/2026 09:55","client":"MOALIA","tiers":"BLUES SALWATER MALDIVES LTD","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0047","lrn":"I20260218152821170","ref_interne":"0382/MOALIA/176-28506881/ APOLLO","declaration":"26FRD0002466643CR0","date_creation":"18/02/2026 15:40","date_declaration":"19/02/2026 10:40","date_bae":"19/02/2026 11:15","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0048","lrn":"I20260218174106367","ref_interne":"379/157/4798-1942","declaration":"26FRD0002472755CR3","date_creation":"18/02/2026 17:46","date_declaration":"18/02/2026 19:19","date_bae":"18/02/2026 19:19","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0049","lrn":"I20260219075634978","ref_interne":"386/EASTBAY/ORCA/17628506892","declaration":"26FRD0002490394CR1","date_creation":"19/02/2026 08:05","date_declaration":"19/02/2026 10:43","date_bae":"19/02/2026 10:43","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0050","lrn":"I20260219101101719","ref_interne":"389/490 0205 9223/capmarin","declaration":"26FRD0002502828CR8","date_creation":"19/02/2026 10:20","date_declaration":"19/02/2026 10:38","date_bae":"19/02/2026 11:09","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0051","lrn":"I20260220091415896","ref_interne":"399/EATBAY/ORCA/17628519396","declaration":"26FRD0002564130CR2","date_creation":"20/02/2026 09:29","date_declaration":"20/02/2026 14:59","date_bae":"20/02/2026 14:59","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0052","lrn":"I20260220105744010","ref_interne":"400/603 7433 9996//001","declaration":"26FRD0002574286CR0","date_creation":"20/02/2026 11:00","date_declaration":"20/02/2026 11:02","date_bae":"20/02/2026 11:02","client":"N ET S COMPAGNIE","tiers":"N AND N SUPER SEAFOOD","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0053","lrn":"I20260222072653546","ref_interne":"0412/ IKAGEL/ 057-01680814/ SACEP","declaration":"26FRD0002626717CR7","date_creation":"22/02/2026 07:41","date_declaration":"22/02/2026 10:31","date_bae":"22/02/2026 10:32","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0054","lrn":"I20260222074135090","ref_interne":"0412/ IKAGEL/ 057-01680814/MANDIANG","declaration":"26FRD0002626758CR0","date_creation":"22/02/2026 07:56","date_declaration":"22/02/2026 10:33","date_bae":"22/02/2026 10:33","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0055","lrn":"I20260222075625261","ref_interne":"0411/CAPMARIN/490-02059444/MANDIANG","declaration":"26FRD0002626814CR7","date_creation":"22/02/2026 08:09","date_declaration":"22/02/2026 12:04","date_bae":"22/02/2026 12:28","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0056","lrn":"I20260222081320233","ref_interne":"0408/ MOALIA/ 176-22577516/ APOLLO","declaration":"26FRD0002626960CR9","date_creation":"22/02/2026 08:24","date_declaration":"22/02/2026 14:37","date_bae":"22/02/2026 14:53","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0057","lrn":"I20260222103230903","ref_interne":"0410/CAPMARIN/ 057-57435383","declaration":"26FRD0002628095CR4","date_creation":"22/02/2026 10:43","date_declaration":"22/02/2026 10:44","date_bae":"22/02/2026 11:27","client":"CAPMARIN","tiers":"SNURAM PECHE","pays":"GN","statut":"en_attente","maj_le":""},{"id":"d0058","lrn":"I20260223110545176","ref_interne":"414/176 2244 9081//01","declaration":"26FRD0002660378CR3","date_creation":"23/02/2026 11:08","date_declaration":"23/02/2026 11:22","date_bae":"23/02/2026 11:22","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0059","lrn":"I20260224103019438","ref_interne":"CAPMARIN/ 490-02059470","declaration":"26FRD0002723035CR7","date_creation":"24/02/2026 10:33","date_declaration":"24/02/2026 10:34","date_bae":"24/02/2026 12:26","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0060","lrn":"I20260224152141952","ref_interne":"431/H&M/ORCA/176/2851-3660.","declaration":"26FRD0002745269CR0","date_creation":"24/02/2026 15:23","date_declaration":"24/02/2026 15:26","date_bae":"24/02/2026 15:26","client":"ORCA MAREE","tiers":"H&M","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0061","lrn":"I20260224164558389","ref_interne":"0437/MOALIA/ 176-28515756/ APOLLO","declaration":"26FRD0002752215CR0","date_creation":"24/02/2026 17:04","date_declaration":"25/02/2026 10:34","date_bae":"25/02/2026 10:51","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0062","lrn":"I20260225073418042","ref_interne":"438/603/7434-0011/N1N","declaration":"26FRD0002774025CR6","date_creation":"25/02/2026 07:45","date_declaration":"25/02/2026 10:11","date_bae":"25/02/2026 10:11","client":"N ET S COMPAGNIE","tiers":"N AND N SUPER SEAFOOD","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0063","lrn":"I20260225093316740","ref_interne":"0439/IKAGEL/ 057-01794774/ SACEP/01","declaration":"26FRD0002782538CR2","date_creation":"25/02/2026 09:34","date_declaration":"25/02/2026 09:38","date_bae":"25/02/2026 09:38","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0064","lrn":"I20260225093731387","ref_interne":"0439/IKAGEL/ 057-01794774/ MANDIAN/","declaration":"26FRD0002783019CR6","date_creation":"25/02/2026 09:39","date_declaration":"25/02/2026 09:40","date_bae":"25/02/2026 09:40","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0065","lrn":"I20260225160017578","ref_interne":"436/176/2123-3284/orca","declaration":"26FRD0002812460CR3","date_creation":"25/02/2026 16:02","date_declaration":"25/02/2026 16:02","date_bae":"25/02/2026 16:18","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0066","lrn":"I20260226104521822","ref_interne":"445/APOLLO/MOALIA/17622885601","declaration":"26FRD0002853371CR7","date_creation":"26/02/2026 10:47","date_declaration":"26/02/2026 10:48","date_bae":"26/02/2026 11:18","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0067","lrn":"I20260226143050988","ref_interne":"450/OCEANA/ORCA/17621233262","declaration":"26FRD0002868719CR4","date_creation":"26/02/2026 14:39","date_declaration":"26/02/2026 14:58","date_bae":"26/02/2026 15:09","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0068","lrn":"I20260226174232665","ref_interne":"0453/ORCAMAREE/ 176-22891352/ H&M","declaration":"26FRD0002882135CR0","date_creation":"26/02/2026 17:48","date_declaration":"27/02/2026 10:42","date_bae":"27/02/2026 10:43","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0069","lrn":"I20260301092828240","ref_interne":"462/MANDIANG/IKAGEL/05701563586.","declaration":"26FRD0002971602CR5","date_creation":"01/03/2026 09:29","date_declaration":"01/03/2026 11:34","date_bae":"01/03/2026 11:34","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0070","lrn":"I20260301093748159","ref_interne":"462/SACEP/IKAGEL/05701563586...","declaration":"26FRD0002971667CR1","date_creation":"01/03/2026 09:49","date_declaration":"01/03/2026 11:34","date_bae":"01/03/2026 11:34","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0071","lrn":"I20260302081534779","ref_interne":"466/MANDIANG/CAPMARIN/49002059676","declaration":"26FRD0002981641CR0","date_creation":"02/03/2026 08:31","date_declaration":"02/03/2026 09:31","date_bae":"02/03/2026 10:54","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0072","lrn":"I20260303170645815","ref_interne":"467/PROSOL/ORCA/61851236850.","declaration":"26FRD0003078378CR9","date_creation":"03/03/2026 17:08","date_declaration":"03/03/2026 17:09","date_bae":"03/03/2026 17:09","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0073","lrn":"I20260304074022144","ref_interne":"487/217/0780-3644/MOALIA","declaration":"26FRD0003094627CR3","date_creation":"04/03/2026 07:47","date_declaration":"04/03/2026 10:14","date_bae":"04/03/2026 10:14","client":"MOALIA","tiers":"PENAMAE FISH TRADING","pays":"PH","statut":"en_attente","maj_le":""},{"id":"d0074","lrn":"I20260304094319510","ref_interne":"486/05701564091sacp//01","declaration":"26FRD0003103264CR0","date_creation":"04/03/2026 09:46","date_declaration":"04/03/2026 09:48","date_bae":"04/03/2026 09:48","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0075","lrn":"I20260304094747760","ref_interne":"486/05701564091/mandiang //01","declaration":"26FRD0003103441CR9","date_creation":"04/03/2026 09:49","date_declaration":"04/03/2026 09:51","date_bae":"04/03/2026 09:52","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0076","lrn":"I20260304101400906","ref_interne":"484/603/7436-5211/ORCA","declaration":"26FRD0003105852CR9","date_creation":"04/03/2026 10:16","date_declaration":"04/03/2026 10:17","date_bae":"04/03/2026 10:17","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0077","lrn":"I20260305102132957","ref_interne":"496/PENAME/MOALIA/21707803655","declaration":"26FRD0003160926CR5","date_creation":"05/03/2026 10:23","date_declaration":"05/03/2026 10:24","date_bae":"05/03/2026 10:24","client":"MOALIA","tiers":"PENAMAE FISH TRADING","pays":"PH","statut":"en_attente","maj_le":""},{"id":"d0078","lrn":"I20260305122156493","ref_interne":"497/235/3657-8964","declaration":"26FRD0003170294CR2","date_creation":"05/03/2026 12:24","date_declaration":"05/03/2026 12:26","date_bae":"05/03/2026 12:26","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0079","lrn":"I20260305171429374","ref_interne":"495/OCEANA/ORCA/23501433375","declaration":"26FRD0003189855CR7","date_creation":"05/03/2026 17:16","date_declaration":"05/03/2026 17:16","date_bae":"05/03/2026 17:34","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0080","lrn":"I20260306085805755","ref_interne":"501/HM/ORCA/23536117410","declaration":"26FRD0003209834CR6","date_creation":"06/03/2026 09:04","date_declaration":"06/03/2026 11:08","date_bae":"06/03/2026 11:08","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0081","lrn":"I20260306090735980","ref_interne":"61849819560/502/ORCA","declaration":"26FRD0003210840CR0","date_creation":"06/03/2026 09:21","date_declaration":"06/03/2026 11:09","date_bae":"06/03/2026 11:09","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0082","lrn":"I20260308072352428","ref_interne":"d","declaration":"26FRD0003268392CR6","date_creation":"08/03/2026 07:39","date_declaration":"08/03/2026 10:39","date_bae":"08/03/2026 10:39","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0083","lrn":"I20260308073831059","ref_interne":"508/mandiang/ikagel/05701564135","declaration":"26FRD0003268467CR0","date_creation":"08/03/2026 07:51","date_declaration":"08/03/2026 10:38","date_bae":"08/03/2026 10:38","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0084","lrn":"I20260308075929747","ref_interne":"509/PENAMAE/MOALIA/21707803821","declaration":"26FRD0003268587CR9","date_creation":"08/03/2026 08:04","date_declaration":"08/03/2026 11:54","date_bae":"08/03/2026 11:54","client":"MOALIA","tiers":"PENAMAE FISH TRADING","pays":"PH","statut":"en_attente","maj_le":""},{"id":"d0085","lrn":"I20260308080415802","ref_interne":"510/BLUS/MOALIA/23536149820","declaration":"26FRD0003268649CR2","date_creation":"08/03/2026 08:18","date_declaration":"08/03/2026 11:54","date_bae":"08/03/2026 11:54","client":"MOALIA","tiers":"BLUES SALWATER MALDIVES LTD","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0086","lrn":"I20260308083356548","ref_interne":"512/MANDIANG/CAPMARIN/49002064646","declaration":"26FRD0003268725CR3","date_creation":"08/03/2026 08:45","date_declaration":"08/03/2026 14:36","date_bae":"08/03/2026 14:37","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0087","lrn":"I20260309072418165","ref_interne":"514/HM","declaration":"26FRD0003278235CR3","date_creation":"09/03/2026 07:33","date_declaration":"09/03/2026 09:34","date_bae":"09/03/2026 09:34","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0088","lrn":"I20260310075115445","ref_interne":"527/EASTBAY/ORCA/17628513310","declaration":"26FRD0003333266CR2","date_creation":"10/03/2026 07:59","date_declaration":"10/03/2026 12:18","date_bae":"10/03/2026 12:19","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0089","lrn":"I20260311074220368","ref_interne":"539/MANDIANG/IKAGEL","declaration":"26FRD0003392827CR3","date_creation":"11/03/2026 07:56","date_declaration":"11/03/2026 09:54","date_bae":"11/03/2026 09:55","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0090","lrn":"I20260311080744431","ref_interne":"0539/IKAGEL/ 057-01569304/ SACEP","declaration":"26FRD0003394305CR5","date_creation":"11/03/2026 08:32","date_declaration":"11/03/2026 09:55","date_bae":"11/03/2026 09:55","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0091","lrn":"I20260312092023283","ref_interne":"551/176 2289 1606/orca","declaration":"26FRD0003454799CR5","date_creation":"12/03/2026 09:25","date_declaration":"12/03/2026 17:12","date_bae":"12/03/2026 17:13","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0092","lrn":"I20260312122205502","ref_interne":"546/APOLLO/MOALIA/17628507776","declaration":"26FRD0003469463CR5","date_creation":"12/03/2026 12:32","date_declaration":"12/03/2026 15:59","date_bae":"12/03/2026 16:12","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0093","lrn":"I20260312171630554","ref_interne":"544/EAST/ORCA/17628513726","declaration":"26FRD0003486032CR0","date_creation":"12/03/2026 17:20","date_declaration":"12/03/2026 17:21","date_bae":"12/03/2026 17:21","client":"ORCA MAREE","tiers":"ESAT BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0094","lrn":"I20260313101155649","ref_interne":"552// ORCAMAREE/ 607-51792510","declaration":"26FRD0003512542CR8","date_creation":"13/03/2026 10:16","date_declaration":"13/03/2026 10:18","date_bae":"13/03/2026 10:18","client":"ORCA MAREE","tiers":"ESAT BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0095","lrn":"I20260313101830714","ref_interne":"618-52296904//GREEN","declaration":"26FRD0003513150CR3","date_creation":"13/03/2026 10:21","date_declaration":"13/03/2026 10:23","date_bae":"13/03/2026 10:23","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0096","lrn":"I20260315112404866","ref_interne":"567/057/0156-9750/ANDIANG//01","declaration":"26FRD0003564872CR9","date_creation":"15/03/2026 11:27","date_declaration":"15/03/2026 11:28","date_bae":"15/03/2026 11:28","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0097","lrn":"I20260315112735872","ref_interne":"567/0570156 9750/SACEP //","declaration":"26FRD0003564884CR5","date_creation":"15/03/2026 11:29","date_declaration":"15/03/2026 11:30","date_bae":"15/03/2026 11:31","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0098","lrn":"I20260315123811061","ref_interne":"568/490/0206-4672/capmarin//","declaration":"26FRD0003565123CR3","date_creation":"15/03/2026 12:40","date_declaration":"15/03/2026 12:41","date_bae":"15/03/2026 12:41","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0099","lrn":"I20260316084730129","ref_interne":"0572/ 490-02064753/ PETER BERNHARDT","declaration":"26FRD0003580162CR0","date_creation":"16/03/2026 09:07","date_declaration":"16/03/2026 09:16","date_bae":"16/03/2026 09:17","client":"PETER BERNHARDT LAUFERSWEILER","tiers":"TERANGA FISH P/C VALUE MARKET","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0100","lrn":"I20260316093122622","ref_interne":"574// 176-14091394// MOALIA","declaration":"26FRD0003582641CR3","date_creation":"16/03/2026 09:34","date_declaration":"16/03/2026 09:35","date_bae":"16/03/2026 10:16","client":"MOALIA","tiers":"JAY SEA FOOD PROCESSING","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0101","lrn":"I20260316105214317","ref_interne":"571/HM/ORCA/60751792484","declaration":"26FRD0003590050CR1","date_creation":"16/03/2026 10:55","date_declaration":"16/03/2026 11:00","date_bae":"16/03/2026 11:01","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0102","lrn":"I20260317074635491","ref_interne":"589/HM/ORCA/60751792672","declaration":"26FRD0003633082CR8","date_creation":"17/03/2026 07:52","date_declaration":"17/03/2026 12:05","date_bae":"17/03/2026 12:05","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0103","lrn":"I20260317074256647","ref_interne":"594/607/3783-5534/GREES","declaration":"26FRD0003633239CR0","date_creation":"17/03/2026 07:57","date_declaration":"17/03/2026 12:07","date_bae":"17/03/2026 12:07","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0104","lrn":"I20260318073033798","ref_interne":"62/618/5229-7991/orca","declaration":"26FRD0003693036CR5","date_creation":"18/03/2026 07:38","date_declaration":"18/03/2026 10:43","date_bae":"18/03/2026 10:43","client":"ORCA MAREE","tiers":"ESAT BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0105","lrn":"I20260318073558302","ref_interne":"0604/ IKAGEL/ 057-03711175/MANDIANG","declaration":"26FRD0003693732CR2","date_creation":"18/03/2026 07:55","date_declaration":"18/03/2026 09:17","date_bae":"18/03/2026 09:18","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0106","lrn":"I20260318075006742","ref_interne":"605/JAY/MOALIA/60758789301","declaration":"26FRD0003693862CR8","date_creation":"18/03/2026 07:59","date_declaration":"18/03/2026 10:43","date_bae":"18/03/2026 11:14","client":"MOALIA","tiers":"JAY SEA FOOD PROCESSING","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0107","lrn":"I20260318075503579","ref_interne":"0604/ IKAGEL/ 057-03711175/ SACEP","declaration":"26FRD0003694041CR1","date_creation":"18/03/2026 08:05","date_declaration":"18/03/2026 09:25","date_bae":"18/03/2026 09:25","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0108","lrn":"I20260319073251750","ref_interne":"617/oceana/orca/23501073984","declaration":"26FRD0003752223CR1","date_creation":"19/03/2026 07:41","date_declaration":"19/03/2026 19:41","date_bae":"19/03/2026 19:42","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0109","lrn":"I20260320091137580","ref_interne":"627/176/2852-0041","declaration":"26FRD0003813842CR7","date_creation":"20/03/2026 09:19","date_declaration":"20/03/2026 10:56","date_bae":"20/03/2026 10:57","client":"ORCA MAREE","tiers":"ESAT BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0110","lrn":"I20260320091428080","ref_interne":"628/JAY/MOALIA/60751789220","declaration":"26FRD0003814559CR7","date_creation":"20/03/2026 09:29","date_declaration":"20/03/2026 10:57","date_bae":"20/03/2026 10:57","client":"MOALIA","tiers":"JAY SEA FOOD PROCESSING","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0111","lrn":"I20260322074529389","ref_interne":"0635/ MOALIA/ 176-28518313// APOLLO","declaration":"26FRD0003871424CR9","date_creation":"22/03/2026 07:55","date_declaration":"22/03/2026 14:37","date_bae":"22/03/2026 14:51","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0112","lrn":"I20260322111451714","ref_interne":"0636/ 157-47288161/ ORCAMAREE","declaration":"26FRD0003872361CR2","date_creation":"22/03/2026 11:23","date_declaration":"23/03/2026 10:58","date_bae":"23/03/2026 10:58","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0113","lrn":"I20260323075905451","ref_interne":"640/SACEP/IKAGEL/05703711411","declaration":"26FRD0003883015CR6","date_creation":"23/03/2026 08:07","date_declaration":"23/03/2026 09:12","date_bae":"23/03/2026 09:12","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0114","lrn":"I20260323091025837","ref_interne":"640/MANDIANG/IKAGEL/05703711411/1","declaration":"26FRD0003887095CR1","date_creation":"23/03/2026 09:16","date_declaration":"23/03/2026 09:20","date_bae":"23/03/2026 09:20","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0115","lrn":"I20260324105104035","ref_interne":"654/EAST/ORCA/17628522130","declaration":"26FRD0003955630CR6","date_creation":"24/03/2026 10:57","date_declaration":"24/03/2026 11:01","date_bae":"24/03/2026 11:01","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0116","lrn":"I20260325073425540","ref_interne":"662/607/53838400/orca","declaration":"26FRD0003987332CR0","date_creation":"25/03/2026 07:45","date_declaration":"25/03/2026 11:02","date_bae":"25/03/2026 11:02","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0117","lrn":"I20260325073117177","ref_interne":"0660/IKAGEL/ 057-02715204/ MANDIANG","declaration":"26FRD0003987709CR5","date_creation":"25/03/2026 07:52","date_declaration":"25/03/2026 09:07","date_bae":"25/03/2026 09:07","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0118","lrn":"I20260325072955855","ref_interne":"661/APOLLO/MOALIA/17628521205","declaration":"26FRD0003987977CR4","date_creation":"25/03/2026 07:56","date_declaration":"25/03/2026 11:03","date_bae":"25/03/2026 11:28","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0119","lrn":"I20260325075253799","ref_interne":"0660/IKAGEL/ 057-02715204/ SACEP","declaration":"26FRD0003988562CR1","date_creation":"25/03/2026 08:04","date_declaration":"25/03/2026 09:07","date_bae":"25/03/2026 09:07","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0120","lrn":"I20260325163815378","ref_interne":"639/15747290294/PS REGUL 01","declaration":"26FRD0004034301CR8","date_creation":"25/03/2026 16:40","date_declaration":"25/03/2026 16:41","date_bae":"25/03/2026 16:41","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0121","lrn":"I20260326075602055","ref_interne":"672/eat/orca/17628513251","declaration":"26FRD0004057778CR2","date_creation":"26/03/2026 08:02","date_declaration":"26/03/2026 11:03","date_bae":"26/03/2026 11:03","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0122","lrn":"I20260326083432973","ref_interne":"673APOLLO/MOALIA/17628518265","declaration":"26FRD0004059622CR9","date_creation":"26/03/2026 08:42","date_declaration":"26/03/2026 11:03","date_bae":"26/03/2026 11:42","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0123","lrn":"I20260327162132014","ref_interne":"674/176/2123-3321","declaration":"26FRD0004146869CR6","date_creation":"27/03/2026 16:22","date_declaration":"27/03/2026 16:24","date_bae":"27/03/2026 16:24","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0124","lrn":"I20260328073914253","ref_interne":"688EAST/GREEN/17628518431","declaration":"26FRD0004161870CR5","date_creation":"28/03/2026 07:54","date_declaration":"28/03/2026 09:38","date_bae":"28/03/2026 09:38","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0125","lrn":"I20260329073312906","ref_interne":"690/SACEP/IKAGEL/05702753752","declaration":"26FRD0004171817CR4","date_creation":"29/03/2026 07:41","date_declaration":"29/03/2026 12:23","date_bae":"29/03/2026 12:23","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0126","lrn":"I20260329074317686","ref_interne":"692/APOLLO/MOALIA/17628518125","declaration":"26FRD0004171840CR4","date_creation":"29/03/2026 07:54","date_declaration":"29/03/2026 16:06","date_bae":"29/03/2026 16:29","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0127","lrn":"I20260329130601632","ref_interne":"690/MANDIANG/IKAGEL/05702753752","declaration":"26FRD0004173073CR4","date_creation":"29/03/2026 13:06","date_declaration":"29/03/2026 13:07","date_bae":"29/03/2026 13:07","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0128","lrn":"I20260330080253712","ref_interne":"695/MANDIANG/CAPMARIN/49002064683","declaration":"26FRD0004184009CR3","date_creation":"30/03/2026 08:17","date_declaration":"30/03/2026 10:43","date_bae":"30/03/2026 10:43","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0129","lrn":"I20260330090746453","ref_interne":"700/OCEANA/ORCA/17628537132","declaration":"26FRD0004187093CR7","date_creation":"30/03/2026 09:08","date_declaration":"30/03/2026 15:40","date_bae":"30/03/2026 15:40","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0130","lrn":"I20260330103700751","ref_interne":"607-53838492// ORCAMAREE / EASTBAY","declaration":"26FRD0004196265CR0","date_creation":"30/03/2026 10:40","date_declaration":"30/03/2026 10:41","date_bae":"30/03/2026 10:41","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0131","lrn":"I20260401073206206","ref_interne":"0716/IKAGEL/ 057-03934000// SACEP","declaration":"26FRD0004304778CR9","date_creation":"01/04/2026 07:50","date_declaration":"01/04/2026 09:11","date_bae":"01/04/2026 10:14","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0132","lrn":"I20260401074532600","ref_interne":"717/APOLLO/MOALIA/17628518512","declaration":"26FRD0004304814CR0","date_creation":"01/04/2026 07:53","date_declaration":"01/04/2026 17:43","date_bae":"01/04/2026 18:02","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0133","lrn":"I20260401075535465","ref_interne":"718/GREENSEA/17628517171","declaration":"26FRD0004305200CR5","date_creation":"01/04/2026 08:01","date_declaration":"01/04/2026 17:43","date_bae":"01/04/2026 17:43","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0134","lrn":"I20260401075146336","ref_interne":"0716/IKAGEL/ 057-03934000//MANDIANG","declaration":"26FRD0004305702CR2","date_creation":"01/04/2026 08:13","date_declaration":"01/04/2026 09:28","date_bae":"01/04/2026 10:18","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0135","lrn":"I20260401084917298","ref_interne":"0720/CAPMARIN/ 490-02065265","declaration":"26FRD0004309002CR4","date_creation":"01/04/2026 09:08","date_declaration":"01/04/2026 09:50","date_bae":"01/04/2026 09:50","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0136","lrn":"I20260402081724557","ref_interne":"728/JOHN/ORCA/15747293901","declaration":"26FRD0004366950CR4","date_creation":"02/04/2026 08:22","date_declaration":"02/04/2026 17:39","date_bae":"02/04/2026 17:40","client":"ORCA MAREE","tiers":"JOHN SEA FOODEAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0137","lrn":"I20260402111445937","ref_interne":"730/APOLLO/MOALIA/17628521496","declaration":"26FRD0004379140CR4","date_creation":"02/04/2026 11:25","date_declaration":"03/04/2026 10:15","date_bae":"03/04/2026 10:33","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0138","lrn":"I20260402112713417","ref_interne":"729/EAST/ORCA/17628516950","declaration":"26FRD0004379631CR0","date_creation":"02/04/2026 11:30","date_declaration":"03/04/2026 10:15","date_bae":"03/04/2026 10:15","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0139","lrn":"I20260403090921781","ref_interne":"733/ ORCAMAREE/ 176/2851-8486/ EAST","declaration":"26FRD0004423948CR0","date_creation":"03/04/2026 09:15","date_declaration":"03/04/2026 15:33","date_bae":"03/04/2026 15:34","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0140","lrn":"I20260405085534387","ref_interne":"738/EAST/GREEN/17628521835","declaration":"26FRD0004472693CR5","date_creation":"05/04/2026 09:06","date_declaration":"05/04/2026 10:05","date_bae":"05/04/2026 10:05","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0141","lrn":"I20260406091516068","ref_interne":"741/MANDIANG/CAPMARIN/49002065335","declaration":"26FRD0004477594CR5","date_creation":"06/04/2026 09:38","date_declaration":"06/04/2026 10:35","date_bae":"06/04/2026 10:35","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0142","lrn":"I20260406093730303","ref_interne":"742/SACEP/IKAGEL/05703934022","declaration":"26FRD0004477681CR8","date_creation":"06/04/2026 09:47","date_declaration":"06/04/2026 10:35","date_bae":"06/04/2026 11:12","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0143","lrn":"I20260406094705777","ref_interne":"742/MANDIANG/IKAGEL/05703934022","declaration":"26FRD0004477784CR5","date_creation":"06/04/2026 09:57","date_declaration":"06/04/2026 10:35","date_bae":"06/04/2026 11:11","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0144","lrn":"I20260406123733801","ref_interne":"744/EAST/ORCA/15747984436","declaration":"26FRD0004479471CR7","date_creation":"06/04/2026 12:44","date_declaration":"07/04/2026 10:30","date_bae":"07/04/2026 10:30","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0145","lrn":"I20260406124421722","ref_interne":"743/APOLLO/MOALIA/17628521430","declaration":"26FRD0004479518CR9","date_creation":"06/04/2026 12:52","date_declaration":"07/04/2026 09:29","date_bae":"07/04/2026 09:49","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0146","lrn":"I20260408074200749","ref_interne":"761/ IKAGEL/ 057-03934033// SACEP","declaration":"26FRD0004551595CR2","date_creation":"08/04/2026 07:56","date_declaration":"08/04/2026 10:13","date_bae":"08/04/2026 10:55","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0147","lrn":"I20260408075454851","ref_interne":"761/ IKAGEL/ 057-03934033//MANDIANG","declaration":"26FRD0004552221CR4","date_creation":"08/04/2026 08:11","date_declaration":"08/04/2026 10:13","date_bae":"08/04/2026 11:01","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0148","lrn":"I20260408081312706","ref_interne":"759/ 490-02065361// CAPMARIN","declaration":"26FRD0004553632CR2","date_creation":"08/04/2026 08:40","date_declaration":"08/04/2026 09:56","date_bae":"08/04/2026 09:56","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0149","lrn":"I20260408083012787","ref_interne":"765/05759021012","declaration":"26FRD0004555043CR6","date_creation":"08/04/2026 08:42","date_declaration":"08/04/2026 12:38","date_bae":"08/04/2026 12:54","client":"CAPMARIN","tiers":"SNURAM PECHE","pays":"GN","statut":"en_attente","maj_le":""},{"id":"d0150","lrn":"I20260408173224386","ref_interne":"760/JOHN/ORCA/15741637971","declaration":"26FRD0004593496CR0","date_creation":"08/04/2026 17:38","date_declaration":"09/04/2026 11:20","date_bae":"09/04/2026 11:20","client":"ORCA MAREE","tiers":"JOHN SEA FOODEAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0151","lrn":"I20260408183836421","ref_interne":"770/APOLLO/MOALIA/17628528161","declaration":"26FRD0004595917CR9","date_creation":"08/04/2026 18:41","date_declaration":"08/04/2026 18:42","date_bae":"08/04/2026 19:18","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0152","lrn":"I20260409091330426","ref_interne":"776/EAST/GREEN/15747986816","declaration":"26FRD0004617283CR8","date_creation":"09/04/2026 09:31","date_declaration":"09/04/2026 17:00","date_bae":"09/04/2026 17:00","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0153","lrn":"I20260409085343626","ref_interne":"774/APOLO/MOALIA/17628527752","declaration":"26FRD0004617966CR2","date_creation":"09/04/2026 09:37","date_declaration":"09/04/2026 16:54","date_bae":"09/04/2026 17:41","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0154","lrn":"I20260409101613968","ref_interne":"772/OCEANA/ORCA/06122395800","declaration":"26FRD0004622216CR2","date_creation":"09/04/2026 10:22","date_declaration":"09/04/2026 10:22","date_bae":"09/04/2026 10:22","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0155","lrn":"I20260412121736840","ref_interne":"0793/05701511941/SACEP","declaration":"26FRD0004733339CR2","date_creation":"12/04/2026 12:20","date_declaration":"12/04/2026 12:21","date_bae":"12/04/2026 12:57","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0156","lrn":"I20260412122025490","ref_interne":"0793/05701511941/MANDIANG","declaration":"26FRD0004733345CR1","date_creation":"12/04/2026 12:23","date_declaration":"12/04/2026 12:26","date_bae":"12/04/2026 12:58","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0157","lrn":"I20260412122146547","ref_interne":"","declaration":"26FRD0004733347CR0","date_creation":"12/04/2026 12:25","date_declaration":"12/04/2026 12:26","date_bae":"12/04/2026 12:26","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0158","lrn":"I20260412155432483","ref_interne":"796/176/2902-8381/applo//01","declaration":"26FRD0004734338CR0","date_creation":"12/04/2026 15:56","date_declaration":"12/04/2026 15:59","date_bae":"12/04/2026 16:16","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0159","lrn":"I20260413090727926","ref_interne":"798//ORCAMAREE/ 176-29028812/ EAST","declaration":"26FRD0004748684CR7","date_creation":"13/04/2026 09:14","date_declaration":"13/04/2026 16:23","date_bae":"13/04/2026 16:23","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0160","lrn":"I20260413101932465","ref_interne":"804/05704113620/ikagel","declaration":"26FRD0004755179CR0","date_creation":"13/04/2026 10:22","date_declaration":"13/04/2026 10:23","date_bae":"13/04/2026 11:01","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0161","lrn":"811ORCA15747987074","ref_interne":"15747987074","declaration":"26FRD0004803496CR9","date_creation":"14/04/2026 08:25","date_declaration":"15/04/2026 10:07","date_bae":"15/04/2026 10:07","client":"ORCA MAREE","tiers":"H&M WESTERN","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0162","lrn":"822LGREENSEAL176290289","ref_interne":"17629028963","declaration":"26FRD0004822712CR3","date_creation":"14/04/2026 12:27","date_declaration":"14/04/2026 16:13","date_bae":"14/04/2026 16:13","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0163","lrn":"825LMOALIAL17629028591","ref_interne":"17629028591","declaration":"26FRD0004829013CR5","date_creation":"14/04/2026 14:16","date_declaration":"14/04/2026 16:13","date_bae":"14/04/2026 17:06","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0164","lrn":"I20260414161549573","ref_interne":"","declaration":"26FRD0004838291CR0","date_creation":"14/04/2026 16:18","date_declaration":"14/04/2026 16:18","date_bae":"14/04/2026 16:18","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0165","lrn":"I20260415074038746","ref_interne":"827// IKAGEL/057-01522463//MANDIANG","declaration":"26FRD0004861339CR7","date_creation":"15/04/2026 08:08","date_declaration":"15/04/2026 09:27","date_bae":"15/04/2026 10:22","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0166","lrn":"I20260415080855089","ref_interne":"827// IKAGEL/057-01522463//SACEP","declaration":"26FRD0004861705CR1","date_creation":"15/04/2026 08:19","date_declaration":"15/04/2026 09:28","date_bae":"15/04/2026 10:18","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0167","lrn":"I20260415101225705","ref_interne":"CAP MARIN 826 // 490002070821","declaration":"26FRD0004870027CR9","date_creation":"15/04/2026 10:16","date_declaration":"15/04/2026 10:16","date_bae":"15/04/2026 10:17","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0168","lrn":"833IIORCAII17628537224","ref_interne":"OCEANA","declaration":"26FRD0004898448CR9","date_creation":"15/04/2026 16:53","date_declaration":"16/04/2026 16:20","date_bae":"16/04/2026 16:20","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0169","lrn":"837IIMOALIA","ref_interne":"17628528205","declaration":"26FRD0004917881CR7","date_creation":"16/04/2026 08:06","date_declaration":"16/04/2026 16:20","date_bae":"16/04/2026 16:37","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0170","lrn":"842IIORCA","ref_interne":"17629029324","declaration":"26FRD0004978657CR2","date_creation":"17/04/2026 09:26","date_declaration":"17/04/2026 16:47","date_bae":"17/04/2026 16:47","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0171","lrn":"I20260419073617137","ref_interne":"846/IKAGEL/ 057-01555750/ SACEP /","declaration":"26FRD0005035460CR5","date_creation":"19/04/2026 08:05","date_declaration":"19/04/2026 11:46","date_bae":"19/04/2026 12:21","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0172","lrn":"I20260419080428748","ref_interne":"846/IKAGEL/ 057-01555750/MANDIANG /","declaration":"26FRD0005035497CR9","date_creation":"19/04/2026 08:20","date_declaration":"19/04/2026 11:46","date_bae":"19/04/2026 12:20","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0173","lrn":"I20260419081921454","ref_interne":"843/ 176-29029361/ GREENSEA FOOD","declaration":"26FRD0005035519CR3","date_creation":"19/04/2026 08:34","date_declaration":"19/04/2026 10:35","date_bae":"19/04/2026 10:35","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0174","lrn":"I20260419104446492","ref_interne":"844/MOALIA/ 176-29029501/ APOLLO","declaration":"26FRD0005036022CR2","date_creation":"19/04/2026 10:55","date_declaration":"19/04/2026 15:28","date_bae":"19/04/2026 15:43","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0175","lrn":"I20260420103009452","ref_interne":"850/ 607-51787013// ORCAMAREE","declaration":"26FRD0005058320CR0","date_creation":"20/04/2026 10:35","date_declaration":"20/04/2026 10:36","date_bae":"20/04/2026 10:36","client":"ORCA MAREE","tiers":"JOHN SEAFOODS PVT","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0176","lrn":"I20260421113359940","ref_interne":"862/15743853353","declaration":"26FRD0005118149CR0","date_creation":"21/04/2026 11:36","date_declaration":"21/04/2026 11:36","date_bae":"21/04/2026 11:36","client":"ORCA MAREE","tiers":"PROSOL S&S","pays":"MV","statut":"en_attente","maj_le":""},{"id":"d0177","lrn":"I20260422074834269","ref_interne":"869/ IKAGEL/ 057-04210662/ SACEP","declaration":"26FRD0005160059CR3","date_creation":"22/04/2026 08:02","date_declaration":"22/04/2026 09:44","date_bae":"22/04/2026 10:18","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0178","lrn":"870IIMOALIA","ref_interne":"17629029501","declaration":"26FRD0005160273CR8","date_creation":"22/04/2026 08:08","date_declaration":"22/04/2026 09:15","date_bae":"22/04/2026 09:39","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0179","lrn":"I20260422080104522","ref_interne":"869/ IKAGEL/ 057-04210662/ MANDIANG","declaration":"26FRD0005160677CR0","date_creation":"22/04/2026 08:18","date_declaration":"22/04/2026 09:44","date_bae":"22/04/2026 10:20","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0180","lrn":"876IIMOALIA","ref_interne":"176/29030050","declaration":"26FRD0005208441CR9","date_creation":"23/04/2026 08:11","date_declaration":"23/04/2026 16:53","date_bae":"23/04/2026 17:19","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0181","lrn":"877IIORCA","ref_interne":"17629030046","declaration":"26FRD0005208805CR2","date_creation":"23/04/2026 08:20","date_declaration":"23/04/2026 16:54","date_bae":"23/04/2026 16:54","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0182","lrn":"879IIGREENSEAFOOD","ref_interne":"17629028731","declaration":"26FRD0005209857CR0","date_creation":"23/04/2026 08:41","date_declaration":"23/04/2026 16:54","date_bae":"23/04/2026 16:54","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0183","lrn":"888IIORCA","ref_interne":"17629028425","declaration":"26FRD0005271965CR3","date_creation":"24/04/2026 09:28","date_declaration":"24/04/2026 11:08","date_bae":"24/04/2026 11:08","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0184","lrn":"89IIMANDIANGIIIKAGEL","ref_interne":"05704210684","declaration":"26FRD0005332617CR9","date_creation":"26/04/2026 07:44","date_declaration":"26/04/2026 13:38","date_bae":"26/04/2026 15:31","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0185","lrn":"898IISACEPIIIKAGEL","ref_interne":"05704210684","declaration":"26FRD0005332624CR2","date_creation":"26/04/2026 07:53","date_declaration":"26/04/2026 13:39","date_bae":"26/04/2026 15:35","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0186","lrn":"900IIMOALIA","ref_interne":"17629029140","declaration":"26FRD0005332718CR7","date_creation":"26/04/2026 08:39","date_declaration":"26/04/2026 15:13","date_bae":"26/04/2026 15:53","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0187","lrn":"I20260426223420054","ref_interne":"MANDIANG/CAP/49002070950","declaration":"26FRD0005338779CR6","date_creation":"26/04/2026 22:53","date_declaration":"27/04/2026 10:55","date_bae":"27/04/2026 10:55","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0188","lrn":"I20260427174146103","ref_interne":"GREEN","declaration":"26FRD0005384610CR5","date_creation":"27/04/2026 17:44","date_declaration":"27/04/2026 17:45","date_bae":"27/04/2026 17:45","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0189","lrn":"930IIMOALIA","ref_interne":"17629030186","declaration":"26FRD0005399899CR1","date_creation":"28/04/2026 08:16","date_declaration":"28/04/2026 16:00","date_bae":"28/04/2026 16:18","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0190","lrn":"929IIORCABIS","ref_interne":"17629029335","declaration":"26FRD0005412610CR0","date_creation":"28/04/2026 11:04","date_declaration":"28/04/2026 11:04","date_bae":"28/04/2026 11:04","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0191","lrn":"I20260429115356569","ref_interne":"943/MANDIANG/CAPMARIN/49002071215","declaration":"26FRD0005476582CR0","date_creation":"29/04/2026 12:05","date_declaration":"29/04/2026 12:06","date_bae":"29/04/2026 12:07","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0192","lrn":"I20260429153714278","ref_interne":"947/APOLLO/MOALIA/17628522163","declaration":"26FRD0005492180CR0","date_creation":"29/04/2026 15:44","date_declaration":"29/04/2026 16:10","date_bae":"29/04/2026 16:45","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0193","lrn":"940II20260430082703363","ref_interne":"940/057 0421 0706","declaration":"26FRD0005519169CR8","date_creation":"30/04/2026 08:34","date_declaration":"30/04/2026 08:35","date_bae":"30/04/2026 08:36","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0194","lrn":"950IIGREENSEAFOOD","ref_interne":"15751544905","declaration":"26FRD0005520517CR1","date_creation":"30/04/2026 08:59","date_declaration":"30/04/2026 18:06","date_bae":"30/04/2026 18:06","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0195","lrn":"931IIORCAIIPS","ref_interne":"931/176/2966/9942/REGUL PS","declaration":"26FRD0005541019CR6","date_creation":"30/04/2026 12:56","date_declaration":"30/04/2026 12:58","date_bae":"30/04/2026 12:58","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0196","lrn":"863II17628537180","ref_interne":"863/176/2853-7180/REGUL PS","declaration":"26FRD0005544294CR4","date_creation":"30/04/2026 13:47","date_declaration":"30/04/2026 13:48","date_bae":"30/04/2026 13:48","client":"ORCA MAREE","tiers":"OCEANA FISHERIE","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0197","lrn":"951IIORCA001","ref_interne":"","declaration":"26FRD0005576684CR8","date_creation":"01/05/2026 10:09","date_declaration":"01/05/2026 10:10","date_bae":"01/05/2026 10:10","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0198","lrn":"963II05704338423sa","ref_interne":"963/05704338423/sacep","declaration":"26FRD0005603844CR0","date_creation":"03/05/2026 14:52","date_declaration":"03/05/2026 14:52","date_bae":"03/05/2026 15:11","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0199","lrn":"963II05704338423maa","ref_interne":"963/05704338423/maaa","declaration":"26FRD0005603856CR6","date_creation":"03/05/2026 14:54","date_declaration":"03/05/2026 14:54","date_bae":"04/06/2026 11:32","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0200","lrn":"965II17629028926IIMOMO","ref_interne":"965/1762928926/moalia","declaration":"26FRD0005604407CR1","date_creation":"03/05/2026 15:46","date_declaration":"03/05/2026 15:47","date_bae":"03/05/2026 16:00","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0201","lrn":"971II17629031321","ref_interne":"971","declaration":"26FRD0005630983CR5","date_creation":"04/05/2026 10:59","date_declaration":"04/05/2026 11:02","date_bae":"04/05/2026 11:02","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0202","lrn":"972II15750994171","ref_interne":"972II15750994171","declaration":"26FRD0005631115CR6","date_creation":"04/05/2026 11:01","date_declaration":"04/05/2026 11:01","date_bae":"04/05/2026 11:02","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0203","lrn":"973II49002071440II03","ref_interne":"973/490-0207-1440/03","declaration":"26FRD0005632026CR6","date_creation":"04/05/2026 11:11","date_declaration":"04/05/2026 11:12","date_bae":"04/05/2026 11:13","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0204","lrn":"I20260505080338187","ref_interne":"987/EASTB/ORCA/17629031376","declaration":"26FRD0005672357CR7","date_creation":"05/05/2026 08:10","date_declaration":"05/05/2026 17:31","date_bae":"05/05/2026 17:31","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0205","lrn":"I20260505173240965","ref_interne":"985/ MOALIA/ 176-29029184","declaration":"26FRD0005714641CR7","date_creation":"05/05/2026 17:34","date_declaration":"05/05/2026 17:35","date_bae":"05/05/2026 18:26","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0206","lrn":"I20260506072552145","ref_interne":"997/ IKAGEL/ 057-04338445/ SACEP","declaration":"26FRD0005730616CR2","date_creation":"06/05/2026 07:43","date_declaration":"06/05/2026 09:30","date_bae":"06/05/2026 10:00","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0207","lrn":"I20260506074317085","ref_interne":"998/APOLLO/MOALIA/17629028484","declaration":"26FRD0005730925CR6","date_creation":"06/05/2026 07:55","date_declaration":"06/05/2026 15:52","date_bae":"06/05/2026 16:14","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0208","lrn":"I20260506074545266","ref_interne":"997/ IKAGEL/ 057-04338445/ MANDIANG","declaration":"26FRD0005731255CR4","date_creation":"06/05/2026 08:07","date_declaration":"06/05/2026 09:30","date_bae":"06/05/2026 09:58","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0209","lrn":"I20260506105056145","ref_interne":"996/ 176-13219124","declaration":"26FRD0005744799CR6","date_creation":"06/05/2026 10:51","date_declaration":"06/05/2026 10:52","date_bae":"06/05/2026 10:52","client":"ORCA MAREE","tiers":"EMMANUEL FISHING","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0210","lrn":"I20260508084705768","ref_interne":"1016/ 176-29030131/ GREENSEA FOOD","declaration":"26FRD0005843490CR8","date_creation":"08/05/2026 08:52","date_declaration":"08/05/2026 11:12","date_bae":"08/05/2026 11:12","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0211","lrn":"I20260508085609353","ref_interne":"1017/ 176-29030901/ ORCAMAREE /","declaration":"26FRD0005843739CR6","date_creation":"08/05/2026 09:05","date_declaration":"08/05/2026 11:12","date_bae":"08/05/2026 11:12","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0212","lrn":"I20260510081522353","ref_interne":"1019/CAPMARIN/ 490-02071473","declaration":"26FRD0005870058CR8","date_creation":"10/05/2026 08:25","date_declaration":"10/05/2026 10:33","date_bae":"10/05/2026 10:33","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0213","lrn":"I20260510084851699","ref_interne":"1020/ IKAGEL/ 057/02158505/ SACEP","declaration":"26FRD0005870152CR4","date_creation":"10/05/2026 09:00","date_declaration":"10/05/2026 13:11","date_bae":"11/05/2026 11:50","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0214","lrn":"I20260510131356685","ref_interne":"1020/ IKAGEL/ 057/02158505/MANDIANG","declaration":"26FRD0005871305CR0","date_creation":"10/05/2026 13:24","date_declaration":"10/05/2026 13:26","date_bae":"11/05/2026 11:46","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0215","lrn":"I20260510141002577","ref_interne":"176-29031343/ MOALIA/ APOLLO MARINE","declaration":"26FRD0005871832CR7","date_creation":"10/05/2026 14:19","date_declaration":"10/05/2026 14:47","date_bae":"13/05/2026 14:21","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0216","lrn":"I20260511114536186","ref_interne":"1024/ ORCAMAREE/ 176-29031660/ EAST","declaration":"26FRD0005899194CR0","date_creation":"11/05/2026 11:53","date_declaration":"11/05/2026 11:56","date_bae":"11/05/2026 11:57","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0217","lrn":"I20260512122232701","ref_interne":"1037/ 176-29035554// ORCA","declaration":"26FRD0005961313CR3","date_creation":"12/05/2026 12:23","date_declaration":"12/05/2026 13:06","date_bae":"12/05/2026 13:07","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0218","lrn":"I20260512151602443","ref_interne":"MOALIA/ 176-29036092","declaration":"26FRD0005972969CR1","date_creation":"12/05/2026 15:17","date_declaration":"12/05/2026 15:18","date_bae":"12/05/2026 15:40","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0219","lrn":"1050II05702159065ISACE","ref_interne":"1050II05702159065/SACE","declaration":"26FRD0006006297CR3","date_creation":"13/05/2026 09:41","date_declaration":"13/05/2026 09:42","date_bae":"13/05/2026 10:17","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0220","lrn":"1050II05702159065IMAND","ref_interne":"1050II05702159065IMAND","declaration":"26FRD0006006676CR9","date_creation":"13/05/2026 09:46","date_declaration":"13/05/2026 09:54","date_bae":"13/05/2026 10:16","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0221","lrn":"1047II49002071366IICAP","ref_interne":"1047II49002071366IICAP","declaration":"26FRD0006009538CR0","date_creation":"13/05/2026 10:13","date_declaration":"13/05/2026 10:18","date_bae":"13/05/2026 10:18","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0222","lrn":"1048II15751545491","ref_interne":"1048II15751545491","declaration":"26FRD0006011241CR1","date_creation":"13/05/2026 10:33","date_declaration":"14/05/2026 11:30","date_bae":"14/05/2026 11:30","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0223","lrn":"I20260513153901419","ref_interne":"1049/APOLLO/MOALIA/17629028230","declaration":"26FRD0006038812CR0","date_creation":"13/05/2026 15:45","date_declaration":"13/05/2026 16:21","date_bae":"13/05/2026 16:37","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0224","lrn":"I20260514112527202","ref_interne":"1057/EAST/ROCA/17629026690","declaration":"26FRD0006067682CR5","date_creation":"14/05/2026 11:29","date_declaration":"14/05/2026 11:29","date_bae":"14/05/2026 11:30","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0225","lrn":"I20260515080825491","ref_interne":"1058/ ORCAMAREE/ 176-28523563/ EAST","declaration":"26FRD0006088053CR0","date_creation":"15/05/2026 08:14","date_declaration":"15/05/2026 10:39","date_bae":"15/05/2026 10:39","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0226","lrn":"I20260515081601746","ref_interne":"1059/ GREENSEA FOOD/ 157-51545513","declaration":"26FRD0006088328CR1","date_creation":"15/05/2026 08:21","date_declaration":"15/05/2026 10:39","date_bae":"15/05/2026 10:39","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0227","lrn":"I20260516211315618","ref_interne":"","declaration":"26FRD0006149011CR5","date_creation":"16/05/2026 21:13","date_declaration":"17/05/2026 12:30","date_bae":"17/05/2026 13:40","client":"87SUR SL","tiers":"87SUR EXPORT SPA","pays":"CL","statut":"en_attente","maj_le":""},{"id":"d0228","lrn":"I20260517130355395","ref_interne":"1077/MANDIANG/IKAGEL/05704453724","declaration":"26FRD0006151785CR6","date_creation":"17/05/2026 13:05","date_declaration":"17/05/2026 13:06","date_bae":"17/05/2026 13:43","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0229","lrn":"I20260517125442809","ref_interne":"1077/SACEP/IKAGEL/05704453724","declaration":"26FRD0006151803CR2","date_creation":"17/05/2026 13:12","date_declaration":"17/05/2026 13:13","date_bae":"17/05/2026 13:40","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0230","lrn":"I20260517140838844","ref_interne":"1078/APOLLO/MOALIA/17629031564","declaration":"26FRD0006152272CR9","date_creation":"17/05/2026 14:18","date_declaration":"17/05/2026 15:45","date_bae":"17/05/2026 15:56","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0231","lrn":"I20260518072938661","ref_interne":"1080/CAPAMARIN/49002071834","declaration":"26FRD0006159681CR9","date_creation":"18/05/2026 07:46","date_declaration":"18/05/2026 10:50","date_bae":"18/05/2026 10:50","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0232","lrn":"I20260518074818238","ref_interne":"1081/SACEP/IKAGEL/05704453912","declaration":"26FRD0006160158CR5","date_creation":"18/05/2026 08:05","date_declaration":"18/05/2026 09:04","date_bae":"18/05/2026 09:33","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0233","lrn":"I20260518115441548","ref_interne":"1083/ORCA/176 29026200","declaration":"26FRD0006180081CR3","date_creation":"18/05/2026 11:57","date_declaration":"18/05/2026 11:59","date_bae":"18/05/2026 11:59","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0234","lrn":"I20260519082121739","ref_interne":"1108/APOLLO/MOALIA/17629635001","declaration":"26FRD0006219439CR3","date_creation":"19/05/2026 08:35","date_declaration":"19/05/2026 15:58","date_bae":"19/05/2026 16:21","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0235","lrn":"I20260519110222860","ref_interne":"1106/ ORCA/ 176-29637156","declaration":"26FRD0006232476CR8","date_creation":"19/05/2026 11:04","date_declaration":"19/05/2026 11:07","date_bae":"19/05/2026 11:07","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0236","lrn":"I20260520072831811","ref_interne":"1121/IKAGEL/ 057-04517612/ SACEP","declaration":"26FRD0006277865CR3","date_creation":"20/05/2026 07:39","date_declaration":"20/05/2026 09:41","date_bae":"20/05/2026 10:13","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0237","lrn":"I20260520074142554","ref_interne":"1121/IKAGEL/ 057-04517612/ MANDIANG","declaration":"26FRD0006278327CR7","date_creation":"20/05/2026 07:56","date_declaration":"20/05/2026 09:41","date_bae":"20/05/2026 10:12","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0238","lrn":"I20260520075858354","ref_interne":"1122/EAST/ORCA/17628529760","declaration":"26FRD0006278535CR2","date_creation":"20/05/2026 08:04","date_declaration":"20/05/2026 16:08","date_bae":"20/05/2026 16:08","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0239","lrn":"I20260520075946610","ref_interne":"1120/ GREENSEA FOOD/ 176-29024590/","declaration":"26FRD0006278583CR0","date_creation":"20/05/2026 08:06","date_declaration":"20/05/2026 16:05","date_bae":"20/05/2026 16:06","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0240","lrn":"I20260520100402057","ref_interne":"","declaration":"26FRD0006287826CR0","date_creation":"20/05/2026 10:05","date_declaration":"20/05/2026 10:06","date_bae":"20/05/2026 10:07","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0241","lrn":"I20260521075138619","ref_interne":"1133/APOLLO/ORCA/17629036803","declaration":"26FRD0006336195CR0","date_creation":"21/05/2026 08:01","date_declaration":"21/05/2026 15:41","date_bae":"21/05/2026 15:56","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0242","lrn":"I20260521080956364","ref_interne":"1134/EAST/ORCA/17629026174","declaration":"26FRD0006336739CR6","date_creation":"21/05/2026 08:17","date_declaration":"21/05/2026 11:04","date_bae":"21/05/2026 11:04","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0243","lrn":"I20260522091458633","ref_interne":"1141/GREENSEA FOOD/ 176-29634732","declaration":"26FRD0006401036CR0","date_creation":"22/05/2026 09:23","date_declaration":"22/05/2026 11:39","date_bae":"22/05/2026 11:39","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0244","lrn":"I20260522092609639","ref_interne":"1142/ 176-29634404/ ORCAMAREE","declaration":"26FRD0006401897CR8","date_creation":"22/05/2026 09:31","date_declaration":"22/05/2026 11:39","date_bae":"22/05/2026 11:39","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0245","lrn":"I20260524110213605","ref_interne":"1154/87SUR/05704655235","declaration":"26FRD0006455506CR9","date_creation":"24/05/2026 11:09","date_declaration":"25/05/2026 10:58","date_bae":"25/05/2026 11:31","client":"87SUR SL","tiers":"87SUR EXPORT SPA","pays":"CL","statut":"en_attente","maj_le":""},{"id":"d0246","lrn":"I20260525085415306","ref_interne":"1155/MANDIANG/IKAGEL/05704517833","declaration":"26FRD0006461332CR9","date_creation":"25/05/2026 09:05","date_declaration":"25/05/2026 10:57","date_bae":"25/05/2026 11:21","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0247","lrn":"I20260525110334044","ref_interne":"1155/SACEP/IKAGEL/05704517833","declaration":"26FRD0006463286CR3","date_creation":"25/05/2026 11:04","date_declaration":"25/05/2026 11:04","date_bae":"25/05/2026 11:32","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0248","lrn":"I20260526075400335","ref_interne":"1162/EAST/GREEN/15750112274","declaration":"26FRD0006476710CR0","date_creation":"26/05/2026 08:04","date_declaration":"26/05/2026 09:56","date_bae":"26/05/2026 09:57","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0249","lrn":"I20260526082520886","ref_interne":"1163/EAST/ORCA/15757153670","declaration":"26FRD0006477552CR2","date_creation":"26/05/2026 08:25","date_declaration":"26/05/2026 17:08","date_bae":"26/05/2026 17:09","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0250","lrn":"I20260526095848172","ref_interne":"1156/APOLLO/MOALIA/17629635244","declaration":"26FRD0006484639CR9","date_creation":"26/05/2026 09:59","date_declaration":"26/05/2026 10:01","date_bae":"26/05/2026 10:32","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0251","lrn":"I20260526113450238","ref_interne":"1165/apollo/moalia/17629036836","declaration":"26FRD0006496268CR6","date_creation":"26/05/2026 11:34","date_declaration":"26/05/2026 11:35","date_bae":"26/05/2026 12:15","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0252","lrn":"I20260527073033288","ref_interne":"1174/ IKAGEL/ 057-04517962/ SACEP/","declaration":"26FRD0006539758CR2","date_creation":"27/05/2026 07:48","date_declaration":"27/05/2026 10:53","date_bae":"27/05/2026 11:10","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0253","lrn":"I20260527074718063","ref_interne":"1174/ IKAGEL/ 057-04517962/MANDIANG","declaration":"26FRD0006540872CR8","date_creation":"27/05/2026 08:16","date_declaration":"27/05/2026 10:53","date_bae":"27/05/2026 11:10","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0254","lrn":"1175II17629643515","ref_interne":"176 29643515","declaration":"26FRD0006564062CR0","date_creation":"27/05/2026 12:21","date_declaration":"27/05/2026 12:23","date_bae":"27/05/2026 12:23","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0255","lrn":"I20260528072655913","ref_interne":"1185/EAST/ORCA/17622139132","declaration":"26FRD0006597868CR5","date_creation":"28/05/2026 07:33","date_declaration":"28/05/2026 15:49","date_bae":"28/05/2026 15:49","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0256","lrn":"1186II17629036873I1","ref_interne":"1186II17629036873I1","declaration":"26FRD0006618396CR0","date_creation":"28/05/2026 12:09","date_declaration":"28/05/2026 12:10","date_bae":"28/05/2026 12:33","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0257","lrn":"I20260529102255996","ref_interne":"1195/EAST/ORCA/17622139342","declaration":"26FRD0006667142CR0","date_creation":"29/05/2026 10:30","date_declaration":"29/05/2026 11:21","date_bae":"29/05/2026 11:21","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0258","lrn":"1196I15754969633","ref_interne":"1196I15754969633","declaration":"26FRD0006669130CR8","date_creation":"29/05/2026 10:48","date_declaration":"29/05/2026 11:22","date_bae":"29/05/2026 11:22","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0259","lrn":"1205II05704688165","ref_interne":"1205II05704688165","declaration":"26FRD0006725438CR0","date_creation":"31/05/2026 09:46","date_declaration":"31/05/2026 11:30","date_bae":"31/05/2026 12:54","client":"87SUR SL","tiers":"87SUR EXPORT SPA","pays":"CL","statut":"en_attente","maj_le":""},{"id":"d0260","lrn":"1204II24483146383","ref_interne":"24483146383","declaration":"26FRD0006725452CR7","date_creation":"31/05/2026 09:50","date_declaration":"31/05/2026 11:52","date_bae":"31/05/2026 11:52","client":"MARE NOVA","tiers":"PACIFIC TUNA","pays":"PF","statut":"en_attente","maj_le":""},{"id":"d0261","lrn":"1207II176296351262I1","ref_interne":"1207II176296351262I1","declaration":"26FRD0006726074CR8","date_creation":"31/05/2026 12:18","date_declaration":"31/05/2026 12:18","date_bae":"31/05/2026 13:07","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0262","lrn":"I20260601135856319","ref_interne":"1208/ ORCAMAREE/ 176-29034666/ JOHN","declaration":"26FRD0006767820CR8","date_creation":"01/06/2026 14:10","date_declaration":"01/06/2026 15:57","date_bae":"01/06/2026 15:58","client":"ORCA MAREE","tiers":"JOHN SEAFOODS","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0263","lrn":"I20260602081350810","ref_interne":"1218/GREEN/17622139386","declaration":"26FRD0006800775CR0","date_creation":"02/06/2026 08:18","date_declaration":"02/06/2026 11:55","date_bae":"02/06/2026 11:55","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0264","lrn":"1217II15754969526IIORC","ref_interne":"1217II15754969526IIORC","declaration":"26FRD0006803946CR6","date_creation":"02/06/2026 09:06","date_declaration":"02/06/2026 10:37","date_bae":"02/06/2026 10:37","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0265","lrn":"I20260602121111625","ref_interne":"1219/MOALIA17629635830","declaration":"26FRD0006823435CR8","date_creation":"02/06/2026 12:12","date_declaration":"02/06/2026 12:12","date_bae":"02/06/2026 12:40","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0266","lrn":"I20260603073254550","ref_interne":"1223/OCEANA/ORCA/17621234931","declaration":"26FRD0006860787CR2","date_creation":"03/06/2026 07:49","date_declaration":"03/06/2026 11:31","date_bae":"03/06/2026 11:31","client":"ORCA MAREE","tiers":"OCEANA FISHERIES","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0267","lrn":"I20260603074939124","ref_interne":"1225/ IKAGEL/ 057-03855876/MANDIANG","declaration":"26FRD0006861287CR6","date_creation":"03/06/2026 08:03","date_declaration":"03/06/2026 10:19","date_bae":"03/06/2026 10:34","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0268","lrn":"I20260604083135973","ref_interne":"1234/OCEANA/ORCA/17621234990","declaration":"26FRD0006920956CR5","date_creation":"04/06/2026 08:41","date_declaration":"04/06/2026 15:39","date_bae":"04/06/2026 15:39","client":"ORCA MAREE","tiers":"OCEANA FISHERIES","pays":"SC","statut":"en_attente","maj_le":""},{"id":"d0269","lrn":"I20260604110343777","ref_interne":"1236/MOALIA/607-50652641/ PENAMAE","declaration":"26FRD0006932131CR3","date_creation":"04/06/2026 11:13","date_declaration":"05/06/2026 15:25","date_bae":"05/06/2026 15:26","client":"MOALIA","tiers":"PENAMAE FISH TRADING","pays":"PH","statut":"en_attente","maj_le":""},{"id":"d0270","lrn":"1254II17622139364","ref_interne":"1254II17622139364","declaration":"26FRD0006980800CR3","date_creation":"05/06/2026 09:34","date_declaration":"05/06/2026 11:30","date_bae":"05/06/2026 11:31","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0271","lrn":"I20260606104954927","ref_interne":"1260/ 072-74159606/ GREEN SEAFOODS","declaration":"26FRD0007034319CR0","date_creation":"06/06/2026 10:54","date_declaration":"06/06/2026 10:55","date_bae":"06/06/2026 10:55","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0272","lrn":"I20260607091710262","ref_interne":"1261/CAPMARIN/ 490-02072092/","declaration":"26FRD0007043109CR4","date_creation":"07/06/2026 09:25","date_declaration":"07/06/2026 11:38","date_bae":"07/06/2026 11:38","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0273","lrn":"I20260607092559703","ref_interne":"1263/ MOALIA/ 176-24932666/ APOLLO","declaration":"26FRD0007043155CR2","date_creation":"07/06/2026 09:35","date_declaration":"07/06/2026 11:37","date_bae":"07/06/2026 12:22","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0274","lrn":"I20260607094249943","ref_interne":"1264/ SACEP/ 057-04736432/ IKAGEL","declaration":"26FRD0007043223CR5","date_creation":"07/06/2026 09:52","date_declaration":"07/06/2026 11:37","date_bae":"07/06/2026 12:19","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0275","lrn":"I20260607095314691","ref_interne":"1264/MANDIANG/ 057-04736432/ IKAGEL","declaration":"26FRD0007043284CR3","date_creation":"07/06/2026 10:07","date_declaration":"07/06/2026 11:37","date_bae":"07/06/2026 12:22","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0276","lrn":"I20260607114054515","ref_interne":"1262/ 87SUR/ 057-04727494 /","declaration":"26FRD0007044005CR4","date_creation":"07/06/2026 11:46","date_declaration":"07/06/2026 11:51","date_bae":"07/06/2026 13:11","client":"87SUR SL","tiers":"87SUR EXPORT SPA","pays":"CL","statut":"en_attente","maj_le":""},{"id":"d0277","lrn":"I20260609075349371","ref_interne":"1280/EAST/GREEN/17629643386","declaration":"26FRD0007119630CR7","date_creation":"09/06/2026 08:00","date_declaration":"09/06/2026 11:02","date_bae":"09/06/2026 11:02","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0278","lrn":"I20260609080052417","ref_interne":"1279/EAST/ORCA/17626266015","declaration":"26FRD0007119862CR5","date_creation":"09/06/2026 08:08","date_declaration":"09/06/2026 10:59","date_bae":"09/06/2026 11:00","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0279","lrn":"I20260610075231029","ref_interne":"1288/APOLLO/MOALIA/17629036604","declaration":"26FRD0007181477CR2","date_creation":"10/06/2026 08:13","date_declaration":"10/06/2026 11:27","date_bae":"10/06/2026 11:53","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0280","lrn":"I20260610075131011","ref_interne":"1286/IKAGEL/ 057-04736454/ SACEP","declaration":"26FRD0007181514CR9","date_creation":"10/06/2026 08:14","date_declaration":"10/06/2026 09:31","date_bae":"10/06/2026 09:32","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0281","lrn":"I20260610081436205","ref_interne":"1286/IKAGEL/ 057-04736454/ MANDIANG","declaration":"26FRD0007182224CR7","date_creation":"10/06/2026 08:32","date_declaration":"10/06/2026 09:32","date_bae":"10/06/2026 09:32","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0282","lrn":"I20260610084921030","ref_interne":"1290/ CAPMARIN/ 490-02081601/","declaration":"26FRD0007184308CR8","date_creation":"10/06/2026 09:05","date_declaration":"10/06/2026 09:47","date_bae":"10/06/2026 09:47","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0283","lrn":"1289II157153821II00","ref_interne":"1289II157153821","declaration":"26FRD0007197024CR0","date_creation":"10/06/2026 11:23","date_declaration":"10/06/2026 11:25","date_bae":"10/06/2026 11:25","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0284","lrn":"1302II15750993736","ref_interne":"1302II15750993736","declaration":"26FRD0007241267CR0","date_creation":"11/06/2026 08:48","date_declaration":"11/06/2026 16:10","date_bae":"11/06/2026 16:10","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0285","lrn":"I20260611095917509","ref_interne":"MANDIANG","declaration":"26FRD0007248696CR4","date_creation":"11/06/2026 10:00","date_declaration":"11/06/2026 10:00","date_bae":"11/06/2026 10:00","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0286","lrn":"I20260612085952513","ref_interne":"1311/ 176-27696896/ ORCAMAREE","declaration":"26FRD0007309396CR7","date_creation":"12/06/2026 09:12","date_declaration":"12/06/2026 12:19","date_bae":"12/06/2026 12:19","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0287","lrn":"1322II07274159971II1","ref_interne":"1322II07274159971II0","declaration":"26FRD0007361097CR1","date_creation":"13/06/2026 11:35","date_declaration":"13/06/2026 11:35","date_bae":"13/06/2026 11:35","client":"GREEN SEA FOOD","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0288","lrn":"I20260614121207203","ref_interne":"SACEP/IKAGEL/05704736465","declaration":"26FRD0007371531CR0","date_creation":"14/06/2026 12:29","date_declaration":"14/06/2026 12:45","date_bae":"14/06/2026 12:45","client":"IKAGEL FRANCE","tiers":"SACEP","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0289","lrn":"I20260614123047598","ref_interne":"MANDIANG/IKAGEL/05704736465","declaration":"26FRD0007371622CR0","date_creation":"14/06/2026 12:44","date_declaration":"14/06/2026 12:45","date_bae":"14/06/2026 12:45","client":"IKAGEL FRANCE","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0290","lrn":"I20260614123315152","ref_interne":"1323/87sur/05704832682","declaration":"26FRD0007371652CR2","date_creation":"14/06/2026 12:49","date_declaration":"14/06/2026 12:49","date_bae":"14/06/2026 13:08","client":"87SUR SL","tiers":"87SUR EXPORT SPA","pays":"CL","statut":"en_attente","maj_le":""},{"id":"d0291","lrn":"I20260614131753764","ref_interne":"MANDIANG/CAPMARIN/49002081634","declaration":"26FRD0007372162CR3","date_creation":"14/06/2026 13:19","date_declaration":"14/06/2026 14:54","date_bae":"14/06/2026 14:54","client":"CAPMARIN","tiers":"ETS MANDIANG & FRERES","pays":"SN","statut":"en_attente","maj_le":""},{"id":"d0292","lrn":"I20260614133530683","ref_interne":"","declaration":"26FRD0007372367CR3","date_creation":"14/06/2026 14:08","date_declaration":"14/06/2026 14:54","date_bae":"14/06/2026 15:13","client":"MOALIA","tiers":"APOLLO MARINE","pays":"LK","statut":"en_attente","maj_le":""},{"id":"d0293","lrn":"I20260615105725351","ref_interne":"1334/EAST/ORCA/15754969670","declaration":"26FRD0007398905CR5","date_creation":"15/06/2026 11:01","date_declaration":"15/06/2026 11:17","date_bae":"15/06/2026 11:18","client":"ORCA MAREE","tiers":"EAST BAY","pays":"LK","statut":"en_attente","maj_le":""}];
+
+/* ===================== UTILS ===================== */
+function parseFR(str){
+  if(!str) return null;
+  const parts = str.trim().split(' ');
+  const d = parts[0];
+  const t = parts[1] || '00:00';
+  const [dd,mm,yyyy] = d.split('/').map(Number);
+  const [hh,mi] = t.split(':').map(Number);
+  if(!dd||!mm||!yyyy) return null;
+  return new Date(yyyy, mm-1, dd, hh||0, mi||0);
+}
+function fmtDateShort(str){
+  if(!str) return '—';
+  return str.split(' ')[0];
+}
+function nowFR(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toast(msg, type='info'){
+  const stack = document.getElementById('toast-stack');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-dot"></span><span>${msg}</span>`;
+  stack.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ===================== FIREBASE SYNC ===================== */
+async function loadData(){
+  try{
+    const res = await fetch(FB_BASE + '.json');
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if(!data || Object.keys(data).length === 0){
+      // base vide -> seed avec import initial
+      const seedMap = {};
+      SEED_DATA.forEach(rec => seedMap[rec.id] = rec);
+      const putRes = await fetch(FB_BASE + '.json', {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(seedMap)
+      });
+      if(!putRes.ok) throw new Error('Echec import initial');
+      dossiers = seedMap;
+      toast('Import initial : 293 dossiers chargés depuis le fichier Akanéa', 'success');
+    } else {
+      dossiers = data;
+    }
+  } catch(err){
+    console.error(err);
+    toast('Connexion impossible à la base TAF — vérifiez votre réseau', 'error');
+    // fallback local pour ne pas bloquer l'affichage
+    const seedMap = {};
+    SEED_DATA.forEach(rec => seedMap[rec.id] = rec);
+    dossiers = seedMap;
+  }
+  document.getElementById('header-meta').textContent =
+    `${Object.keys(dossiers).length} dossiers suivis · synchronisation Firebase TAF`;
+  applyFilters();
+}
+
+async function updateStatut(id, newStatut){
+  const rec = dossiers[id];
+  if(!rec) return;
+  const prevStatut = rec.statut;
+  const ts = nowFR();
+  rec.statut = newStatut;
+  rec.maj_le = ts;
+  applyFilters(); // optimistic UI refresh
+  try{
+    const res = await fetch(`${FB_BASE}/${id}.json`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({statut:newStatut, maj_le: ts})
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    toast(`${rec.declaration || id} → ${STATUT_LABELS[newStatut]}`, 'success');
+  } catch(err){
+    console.error(err);
+    rec.statut = prevStatut; // rollback
+    applyFilters();
+    toast('Échec de la synchronisation — réessayez', 'error');
+  }
+}
+
+async function addDossier(rec){
+  try{
+    const res = await fetch(`${FB_BASE}/${rec.id}.json`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(rec)
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    dossiers[rec.id] = rec;
+    applyFilters();
+    toast('Dossier ajouté', 'success');
+    return true;
+  } catch(err){
+    console.error(err);
+    toast('Échec de l\'ajout — vérifiez la connexion', 'error');
+    return false;
+  }
+}
+
+/* ===================== FILTER / SORT / RENDER ===================== */
+function applyFilters(){
+  const q = searchQuery.trim().toLowerCase();
+  const fromD = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+  const toD = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+
+  filtered = Object.values(dossiers).filter(rec => {
+    if(statusFilter !== 'tous' && rec.statut !== statusFilter) return false;
+    if(q){
+      const hay = [rec.client, rec.tiers, rec.declaration, rec.lrn, rec.ref_interne, rec.pays]
+        .map(v => (v||'').toLowerCase()).join(' | ');
+      if(!hay.includes(q)) return false;
+    }
+    if(fromD || toD){
+      const dc = parseFR(rec.date_creation);
+      if(!dc) return false;
+      if(fromD && dc < fromD) return false;
+      if(toD && dc > toD) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    let av, bv;
+    if(sortKey === 'date_creation'){ av = parseFR(a.date_creation); bv = parseFR(b.date_creation); }
+    else { av = (a[sortKey]||'').toString().toLowerCase(); bv = (b[sortKey]||'').toString().toLowerCase(); }
+    if(av === null) av = sortKey==='date_creation' ? new Date(0) : av;
+    if(bv === null) bv = sortKey==='date_creation' ? new Date(0) : bv;
+    if(av < bv) return sortDir === 'asc' ? -1 : 1;
+    if(av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  currentPage = Math.min(currentPage, Math.max(1, Math.ceil(filtered.length / pageSize)));
+  renderStats();
+  renderTide();
+  renderTable();
+  renderPagination();
+}
+
+function renderStats(){
+  const all = Object.values(dossiers);
+  const counts = {tous: all.length, en_attente:0, en_cours:0, valide:0};
+  all.forEach(r => { if(counts[r.statut] !== undefined) counts[r.statut]++; });
+  document.getElementById('stat-tous').textContent = counts.tous;
+  document.getElementById('stat-en_attente').textContent = counts.en_attente;
+  document.getElementById('stat-en_cours').textContent = counts.en_cours;
+  document.getElementById('stat-valide').textContent = counts.valide;
+  document.querySelectorAll('.stat-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.k === statusFilter);
+  });
+}
+
+function renderTide(){
+  const all = Object.values(dossiers);
+  const total = all.length || 1;
+  const counts = {en_attente:0, en_cours:0, valide:0};
+  all.forEach(r => { if(counts[r.statut] !== undefined) counts[r.statut]++; });
+  const pctAttente = (counts.en_attente/total*100).toFixed(1);
+  const pctCours = (counts.en_cours/total*100).toFixed(1);
+  const pctValide = (counts.valide/total*100).toFixed(1);
+  requestAnimationFrame(()=>{
+    document.getElementById('seg-attente').style.width = pctAttente + '%';
+    document.getElementById('seg-cours').style.width = pctCours + '%';
+    document.getElementById('seg-valide').style.width = pctValide + '%';
+  });
+  document.getElementById('tide-pct').innerHTML = `${pctValide}%<span>validés</span>`;
+  document.getElementById('lg-attente').textContent = counts.en_attente;
+  document.getElementById('lg-cours').textContent = counts.en_cours;
+  document.getElementById('lg-valide').textContent = counts.valide;
+}
+
+function renderTable(){
+  const tbody = document.getElementById('table-body');
+  if(filtered.length === 0){
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <div>Aucun dossier ne correspond à ces critères.</div>
+    </div></td></tr>`;
+    return;
+  }
+  const start = (currentPage-1) * pageSize;
+  const pageItems = filtered.slice(start, start+pageSize);
+
+  tbody.innerHTML = pageItems.map(rec => {
+    const paysLabel = PAYS_NAMES[rec.pays] || rec.pays || '';
+    return `<tr>
+      <td class="mono">${escapeHtml(rec.declaration)}</td>
+      <td class="mono">${escapeHtml(rec.lrn)}${rec.ref_interne ? '<br><span style="color:var(--text-dimmer)">'+escapeHtml(rec.ref_interne)+'</span>' : ''}</td>
+      <td class="mono">${fmtDateShort(rec.date_creation)}</td>
+      <td class="client">${escapeHtml(rec.client)}</td>
+      <td class="tiers">${escapeHtml(rec.tiers)}</td>
+      <td><span class="pays-tag" title="${escapeHtml(paysLabel)}">${escapeHtml(rec.pays)}</span></td>
+      <td>
+        <select class="status-select ${rec.statut}" data-id="${rec.id}" onchange="updateStatut('${rec.id}', this.value)">
+          <option value="en_attente" ${rec.statut==='en_attente'?'selected':''}>En attente</option>
+          <option value="en_cours" ${rec.statut==='en_cours'?'selected':''}>En cours</option>
+          <option value="valide" ${rec.statut==='valide'?'selected':''}>Validé</option>
+        </select>
+      </td>
+      <td class="maj-cell">${rec.maj_le || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  // recolor select backgrounds dynamically after status change
+  tbody.querySelectorAll('select.status-select').forEach(sel => {
+    sel.addEventListener('change', function(){
+      this.className = 'status-select ' + this.value;
+    });
+  });
+}
+
+function renderPagination(){
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  document.getElementById('pagination-info').textContent = `${total} résultat${total>1?'s':''}`;
+  document.getElementById('page-indicator').textContent = `${currentPage} / ${totalPages}`;
+  document.getElementById('page-prev').disabled = currentPage <= 1;
+  document.getElementById('page-next').disabled = currentPage >= totalPages;
+}
+
+/* ===================== EXPORT EXCEL ===================== */
+function exportExcel(){
+  const rows = filtered.map(r => ({
+    'Déclaration': r.declaration,
+    'LRN': r.lrn,
+    'Réf. interne': r.ref_interne,
+    'Date création': r.date_creation,
+    'Date déclaration': r.date_declaration,
+    'Date BAE': r.date_bae,
+    'Client': r.client,
+    'Tiers': r.tiers,
+    'Pays tiers': r.pays,
+    'Statut': STATUT_LABELS[r.statut] || r.statut,
+    'Mise à jour': r.maj_le
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:20},{wch:24},{wch:16},{wch:16},{wch:16},{wch:18},{wch:22},{wch:10},{wch:12},{wch:16}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Régul. Capture');
+  const d = new Date();
+  const fname = `TAF_CATCH_REGUL_export_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast('Export Excel généré', 'success');
+}
+
+/* ===================== EVENTS ===================== */
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  currentPage = 1;
+  applyFilters();
+});
+document.getElementById('date-from').addEventListener('change', e => { dateFrom = e.target.value; currentPage=1; applyFilters(); });
+document.getElementById('date-to').addEventListener('change', e => { dateTo = e.target.value; currentPage=1; applyFilters(); });
+document.getElementById('btn-reset-filters').addEventListener('click', () => {
+  searchQuery=''; dateFrom=''; dateTo=''; statusFilter='tous'; currentPage=1;
+  document.getElementById('search-input').value='';
+  document.getElementById('date-from').value='';
+  document.getElementById('date-to').value='';
+  applyFilters();
+});
+document.querySelectorAll('.stat-card').forEach(card => {
+  card.addEventListener('click', () => {
+    statusFilter = card.dataset.k;
+    currentPage = 1;
+    applyFilters();
+  });
+});
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = 'asc'; }
+    document.querySelectorAll('thead th .arrow').forEach(a => a.textContent='');
+    th.querySelector('.arrow').textContent = sortDir === 'asc' ? '▲' : '▼';
+    applyFilters();
+  });
+});
+document.getElementById('page-size').addEventListener('change', e => {
+  pageSize = parseInt(e.target.value, 10);
+  currentPage = 1;
+  applyFilters();
+});
+document.getElementById('page-prev').addEventListener('click', () => { if(currentPage>1){ currentPage--; renderTable(); renderPagination(); }});
+document.getElementById('page-next').addEventListener('click', () => {
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if(currentPage < totalPages){ currentPage++; renderTable(); renderPagination(); }
+});
+document.getElementById('btn-export').addEventListener('click', exportExcel);
+document.getElementById('btn-refresh').addEventListener('click', () => {
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="8"><div class="loading-row"><div class="spinner"></div>Resynchronisation…</div></td></tr>`;
+  loadData();
+});
+
+/* ----- modal ajout ----- */
+const modalOverlay = document.getElementById('modal-overlay');
+document.getElementById('btn-add').addEventListener('click', () => modalOverlay.classList.add('open'));
+document.getElementById('btn-cancel-add').addEventListener('click', () => modalOverlay.classList.remove('open'));
+modalOverlay.addEventListener('click', e => { if(e.target === modalOverlay) modalOverlay.classList.remove('open'); });
+
+document.getElementById('btn-confirm-add').addEventListener('click', async () => {
+  const declaration = document.getElementById('f-declaration').value.trim();
+  const client = document.getElementById('f-client').value.trim();
+  if(!declaration || !client){
+    toast('Déclaration et Client sont obligatoires', 'error');
+    return;
+  }
+  const dateVal = document.getElementById('f-date').value;
+  let dateFRStr = '';
+  if(dateVal){
+    const [y,m,d] = dateVal.split('-');
+    dateFRStr = `${d}/${m}/${y} ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+  } else {
+    dateFRStr = nowFR();
+  }
+  const id = 'manual_' + Date.now();
+  const rec = {
+    id,
+    lrn: document.getElementById('f-lrn').value.trim(),
+    ref_interne: document.getElementById('f-ref').value.trim(),
+    declaration,
+    date_creation: dateFRStr,
+    date_declaration: '',
+    date_bae: '',
+    client,
+    tiers: document.getElementById('f-tiers').value.trim(),
+    pays: document.getElementById('f-pays').value.trim().toUpperCase(),
+    statut: document.getElementById('f-statut').value,
+    maj_le: ''
+  };
+  const ok = await addDossier(rec);
+  if(ok){
+    modalOverlay.classList.remove('open');
+    ['f-declaration','f-lrn','f-ref','f-client','f-tiers','f-pays','f-date'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('f-statut').value = 'en_attente';
+  }
+});
+
+/* ===================== INIT ===================== */
+loadData();
+
+</script>
+</body>
+</html>
