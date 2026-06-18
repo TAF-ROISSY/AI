@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>RÉGIE — Programme Kermesse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg: #0D0F12;
+    --panel: #16191D;
+    --panel-raised: #1C2025;
+    --line: #2A2F36;
+    --line-soft: #21252b;
+    --amber: #FF8A1E;
+    --amber-dim: #8a5320;
+    --green: #3DDC84;
+    --green-dim: #1f5236;
+    --text: #ECEEF1;
+    --text-dim: #8A9099;
+    --text-faint: #4A4F57;
+    --done-bg: #181513;
+    --done-text: #5a5650;
+    --danger: #E5484D;
+    --radius: 3px;
+    --shadow-deep: 0 8px 30px rgba(0,0,0,0.5);
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(255,138,30,0.04), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  }
+
+  .display{ font-family:'Oswald', sans-serif; }
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    position: sticky; top:0; z-index: 50;
+    background: linear-gradient(180deg, #14171b 0%, #0f1216 100%);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .topbar-id{ display:flex; align-items:center; gap:12px; }
+  .rec-dot{
+    width:9px; height:9px; border-radius:50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green), 0 0 2px var(--green);
+    animation: pulse 1.8s ease-in-out infinite;
+    flex-shrink:0;
+  }
+  .rec-dot.offline{
+    background: var(--danger);
+    box-shadow: 0 0 8px var(--danger), 0 0 2px var(--danger);
+    animation: none;
+  }
+  .rec-dot.connecting{
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber), 0 0 2px var(--amber);
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; transform:scale(1); }
+    50%{ opacity:.45; transform:scale(0.82); }
+  }
+  .topbar-title{
+    font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); font-weight:500;
+  }
+  .topbar-title b{ color: var(--amber); }
+
+  .topbar-stats{
+    display:flex; gap: 18px; font-size:12px; color: var(--text-dim);
+  }
+  .topbar-stats .stat-val{ color: var(--text); font-weight:700; }
+
+  .reset-btn{
+    background: transparent; border: 1px solid var(--line);
+    color: var(--text-faint); font-family:'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 14px; min-height: 40px; border-radius: var(--radius); cursor: pointer;
+    transition: all .15s;
+    touch-action: manipulation;
+  }
+  .reset-btn:active{ transform: scale(0.96); }
+  .reset-btn:hover{ border-color: var(--danger); color: var(--danger); }
+
+  .restore-btn{
+    background: transparent; border: 1px solid var(--amber-dim);
+    color: var(--amber); font-family:'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 14px; min-height: 40px; border-radius: var(--radius); cursor: pointer;
+    transition: all .15s;
+    touch-action: manipulation;
+  }
+  .restore-btn:active{ transform: scale(0.96); }
+  .restore-btn:hover{ background: var(--amber-dim); color: #fff; }
+
+  .clear-all-btn{
+    background: transparent; border: 1px solid var(--line);
+    color: var(--text-dim); font-family:'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 14px; min-height: 40px; border-radius: var(--radius); cursor: pointer;
+    transition: all .15s;
+    touch-action: manipulation;
+  }
+  .clear-all-btn:active{ transform: scale(0.96); }
+  .clear-all-btn:hover{ border-color: var(--text-dim); color: var(--text); background: var(--panel-raised); }
+
+  .topbar-actions{ display:flex; align-items:center; gap:10px; }
+
+  /* Rappel clavier : masqué par défaut, affiché uniquement si un clavier physique est détecté (voir JS) */
+  .kbd-hint{
+    display: none;
+    align-items: center; gap:10px;
+    font-size: 10.5px; color: var(--text-faint);
+    letter-spacing: .5px;
+  }
+  .kbd-hint.kbd-active{ display:flex; }
+  .kbd-hint span{ display:flex; align-items:center; gap:5px; }
+  .kbd-hint kbd{
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--text-dim);
+  }
+  @media (max-width: 760px){ .kbd-hint.kbd-active{ display:none; } }
+
+  /* ===== LAYOUT ===== */
+  .wrap{
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 18px 16px 100px;
+  }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  /* ===== NOW PLAYING ===== */
+  .now-block{
+    margin-bottom: 22px;
+    border: 1px solid var(--amber-dim);
+    background: linear-gradient(180deg, #1a1611 0%, #15120e 100%);
+    box-shadow: var(--shadow-deep), 0 0 0 1px rgba(255,138,30,0.08);
+    position: relative;
+    overflow: hidden;
+  }
+  .now-block::before{
+    content:"";
+    position:absolute; left:0; top:0; bottom:0; width:4px;
+    background: var(--amber);
+    box-shadow: 0 0 12px var(--amber);
+  }
+  .now-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 18px 0;
+  }
+  .now-label{
+    font-size: 11px; letter-spacing: 3px; color: var(--amber);
+    text-transform: uppercase; font-weight: 600;
+    display:flex; align-items:center; gap:8px;
+  }
+  .now-label .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--amber);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .now-time{ font-size:11px; color: var(--text-faint); }
+
+  .now-split{
+    display:flex;
+    align-items: stretch;
+  }
+
+  .now-body{ padding: 6px 18px 18px; flex: 1 1 60%; min-width:0; }
+  .now-class{
+    font-size: 12px; letter-spacing: 2px; color: var(--text-dim);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .now-title{
+    font-family:'Oswald', sans-serif;
+    font-size: clamp(22px, 4.2vw, 34px);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.15;
+    word-break: break-word;
+  }
+  .now-meta{
+    margin-top: 6px; font-size: 12px; color: var(--text-faint);
+  }
+
+  .empty-now{
+    padding: 26px 18px;
+    text-align:center;
+    color: var(--text-faint);
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  /* ===== PROCHAIN À PRÉPARER ===== */
+  .next-preview{
+    flex: 1 1 40%;
+    min-width:0;
+    padding: 6px 18px 18px;
+    border-left: 1px solid var(--line-soft);
+  }
+  .next-preview .label{
+    display:block;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .next-preview .title{
+    font-family:'Oswald', sans-serif;
+    font-size: clamp(15px, 2.4vw, 21px);
+    font-weight: 500;
+    color: var(--text-dim);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .next-preview:empty{ display:none; border-left:none; }
+
+  @media (max-width: 560px){
+    .now-split{ flex-direction: column; }
+    .next-preview{ border-left:none; border-top: 1px solid var(--line-soft); }
+  }
+
+  /* ===== BARRE DE PROGRESSION ===== */
+  .progress-track{
+    margin: 0 18px 6px;
+    height: 5px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill{
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    border-radius: 3px;
+    transition: width .4s ease;
+  }
+  .progress-label{
+    margin: 0 18px 14px;
+    font-size: 10.5px;
+    color: var(--text-faint);
+    letter-spacing: 1px;
+    text-align: right;
+  }
+
+  /* ===== NEXT BUTTON ===== */
+  .next-btn{
+    width: 100%;
+    margin-top: 0;
+    padding: 22px;
+    min-height: 64px;
+    background: var(--green);
+    border: none;
+    border-radius: var(--radius);
+    color: #06170d;
+    font-family:'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    touch-action: manipulation;
+    display:flex; align-items:center; justify-content:center; gap: 10px;
+    box-shadow: 0 4px 0 var(--green-dim), 0 6px 16px rgba(61,220,132,0.15);
+    transition: transform .08s, box-shadow .08s;
+  }
+  .next-btn:active{
+    transform: translateY(4px);
+    box-shadow: 0 0 0 var(--green-dim);
+  }
+  .next-btn:disabled{
+    background: var(--panel-raised);
+    color: var(--text-faint);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .next-btn svg{ width:18px; height:18px; }
+
+  /* ===== SECTION HEADERS ===== */
+  .section-head{
+    display:flex; align-items:center; gap:10px;
+    margin: 28px 0 10px;
+    padding-left: 2px;
+  }
+  .section-head .label{
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); font-weight:600; white-space:nowrap;
+  }
+  .section-head .rule{ flex:1; height:1px; background: var(--line); }
+  .section-head .count{
+    font-size: 11px; color: var(--text-faint);
+    background: var(--panel-raised); padding: 2px 8px; border-radius: 10px;
+  }
+
+  .clear-played-btn{
+    background: transparent; border: 1px solid var(--line);
+    color: var(--text-faint); font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 9px 12px; min-height: 38px; border-radius: var(--radius); cursor: pointer;
+    transition: all .15s;
+    display:flex; align-items:center; gap:6px;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+  .clear-played-btn:active{ transform: scale(0.96); }
+  .clear-played-btn:hover{ border-color: var(--danger); color: var(--danger); }
+  .clear-played-btn:disabled{ opacity:.3; cursor:not-allowed; }
+  .clear-played-btn:disabled:hover{ border-color: var(--line); color: var(--text-faint); }
+  .clear-played-btn svg{ width:12px; height:12px; flex-shrink:0; }
+  .clear-played-btn kbd{
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 9.5px;
+  }
+  .clear-played-btn kbd.kbd-active-only{ display:none; }
+  .kbd-active .clear-played-btn kbd.kbd-active-only{ display:inline; }
+
+  /* ===== QUEUE LIST (à venir) ===== */
+  .queue-list{ display:flex; flex-direction:column; gap:8px; }
+
+  .class-divider{
+    display:flex; align-items:center; gap: 10px;
+    margin: 14px 0 2px;
+  }
+  .class-divider:first-child{ margin-top: 0; }
+  .class-divider .bar{
+    width: 3px; height: 16px;
+    background: var(--amber);
+    border-radius: 2px;
+    flex-shrink:0;
+  }
+  .class-divider .name{
+    font-family:'Oswald', sans-serif;
+    font-size: 13px; font-weight:600; letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .class-divider .qty{
+    font-size: 10.5px; color: var(--text-faint);
+    letter-spacing: .5px;
+  }
+  .class-divider .rule{ flex:1; height:1px; background: var(--line-soft); }
+
+  .class-divider.played .bar{ background: var(--text-faint); }
+  .class-divider.played .name{ color: var(--text-faint); }
+
+  .track-sub-badge{
+    display:inline-block;
+    font-size: 10px; color: var(--text-faint);
+    background: var(--panel-raised);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 1px 7px;
+    margin-left: 7px;
+    letter-spacing: .3px;
+    vertical-align: middle;
+  }
+
+  .track{
+    display:flex; align-items:center; gap: 14px;
+    padding: 16px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    transition: border-color .15s, background .15s;
+  }
+  .track:hover{ border-color: var(--line); background: var(--panel-raised); }
+
+  .track-num{
+    font-family:'Oswald', sans-serif;
+    font-size: 13px; font-weight:600;
+    color: var(--text-faint);
+    width: 32px; flex-shrink:0;
+    text-align:center;
+    letter-spacing: 1px;
+  }
+
+  .track-body{ flex:1; min-width:0; }
+  .track-class{
+    font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 2px;
+  }
+  .track-title{
+    font-family:'Oswald', sans-serif;
+    font-size: 16px; font-weight: 500;
+    color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .track-actions{ display:flex; gap:8px; flex-shrink:0; }
+  .icon-btn{
+    width: 44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    background: transparent; border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all .12s;
+    touch-action: manipulation;
+  }
+  .icon-btn:active{ transform: scale(0.9); background: var(--panel-raised); }
+  .icon-btn svg{ width:18px; height:18px; }
+  .icon-btn.up:hover, .icon-btn.down:hover{ border-color: var(--text-dim); color: var(--text); }
+  .icon-btn.play:hover{ border-color: var(--green); color: var(--green); }
+  .icon-btn.del:hover{ border-color: var(--danger); color: var(--danger); }
+  .icon-btn.edit:hover{ border-color: var(--amber); color: var(--amber); }
+  .icon-btn.check{ border-color: var(--green-dim); color: var(--green); }
+  .icon-btn.check:hover{ background: var(--green-dim); color: #fff; }
+  .icon-btn:disabled{ opacity:.25; cursor:not-allowed; }
+
+  /* ===== MODE ÉDITION INLINE ===== */
+  .track.editing{
+    border-color: var(--amber-dim);
+    background: linear-gradient(180deg, #181410 0%, #16191D 100%);
+  }
+  .edit-form{
+    display:flex; flex-direction:column; gap:8px; flex:1; min-width:0;
+  }
+  .edit-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .edit-row select,
+  .edit-row input{
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 9px 10px;
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+  .edit-row select{ flex: 0 0 100px; }
+  .edit-row input.edit-danse{ flex: 1; min-width: 120px; }
+  .edit-row input.edit-titre{ flex: 1 1 100%; }
+  .edit-row select:focus,
+  .edit-row input:focus{ outline:none; border-color: var(--amber-dim); }
+
+  /* ===== PLAYED LIST (passé) ===== */
+  .played-list{ display:flex; flex-direction:column; gap:6px; }
+  .track.played{
+    background: var(--done-bg);
+    border-color: #211d18;
+    opacity: .8;
+  }
+  .track.played .track-num{ color: var(--text-faint); }
+  .track.played .track-class{ color: #555; }
+  .track.played .track-title{
+    color: var(--done-text);
+    text-decoration: line-through;
+    text-decoration-color: #4a453e;
+    text-decoration-thickness: 1.5px;
+  }
+  .track.played .icon-btn.restore:hover{ border-color: var(--amber); color: var(--amber); }
+
+  /* ===== EMPTY STATES ===== */
+  .empty-state{
+    padding: 24px 16px;
+    text-align:center;
+    color: var(--text-faint);
+    font-size: 12.5px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    letter-spacing: .5px;
+  }
+
+  /* ===== ADD FORM ===== */
+  .add-panel{
+    margin-top: 30px;
+    padding: 16px;
+    border: 1px solid var(--line);
+  }
+  .add-panel-head{
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); font-weight:600; margin-bottom: 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .add-panel-head svg{ width:14px; height:14px; color: var(--amber); }
+
+  .add-row{
+    display:flex; gap: 10px; margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .add-row input,
+  .add-row select{
+    flex: 1;
+    min-width: 140px;
+    min-height: 46px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 11px 12px;
+    touch-action: manipulation;
+  }
+  .add-row select{
+    flex: 0 0 130px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238A9099' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+  .add-row select:invalid,
+  .add-row select option[value=""]{ color: var(--text-faint); }
+  .add-row input::placeholder{ color: var(--text-faint); }
+  .add-row input:focus,
+  .add-row select:focus{ outline:none; border-color: var(--amber-dim); }
+
+  @media (max-width: 480px){
+    .add-row select{ flex: 1 1 100%; }
+  }
+
+  .add-submit{
+    width:100%;
+    padding: 12px;
+    background: var(--panel-raised);
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    font-family:'Oswald', sans-serif;
+    font-size: 13px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .add-submit:hover{ background: var(--amber-dim); color: #fff; }
+
+  /* ===== TOAST ===== */
+  .diag-panel{
+    margin-top: 30px;
+    padding: 10px 14px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    letter-spacing: .3px;
+    text-align: center;
+  }
+  .diag-label{ color: var(--text-dim); margin-right: 6px; }
+
+  .toast{
+    position: fixed; bottom: 20px; left:50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel-raised); border:1px solid var(--line);
+    color: var(--text); font-size: 12.5px;
+    padding: 11px 18px; border-radius: var(--radius);
+    box-shadow: var(--shadow-deep);
+    opacity: 0; pointer-events:none;
+    transition: all .25s ease;
+    z-index: 100;
+    letter-spacing: .3px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+  .toast .dot{ width:6px; height:6px; border-radius:50%; background: var(--green); flex-shrink:0; }
+
+  @media (max-width: 480px){
+    .topbar{ padding: 12px 14px; }
+    .topbar-stats{ font-size: 11px; gap: 12px; }
+    .wrap{ padding: 14px 12px 100px; }
+    .track{ padding: 11px 10px; gap: 10px; }
+    .track-title{ font-size: 14.5px; }
+    .icon-btn{ width:32px; height:32px; }
+  }
+
+  ::selection{ background: var(--amber-dim); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-id">
+    <span class="rec-dot" id="syncDot"></span>
+    <span class="topbar-title"><b>RÉGIE</b> · PROGRAMME KERMESSE <span id="syncLabel" style="color:var(--text-faint); font-size:10px; letter-spacing:1px; margin-left:6px;">SYNCHRO...</span></span>
+  </div>
+  <div class="topbar-stats">
+    <span>JOUÉS&nbsp;<span class="stat-val" id="statPlayed">0</span></span>
+    <span>RESTE&nbsp;<span class="stat-val" id="statQueue">0</span></span>
+  </div>
+  <div class="topbar-actions">
+    <div class="kbd-hint" id="kbdHint">
+      <span><kbd>Espace</kbd> suivant</span>
+      <span><kbd>⌫</kbd> vider l'historique</span>
+    </div>
+    <button class="restore-btn" id="restoreBtn" title="Remettre le programme sauvegardé à zéro (file complète, historique vidé)">RESTAURER</button>
+    <button class="clear-all-btn" id="clearAllBtn" title="Vider complètement la liste pour repartir de zéro">VIDER TOUT</button>
+    <button class="reset-btn" id="resetBtn" title="Repartir de la liste générique d'exemple">RÉINITIALISER</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- EN COURS -->
+  <div class="now-block">
+    <div class="now-head">
+      <span class="now-label"><span class="dot"></span>EN COURS</span>
+      <span class="now-time" id="nowTime">--:--</span>
+    </div>
+    <div class="now-split">
+      <div class="now-body" id="nowBody">
+        <div class="empty-now">Aucun morceau lancé — appuie sur MORCEAU SUIVANT pour démarrer</div>
+      </div>
+      <div class="next-preview" id="nextPreview"></div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">0 / 0</div>
+    <button class="next-btn" id="nextBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      Morceau suivant
+    </button>
+  </div>
+
+  <!-- À VENIR -->
+  <div class="section-head">
+    <span class="label">À venir</span>
+    <span class="rule"></span>
+    <span class="count" id="queueCount">0</span>
+  </div>
+  <div class="queue-list" id="queueList"></div>
+
+  <!-- AJOUT -->
+  <div class="panel add-panel">
+    <div class="add-panel-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Ajouter au programme
+    </div>
+    <div class="add-row">
+      <select id="inputClass">
+        <option value="" disabled selected>Classe</option>
+        <option value="TPS">TPS</option>
+        <option value="PS">PS</option>
+        <option value="MS">MS</option>
+        <option value="GS">GS</option>
+        <option value="FINAL">FINAL</option>
+      </select>
+      <input type="text" id="inputDanse" placeholder="Nom de la danse (ex: True Colors)">
+    </div>
+    <div class="add-row">
+      <input type="text" id="inputTitle" placeholder="Titre du morceau (ex: Entrée — La Ronde des couleurs)">
+    </div>
+    <button class="add-submit" id="addBtn">Ajouter à la suite</button>
+  </div>
+
+  <!-- DÉJÀ PASSÉS -->
+  <div class="section-head">
+    <span class="label">Déjà passés</span>
+    <span class="rule"></span>
+    <span class="count" id="playedCount">0</span>
+    <button class="clear-played-btn" id="clearPlayedBtn" title="Vider l'historique des pistes déjà jouées">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Vider <kbd class="kbd-active-only">⌫</kbd>
+    </button>
+  </div>
+  <div class="played-list" id="playedList"></div>
+
+  <div class="diag-panel" id="diagPanel">
+    <span class="diag-label">État connexion :</span>
+    <span id="diagText">initialisation...</span>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+<script>
+  // ---------- FIREBASE (projet TAF existant, nœud isolé /kermesse_ecole/) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyDXpPWW04M_75_eirHXW_gAncw94OG20X4",
+    authDomain: "taf-ops.firebaseapp.com",
+    databaseURL: "https://taf-ops-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "taf-ops",
+    storageBucket: "taf-ops.appspot.com",
+    messagingSenderId: "990587158366",
+    appId: "1:990587158366:web:89a4c4b5dd04bbd79b5a3e"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const kermesseRef = db.ref('kermesse_ecole/programme');
+  const referenceRef = db.ref('kermesse_ecole/programme_reference');
+  const kermesseRootRef = db.ref('kermesse_ecole');
+
+  // ---------- DONNÉES INITIALES (modifiable avant le jour J) ----------
+  const DEFAULT_PROGRAM = [
+    { classe: "TPS",   danse: "La fête des couleurs",          titre: "Arrivée — La fête des couleurs" },
+    { classe: "TPS",   danse: "La fête des couleurs",          titre: "Arc en ciel" },
+    { classe: "TPS",   danse: "La fête des couleurs",          titre: "La danse des couleurs" },
+    { classe: "TPS",   danse: "La fête des couleurs",          titre: "Arc en ciel" },
+    { classe: "PS",    danse: "True Colors",                   titre: "Entrée — La Ronde des couleurs" },
+    { classe: "PS",    danse: "True Colors",                   titre: "Danse True Colors" },
+    { classe: "PS",    danse: "True Colors",                   titre: "Final — True Colors (Justin Timberlake, Anna Kendrick)" },
+    { classe: "GS",    danse: "Can't Stop The Feeling",         titre: "Can't Stop The Feeling!" },
+    { classe: "PS",    danse: "Ah les crocodiles",              titre: "Entrée — Ah ! Les crocodiles (instrumental)" },
+    { classe: "PS",    danse: "Ah les crocodiles",              titre: "Danse Ah les crocodiles" },
+    { classe: "PS",    danse: "Ah les crocodiles",              titre: "Ah les crocodiles (version instrumentale)" },
+    { classe: "TPS",   danse: "Savez-vous planter les choux",   titre: "Entrée — Savez-vous planter les choux (instru)" },
+    { classe: "TPS",   danse: "Savez-vous planter les choux",   titre: "Savez-vous planter les choux — DISCO" },
+    { classe: "TPS",   danse: "Savez-vous planter les choux",   titre: "Final Jazz Accordéon — Savez-vous planter les choux" },
+    { classe: "GS",    danse: "Sous l'océan",                   titre: "Sous l'océan" },
+    { classe: "FINAL", danse: "La java des couleurs",           titre: "La java des couleurs" },
+    { classe: "FINAL", danse: "Cotton Eye Joe",                 titre: "Rednex — Cotton Eye Joe" }
+  ];
+
+  function defaultState(){
+    return {
+      queue: DEFAULT_PROGRAM.map((t,i)=>({ id: 'init-'+i+'-'+Date.now(), classe: t.classe, danse: t.danse, titre: t.titre })),
+      played: [],
+      current: null
+    };
+  }
+
+  let state = { queue: [], played: [], current: null };
+  let firebaseReady = false;
+  let editingId = null; // id du morceau actuellement en mode édition inline (file ou historique)
+  let pendingSaves = 0; // nombre d'écritures Firebase en cours — sert à avertir avant de quitter la page
+  let suppressNextWrite = false; // évite de ré-écrire ce qu'on vient juste de recevoir
+
+  function setSyncStatus(mode, detail){
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    const diag = document.getElementById('diagText');
+    dot.classList.remove('offline','connecting');
+    if(mode==='online'){
+      label.textContent = 'SYNCHRONISÉ';
+      if(diag) diag.textContent = 'connecté à taf-ops-default-rtdb / kermesse_ecole ✓';
+    }
+    if(mode==='connecting'){
+      dot.classList.add('connecting'); label.textContent = 'CONNEXION...';
+      if(diag) diag.textContent = 'connexion en cours...';
+    }
+    if(mode==='saving'){
+      dot.classList.add('connecting'); label.textContent = 'SAUVEGARDE...';
+      if(diag) diag.textContent = 'écriture en cours — ne recharge pas la page';
+    }
+    if(mode==='offline'){
+      dot.classList.add('offline'); label.textContent = 'HORS LIGNE';
+      if(diag) diag.textContent = 'échec de connexion' + (detail ? (' — ' + detail) : '') + ' — recharge la page ou vérifie le réseau';
+    }
+  }
+
+  setSyncStatus('connecting');
+
+  // Écoute en temps réel : toute modif (même depuis un autre appareil) met à jour l'écran
+  kermesseRef.on('value', (snapshot)=>{
+    const data = snapshot.val();
+    firebaseReady = true;
+    setSyncStatus('online');
+
+    // data === null signifie que le nœud n'a JAMAIS été écrit (vrai premier lancement).
+    // On utilise un marqueur explicite (_init) plutôt que la simple présence de data,
+    // car Firebase élague les tableaux vides à l'écriture : un programme volontairement
+    // vidé (queue:[], played:[], current:null) redevient `null` côté serveur, et sans ce
+    // marqueur on le reprendrait à tort pour "jamais initialisé" -> réinjection du programme
+    // par défaut à chaque vidage. C'était le bug : la liste "revenait" systématiquement.
+    if(!data || !data._init){
+      state = defaultState();
+      const playedInOrder = [...state.played].reverse();
+      const fullList = state.queue.map(t=>({ classe: t.classe, danse: t.danse || '', titre: t.titre }));
+      kermesseRootRef.update({
+        programme: { ...state, _init: true },
+        programme_reference: fullList
+      }).catch((err)=>{
+        console.error('Erreur initialisation Firebase:', err);
+        showToast('Écriture refusée par Firebase : ' + (err.message || err.code || err));
+      });
+      return;
+    }
+
+    state = {
+      queue: data.queue || [],
+      played: data.played || [],
+      current: data.current || null
+    };
+    render();
+  }, (error)=>{
+    console.error('Firebase error:', error);
+    firebaseReady = false;
+    const detail = (error && (error.code || error.message)) ? (error.code || error.message) : 'erreur inconnue';
+    setSyncStatus('offline', detail);
+    document.getElementById('syncLabel').textContent = 'ERREUR : ' + detail;
+    showToast('Connexion Firebase refusée — ' + detail);
+    document.getElementById('queueList').innerHTML = '<div class="empty-state">⚠ Connexion Firebase impossible (' + escapeHtml(detail) + '). La liste ne peut pas se charger ni se vider tant que ce problème persiste.</div>';
+    document.getElementById('playedList').innerHTML = '<div class="empty-state">⚠ Connexion Firebase impossible (' + escapeHtml(detail) + ')</div>';
+  });
+
+  // Détection de la connectivité Firebase elle-même
+  db.ref('.info/connected').on('value', (snap)=>{
+    if(snap.val()===true){
+      if(firebaseReady) setSyncStatus('online');
+    } else {
+      setSyncStatus('offline');
+    }
+  });
+
+  function saveState(){
+    render();
+    setSyncStatus('saving');
+    pendingSaves++;
+    return kermesseRef.set({ ...state, _init: true }).then(()=>{
+      setSyncStatus('online');
+    }).catch((err)=>{
+      console.error('Erreur sauvegarde Firebase:', err);
+      setSyncStatus('offline', err.message || err.code);
+      showToast('⚠ Échec de sauvegarde — ne recharge pas la page, réessaie');
+      throw err;
+    }).finally(()=>{
+      pendingSaves = Math.max(0, pendingSaves - 1);
+    });
+  }
+
+  // Sauvegarde l'état courant ET la liste de référence en UNE SEULE écriture atomique.
+  // Évite la race condition où saveState() déclenche le listener temps réel (qui réécrit
+  // `state` avec la réponse du serveur) avant que saveReference() n'ait pu lire `state`
+  // pour construire la référence à jour — ce qui pouvait faire disparaître une édition
+  // tout juste validée dès qu'on cliquait sur RESTAURER juste après.
+  // Retourne la Promise Firebase pour permettre d'attendre la confirmation réelle du
+  // serveur avant d'afficher un message de succès (sinon le toast pouvait s'afficher
+  // alors que l'écriture réseau était encore en vol, et une page rechargée trop vite
+  // pouvait couper cette écriture avant qu'elle n'atteigne le serveur).
+  function saveStateAndReference(){
+    const playedInOrder = [...state.played].reverse();
+    const fullList = [
+      ...playedInOrder.map(t=>({ classe: t.classe, danse: t.danse || '', titre: t.titre })),
+      ...(state.current ? [{ classe: state.current.classe, danse: state.current.danse || '', titre: state.current.titre }] : []),
+      ...state.queue.map(t=>({ classe: t.classe, danse: t.danse || '', titre: t.titre }))
+    ];
+    render();
+    setSyncStatus('saving');
+    pendingSaves++;
+    return kermesseRootRef.update({
+      programme: { ...state, _init: true },
+      programme_reference: fullList
+    }).then(()=>{
+      setSyncStatus('online');
+    }).catch((err)=>{
+      console.error('Erreur sauvegarde combinée Firebase:', err);
+      setSyncStatus('offline', err.message || err.code);
+      showToast('⚠ Échec de sauvegarde — ne recharge pas la page, réessaie');
+      throw err;
+    }).finally(()=>{
+      pendingSaves = Math.max(0, pendingSaves - 1);
+    });
+  }
+
+  function restoreFromReference(){
+    referenceRef.once('value').then((snap)=>{
+      const ref = snap.val();
+      if(!ref || ref.length===0){
+        showToast('Aucun programme sauvegardé pour le moment');
+        return;
+      }
+      if(!confirm('Restaurer le programme sauvegardé (' + ref.length + ' morceaux) ? La file et l\'historique actuels seront remplacés pour tout le monde connecté.')) return;
+      state = {
+        queue: ref.map(t=>({ id: uid(), classe: t.classe, danse: t.danse || '', titre: t.titre })),
+        played: [],
+        current: null
+      };
+      saveState();
+      showToast('Programme restauré (' + ref.length + ' morceaux)');
+    }).catch((err)=>{
+      console.error('Erreur restauration:', err);
+      showToast('Impossible de lire la sauvegarde');
+    });
+  }
+
+  function uid(){ return 't-' + Date.now() + '-' + Math.random().toString(36).slice(2,7); }
+
+
+  function fmtTime(d){
+    const h = String(d.getHours()).padStart(2,'0');
+    const m = String(d.getMinutes()).padStart(2,'0');
+    return h+':'+m;
+  }
+
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=> toast.classList.remove('show'), 1800);
+  }
+
+  // ---------- ACTIONS ----------
+  function playNext(){
+    if(state.current){
+      state.played.unshift(state.current);
+      state.current = null;
+    }
+    if(state.queue.length === 0){
+      saveState();
+      return;
+    }
+    const next = state.queue.shift();
+    next.playedAt = fmtTime(new Date());
+    state.current = next;
+    saveState();
+    showToast('Lancé : ' + next.titre);
+  }
+
+  function restoreFromPlayed(id){
+    const idx = state.played.findIndex(t=>t.id===id);
+    if(idx===-1) return;
+    const [track] = state.played.splice(idx,1);
+    delete track.playedAt;
+    state.queue.unshift(track);
+    saveStateAndReference().then(()=>{
+      showToast('Remis dans la file et sauvegardé : ' + track.titre);
+    });
+  }
+
+  // Trouve un morceau par id, peu importe où il se trouve (file, historique, ou en cours).
+  function findTrackById(id){
+    return state.queue.find(t=>t.id===id)
+        || state.played.find(t=>t.id===id)
+        || (state.current && state.current.id===id ? state.current : null);
+  }
+
+  function startEdit(id){
+    if(!findTrackById(id)) return;
+    editingId = id;
+    render();
+  }
+
+  function cancelEdit(){
+    editingId = null;
+    render();
+  }
+
+  function saveEdit(id){
+    const track = findTrackById(id);
+    if(!track) return;
+
+    const classeEl = document.querySelector(`.edit-classe[data-id="${id}"]`);
+    const danseEl = document.querySelector(`.edit-danse[data-id="${id}"]`);
+    const titreEl = document.querySelector(`.edit-titre[data-id="${id}"]`);
+    if(!classeEl || !danseEl || !titreEl) return;
+
+    const classe = classeEl.value;
+    const danse = danseEl.value.trim();
+    const titre = titreEl.value.trim();
+
+    if(!danse){ danseEl.focus(); showToast('Indique le nom de la danse'); return; }
+    if(!titre){ titreEl.focus(); showToast('Indique le titre du morceau'); return; }
+
+    track.classe = classe;
+    track.danse = danse;
+    track.titre = titre;
+
+    editingId = null;
+    saveStateAndReference().then(()=>{
+      showToast('Morceau modifié et sauvegardé ✓');
+    });
+  }
+
+  function deleteFromQueue(id){
+    state.queue = state.queue.filter(t=>t.id!==id);
+    saveStateAndReference();
+  }
+
+  function moveInQueue(id, dir){
+    const idx = state.queue.findIndex(t=>t.id===id);
+    if(idx===-1) return;
+    const newIdx = idx+dir;
+    if(newIdx<0 || newIdx>=state.queue.length) return;
+    const tmp = state.queue[idx];
+    state.queue[idx] = state.queue[newIdx];
+    state.queue[newIdx] = tmp;
+    saveStateAndReference();
+  }
+
+  function playSpecific(id){
+    const idx = state.queue.findIndex(t=>t.id===id);
+    if(idx===-1) return;
+    if(state.current){
+      state.played.unshift(state.current);
+      state.current = null;
+    }
+    const [track] = state.queue.splice(idx,1);
+    track.playedAt = fmtTime(new Date());
+    state.current = track;
+    saveState();
+    showToast('Lancé : ' + track.titre);
+  }
+
+  function addTrack(classe, danse, titre){
+    state.queue.push({ id: uid(), classe: classe || 'Sans classe', danse: danse, titre: titre });
+    saveStateAndReference().then(()=>{
+      showToast('Ajouté et sauvegardé : ' + titre);
+    });
+  }
+
+  function resetAll(){
+    if(!confirm('Réinitialiser tout le programme avec la liste de base ? Cette action efface la progression actuelle pour tout le monde connecté.')) return;
+    state = defaultState();
+    saveState();
+    showToast('Programme réinitialisé');
+  }
+
+  function clearAll(){
+    if(!firebaseReady){
+      showToast('Connexion Firebase non établie — impossible de modifier la liste pour le moment');
+      return;
+    }
+    const total = state.queue.length + state.played.length + (state.current?1:0);
+    if(total===0){ showToast('La liste est déjà vide'); return; }
+    if(!confirm('Vider complètement la liste (' + total + ' morceau(x)) pour repartir de zéro ? Cette action efface tout pour tout le monde connecté. Tu pourras récupérer cette liste avec RESTAURER tant qu\'elle est sauvegardée.')) return;
+    state = { queue: [], played: [], current: null };
+    saveState();
+    showToast('Liste entièrement vidée');
+  }
+
+  function clearPlayed(){
+    if(state.played.length===0) return;
+    if(!confirm('Effacer les ' + state.played.length + ' piste(s) déjà jouée(s) de l\'historique ? Le morceau en cours n\'est pas affecté.')) return;
+    state.played = [];
+    saveState();
+    showToast('Historique vidé');
+  }
+
+  // ---------- ICONS ----------
+  const ICON = {
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    restore: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+  };
+
+  // ---------- RENDER ----------
+  function render(){
+    // EN COURS
+    const nowBody = document.getElementById('nowBody');
+    const nextBtn = document.getElementById('nextBtn');
+    const nowTime = document.getElementById('nowTime');
+
+    if(state.current){
+      nowBody.innerHTML = `
+        <div class="now-class">${escapeHtml(state.current.classe)}</div>
+        <div class="now-title">${escapeHtml(state.current.titre)}</div>
+        <div class="now-meta">Lancé à ${state.current.playedAt || '--:--'}</div>
+      `;
+      nowTime.textContent = state.current.playedAt || '--:--';
+    } else {
+      nowBody.innerHTML = `<div class="empty-now">Aucun morceau lancé — appuie sur MORCEAU SUIVANT pour démarrer</div>`;
+      nowTime.textContent = '--:--';
+    }
+
+    nextBtn.disabled = state.queue.length===0 && !state.current ? true :
+                        (state.queue.length===0 ? true : false);
+    nextBtn.innerHTML = state.queue.length===0
+      ? `${svgArrow()} Plus rien dans la file`
+      : `${svgArrow()} Morceau suivant`;
+
+    // PROCHAIN À PRÉPARER — le premier morceau de la file, affiché en colonne à droite
+    // du morceau en cours, pour préparer le fichier suivant pendant que l'actuel joue.
+    const nextPreview = document.getElementById('nextPreview');
+    if(state.queue.length > 0){
+      nextPreview.innerHTML = `<span class="label">Suivant</span><span class="title">${escapeHtml(state.queue[0].titre)}</span>`;
+    } else {
+      nextPreview.innerHTML = '';
+    }
+
+    // BARRE DE PROGRESSION — morceaux déjà joués + en cours, sur le total du programme
+    const totalTracks = state.queue.length + state.played.length + (state.current?1:0);
+    const doneTracks = state.played.length + (state.current?1:0);
+    const progressPct = totalTracks > 0 ? Math.round((doneTracks / totalTracks) * 100) : 0;
+    document.getElementById('progressFill').style.width = progressPct + '%';
+    document.getElementById('progressLabel').textContent = doneTracks + ' / ' + totalTracks;
+
+    // QUEUE
+    const queueList = document.getElementById('queueList');
+    document.getElementById('queueCount').textContent = state.queue.length;
+    document.getElementById('statQueue').textContent = state.queue.length + (state.current?1:0);
+
+    if(state.queue.length===0){
+      queueList.innerHTML = `<div class="empty-state">File vide — ajoute des morceaux ci-dessous</div>`;
+    } else {
+      queueList.innerHTML = renderQueueWithGroups(state.queue);
+    }
+
+    // PLAYED
+    const playedList = document.getElementById('playedList');
+    document.getElementById('playedCount').textContent = state.played.length;
+    document.getElementById('statPlayed').textContent = state.played.length + (state.current?1:0);
+    document.getElementById('clearPlayedBtn').disabled = state.played.length===0;
+
+    if(state.played.length===0){
+      playedList.innerHTML = `<div class="empty-state">Rien de joué pour l'instant</div>`;
+    } else {
+      playedList.innerHTML = renderPlayedWithGroups(state.played);
+    }
+  }
+
+  // Calcule, pour chaque morceau d'une liste, sa position "x/y" au sein de SA classe
+  // (toutes occurrences de la classe dans la liste, pas seulement les consécutives) —
+  // utile quand les 3-4 musiques d'une même classe ne se suivent pas forcément à la lettre près.
+  // Regroupe par COMBINAISON classe+danse (et non par classe seule) : deux blocs de
+  // la même classe mais de danses différentes (ex: TPS-Arrivée vs TPS-Final) restent
+  // bien distincts, chacun avec son propre compteur "x/y".
+  function groupKey(t){ return t.classe + '||' + (t.danse || ''); }
+
+  function computeClassTotals(list){
+    const totals = {};
+    list.forEach(t => { const k = groupKey(t); totals[k] = (totals[k]||0) + 1; });
+    return totals;
+  }
+
+  const CLASS_OPTIONS = ['TPS','PS','MS','GS','FINAL'];
+
+  // Génère le formulaire d'édition inline (classe + danse + titre) pour un morceau donné.
+  // Réutilisé à l'identique pour une ligne de la file ou de l'historique.
+  function renderEditForm(t){
+    const options = CLASS_OPTIONS.map(c=>`<option value="${c}" ${t.classe===c?'selected':''}>${c}</option>`).join('');
+    return `
+      <div class="edit-form">
+        <div class="edit-row">
+          <select class="edit-classe" data-id="${t.id}">${options}</select>
+          <input type="text" class="edit-danse" data-id="${t.id}" value="${escapeHtml(t.danse||'')}" placeholder="Nom de la danse">
+        </div>
+        <div class="edit-row">
+          <input type="text" class="edit-titre" data-id="${t.id}" value="${escapeHtml(t.titre)}" placeholder="Titre du morceau">
+        </div>
+      </div>
+      <div class="track-actions">
+        <button class="icon-btn check" title="Valider les modifications" data-act="save-edit" data-id="${t.id}">${ICON.check}</button>
+        <button class="icon-btn del" title="Annuler" data-act="cancel-edit" data-id="${t.id}">${ICON.del}</button>
+      </div>`;
+  }
+
+  function renderQueueWithGroups(list){
+    const totals = computeClassTotals(list);
+    const seenIndex = {};
+    let html = '';
+    let lastKey = null;
+
+    list.forEach((t, i)=>{
+      const key = groupKey(t);
+      const total = totals[key];
+      seenIndex[key] = (seenIndex[key]||0) + 1;
+      const subIndex = seenIndex[key];
+      const subBadge = total > 1 ? `<span class="track-sub-badge">musique ${subIndex}/${total}</span>` : '';
+      const danseLabel = t.danse ? escapeHtml(t.danse) : '';
+
+      if(key !== lastKey){
+        html += `
+          <div class="class-divider">
+            <span class="bar"></span>
+            <span class="name">${escapeHtml(t.classe)}${t.danse ? ' · ' + danseLabel : ''}</span>
+            <span class="qty">${total} musique${total>1?'s':''} au total</span>
+            <span class="rule"></span>
+          </div>`;
+        lastKey = key;
+      }
+
+      html += `
+        <div class="track${t.id===editingId?' editing':''}">
+          <div class="track-num">#${String(i+1).padStart(2,'0')}</div>
+          ${t.id===editingId ? renderEditForm(t) : `
+          <div class="track-body">
+            <div class="track-class">${escapeHtml(t.classe)}${t.danse ? ' · ' + danseLabel : ''}${subBadge}</div>
+            <div class="track-title">${escapeHtml(t.titre)}</div>
+          </div>
+          <div class="track-actions">
+            <button class="icon-btn up" title="Monter" data-act="up" data-id="${t.id}" ${i===0?'disabled':''}>${ICON.up}</button>
+            <button class="icon-btn down" title="Descendre" data-act="down" data-id="${t.id}" ${i===list.length-1?'disabled':''}>${ICON.down}</button>
+            <button class="icon-btn edit" title="Modifier" data-act="edit" data-id="${t.id}">${ICON.edit}</button>
+            <button class="icon-btn play" title="Lancer ce morceau" data-act="play" data-id="${t.id}">${ICON.play}</button>
+            <button class="icon-btn del" title="Supprimer" data-act="del" data-id="${t.id}">${ICON.del}</button>
+          </div>`}
+        </div>`;
+    });
+    return html;
+  }
+
+  function renderPlayedWithGroups(list){
+    const totals = computeClassTotals(list);
+    const seenIndex = {};
+    let html = '';
+    let lastKey = null;
+
+    list.forEach((t, i)=>{
+      const key = groupKey(t);
+      const total = totals[key];
+      seenIndex[key] = (seenIndex[key]||0) + 1;
+      const subIndex = seenIndex[key];
+      const subBadge = total > 1 ? `<span class="track-sub-badge">musique ${subIndex}/${total}</span>` : '';
+      const danseLabel = t.danse ? escapeHtml(t.danse) : '';
+
+      if(key !== lastKey){
+        html += `
+          <div class="class-divider played">
+            <span class="bar"></span>
+            <span class="name">${escapeHtml(t.classe)}${t.danse ? ' · ' + danseLabel : ''}</span>
+            <span class="qty">${total} musique${total>1?'s':''} au total</span>
+            <span class="rule"></span>
+          </div>`;
+        lastKey = key;
+      }
+
+      html += `
+        <div class="track played${t.id===editingId?' editing':''}">
+          <div class="track-num">${t.playedAt || ''}</div>
+          ${t.id===editingId ? renderEditForm(t) : `
+          <div class="track-body">
+            <div class="track-class">${escapeHtml(t.classe)}${t.danse ? ' · ' + danseLabel : ''}${subBadge}</div>
+            <div class="track-title">${escapeHtml(t.titre)}</div>
+          </div>
+          <div class="track-actions">
+            <button class="icon-btn edit" title="Modifier" data-act="edit" data-id="${t.id}">${ICON.edit}</button>
+            <button class="icon-btn restore" title="Remettre dans la file" data-act="restore" data-id="${t.id}">${ICON.restore}</button>
+            <button class="icon-btn del" title="Effacer définitivement" data-act="del" data-id="${t.id}">${ICON.del}</button>
+          </div>`}
+        </div>`;
+    });
+    return html;
+  }
+
+  function svgArrow(){
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>';
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- EVENTS ----------
+  document.getElementById('nextBtn').addEventListener('click', playNext);
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+  document.getElementById('restoreBtn').addEventListener('click', restoreFromReference);
+  document.getElementById('clearPlayedBtn').addEventListener('click', clearPlayed);
+
+  // ---------- RETOUR HAPTIQUE (vibration courte sur tactile, si supporté) ----------
+  function hapticTick(){
+    if(navigator.vibrate) navigator.vibrate(15);
+  }
+  document.getElementById('nextBtn').addEventListener('click', hapticTick);
+
+  // ---------- RACCOURCIS CLAVIER (utiles uniquement si un vrai clavier physique est branché) ----------
+  // Espace -> morceau suivant | Retour arrière -> vider l'historique des pistes jouées
+  // Désactivés si le focus est dans un champ de saisie, pour ne pas gêner la frappe.
+  // Le rappel visuel des touches ne s'affiche qu'après un premier appui clavier détecté,
+  // pour ne jamais perturber un usage 100% tactile (iPad sans clavier).
+  let keyboardDetected = false;
+  function markKeyboardActive(){
+    if(keyboardDetected) return;
+    keyboardDetected = true;
+    document.getElementById('kbdHint').classList.add('kbd-active');
+    document.body.classList.add('kbd-active');
+  }
+
+  document.addEventListener('keydown', (e)=>{
+    const tag = document.activeElement.tagName;
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable;
+
+    if(e.code === 'Space' || e.code === 'Backspace' || e.code === 'Delete'){
+      markKeyboardActive();
+    }
+
+    if(isTyping) return;
+
+    if(e.code === 'Space'){
+      e.preventDefault();
+      playNext();
+    }
+    if(e.code === 'Backspace' || e.code === 'Delete'){
+      e.preventDefault();
+      clearPlayed();
+    }
+  });
+
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const classeInput = document.getElementById('inputClass');
+    const danseInput = document.getElementById('inputDanse');
+    const titleInput = document.getElementById('inputTitle');
+    const titre = titleInput.value.trim();
+    const danse = danseInput.value.trim();
+    const classe = classeInput.value;
+    if(!classe){ classeInput.focus(); showToast('Choisis une classe'); return; }
+    if(!danse){ danseInput.focus(); showToast('Indique le nom de la danse'); return; }
+    if(!titre){ titleInput.focus(); showToast('Indique le titre du morceau'); return; }
+    addTrack(classe, danse, titre);
+    classeInput.selectedIndex = 0;
+    danseInput.value = '';
+    titleInput.value = '';
+    classeInput.focus();
+  });
+
+  document.getElementById('inputDanse').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') document.getElementById('inputTitle').focus();
+  });
+  document.getElementById('inputTitle').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') document.getElementById('addBtn').click();
+  });
+
+  document.getElementById('queueList').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const act = btn.dataset.act;
+    if(act==='up') moveInQueue(id,-1);
+    if(act==='down') moveInQueue(id,1);
+    if(act==='play') playSpecific(id);
+    if(act==='del') deleteFromQueue(id);
+    if(act==='edit') startEdit(id);
+    if(act==='save-edit') saveEdit(id);
+    if(act==='cancel-edit') cancelEdit();
+  });
+
+  document.getElementById('playedList').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const act = btn.dataset.act;
+    if(act==='restore') restoreFromPlayed(id);
+    if(act==='del'){
+      state.played = state.played.filter(t=>t.id!==id);
+      saveState();
+    }
+    if(act==='edit') startEdit(id);
+    if(act==='save-edit') saveEdit(id);
+    if(act==='cancel-edit') cancelEdit();
+  });
+
+  // Affichage initial pendant la connexion à Firebase (avant la 1ère réponse)
+  document.getElementById('queueList').innerHTML = '<div class="empty-state">Connexion à Firebase en cours...</div>';
+  document.getElementById('playedList').innerHTML = '<div class="empty-state">Connexion à Firebase en cours...</div>';
+
+  // Avertit avant de fermer/recharger la page si une écriture Firebase est encore en vol —
+  // évite de couper une sauvegarde en cours (cause du bug "mes modifs disparaissent").
+  window.addEventListener('beforeunload', (e)=>{
+    if(pendingSaves > 0){
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
+</script>
+
+</body>
+</html>
