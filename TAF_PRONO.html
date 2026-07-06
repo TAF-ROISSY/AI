@@ -648,6 +648,7 @@
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn-admin-save" onclick="saveOfficialScore()">💾 ENREGISTRER LE SCORE</button>
+            <button class="btn-admin-save" onclick="clearOfficialScore()" style="background:rgba(220,38,38,0.15);border-color:rgba(220,38,38,0.4);color:#fca5a5;margin-left:8px">🗑 EFFACER LE SCORE</button>
             <button onclick="saveMatchTeams()" id="btn-save-teams" style="display:none;background:linear-gradient(135deg,#FF8C00,#FFA500);color:var(--dark);border:none;border-radius:8px;padding:11px 18px;font-family:'Exo 2';font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px">✏️ METTRE À JOUR LES ÉQUIPES</button>
           </div>
         </div>
@@ -2191,6 +2192,22 @@ function saveOfficialScore() {
       renderAdmin();
     })
     .catch(()=>showToast("Erreur Firebase","error"));
+}
+
+function clearOfficialScore() {
+  const id = document.getElementById('admin-match-sel').value;
+  const m = MATCHES_BY_ID[id];
+  if (!m) return;
+  if (!confirm(`Effacer le score du match ${m.team1} vs ${m.team2} ?`)) return;
+  db.ref(`taf_prono/scores/${id}`).remove()
+    .then(() => {
+      m.score1 = null; m.score2 = null;
+      document.getElementById('admin-score1').value = '';
+      document.getElementById('admin-score2').value = '';
+      showToast(`Score effacé pour ${m.team1} vs ${m.team2}`, "success");
+      renderAdmin();
+    })
+    .catch(() => showToast("Erreur Firebase", "error"));
 }
 
 // ═══════════════════════════════════════════════
