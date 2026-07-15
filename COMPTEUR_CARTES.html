@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Comptoir des Cartes — Compteur de points</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt:#0d3a2c;
+  --felt-dark:#082419;
+  --ivory:#f6f0e0;
+  --ivory-soft:#efe6cf;
+  --gold:#c9a24b;
+  --gold-light:#e8cd8a;
+  --rouge:#b83a3a;
+  --noir:#1e1b16;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Outfit',sans-serif;
+  background:
+    radial-gradient(ellipse at 50% -10%, #16543f 0%, var(--felt) 45%, var(--felt-dark) 100%);
+  min-height:100vh;
+  color:var(--ivory);
+  padding-bottom:60px;
+  background-attachment:fixed;
+}
+/* texture feutrine subtile */
+body::before{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:4px 4px;
+  z-index:0;
+}
+.wrap{max-width:980px;margin:0 auto;padding:24px 16px;position:relative;z-index:1}
+
+/* ============ EN-TÊTE ============ */
+header{text-align:center;margin-bottom:28px}
+.suits{
+  font-size:1.4rem;letter-spacing:.6em;margin-bottom:6px;
+  color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+.suits .r{color:#d96a6a}
+h1{
+  font-family:'Fraunces',serif;font-weight:900;
+  font-size:clamp(2rem,6vw,3.2rem);
+  color:var(--ivory);letter-spacing:.01em;line-height:1.05;
+}
+h1 em{font-style:italic;color:var(--gold-light)}
+.tagline{
+  margin-top:8px;font-size:.85rem;letter-spacing:.25em;text-transform:uppercase;
+  color:rgba(246,240,224,.55);
+}
+.rule{
+  width:120px;height:1px;margin:16px auto 0;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+
+/* ============ PANNEAUX ============ */
+.panel{
+  background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.12));
+  border:1px solid rgba(201,162,75,.35);
+  border-radius:18px;
+  padding:26px 22px;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(2px);
+}
+.panel + .panel{margin-top:20px}
+.panel h2{
+  font-family:'Fraunces',serif;font-weight:700;font-size:1.25rem;
+  color:var(--gold-light);margin-bottom:18px;display:flex;align-items:center;gap:10px;
+}
+.panel h2::after{content:"";flex:1;height:1px;background:rgba(201,162,75,.25)}
+
+label{display:block;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(246,240,224,.65);margin-bottom:6px}
+input[type=text],input[type=number],select{
+  width:100%;padding:12px 14px;border-radius:10px;
+  border:1px solid rgba(201,162,75,.4);
+  background:rgba(8,36,25,.6);color:var(--ivory);
+  font-family:'Outfit',sans-serif;font-size:1rem;
+  outline:none;transition:border-color .2s, box-shadow .2s;
+}
+input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,75,.2)}
+input[type=number]{font-variant-numeric:tabular-nums}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a24b' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+
+.players-setup{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.player-row{display:flex;align-items:center;gap:10px}
+.player-suit{
+  width:40px;height:40px;flex:none;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;background:var(--ivory);color:var(--noir);
+  box-shadow:0 3px 8px rgba(0,0,0,.35);
+}
+.player-suit.red{color:var(--rouge)}
+
+/* ============ BOUTONS ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 26px;border-radius:12px;border:none;cursor:pointer;
+  font-family:'Outfit',sans-serif;font-weight:600;font-size:1rem;
+  letter-spacing:.04em;transition:transform .15s, box-shadow .15s, filter .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn-gold{
+  background:linear-gradient(180deg,var(--gold-light),var(--gold));
+  color:#3a2c10;box-shadow:0 6px 18px rgba(201,162,75,.35);
+}
+.btn-gold:hover{filter:brightness(1.06)}
+.btn-ghost{
+  background:transparent;color:var(--gold-light);
+  border:1px solid rgba(201,162,75,.5);
+}
+.btn-ghost:hover{background:rgba(201,162,75,.1)}
+.btn-danger{background:transparent;color:#e59a9a;border:1px solid rgba(184,58,58,.5)}
+.btn-danger:hover{background:rgba(184,58,58,.12)}
+.btn-block{width:100%;margin-top:20px}
+.btn-sm{padding:9px 16px;font-size:.85rem;border-radius:9px}
+
+/* ============ TABLE DE JEU ============ */
+.game-header{
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  margin-bottom:18px;
+}
+.target-chip{
+  display:inline-flex;align-items:center;gap:10px;
+  background:rgba(8,36,25,.55);border:1px solid rgba(201,162,75,.4);
+  border-radius:999px;padding:8px 18px;font-size:.9rem;
+}
+.target-chip strong{
+  font-family:'Fraunces',serif;font-size:1.25rem;color:var(--gold-light);
+  font-variant-numeric:tabular-nums;
+}
+.cards-zone{
+  display:grid;gap:16px;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  margin-bottom:22px;
+}
+
+/* Carte joueur = carte à jouer */
+.pcard{
+  position:relative;
+  background:linear-gradient(160deg,var(--ivory) 0%,var(--ivory-soft) 100%);
+  color:var(--noir);
+  border-radius:14px;
+  padding:20px 16px 16px;
+  box-shadow:0 8px 22px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.06);
+  border:1px solid rgba(255,255,255,.6);
+  transition:transform .2s;
+  overflow:hidden;
+}
+.pcard:hover{transform:translateY(-3px)}
+.pcard .corner{
+  position:absolute;font-size:1rem;line-height:1;font-weight:700;
+  font-family:'Fraunces',serif;
+}
+.pcard .corner.tl{top:10px;left:12px}
+.pcard .corner.br{bottom:10px;right:12px;transform:rotate(180deg)}
+.pcard.red .corner,.pcard.red .suit-big{color:var(--rouge)}
+.pcard.black .corner,.pcard.black .suit-big{color:var(--noir)}
+.pcard .suit-big{
+  position:absolute;right:-12px;top:-14px;font-size:5.5rem;opacity:.07;
+  pointer-events:none;
+}
+.pcard .pname{
+  font-family:'Fraunces',serif;font-weight:700;font-size:1.15rem;
+  text-align:center;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pcard .pscore{
+  font-family:'Fraunces',serif;font-weight:900;font-size:2.8rem;
+  text-align:center;line-height:1;font-variant-numeric:tabular-nums;
+  margin:8px 0 4px;
+}
+.pcard .premain{
+  text-align:center;font-size:.75rem;letter-spacing:.08em;
+  color:rgba(30,27,22,.55);text-transform:uppercase;margin-bottom:12px;
+}
+.pbar{
+  height:7px;border-radius:99px;background:rgba(30,27,22,.12);overflow:hidden;
+}
+.pbar>div{
+  height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--gold),var(--gold-light));
+  transition:width .5s cubic-bezier(.2,.8,.2,1);
+}
+.pcard.leader{box-shadow:0 0 0 2px var(--gold), 0 10px 28px rgba(201,162,75,.35)}
+.pcard.leader::after{
+  content:"★ EN TÊTE";position:absolute;top:10px;right:0;left:0;
+  text-align:center;font-size:.6rem;letter-spacing:.25em;color:var(--gold);
+  font-weight:700;
+}
+
+/* ============ SAISIE MANCHE ============ */
+.round-inputs{
+  display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+}
+.ri label{margin-bottom:4px;font-size:.72rem}
+.round-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.round-actions .btn{flex:1;min-width:140px}
+
+/* ============ HISTORIQUE ============ */
+.history-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:420px}
+th,td{padding:10px 12px;text-align:center;font-size:.92rem}
+th{
+  font-family:'Fraunces',serif;color:var(--gold-light);font-weight:700;
+  border-bottom:1px solid rgba(201,162,75,.35);white-space:nowrap;
+}
+tbody tr{border-bottom:1px solid rgba(246,240,224,.08)}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+td.mnum{color:rgba(246,240,224,.5);font-size:.8rem}
+td.neg{color:#e59a9a}
+td.pos{color:#a8d8b0}
+tfoot td{
+  font-family:'Fraunces',serif;font-weight:700;color:var(--gold-light);
+  border-top:1px solid rgba(201,162,75,.35);font-size:1.05rem;
+}
+.empty-hist{text-align:center;padding:24px;color:rgba(246,240,224,.45);font-style:italic}
+
+/* ============ VICTOIRE ============ */
+.overlay{
+  position:fixed;inset:0;background:rgba(5,20,14,.88);
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;padding:20px;backdrop-filter:blur(4px);
+  animation:fadeIn .4s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.win-card{
+  background:linear-gradient(160deg,var(--ivory),var(--ivory-soft));
+  color:var(--noir);border-radius:20px;padding:44px 36px;text-align:center;
+  max-width:420px;width:100%;position:relative;
+  box-shadow:0 0 0 3px var(--gold), 0 30px 80px rgba(0,0,0,.6);
+  animation:pop .5s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.win-card .crown{font-size:3rem;margin-bottom:8px}
+.win-card h3{font-family:'Fraunces',serif;font-weight:900;font-size:2rem;margin-bottom:6px}
+.win-card p{color:rgba(30,27,22,.65);margin-bottom:22px}
+.win-card .wscore{
+  font-family:'Fraunces',serif;font-weight:900;font-size:3rem;color:var(--gold);
+  -webkit-text-stroke:1px #a9852f;margin-bottom:18px;
+}
+.confetti{position:fixed;top:-12px;font-size:1.2rem;animation:fall linear forwards;z-index:99}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.6}}
+
+/* ============ BADGE VERSION ============ */
+.vbadge{
+  position:fixed;bottom:10px;right:12px;z-index:50;
+  font-size:.65rem;letter-spacing:.1em;color:rgba(246,240,224,.4);
+  background:rgba(8,36,25,.7);border:1px solid rgba(201,162,75,.25);
+  border-radius:999px;padding:4px 10px;
+}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="suits">♠ <span class="r">♥</span> ♣ <span class="r">♦</span></div>
+    <h1>Le Comptoir <em>des Cartes</em></h1>
+    <div class="tagline">Compteur de points · Belote · Tarot · Rami &amp; cie</div>
+    <div class="rule"></div>
+  </header>
+
+  <!-- ============ ÉCRAN CONFIGURATION ============ -->
+  <section id="setup" class="panel">
+    <h2>Nouvelle partie</h2>
+    <div class="grid2">
+      <div>
+        <label for="target">Points à atteindre</label>
+        <input type="number" id="target" value="500" min="1" inputmode="numeric">
+      </div>
+      <div>
+        <label for="mode">Règle de fin</label>
+        <select id="mode">
+          <option value="high">Le premier à atteindre le score GAGNE</option>
+          <option value="low">Celui qui atteint le score PERD</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:18px">
+      <label for="nbPlayers">Nombre de joueurs</label>
+      <select id="nbPlayers"></select>
+    </div>
+    <div style="margin-top:18px">
+      <label>Noms des joueurs</label>
+      <div class="players-setup" id="namesZone"></div>
+    </div>
+    <button class="btn btn-gold btn-block" id="btnStart">♠ Lancer la partie</button>
+  </section>
+
+  <!-- ============ ÉCRAN DE JEU ============ -->
+  <section id="game" class="hidden">
+    <div class="game-header">
+      <div class="target-chip" id="chipTarget"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost btn-sm" id="btnUndo">↶ Annuler la manche</button>
+        <button class="btn btn-danger btn-sm" id="btnNew">Nouvelle partie</button>
+      </div>
+    </div>
+
+    <div class="cards-zone" id="cardsZone"></div>
+
+    <div class="panel">
+      <h2>Manche <span id="roundNum"></span></h2>
+      <div class="round-inputs" id="roundInputs"></div>
+      <div class="round-actions">
+        <button class="btn btn-gold" id="btnValidate">✓ Valider la manche</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Historique des manches</h2>
+      <div class="history-scroll">
+        <div id="historyZone"></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="vbadge">v1.0</div>
+
+<script>
+(function(){
+  "use strict";
+  const SUITS=["♠","♥","♦","♣","♠","♥","♦","♣"];
+  const RED=new Set(["♥","♦"]);
+  let state=null; // {target, mode, players:[{name,suit}], rounds:[[..]], finished:false}
+
+  const $=id=>document.getElementById(id);
+
+  /* ---------- Configuration ---------- */
+  const nbSel=$("nbPlayers");
+  for(let i=2;i<=8;i++){
+    const o=document.createElement("option");
+    o.value=i;o.textContent=i+" joueurs";
+    if(i===4)o.selected=true;
+    nbSel.appendChild(o);
+  }
+  function renderNameInputs(){
+    const n=+nbSel.value, zone=$("namesZone");
+    const olds=[...zone.querySelectorAll("input")].map(i=>i.value);
+    zone.innerHTML="";
+    for(let i=0;i<n;i++){
+      const row=document.createElement("div");
+      row.className="player-row";
+      const suit=SUITS[i];
+      row.innerHTML='<div class="player-suit '+(RED.has(suit)?"red":"")+'">'+suit+'</div>';
+      const inp=document.createElement("input");
+      inp.type="text";inp.placeholder="Joueur "+(i+1);
+      inp.value=olds[i]||"";inp.maxLength=20;
+      row.appendChild(inp);
+      zone.appendChild(row);
+    }
+  }
+  nbSel.addEventListener("change",renderNameInputs);
+  renderNameInputs();
+
+  $("btnStart").addEventListener("click",()=>{
+    const target=Math.max(1,parseInt($("target").value)||500);
+    const mode=$("mode").value;
+    const inputs=[...$("namesZone").querySelectorAll("input")];
+    const players=inputs.map((inp,i)=>({
+      name:(inp.value.trim()||"Joueur "+(i+1)),
+      suit:SUITS[i]
+    }));
+    state={target,mode,players,rounds:[],finished:false};
+    $("setup").classList.add("hidden");
+    $("game").classList.remove("hidden");
+    render();
+  });
+
+  /* ---------- Rendu ---------- */
+  function totals(){
+    return state.players.map((_,i)=>
+      state.rounds.reduce((s,r)=>s+(r[i]||0),0));
+  }
+  function render(){
+    const t=totals();
+    $("chipTarget").innerHTML=
+      (state.mode==="high"?"Objectif":"Limite fatale")+
+      " <strong>"+state.target+"</strong> pts · "+
+      (state.mode==="high"?"le premier arrivé gagne":"le premier arrivé perd");
+
+    // Cartes joueurs
+    const best=state.mode==="high"?Math.max(...t):Math.min(...t);
+    const zone=$("cardsZone");zone.innerHTML="";
+    state.players.forEach((p,i)=>{
+      const pct=Math.min(100,Math.max(0,t[i]/state.target*100));
+      const remain=state.target-t[i];
+      const card=document.createElement("div");
+      card.className="pcard "+(RED.has(p.suit)?"red":"black")+
+        ((state.rounds.length>0&&t[i]===best)?" leader":"");
+      card.innerHTML=
+        '<div class="corner tl">'+p.suit+'</div>'+
+        '<div class="corner br">'+p.suit+'</div>'+
+        '<div class="suit-big">'+p.suit+'</div>'+
+        '<div class="pname">'+esc(p.name)+'</div>'+
+        '<div class="pscore">'+t[i]+'</div>'+
+        '<div class="premain">'+(remain>0?("reste "+remain+" pts"):"objectif atteint")+'</div>'+
+        '<div class="pbar"><div style="width:'+pct+'%"></div></div>';
+      zone.appendChild(card);
+    });
+
+    // Saisie manche
+    $("roundNum").textContent=state.rounds.length+1;
+    const ri=$("roundInputs");ri.innerHTML="";
+    state.players.forEach((p,i)=>{
+      const d=document.createElement("div");
+      d.className="ri";
+      d.innerHTML='<label>'+esc(p.name)+'</label>';
+      const inp=document.createElement("input");
+      inp.type="number";inp.placeholder="0";inp.inputMode="numeric";
+      inp.dataset.idx=i;
+      inp.addEventListener("keydown",e=>{if(e.key==="Enter")validateRound();});
+      d.appendChild(inp);
+      ri.appendChild(d);
+    });
+
+    renderHistory(t);
+    checkEnd(t);
+  }
+
+  function renderHistory(t){
+    const z=$("historyZone");
+    if(!state.rounds.length){
+      z.innerHTML='<div class="empty-hist">Aucune manche jouée — à vous de distribuer ! 🃏</div>';
+      return;
+    }
+    let html='<table><thead><tr><th>Manche</th>'+
+      state.players.map(p=>'<th>'+p.suit+' '+esc(p.name)+'</th>').join("")+
+      '</tr></thead><tbody>';
+    state.rounds.forEach((r,ri)=>{
+      html+='<tr><td class="mnum">'+(ri+1)+'</td>'+
+        r.map(v=>'<td class="'+(v<0?"neg":v>0?"pos":"")+'">'+
+          (v>0?"+":"")+v+'</td>').join("")+'</tr>';
+    });
+    html+='</tbody><tfoot><tr><td>Total</td>'+
+      t.map(v=>'<td>'+v+'</td>').join("")+'</tr></tfoot></table>';
+    z.innerHTML=html;
+  }
+
+  /* ---------- Actions ---------- */
+  function validateRound(){
+    if(state.finished)return;
+    const inputs=[...$("roundInputs").querySelectorAll("input")];
+    const vals=inputs.map(i=>parseInt(i.value)||0);
+    if(vals.every(v=>v===0)&&!confirm("Tous les scores sont à 0. Valider quand même ?"))return;
+    state.rounds.push(vals);
+    render();
+  }
+  $("btnValidate").addEventListener("click",validateRound);
+
+  $("btnUndo").addEventListener("click",()=>{
+    if(!state.rounds.length)return;
+    state.rounds.pop();
+    state.finished=false;
+    render();
+  });
+
+  $("btnNew").addEventListener("click",()=>{
+    if(state.rounds.length&&!confirm("Abandonner la partie en cours ?"))return;
+    state=null;
+    $("game").classList.add("hidden");
+    $("setup").classList.remove("hidden");
+    const ov=document.querySelector(".overlay");if(ov)ov.remove();
+  });
+
+  /* ---------- Fin de partie ---------- */
+  function checkEnd(t){
+    if(state.finished)return;
+    const reached=t.map((v,i)=>({v,i})).filter(o=>o.v>=state.target);
+    if(!reached.length)return;
+    state.finished=true;
+    let winner;
+    if(state.mode==="high"){
+      winner=reached.sort((a,b)=>b.v-a.v)[0];
+      showWin(state.players[winner.i],winner.v,true);
+    }else{
+      // celui qui atteint la limite perd → le gagnant est le plus bas total
+      const loser=reached.sort((a,b)=>b.v-a.v)[0];
+      const others=t.map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v)[0];
+      showWin(state.players[others.i],others.v,true,state.players[loser.i]);
+    }
+  }
+  function showWin(p,score,_,loser){
+    const ov=document.createElement("div");
+    ov.className="overlay";
+    ov.innerHTML=
+      '<div class="win-card">'+
+        '<div class="crown">👑</div>'+
+        '<h3>'+esc(p.name)+' remporte la partie&nbsp;!</h3>'+
+        (loser?'<p>'+esc(loser.name)+' a atteint la limite fatale…</p>':'<p>Objectif atteint, chapeau bas.</p>')+
+        '<div class="wscore">'+score+' pts</div>'+
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'+
+          '<button class="btn btn-ghost btn-sm" id="btnContinue">Continuer à jouer</button>'+
+          '<button class="btn btn-gold btn-sm" id="btnRematch">♣ Revanche</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(ov);
+    confetti();
+    ov.querySelector("#btnContinue").addEventListener("click",()=>ov.remove());
+    ov.querySelector("#btnRematch").addEventListener("click",()=>{
+      state.rounds=[];state.finished=false;ov.remove();render();
+    });
+  }
+  function confetti(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    const glyphs=["♠","♥","♦","♣","★"];
+    for(let i=0;i<36;i++){
+      const s=document.createElement("div");
+      s.className="confetti";
+      s.textContent=glyphs[i%glyphs.length];
+      s.style.left=Math.random()*100+"vw";
+      s.style.color=Math.random()>.5?"#c9a24b":(Math.random()>.5?"#b83a3a":"#f6f0e0");
+      s.style.animationDuration=(2.5+Math.random()*2.5)+"s";
+      s.style.fontSize=(0.9+Math.random()*1.4)+"rem";
+      document.body.appendChild(s);
+      setTimeout(()=>s.remove(),5500);
+    }
+  }
+
+  function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+})();
+</script>
+</body>
+</html>
