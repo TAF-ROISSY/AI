@@ -59,6 +59,19 @@ input,select{font:inherit}
 .empty b{display:block;color:var(--txt);font-size:17px;margin-bottom:8px}
 .empty .btn{margin-top:14px}
 .scrub{display:flex;align-items:center;gap:10px;padding:0 12px 6px}
+.scrub{flex-wrap:wrap;row-gap:6px}
+.tl{position:relative;flex:1;min-width:160px;display:flex;align-items:center} .tl input{width:100%}
+.tl i{position:absolute;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--acc);opacity:.45;pointer-events:none}
+.trim{display:flex;gap:6px;align-items:center;flex-wrap:wrap} .trim .chip{padding:5px 10px}
+#trimLb{color:var(--acc)!important}
+.pane .tag.orig{display:none;left:auto;right:8px;color:#fff;background:#d33a}
+.pane.peek #cvB{visibility:hidden} .pane.peek #cvB0[hidden],.pane.peek #cvB0{display:block!important;clip-path:none}
+.pane.peek .tag.orig{display:block} .pane.peek .bar,.pane.peek .knob{display:none!important}
+.pane{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.ver{padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px));font-size:11px;color:var(--dim);text-align:center}
+.upd{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:12px;
+  background:var(--p3);border:1px solid var(--acc);border-radius:12px;padding:8px 8px 8px 14px;font-size:13px;box-shadow:0 8px 30px #0008;max-width:calc(100vw - 24px)}
+.upd .btn{height:34px}
 .scrub span{font-variant-numeric:tabular-nums;color:var(--mut);font-size:11px;white-space:nowrap}
 .film{display:flex;align-items:center;gap:8px;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));
   background:var(--p1);border-top:1px solid var(--line);overflow-x:auto;min-height:84px}
@@ -176,14 +189,17 @@ input[type=date].in,input[type=time].in{color-scheme:dark;padding:6px}
           <div class="empty" id="empty"><div><b>Retouche tes photos et vidéos, directement sur l'iPad</b>
             Tout est calculé ici : rien n'est envoyé sur internet.<br>Photos JPEG/HEIC, vidéos MP4/MOV.<br>
             <button class="btn prim" id="emptyAdd">＋ Importer depuis Photos ou Fichiers</button></div></div></div>
-        <div class="pane" id="paneB"><canvas id="cvB0" hidden></canvas><canvas id="cvB"></canvas><div class="tag res" id="tagB">RÉSULTAT</div>
+        <div class="pane" id="paneB"><canvas id="cvB0" hidden></canvas><canvas id="cvB"></canvas><div class="tag res" id="tagB">RÉSULTAT</div><div class="tag orig" id="tagO">ORIGINAL</div>
           <div class="zoom" id="zB" hidden></div><div class="bar" hidden></div><div class="knob" hidden>⇆</div></div>
       </div>
-      <div class="scrub" id="scrub" hidden><span>Image</span><input type="range" id="time" min="0" max="1" step="0.04" value="0" aria-label="Position dans la vidéo"><span id="timeLb">0:00</span></div>
+      <div class="scrub" id="scrub" hidden><span>Image</span><div class="tl"><input type="range" id="time" min="0" max="1" step="0.04" value="0" aria-label="Position dans la vidéo"><i id="trimBar" hidden></i></div><span id="timeLb">0:00</span>
+        <div class="trim"><button class="chip" id="tIn" title="Commencer la vidéo ici">[ Début ici</button><button class="chip" id="tOut" title="Arrêter la vidéo ici">Fin ici ]</button>
+          <span id="trimLb"></span><button class="chip" id="tClr" hidden aria-label="Garder toute la vidéo">✕</button><button class="chip" id="grabB" title="Enregistrer cette image en photo retouchée">📷 Photo</button></div></div>
     </div>
     <aside class="panel" id="panel">
       <div class="hist"><canvas id="hist" width="600" height="160"></canvas><div class="info"><span id="hInfo">Histogramme du résultat</span><span id="hDim"></span></div></div>
       <div id="groups"></div>
+      <div class="ver" id="ver"></div>
     </aside>
   </div>
   <div class="film" id="film"><button class="add" id="addBtn" title="Importer">＋</button></div>
@@ -195,6 +211,7 @@ input[type=date].in,input[type=time].in{color-scheme:dark;padding:6px}
   <div class="dim" id="expInfo"></div>
   <label class="f">Définition<select id="expSize"><option value="0">Originale</option><option value="3840">4K (3840 px)</option><option value="1920">Full HD (1920 px)</option><option value="1280">HD (1280 px)</option></select></label>
   <label class="f">Qualité<select id="expQ"><option value="0.95">Maximale</option><option value="0.88" selected>Élevée (fichiers plus légers)</option></select></label>
+  <label class="ck"><input type="checkbox" id="expAuto"> Appliquer Auto aux fichiers pas encore retouchés</label>
   <label class="ck"><input type="checkbox" id="expMeta" checked> Garder la date et le lieu (EXIF des photos)</label>
   <label class="ck"><input type="checkbox" id="expName"> Nommer d'après le programme du voyage (2026-10-12_Koh-Lanta_0001)</label>
   <button class="chip" id="progEdit" style="margin:-4px 0 12px">Programme du voyage…</button>
@@ -220,6 +237,7 @@ input[type=date].in,input[type=time].in{color-scheme:dark;padding:6px}
 <div class="overlay" id="askDlg"><div class="dlg"><h3 id="askT"></h3><div class="dim" id="askM"></div>
   <div class="btns"><button class="btn" id="askNo">Annuler</button><button class="btn prim" id="askYes">OK</button></div></div></div>
 
+<div class="upd" id="upd" hidden><span>Nouvelle version de Prisme disponible</span><button class="btn prim" id="updB">Mettre à jour</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="file" accept="image/*,video/*" multiple hidden>
 <canvas id="glc" hidden></canvas>
@@ -231,7 +249,7 @@ input[type=date].in,input[type=time].in{color-scheme:dark;padding:6px}
 <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
 <script>
-window.PRISME_VERSION='1.0.0';
+window.PRISME_VERSION='1.1.0';
 if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 <script>
@@ -739,19 +757,16 @@ async function importFiles(files) {
   for (const f of files) {
     const kind = (f.type || '').startsWith('video') || /\.(mov|mp4|m4v)$/i.test(f.name) ? 'video' : 'image';
     const it = { id: 'f' + (++uid), file: f, kind, name: f.name, size: f.size, P: cleanParams(store.get(fileKey(f), null) || {}),
-      hist: [], hi: -1, t: 0, thumb: '' };
+      hist: [], hi: -1, t: 0, thumb: '', trim: store.get('pi_t:' + fileKey(f), null) };
     it.hist = [JSON.stringify(it.P)]; it.hi = 0;
     try {
       if (kind === 'image') {
-        let bmp = await createImageBitmap(f, { imageOrientation: 'from-image' });
-        const max = ENG.maxTex;
-        if (Math.max(bmp.width, bmp.height) > max) {
-          const s = max / Math.max(bmp.width, bmp.height), c = new OffscreenCanvas(Math.round(bmp.width * s), Math.round(bmp.height * s));
-          c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); bmp.close(); bmp = await createImageBitmap(c);
-        }
-        it.bmp = bmp; it.w = bmp.width; it.h = bmp.height;
+        // on lit l'image une fois pour sa taille et sa vignette, puis on libère la mémoire :
+        // l'original n'est relu qu'à l'ouverture (version réduite) et à l'export (pleine définition)
+        const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' });
+        it.w = bmp.width; it.h = bmp.height;
         const tc = document.createElement('canvas'); const ts = 200 / Math.max(it.w, it.h); tc.width = Math.round(it.w * ts); tc.height = Math.round(it.h * ts);
-        tc.getContext('2d').drawImage(bmp, 0, 0, tc.width, tc.height); it.thumb = tc.toDataURL('image/jpeg', 0.7);
+        tc.getContext('2d').drawImage(bmp, 0, 0, tc.width, tc.height); it.thumb = tc.toDataURL('image/jpeg', 0.7); bmp.close();
       } else {
         it.url = URL.createObjectURL(f);
         const meta = await videoMeta(it.url);
@@ -760,8 +775,27 @@ async function importFiles(files) {
     } catch (e) { toast(f.name + ' : fichier illisible (' + (e.message || e) + ')', 5000); continue; }
     S.items.push(it); renderFilm();
     if (!S.active) select(it.id);
+    await new Promise(r => setTimeout(r, 0));   // laisse respirer l'interface pendant un gros import
   }
 }
+/* Lecture des originaux à la demande. Aperçu : 2560 px, 3 au plus en mémoire. */
+const PREV = new Map();
+async function decodeScaled(file, maxSide) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const s = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  if (s >= 1) return bmp;
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(bmp, 0, 0, c.width, c.height); bmp.close();
+  const out = await createImageBitmap(c); c.width = c.height = 1; return out;
+}
+async function getPreview(it) {
+  if (PREV.has(it.id)) { const b = PREV.get(it.id); PREV.delete(it.id); PREV.set(it.id, b); return b; }
+  const b = await decodeScaled(it.file, 2560); PREV.set(it.id, b);
+  while (PREV.size > 3) { const [k, v] = PREV.entries().next().value; if (k === S.active && PREV.size <= 4) break; PREV.delete(k); v.close(); }
+  return b;
+}
+const getFull = it => decodeScaled(it.file, ENG.maxTex);
+function dropPreview(it) { const b = PREV.get(it.id); if (b) { b.close(); PREV.delete(it.id); } }
 function videoMeta(url) {
   return new Promise((res, rej) => {
     const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
@@ -789,7 +823,7 @@ function renderFilm() {
     d.innerHTML = `<span class="k">${it.kind === 'video' ? fmtT(it.dur) : 'PHOTO'}</span><button class="x" aria-label="Retirer">✕</button>${edited ? '<span class="ed"></span>' : ''}`;
     d.onclick = () => select(it.id);
     d.querySelector('.x').onclick = e => { e.stopPropagation(); S.items = S.items.filter(x => x !== it);
-      if (it.bmp) it.bmp.close(); if (it.url) URL.revokeObjectURL(it.url);
+      dropPreview(it); if (it.url) URL.revokeObjectURL(it.url);
       if (S.active === it.id) { S.active = null; S.items.length ? select(S.items[0].id) : clearViews(); } renderFilm(); };
     f.appendChild(d);
   }
@@ -804,21 +838,24 @@ async function select(id) {
   document.querySelectorAll('.th').forEach(e => e.classList.toggle('on', e.id === 'th_' + id));
   $('empty').hidden = true; resetZoom(); setPick(false);
   $('scrub').hidden = it.kind !== 'video';
-  if (it.kind === 'video') { $('time').max = Math.max(0.1, it.dur - 0.05); $('time').value = it.t; updTime(); }
+  if (it.kind === 'video') { $('time').max = Math.max(0.1, it.dur - 0.05); $('time').value = it.t; updTime(); showTrim(); }
   syncPanel(); updateUI();
   await loadSource(it); renderLooks();
 }
 async function loadSource(it) {
+  let upW = it.w, upH = it.h;
   if (it.kind === 'image') {
-    ENG.setSource(it.bmp, it.w, it.h);
-    drawSourcePane(it.bmp, it.w, it.h);
+    const b = await getPreview(it); if (S.active !== it.id) return;
+    upW = b.width; upH = b.height;
+    ENG.setSource(b, upW, upH);
+    drawSourcePane(b, upW, upH);
   } else {
     if (VID.dataset.for !== it.id) { VID.src = it.url; VID.dataset.for = it.id; await new Promise(r => { VID.onloadedmetadata = r; VID.load(); VID.play().then(() => VID.pause()).catch(() => { }); }); }
     await new Promise(r => { VID.onseeked = r; VID.currentTime = it.t; });
     ENG.setSource(VID, VID.videoWidth, VID.videoHeight);
     drawSourcePane(VID, VID.videoWidth, VID.videoHeight);
   }
-  srcReady = { orient: 0, upW: it.w, upH: it.h, fullW: it.w, small: ENG.readSmall(0, it.w, it.h, 256) };
+  srcReady = { orient: 0, upW, upH, fullW: it.w, small: ENG.readSmall(0, upW, upH, 256) };
   schedule();
 }
 function drawSourcePane(src, w, h) {
@@ -831,6 +868,18 @@ function drawSourcePane(src, w, h) {
 }
 function updTime() { const it = item(); $('timeLb').textContent = fmtT($('time').value) + ' / ' + fmtT(it && it.dur); }
 let seekT = null;
+/* découpe de la vidéo : début / fin gardés */
+function showTrim() { const it = item(); if (!it || it.kind !== 'video') return; const t = it.trim, bar = $('trimBar');
+  $('tClr').hidden = !t; bar.hidden = !t;
+  if (t) { const d = it.dur || 1; bar.style.left = (t[0] / d * 100) + '%'; bar.style.width = Math.max(0.5, (t[1] - t[0]) / d * 100) + '%';
+    const f = x => { const m = Math.floor(x / 60), r = x - m * 60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1).replace('.', ','); };
+    $('trimLb').textContent = `Garde ${f(t[0])} → ${f(t[1])} (${(t[1] - t[0]).toFixed(1).replace('.', ',')} s)`; } else $('trimLb').textContent = ''; }
+function setTrim(which) { const it = item(); if (!it || it.kind !== 'video') return; const t = it.trim ? it.trim.slice() : [0, it.dur]; const now = +$('time').value;
+  if (which === 0) { t[0] = now; if (t[1] <= now + 0.3) t[1] = it.dur; } else { t[1] = Math.max(now, 0.3); if (t[0] >= t[1] - 0.3) t[0] = 0; }
+  it.trim = (t[0] < 0.05 && t[1] > it.dur - 0.05) ? null : [Math.round(t[0] * 100) / 100, Math.round(t[1] * 100) / 100];
+  store.set('pi_t:' + fileKey(it.file), it.trim); showTrim(); }
+$('tIn').onclick = () => setTrim(0); $('tOut').onclick = () => setTrim(1);
+$('tClr').onclick = () => { const it = item(); if (!it) return; it.trim = null; store.set('pi_t:' + fileKey(it.file), null); showTrim(); toast('Toute la vidéo sera gardée'); };
 $('time').oninput = () => { const it = item(); if (!it) return; it.t = +$('time').value; updTime(); clearTimeout(seekT); seekT = setTimeout(() => loadSource(it), 120); };
 
 /* ------------------------------------------------------------------ rendu de l'aperçu */
@@ -885,8 +934,8 @@ function buildPanel() {
   const g = $('groups'); g.innerHTML = '';
   g.insertAdjacentHTML('beforeend', `<div class="grp" data-g="looks"><div class="gh"><span class="ar">▾</span>Looks</div><div class="gb"><div class="looks" id="looks"></div></div></div>`);
   g.insertAdjacentHTML('beforeend', `<div class="grp" data-g="outils"><div class="gh"><span class="ar">▾</span>Réglages du fichier</div><div class="gb">
-    <div class="chips"><button class="chip" id="copyB">Copier</button><button class="chip" id="pasteB">Coller</button><button class="chip" id="allB">Appliquer à tous</button><button class="chip" id="resetB">Tout remettre à zéro</button></div>
-    <div class="hint" style="margin-top:8px">Les réglages de chaque fichier sont gardés sur cet iPad : tu les retrouves en réimportant le même fichier.</div></div></div>`);
+    <div class="chips"><button class="chip" id="copyB">Copier</button><button class="chip" id="pasteB">Coller</button><button class="chip" id="allB">Appliquer à tous</button><button class="chip" id="resetB">Tout remettre à zéro</button><button class="chip" id="autoAllB">✦ Auto sur tous</button></div>
+    <div class="hint" style="margin-top:8px">Les réglages de chaque fichier sont gardés sur cet iPad : tu les retrouves en réimportant le même fichier. Maintiens le doigt sur le résultat pour voir l'original.</div></div></div>`);
   for (const [gk, gl] of GROUPS) {
     const keys = Object.keys(PARAMS).filter(k => PARAMS[k][4] === gk && k !== 'uw'); const uw = gk === 'uw';
     let h = `<div class="grp${uw ? ' uwg' : ''}" data-g="${gk}"><div class="gh"><span class="ar">▾</span>${gl}<span class="dot"></span>
@@ -918,6 +967,10 @@ function buildPanel() {
   $('allB').onclick = async () => { if (!cur()) return; if (!await ask('Appliquer à tous', `Copier les réglages de ce fichier sur les ${S.items.length} fichiers importés ?`, 'Appliquer')) return;
     for (const it of S.items) { it.P = Object.assign({}, cur()); pushHist(it); store.set(fileKey(it.file), it.P); } renderFilm(); toast('Réglages appliqués à tous'); };
   $('resetB').onclick = () => { if (!cur()) return; applyParams(defaults()); };
+  $('autoAllB').onclick = async () => { if (!S.items.length) return;
+    const n = S.items.filter(i => !isEdited(i)).length;
+    if (!await ask('Auto sur tous', n ? `Appliquer les réglages automatiques aux ${n} fichier(s) pas encore retouché(s) ? Les fichiers déjà retouchés ne changent pas.` : 'Tous les fichiers sont déjà retouchés : rien à faire.', n ? 'Appliquer' : 'OK') || !n) return;
+    await autoAll(S.items); };
 }
 function showRow(k) { const p = cur(); if (!p) return; const v = p[k];
   if (SEGS[k]) { $('sg_' + k).querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === Math.round(v))); return; }
@@ -962,6 +1015,26 @@ function renderLooks() {
 }
 
 /* Auto */
+const isEdited = it => JSON.stringify(it.P) !== JSON.stringify(defaults());
+/* petite image orientée d'un fichier (pour Auto), sans toucher à l'aperçu affiché */
+async function smallOf(it) {
+  if (it.kind === 'image') { const b = await decodeScaled(it.file, 512); ENG.setSource(b, b.width, b.height); const r = ENG.readSmall(0, b.width, b.height, 256); b.close(); return r.px; }
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = it.url;
+  await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; v.play().then(() => v.pause()).catch(() => { }); });
+  await new Promise(r => { v.onseeked = r; v.currentTime = Math.min(it.dur * 0.3, it.t || 1); });
+  ENG.setSource(v, v.videoWidth, v.videoHeight); const r = ENG.readSmall(0, v.videoWidth, v.videoHeight, 256); v.removeAttribute('src'); v.load(); return r.px;
+}
+async function autoAll(list, quiet) {
+  let n = 0, uw = 0; const todo = list.filter(i => !isEdited(i));
+  for (const it of todo) {
+    if (!quiet) toast(`Auto ${++n} / ${todo.length}…`, 60000);
+    try { const r = autoParams(await smallOf(it)); it.P = cleanParams(r.params); pushHist(it); store.set(fileKey(it.file), it.P); if (r.underwater) uw++; } catch (e) { }
+    await new Promise(r => setTimeout(r, 0));
+  }
+  renderFilm(); if (S.active) { const a = item(); srcReady = null; await loadSource(a); syncPanel(); updateUI(); renderLooks(); }
+  if (!quiet) toast(`Auto appliqué à ${todo.length} fichier(s)` + (uw ? ` · ${uw} sous-marin(s)` : ''), 4000);
+  return todo.length;
+}
 function runAuto() { if (!srcReady || !cur()) return; const r = autoParams(srcReady.small.px); applyParams(r.params);
   toast(r.underwater ? 'Auto appliqué · prise de vue sous-marine détectée' : 'Réglages automatiques appliqués');
   if (r.underwater) $('uwSw').closest('.grp').classList.remove('closed'); }
@@ -996,18 +1069,22 @@ function zoomAt(pane, px, py, nk) { const z = S.z, k0 = z.k; nk = Math.max(1, Ma
   if (nk <= 1.001) { z.x = 0; z.y = 0; } applyZoom(); }
 let zr = null; const maybeReload = () => { clearTimeout(zr); zr = setTimeout(schedule, 300); };
 for (const pane of [$('paneA'), $('paneB')]) {
-  const pts = new Map(); let last = null, pinch = null, splitDrag = false, moved = false, tap = 0;
+  const pts = new Map(); let last = null, pinch = null, splitDrag = false, moved = false, tap = 0, peekT = 0;
+  const peek = on => { clearTimeout(peekT); pane.classList.toggle('peek', !!on); };
   const rel = e => { const r = pane.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   pane.addEventListener('pointerdown', e => { pane.setPointerCapture(e.pointerId); pts.set(e.pointerId, rel(e)); moved = false;
     if (S.view === 'split' && pane.id === 'paneB' && pts.size === 1 && !S.pick && S.z.k <= 1.01) { splitDrag = true; setSplit(rel(e)[0] / pane.clientWidth * 100); return; }
+    if (pane.id === 'paneB' && pts.size === 1 && !S.pick && S.active) peekT = setTimeout(() => { if (!moved && pts.size === 1) peek(true); }, 350);
+    else peek(false);
     if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), k: S.z.k, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 }; }
     last = rel(e); });
   pane.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; const p = rel(e); pts.set(e.pointerId, p);
     if (splitDrag) { setSplit(Math.max(0, Math.min(100, p[0] / pane.clientWidth * 100))); return; }
     if (pinch && pts.size === 2) { const [a, b] = [...pts.values()]; zoomAt(pane, pinch.cx, pinch.cy, pinch.k * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d); moved = true; return; }
     if (last && S.z.k > 1.01) { S.z.x += p[0] - last[0]; S.z.y += p[1] - last[1]; applyZoom(); }
-    if (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > 4) moved = true; last = p; });
+    if (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > 4) { moved = true; if (!pane.classList.contains('peek')) clearTimeout(peekT); } last = p; });
   const end = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
+    if (pane.classList.contains('peek')) { peek(false); if (!pts.size) { splitDrag = false; last = null; } tap = 0; return; } clearTimeout(peekT);
     if (!pts.size) { if (S.pick && !splitDrag && !moved && e.type === 'pointerup') doPick(pane, e);
       else if (!splitDrag && !moved && e.type === 'pointerup') { const now = Date.now(); if (now - tap < 320) { const [x, y] = rel(e); zoomAt(pane, x, y, S.z.k > 1.01 ? 1 : 2.5); maybeReload(); tap = 0; } else tap = now; }
       if (moved) maybeReload(); splitDrag = false; last = null; } };
@@ -1025,7 +1102,20 @@ function boot() {
   try { ENG = new Engine($('glc')); }
   catch (e) { $('empty').innerHTML = '<div><b>Cet appareil ne permet pas la retouche</b>' + esc(e.message) + '<br>Mets à jour iPadOS (17 ou plus récent).</div>'; return; }
   buildPanel(); syncPanel(); updateUI(); setView(mobile() ? 'side' : 'side');
-  initExport();
+  initExport(); initVersion();
+}
+/* ------------------------------------------------------------------ version et mises à jour */
+function initVersion() {
+  const V = window.PRISME_VERSION || 'page Claude'; $('ver').textContent = 'Prisme · version ' + V;
+  if (!window.PRISME_VERSION) return;
+  const seen = store.get('pi_ver', null); if (seen && seen !== V) setTimeout(() => toast('Prisme mis à jour : version ' + V, 4000), 800); store.set('pi_ver', V);
+  $('updB').onclick = () => location.reload();
+  let lastCheck = 0;
+  const check = async () => { if (Date.now() - lastCheck < 60000 || !navigator.onLine) return; lastCheck = Date.now();
+    try { const r = await fetch('index.html?v=' + Date.now(), { cache: 'no-store' }); const t = await r.text(); const m = t.match(/PRISME_VERSION='([^']+)'/);
+      if (m && m[1] !== V && !S.exporting) $('upd').hidden = false; } catch (_) { } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  setTimeout(check, 4000);
 }
 boot();
 
@@ -1039,8 +1129,8 @@ function initExport() {
   try { window.claude && window.claude.use && window.claude.use('downloads').then(d => { DL = d; }).catch(() => { }); } catch (_) { }
   $('exportTop').onclick = $('mExport').onclick = openExport;
   $('expCancel').onclick = () => $('expDlg').classList.remove('on');
-  $('expOne').onclick = () => { $('expDlg').classList.remove('on'); runExports([item()]); };
-  $('expAll').onclick = () => { $('expDlg').classList.remove('on'); runExports(S.items.slice()); };
+  $('expOne').onclick = async () => { $('expDlg').classList.remove('on'); const l = [item()]; if ($('expAuto').checked) await autoAll(l, true); runExports(l); };
+  $('expAll').onclick = async () => { $('expDlg').classList.remove('on'); const l = S.items.slice(); if ($('expAuto').checked) await autoAll(l); runExports(l); };
   $('jobsBtn').onclick = () => { renderJobs(); $('jobsDlg').classList.add('on'); };
   $('jobsClose').onclick = () => $('jobsDlg').classList.remove('on');
   $('progEdit').onclick = () => { $('expDlg').classList.remove('on'); openProg(); };
@@ -1049,9 +1139,10 @@ function initExport() {
     if (last && last.date) { const x = new Date(last.date + 'T12:00'); x.setDate(x.getDate() + 1); d = x.toISOString().slice(0, 10); }
     pr.etapes.push({ date: d, heure: '', lieu: '' }); store.set('pi_prog', pr); renderSteps(); };
   const o = store.get('pi_exp', {}); for (const k of ['expSize', 'expQ']) if (o[k] != null) $(k).value = o[k];
-  for (const k of ['expMeta', 'expName']) if (o[k] != null) $(k).checked = o[k];
-  for (const k of ['expSize', 'expQ', 'expMeta', 'expName']) $(k).onchange = () => store.set('pi_exp',
-    { expSize: $('expSize').value, expQ: $('expQ').value, expMeta: $('expMeta').checked, expName: $('expName').checked });
+  for (const k of ['expMeta', 'expName', 'expAuto']) if (o[k] != null) $(k).checked = o[k];
+  for (const k of ['expSize', 'expQ', 'expMeta', 'expName', 'expAuto']) $(k).onchange = () => store.set('pi_exp',
+    { expSize: $('expSize').value, expQ: $('expQ').value, expMeta: $('expMeta').checked, expName: $('expName').checked, expAuto: $('expAuto').checked });
+  $('grabB').onclick = grabFrame;
 }
 function openExport() {
   if (!item()) return;
@@ -1089,8 +1180,8 @@ function outName(it, dt, ext) {
 /* ------------------------------------------------------------------ file d'export */
 async function runExports(list) {
   for (const it of list) JOBS.unshift({ it, status: 'queued', pct: 0, msg: 'En attente', blob: null, name: '' });
-  renderJobs(); $('jobsDlg').classList.add('on');
-  if (S.exporting) return; S.exporting = true;
+  if (S.exporting) { renderJobs(); $('jobsDlg').classList.add('on'); return; }
+  renderJobs(); $('jobsDlg').classList.add('on'); S.exporting = true;
   try {
     for (;;) { const j = JOBS.slice().reverse().find(x => x.status === 'queued'); if (!j) break;
       j.status = 'running'; j.msg = 'Préparation…'; renderJobs();
@@ -1109,10 +1200,11 @@ function renderJobs() {
   el.innerHTML = (done.length > 1 ? `<div class="btns" style="margin-bottom:10px"><button class="btn" id="zipAll">${DL ? 'Tout enregistrer en un fichier .zip' : 'Tout enregistrer'} (${done.length})</button></div>` : '') +
     JOBS.map((j, i) => `<div class="job"><div class="n">${j.it.kind === 'video' ? '🎬' : '🖼'} ${esc(j.name || j.it.name)}</div>
     <div class="pb"><i style="width:${j.pct}%"></i></div><div class="s ${j.status === 'done' ? 'ok' : j.status === 'error' ? 'err' : ''}">${esc(j.msg)}</div>
-    <div class="a">${j.status === 'done' ? `<button class="btn prim" data-save="${i}">Enregistrer</button>` : ''}${j.status === 'running' || j.status === 'queued' ? `<button class="btn" data-cancel="${i}">Annuler</button>` : ''}</div></div>`).join('');
+    <div class="a">${j.status === 'done' ? `<button class="btn ${j.saved ? '' : 'prim'}" data-save="${i}">${j.saved ? '✓ Enregistré · encore' : 'Enregistrer'}</button>` : ''}${j.status === 'running' || j.status === 'queued' ? `<button class="btn" data-cancel="${i}">Annuler</button>` : ''}</div></div>`).join('');
   el.querySelectorAll('[data-save]').forEach(b => b.onclick = () => saveJob(JOBS[+b.dataset.save]));
   el.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { const j = JOBS[+b.dataset.cancel]; j.cancel = true; if (j.status === 'queued') { j.status = 'cancelled'; j.msg = 'Annulé'; } renderJobs(); });
-  const z = $('zipAll'); if (z) z.onclick = () => (!DL && navigator.canShare && navigator.canShare({ files: [new File([''], 'a.jpg', { type: 'image/jpeg' })] })) ? shareFiles(done.map(j => ({ name: j.name, blob: j.blob }))) : saveZip(done);
+  const z = $('zipAll'); if (z) z.onclick = async () => { const ok = (!DL && navigator.canShare && navigator.canShare({ files: [new File([''], 'a.jpg', { type: 'image/jpeg' })] })) ? await shareFiles(done.map(j => ({ name: j.name, blob: j.blob }))) : await saveZip(done);
+    if (ok) { done.forEach(j => j.saved = true); renderJobs(); } };
 }
 async function saveFile(name, blob) {
   if (!DL) return shareFiles([{ name, blob }]);
@@ -1124,7 +1216,7 @@ async function saveFile(name, blob) {
     else toast('Enregistrement impossible (' + (c || e.message) + ')', 6000);
     return false; }
 }
-const saveJob = j => saveFile(j.name, j.blob);
+const saveJob = async j => { if (await saveFile(j.name, j.blob)) { j.saved = true; renderJobs(); } };
 /* Application installée (écran d'accueil) : feuille de partage iOS -> « Enregistrer l'image / la vidéo » ou « Enregistrer dans Fichiers » */
 async function shareFiles(list) {
   const files = list.map(x => new File([x.blob], x.name, { type: x.blob.type || (/\.mp4$/i.test(x.name) ? 'video/mp4' : 'image/jpeg') }));
@@ -1141,18 +1233,21 @@ async function saveZip(done) {
   if (!window.JSZip) return toast('Module zip indisponible.');
   toast('Préparation du .zip…'); const z = new JSZip(); for (const j of done) z.file(j.name, j.blob);
   const blob = await z.generateAsync({ type: 'blob', compression: 'STORE' });
-  const pr = readProg(); saveFile(cleanPart(pr.nom || 'Prisme') + '_export.zip', blob);
+  const pr = readProg(); return saveFile(cleanPart(pr.nom || 'Prisme') + '_export.zip', blob);
 }
 
 /* ------------------------------------------------------------------ photo */
 async function exportPhoto(it, p, o, progress) {
-  progress(5, 'Lecture de l\'image…');
-  ENG.setSource(it.bmp, it.w, it.h);
-  const geo = { orient: 0, upW: it.w, upH: it.h, fullW: it.w };
-  const small = ENG.readSmall(0, it.w, it.h, 256); const st = analyze(small.px, p);
-  const [w, h] = ENG.outSize(p, it.w, it.h, o.size || 0);
-  progress(30, 'Retouche en pleine définition…');
-  ENG.render(p, st, w, h, geo, { seed: Math.random() });
+  progress(5, 'Lecture de l\'original…');
+  const bmp = await getFull(it); const W = bmp.width, H = bmp.height; let w, h;
+  try {
+    ENG.setSource(bmp, W, H);
+    const geo = { orient: 0, upW: W, upH: H, fullW: W };
+    const small = ENG.readSmall(0, W, H, 256); const st = analyze(small.px, p);
+    [w, h] = ENG.outSize(p, W, H, o.size || 0);
+    progress(30, 'Retouche en pleine définition…');
+    ENG.render(p, st, w, h, geo, { seed: Math.random() });
+  } finally { bmp.close(); }
   let blob = await new Promise(r => $('glc').toBlob(r, 'image/jpeg', o.q));
   if (!blob) throw new Error('Image trop grande pour cet appareil.');
   progress(80, 'Écriture des informations (date, lieu)…');
@@ -1257,57 +1352,66 @@ async function exportVideoCodecs(it, p, o, progress, job) {
     for (const pt of parts) if (position >= pt.pos && position + data.byteLength <= pt.pos + pt.data.byteLength) { pt.data.set(data, position - pt.pos); return; }
     parts.push({ pos: position, data: data.slice() }); end = Math.max(end, position + data.byteLength); } });
   const aCfg = at ? aacConfig(at, mp4) : undefined;
-  const muxer = new Mp4Muxer.Muxer({ target, fastStart: false, firstTimestampBehavior: 'offset',
+  // 3. échantillons à traiter (découpe : on part de l'image clé qui précède le début)
+  const vS = mp4.getTrackById(vt.id).samples, aS = at && aCfg ? mp4.getTrackById(at.id).samples : [];
+  if (!vS.length) throw Object.assign(new Error('Vidéo fragmentée'), { fallback: true });
+  const vts = vt.timescale, tr = it.trim || [0, Infinity];
+  const t0 = Math.max(0, tr[0]), t1 = Math.min(dur + 1, tr[1]);
+  let k0 = 0; for (let i = 0; i < vS.length; i++) { if (vS[i].cts / vts > t0 + 1e-3) break; if (vS[i].is_sync) k0 = i; }
+  const vSel = vS.slice(k0).filter(x => x.dts / vts <= t1 + 1);   // décodage jusqu'un peu après la fin (images B)
+  const aSel = aS.filter(x => x.cts / x.timescale >= t0 - 1e-3 && x.cts / x.timescale < t1);
+  const nKeep = vS.filter(x => x.cts / vts >= t0 - 1e-3 && x.cts / vts < t1).length || 1;
+  const muxer = new Mp4Muxer.Muxer({ target, fastStart: false, firstTimestampBehavior: 'cross-track-offset',
     video: { codec: enc.mux, width: ow, height: oh, frameRate: Math.round(fps) },
     audio: at && aCfg ? { codec: 'aac', numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate } : undefined });
-  let encErr = null, decErr = null, nIn = 0, nOut = 0, firstA = true;
+  let encErr = null, decErr = null, nOut = 0, firstA = true;
   const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { encErr = e; } });
   encoder.configure(enc.cfg);
-  // 3. décodage -> retouche GPU -> encodage
+  // 4. décodage -> retouche GPU -> encodage
   const geo = { orient, upW, upH, fullW: upW };
-  let st = null; const smoothK = 1 - Math.exp(-1 / (fps * 0.6)) * 1;
+  let st = null; const smoothK = 1 - Math.exp(-1 / (fps * 0.6));
+  const T0 = Math.round(t0 * 1e6), T1 = isFinite(t1) ? Math.round(t1 * 1e6) : Infinity;
   const decoder = new VideoDecoder({ error: e => { decErr = e; }, output: frame => {
     try {
+      if (frame.timestamp < T0 - 1000 || frame.timestamp >= T1) return;   // hors de la découpe
       ENG.setSource(frame, cw, ch);
       if (nOut % 4 === 0 || !st) { const sm = ENG.readSmall(orient, upW, upH, 160); st = blendStats(st, analyze(sm.px, p), st ? Math.min(1, smoothK * 4) : 1); }
       ENG.render(p, st, ow, oh, geo, { seed: nOut });
-      const vf = new VideoFrame($('glc'), { timestamp: frame.timestamp, duration: frame.duration || Math.round(1e6 / fps) });
+      const vf = new VideoFrame($('glc'), { timestamp: Math.max(0, frame.timestamp - T0), duration: frame.duration || Math.round(1e6 / fps) });
       encoder.encode(vf, { keyFrame: nOut % Math.max(30, Math.round(fps * 2)) === 0 }); vf.close();
+      nOut++; if (nOut % 5 === 0) progress(Math.min(99, Math.round(nOut / nKeep * 100)), `Image ${nOut} / ${nKeep}`);
     } finally { frame.close(); }
-    nOut++; if (nOut % 5 === 0) progress(Math.min(99, Math.round(nOut / nb * 100)), `Image ${nOut} / ${nb}`);
   } });
   decoder.configure(dcfg);
-  const vq = [];
-  mp4.onSamples = (id, user, samples) => {
-    if (id === vt.id) for (const s of samples) vq.push({ is_sync: s.is_sync, cts: s.cts, duration: s.duration, timescale: s.timescale, data: s.data });
-    else if (at && id === at.id && aCfg) for (const s of samples) {
-      const meta = firstA ? { decoderConfig: { codec: at.codec, numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate, description: aCfg } } : undefined;
-      muxer.addAudioChunkRaw(new Uint8Array(s.data), 'key', s.cts * 1e6 / s.timescale, s.duration * 1e6 / s.timescale, meta); firstA = false;
-    }
-    mp4.releaseUsedSamples(id, samples[samples.length - 1].number + 1);
-  };
-  mp4.setExtractionOptions(vt.id, null, { nbSamples: 24 }); if (at && aCfg) mp4.setExtractionOptions(at.id, null, { nbSamples: 48 });
-  mp4.start();
-  // plage des données (mdat) à relire
-  const trs = [vt].concat(at && aCfg ? [at] : []); let lo = Infinity, hi = 0;
-  for (const t of trs) { const ss = mp4.getTrackById(t.id).samples; if (ss.length) { lo = Math.min(lo, ss[0].offset); const l = ss[ss.length - 1]; hi = Math.max(hi, l.offset + l.size); } }
-  const pump = async () => { while (vq.length) { if (job.cancel) throw cancelled(); if (encErr || decErr) throw (encErr || decErr);
-      while (decoder.decodeQueueSize > 6 || encoder.encodeQueueSize > 6) { await sleep(4); if (encErr || decErr) throw (encErr || decErr); }
-      const s = vq.shift(); decoder.decode(new EncodedVideoChunk({ type: s.is_sync ? 'key' : 'delta', timestamp: s.cts * 1e6 / s.timescale, duration: s.duration * 1e6 / s.timescale, data: s.data })); nIn++; } };
+  // lecture directe des octets de chaque échantillon, par blocs de 8 Mo (la mémoire reste faible même pour un long film)
+  const all = vSel.map(x => ({ v: 1, x })).concat(aSel.map(x => ({ v: 0, x }))).sort((p1, p2) => p1.x.offset - p2.x.offset);
+  const aMeta = { decoderConfig: at ? { codec: at.codec, numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate, description: aCfg } : null };
+  const waitQ = async () => { while (decoder.decodeQueueSize > 6 || encoder.encodeQueueSize > 6) { await sleep(4); if (encErr || decErr) throw (encErr || decErr); } };
   try {
-    for (let q = lo; q < hi;) { if (job.cancel) throw cancelled();
-      const buf = await file.slice(q, Math.min(hi, q + 8 * 1024 * 1024)).arrayBuffer(); buf.fileStart = q; mp4.appendBuffer(buf); q += buf.byteLength;
-      await pump(); }
-    mp4.flush(); await pump();
+    for (let i = 0; i < all.length;) {
+      if (job.cancel) throw cancelled(); if (encErr || decErr) throw (encErr || decErr);
+      const start = all[i].x.offset; let j = i, stop = start;
+      while (j < all.length && all[j].x.offset + all[j].x.size - start <= 8 * 1024 * 1024 && all[j].x.offset - stop < 1024 * 1024) { stop = Math.max(stop, all[j].x.offset + all[j].x.size); j++; }
+      if (j === i) { stop = all[i].x.offset + all[i].x.size; j = i + 1; }
+      const buf = new Uint8Array(await file.slice(start, stop).arrayBuffer());
+      for (; i < j; i++) { const { v, x } = all[i]; const data = buf.subarray(x.offset - start, x.offset - start + x.size);
+        if (v) { await waitQ();
+          decoder.decode(new EncodedVideoChunk({ type: x.is_sync ? 'key' : 'delta', timestamp: Math.round(x.cts * 1e6 / vts), duration: Math.round(x.duration * 1e6 / vts), data })); }
+        else { const ts = x.cts * 1e6 / x.timescale - T0;
+          muxer.addAudioChunkRaw(data.slice(), 'key', Math.max(0, ts), x.duration * 1e6 / x.timescale, firstA ? aMeta : undefined); firstA = false; } }
+    }
     await decoder.flush(); await encoder.flush();
     if (encErr || decErr) throw (encErr || decErr);
+    if (!nOut) throw new Error('Aucune image dans la partie gardée.');
     muxer.finalize();
   } finally { try { decoder.close(); } catch (_) { } try { encoder.close(); } catch (_) { } }
-  // 4. date de tournage d'origine (sinon Photos la classe à aujourd'hui)
-  const blob = new Blob(fixDates(parts, info.created), { type: 'video/mp4' });
-  const created = info.created && info.created.getFullYear() > 1971 ? info.created : new Date(file.lastModified || Date.now());
-  return { blob, name: outName(it, created, 'mp4'), note: `${ow}×${oh} · ${enc.mux.toUpperCase()}` + (at && !aCfg ? ' · son non conservé' : '') + (!at && info.audioTracks.length ? ' · son non conservé (format)' : '') };
+  // 5. date de tournage d'origine (sinon Photos la classe à aujourd'hui)
+  const okDate = info.created && info.created.getFullYear() > 1971;
+  const created = new Date((okDate ? info.created.getTime() : (file.lastModified || Date.now())) + t0 * 1000);
+  const blob = new Blob(fixDates(parts, okDate ? created : null), { type: 'video/mp4' });
+  return { blob, name: outName(it, created, 'mp4'), note: `${ow}×${oh} · ${enc.mux.toUpperCase()}` + (it.trim ? ` · ${fmtDur(nOut / fps)} gardées` : '') + (at && !aCfg ? ' · son non conservé' : '') + (!at && info.audioTracks.length ? ' · son non conservé (format)' : '') };
 }
+const fmtDur = x => x < 60 ? x.toFixed(1).replace('.', ',') + ' s' : fmtT(x);
 /* remplace la date de création (mvhd / tkhd / mdhd) par celle du film d'origine */
 function fixDates(parts, created) {
   const out = parts.sort((a, b) => a.pos - b.pos).map(p => p.data);
@@ -1342,13 +1446,33 @@ async function exportVideoRealtime(it, p, o, progress, job) {
   const draw = () => { if (job.cancel) { v.pause(); return; }
     ENG.setSource(v, upW, upH); if (n % 4 === 0 || !st) st = blendStats(st, analyze(ENG.readSmall(0, upW, upH, 160).px, p), st ? 0.2 : 1);
     ENG.render(p, st, ow, oh, geo, { seed: n++ }); progress(Math.min(99, Math.round(v.currentTime / v.duration * 100)), `Lecture en temps réel ${fmtT(v.currentTime)} / ${fmtT(v.duration)}`);
-    if (!v.ended) (v.requestVideoFrameCallback ? v.requestVideoFrameCallback(draw) : requestAnimationFrame(draw)); };
+    if (!v.ended && !v.paused) (v.requestVideoFrameCallback ? v.requestVideoFrameCallback(draw) : requestAnimationFrame(draw)); };
+  const tr = it.trim || [0, Infinity];
+  if (tr[0] > 0) await new Promise(r => { v.onseeked = r; v.currentTime = tr[0]; });
   rec.start(1000); await v.play(); draw();
-  await new Promise(r => { v.onended = r; const t = setInterval(() => { if (job.cancel) { clearInterval(t); r(); } }, 300); });
+  await new Promise(r => { v.onended = r; const t = setInterval(() => { if (job.cancel || v.currentTime >= tr[1]) { clearInterval(t); v.pause(); r(); } }, 100); });
   rec.stop(); await new Promise(r => rec.onstop = r);
   if (job.cancel) throw cancelled();
   const ext = mime.includes('webm') ? 'webm' : 'mp4';
   return { blob: new Blob(chunks, { type: mime || 'video/mp4' }), name: outName(it, new Date(it.file.lastModified || Date.now()), ext), note: `${ow}×${oh} · mode temps réel` };
+}
+
+/* ------------------------------------------------------------------ photo extraite d'une vidéo (image affichée) */
+async function grabFrame() {
+  const it = item(); if (!it || it.kind !== 'video') return;
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = it.url;
+  try {
+    await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('Vidéo illisible')); v.play().then(() => v.pause()).catch(() => { }); });
+    await new Promise(r => { v.onseeked = r; v.currentTime = it.t; });
+    const W = v.videoWidth, H = v.videoHeight, p = it.P; ENG.setSource(v, W, H);
+    const st = analyze(ENG.readSmall(0, W, H, 256).px, p); const [w, h] = ENG.outSize(p, W, H, 0);
+    ENG.render(p, st, w, h, { orient: 0, upW: W, upH: H, fullW: W }, { seed: 1 });
+    const blob = await new Promise(r => $('glc').toBlob(r, 'image/jpeg', 0.95));
+    const stem = it.name.replace(/\.[^.]+$/, ''), sec = Math.round(it.t * 10) / 10;
+    JOBS.unshift({ it: { kind: 'image', name: stem }, status: 'done', pct: 100, blob, name: `${stem}_${String(sec).replace('.', ',')}s.jpg`, msg: `Prêt · ${fmtB(blob.size)} · ${w}×${h} · image à ${fmtT(it.t)}` });
+    renderJobs(); $('jobsDlg').classList.add('on');
+  } catch (e) { toast('Photo impossible : ' + (e.message || e), 5000); }
+  finally { v.removeAttribute('src'); v.load(); if (S.active) loadSource(item()); }
 }
 
 </script>
