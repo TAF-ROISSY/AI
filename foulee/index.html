@@ -380,7 +380,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='5.2';
+const APP_VER='5.3';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1229,7 +1229,8 @@ function showTab(t){
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
 initChrono();renderAll();showInstall(false);
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
 $('#chatSend').onclick=()=>sendChat($('#chatIn').value);
 $('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!/iPhone|iPad|Android/.test(navigator.userAgent)){e.preventDefault();sendChat($('#chatIn').value);}});
 $('#chatIn').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(120,e.target.scrollHeight)+'px';});
