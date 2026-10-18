@@ -384,7 +384,7 @@ const DEF={settings:{clientId:'',clientSecret:'',age:40,sexe:'h',taille:175,poid
 let S=load(), A=null, viewWeek=0;
 const DEFCTX={silent:false,small:false,bw:false,dur:'std',pains:[],legs:'auto'};
 const CTX=()=>({...DEFCTX,...(S.ctx||{})});
-const MP=()=>({goal:'seche',equip:{kb12:true,kb16:true,band:true,wheel:true},tests:[],base:1,...(S.mp||{})});
+const MP=()=>({goal:'seche',equip:{kb12:true,kb16:true,band:true,wheel:true,bar:false},tests:[],base:1,...(S.mp||{})});
 const DEFSCHED={q:1,e:3,r:5,l:6,A:2,B:3,C:4};
 const SD=()=>({...DEFSCHED,...(S.sched||{})});
 S.fb=S.fb||{};S.ch=S.ch||{};
@@ -410,7 +410,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='5.4';
+const APP_VER='5.5';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -704,10 +704,10 @@ function legsTired(){const c=CTX();if(c.legs==='on')return 'signalé par toi';if
   const a=getA(),now=new Date();const r=a.runs.find(r=>{const hrs=(now-localDate(r.start_date_local))/36e5;return hrs>=0&&hrs<36&&(a.cls(r)==='qual'||a.cls(r)==='long'||r.total_elevation_gain>=400||effKm(r)>=15);});
   return r?`${esc(r.name)} (${(r.distance/1000).toFixed(0)} km, ${Math.round(r.total_elevation_gain)} m D+) il y a moins de 36 h`:null;}
 function allowed(id,c,mp){if(!CUE[id])return false;const noKb=c.bw||!(mp.equip.kb12||mp.equip.kb16);
-  if(noKb&&hasT(id,'kb'))return false;if((c.bw||!mp.equip.band)&&hasT(id,'band'))return false;if((c.bw||!mp.equip.wheel)&&hasT(id,'wheel'))return false;
+  if(noKb&&hasT(id,'kb'))return false;if((c.bw||!mp.equip.band)&&hasT(id,'band'))return false;if((c.bw||!mp.equip.wheel)&&hasT(id,'wheel'))return false;if((c.bw||!mp.equip.bar)&&hasT(id,'bar'))return false;
   if((c.silent||legsTired())&&hasT(id,'jump'))return false;if(c.small&&hasT(id,'space'))return false;
   return !c.pains.some(z=>hasT(id,z));}
-function why(id,c,mp){const r=[];const noKb=c.bw||!(mp.equip.kb12||mp.equip.kb16);if(noKb&&hasT(id,'kb')||(c.bw||!mp.equip.band)&&hasT(id,'band')||(c.bw||!mp.equip.wheel)&&hasT(id,'wheel'))r.push('matériel');if(c.silent&&hasT(id,'jump'))r.push('silencieux');else if(legsTired()&&hasT(id,'jump'))r.push('jambes fatiguées');if(c.small&&hasT(id,'space'))r.push('espace');c.pains.filter(z=>hasT(id,z)).forEach(z=>r.push(ZONES[z].toLowerCase()));return r.join(', ');}
+function why(id,c,mp){const r=[];const noKb=c.bw||!(mp.equip.kb12||mp.equip.kb16);if(noKb&&hasT(id,'kb')||(c.bw||!mp.equip.band)&&hasT(id,'band')||(c.bw||!mp.equip.wheel)&&hasT(id,'wheel')||(c.bw||!mp.equip.bar)&&hasT(id,'bar'))r.push('matériel');if(c.silent&&hasT(id,'jump'))r.push('silencieux');else if(legsTired()&&hasT(id,'jump'))r.push('jambes fatiguées');if(c.small&&hasT(id,'space'))r.push('espace');c.pains.filter(z=>hasT(id,z)).forEach(z=>r.push(ZONES[z].toLowerCase()));return r.join(', ');}
 function pickSub(id,c,mp,used=new Set()){if(allowed(id,c,mp))return id;const seen=new Set([id]),q=[...(SUBS[id]||[])],ok=[];while(q.length){const x=q.shift();if(seen.has(x))continue;seen.add(x);if(allowed(x,c,mp))ok.push(x);(SUBS[x]||[]).forEach(y=>q.push(y));}return ok.find(x=>!used.has(x))||ok[0]||null;}
 function ctxChips(){const c=CTX(),out=[];if(c.silent)out.push('🔇 Silencieux');if(c.small)out.push('📦 Espace réduit');if(c.bw)out.push('🤸 Poids du corps');if(c.dur==='express')out.push('⚡ Express 15 min');if(c.dur==='int')out.push('🔥 Intensive 45 min');c.pains.forEach(z=>out.push('🩹 '+ZONES[z]));if(legsTired())out.push('🦵 Jambes fatiguées');return out;}
 function adaptSession(T){
@@ -740,7 +740,7 @@ function openProfile(){const mp=MP();mpDraft=JSON.parse(JSON.stringify(mp));rend
 function renderProfile(){const d=mpDraft,last=d.tests[d.tests.length-1]||{};
   $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">Profil & bilan muscu</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
   <div class="qlab">Objectif</div><div class="chips">${Object.entries(GOALS).map(([k,g])=>`<button class="chip ${d.goal===k?'on':''}" onclick="mpDraft.goal='${k}';renderProfile()">${g[0]} ${g[1]}</button>`).join('')}</div><p class="note">${GOALS[d.goal][2]}. Agit sur les temps de repos et ta cible calorique.</p>
-  <div class="qlab">Matériel à disposition</div><div class="chips">${[['kb12','KB 12 kg'],['kb16','KB 16 kg'],['band','Élastiques'],['wheel','Roue abdo']].map(([k,l])=>`<button class="chip ${d.equip[k]?'on':''}" onclick="mpDraft.equip.${k}=!mpDraft.equip.${k};renderProfile()">${l}</button>`).join('')}</div>
+  <div class="qlab">Matériel à disposition</div><div class="chips">${[['kb12','KB 12 kg'],['kb16','KB 16 kg'],['band','Élastiques'],['wheel','Roue abdo'],['bar','Barre de traction']].map(([k,l])=>`<button class="chip ${d.equip[k]?'on':''}" onclick="mpDraft.equip.${k}=!mpDraft.equip.${k};renderProfile()">${l}</button>`).join('')}</div>
   <div class="qlab">Bilan de condition physique</div><p class="note">À faire à froid après 5 min d’échauffement, technique propre. Refais-le toutes les 4 semaines pour mesurer tes progrès.</p>
   <div class="form f2">${TESTS.map(([k,l,u])=>`<div><label>${l}</label><input id="t_${k}" type="number" inputmode="numeric" placeholder="${last[k]?'dernier : '+last[k]:u}"></div>`).join('')}</div>
   <button class="btn wide" style="margin-top:14px" onclick="saveProfile()">Enregistrer</button>`;}
@@ -794,7 +794,7 @@ function badges(st){const ms=[...S.mesures].filter(m=>m.t).sort((a,b)=>a.d<b.d?-
   return [['👟','Premier pas','1re séance',st.done.length>=1],['📅','Régulier','10 séances',st.done.length>=10],['🦾','Machine','25 séances',st.done.length>=25],['🏔️','Inarrêtable','50 séances',st.done.length>=50],
    ['🔥','Série 3','3 sem. d’affilée',stk>=3],['🔥','Série 6','6 sem.',stk>=6],['☄️','Série 12','12 sem.',stk>=12],
    ['🏅','Record','1er record battu',st.prs.some(p=>!p.first)],['🥇','Chasseur','5 records',st.prs.filter(p=>!p.first).length>=5],
-   ['🗺️','Tour des sommets','tous les défis',DEFIS.every(D=>(S.ch[D.id]||[]).length)],['⭐','Étoilé','un défi ★★',Object.values(S.ch||{}).flat().some(x=>x.lv===2)],
+   ['🗺️','Tour des sommets','les 8 Sommets',DEFIS.filter(D=>D.cat==='sommet').every(D=>(S.ch[D.id]||[]).length)],['🏛️','Panthéon','10 Dieux terminés',GODS.filter(D=>(S.ch[D.id]||[]).length).length>=10],['⭐','Étoilé','un défi ★★',Object.values(S.ch||{}).flat().some(x=>x.lv===2)],
    ['🔇','Ninja','3 séances adaptées',st.adapted>=3],['📋','Bilan','bilan de départ',t.length>=1],['📈','Progrès','pompes en hausse',pushUp],
    ['📏','−2 cm','tour de taille',dt>=2],['🎯','−5 cm','tour de taille',dt>=5]];}
 
@@ -823,7 +823,7 @@ function coachContext(){
   const wk=[];if(w>=0&&w<=11)for(let d=0;d<7;d++){const ss=daySessions(w,d);if(ss.length)wk.push({jour:JOURSL[d],seances:ss.map(x=>({module:x.str?'muscu':'trail',titre:x.t,detail:strip(x.s),fait:!!S.done[x.k],ressenti:S.fb[x.k]?(S.fb[x.k].d5?D5[S.fb[x.k].d5-1][2]:FBL[S.fb[x.k].r][1]):null}))});}
   const fbs=Object.entries(S.fb||{}).sort((x,y)=>x[1].d<y[1].d?1:-1).slice(0,10).map(([k,o])=>({seance:k,date:o.d,difficulte:o.d5||null,ressenti:o.d5?D5[o.d5-1][2]:FBL[o.r][1],energie:o.en||null,technique:o.te||null,douleurs:(o.pains||[]).map(z=>ZONES[z])}));
   const recs=DEFIS.flatMap(D=>[0,1,2].map(lv=>{const b=bestOf(D.id,lv);return b?{defi:D.n+' '+LVN[lv],record:fmtDur(b.t),essais:(S.ch[D.id]||[]).filter(x=>x.lv===lv).length}:null;}).filter(Boolean));
-  return {date:iso(now)+' ('+JOURSL[dayIdx()]+')',profil:{age:s.age,sexe:s.sexe==='f'?'femme':'homme',taille_cm:s.taille,poids_kg:s.poids,fc_max:s.fcmax,objectif_muscu:GOALS[mp.goal][1],materiel:Object.entries(mp.equip).filter(e=>e[1]).map(e=>({kb12:'kettlebell 12 kg',kb16:'kettlebell 16 kg',band:'élastiques',wheel:'roue abdo'}[e[0]]))},
+  return {date:iso(now)+' ('+JOURSL[dayIdx()]+')',profil:{age:s.age,sexe:s.sexe==='f'?'femme':'homme',taille_cm:s.taille,poids_kg:s.poids,fc_max:s.fcmax,objectif_muscu:GOALS[mp.goal][1],materiel:Object.entries(mp.equip).filter(e=>e[1]).map(e=>({kb12:'kettlebell 12 kg',kb16:'kettlebell 16 kg',band:'élastiques',wheel:'roue abdo',bar:'barre de traction'}[e[0]]))},
     plan:{semaine:w+1,sur:12,debut:S.settings.start,programme_trail:S.aiPlan?'programme sur mesure du coach : '+S.aiPlan.resume:'plan standard de l’appli',semaine_en_cours:wk},
     trail:{source:S.demo?'données de démo':S.tokens?'Strava':'aucune donnée',km_par_semaine_4sem:+(a.km28/4).toFixed(1),dplus_par_semaine:Math.round(a.dp28/4),cadence_pas_min:a.cad,fc_moy:a.hr,estimation_10k:a.runs.length?fmtDur(a.P.t10):null,allures_min_km:{facile:fmtPace(a.P.easyLo)+'-'+fmtPace(a.P.easyHi),seuil:fmtPace(a.P.seuil),vma:fmtPace(a.P.vma)},constats:a.I.map(i=>i.t+' : '+strip(i.x)),
       sorties_recentes:a.runs.slice(0,12).map(r=>({date:r.start_date_local.slice(0,10),nom:r.name,km:+(r.distance/1000).toFixed(1),dplus:Math.round(r.total_elevation_gain),duree:fmtDur(r.moving_time),allure:fmtPace(r.moving_time/(r.distance/1000)),fc:r.average_heartrate?Math.round(r.average_heartrate):null,type:{ef:'facile',gris:'zone grise',qual:'qualité',long:'longue'}[a.cls(r)]}))},
@@ -1024,12 +1024,27 @@ const CUE={
  bandpress:['Développé élastique','Élastique sous les pieds ou dans le dos, pousse vers le haut ou l’avant sans cambrer.'],
  situp:['Sit-up','Pieds au sol, monte en enroulant la colonne, redescends lentement.'],
  bear:['Bear hold','À 4 pattes, genoux décollés de 3 cm, dos plat. Silencieux et intense.'],
- farmhold:['Porté statique KB','Debout, KB à une main bras tendu, buste parfaitement droit. Change de main.']
+ farmhold:['Porté statique KB','Debout, KB à une main bras tendu, buste parfaitement droit. Change de main.'],
+ highknees:['Montées de genoux','Sur place, genoux à hauteur de hanche, rythme rapide, sur l’avant du pied.'],
+ jacks:['Jumping jacks','Saut en écartant bras et jambes, retour pieds joints. Rythme régulier.'],
+ stepjack:['Jacks sans saut','Pas latéral en levant les bras, alterne les côtés. Version silencieuse des jumping jacks.'],
+ leglever:['Relevés de jambes tendues','Allongé, bas du dos plaqué, monte les jambes tendues à la verticale puis redescends sans toucher le sol.'],
+ pullup:['Tractions','Prise pronation, menton au-dessus de la barre, descente complète bras tendus.'],
+ hspush:['Pompes en équilibre','Pieds au mur, tête vers le sol entre les mains. Réservé aux confirmés : remplace par des pompes piquées sinon.'],
+ lunge:['Fentes alternées','Grand pas en avant, genou arrière frôle le sol, buste droit, alterne les jambes.'],
+ lungewalk:['Fentes marchées','Fentes qui avancent, genou arrière frôle le sol à chaque pas.'],
+ burpeefrog:['Burpee frogs','Burpee puis bond en avant pieds joints jusqu’aux mains, sur la distance.'],
+ jump:['Sauts groupés','Saut vertical en ramenant les genoux à la poitrine, réception souple.'],
+ run:['Course','Footing soutenu sur la distance. Pas d’espace ? Remplacé par des montées de genoux.'],
+ sprint:['Sprint','Accélération maximale sur la distance, retour en marchant.'],
+ standup:['Stand-ups','Allongé sur le dos, relève-toi debout le plus vite possible sans les mains si tu peux, puis rallonge-toi.']
 };
 // Tags : kb/band/wheel = matériel ; jump = sauts/impacts ; space = besoin de place ; legs = sollicite les jambes ; zones de douleur
 const TAG={goblet:'kb legs knee',swing:'kb legs lowback space',bulg:'legs knee',rdl:'legs lowback',calf:'legs',step:'legs knee',wheelk:'wheel lowback shoulder',wheel:'wheel lowback shoulder',push:'shoulder wrist',pushd:'shoulder wrist',row:'kb',press:'kb shoulder',cp:'kb shoulder lowback',pull:'band',face:'band',hollow:'',deadbug:'',side:'shoulder',tgu:'kb shoulder space',thr:'kb shoulder knee legs',burpee:'jump wrist shoulder space legs',mc:'wrist',suit:'kb space',cpx:'kb shoulder lowback legs',jlunge:'jump legs knee space',plank:'',sqbw:'legs knee',bridge:'legs',wallsit:'legs knee',planktap:'wrist shoulder',slowknee:'legs',pushinc:'shoulder',tablerow:'',pike:'shoulder wrist',superman:'',birddog:'',revlunge:'legs knee',sumodl:'kb legs lowback',bandrow:'band',bandpress:'band shoulder',situp:'lowback',bear:'wrist shoulder',farmhold:'kb'};
 const SUBS={swing:['sumodl','bridge','rdl','superman'],goblet:['sqbw','wallsit','bridge','rdl'],bulg:['revlunge','bridge','wallsit','rdl','calf'],rdl:['bridge','birddog'],step:['revlunge','bridge'],wheel:['wheelk','deadbug','hollow'],wheelk:['deadbug','hollow','birddog','bear'],push:['pushinc','bandpress','birddog'],pushd:['push','pushinc','birddog'],row:['bandrow','tablerow','superman'],press:['pike','bandpress','superman'],cp:['press','pike','bandpress','superman'],pull:['superman','birddog'],face:['pull','superman'],tgu:['side','birddog'],thr:['goblet','sqbw','wallsit','bridge','rdl','superman'],burpee:['bear','planktap','slowknee'],mc:['bear','slowknee','deadbug'],suit:['farmhold','side'],cpx:['row','bandrow','superman'],jlunge:['revlunge','wallsit','bridge','rdl','calf'],side:['deadbug','birddog'],sqbw:['wallsit','bridge'],revlunge:['bridge'],planktap:['deadbug'],bear:['deadbug','slowknee'],pike:['bandpress','superman'],pushinc:['birddog'],sumodl:['bridge','superman'],situp:['deadbug'],calf:['slowknee']};
 const ZONES={shoulder:'Épaules',lowback:'Bas du dos',knee:'Genoux',wrist:'Poignets'};
+Object.assign(TAG,{highknees:'jump legs',jacks:'jump legs',stepjack:'legs',leglever:'lowback',pullup:'bar shoulder',hspush:'shoulder wrist space',lunge:'legs knee',lungewalk:'legs knee space',burpeefrog:'jump legs space wrist shoulder',jump:'jump legs knee',run:'jump legs space',sprint:'jump legs space',standup:'legs knee'});
+Object.assign(SUBS,{highknees:['slowknee','mc','deadbug'],jacks:['stepjack','slowknee'],stepjack:['slowknee'],leglever:['deadbug','hollow'],pullup:['row','bandrow','tablerow','superman'],hspush:['pike','pushinc','superman'],lunge:['revlunge','bridge','wallsit'],lungewalk:['lunge','revlunge','bridge'],burpeefrog:['burpee','bear','sqbw'],jump:['sqbw','wallsit','bridge'],run:['highknees','slowknee'],sprint:['highknees','slowknee'],standup:['situp','deadbug']});
 const hasT=(id,t)=>(' '+(TAG[id]||'')+' ').includes(' '+t+' ');
 const WARM='Échauffement 5 min : 10 halos KB, 10 squats lents, 15 pull-aparts, 10 swings légers.';
 const v=(x,i)=>Array.isArray(x)?x[i]:x;
@@ -1062,35 +1077,82 @@ const DEFIS=[
  {id:'cervin',n:'Cervin',alt:4478,d:'Pyramide descendante 10 → 1 : pompes + goblet squats. Silencieux.',it:[['push',0],['goblet',0]],lad:[10,9,8,7,6,5,4,3,2,1],lvm:[.6,.8,1],lv:[10,10,10]},
  {id:'kili',n:'Kilimandjaro',alt:5895,d:'L’ultra : long et régulier. Après 4 semaines de plan minimum.',it:[['swing',25],['goblet',20],['push',15],['jlunge',20],['mc',30],['burpee',10]],lv:[3,4,5]}
 ];
+const G=(id,n,cat,d,it,o={})=>({id,n,cat,d,it,god:true,lvm:[.5,.75,1],lv:o.lad?[o.lad.length,o.lad.length,o.lad.length]:[o.r,o.r,o.r],...o});
+const GODS=[
+ G('aphrodite','Aphrodite','cardio','Le classique full body : paliers dégressifs, tout le corps brûle.',[['burpee'],['sqbw'],['situp']],{lad:[50,40,30,20,10]}),
+ G('metis','Metis','cardio','Cardio express, très court et très intense.',[['burpee'],['mc'],['highknees']],{lad:[10,25,10]}),
+ G('hellas','Hellas','cardio','Cardio et jambes en pyramide montante puis descendante.',[['burpee'],['highknees'],['sqbw'],['jacks']],{lad:[10,20,30,20,10]}),
+ G('dione','Dione','cardio','Cardio et sangle : gros volume de jacks, burpees et gainage dynamique.',[['jacks',75],['burpee',25],['leglever',50],['jacks',75],['situp',50],['burpee',25]],{r:3}),
+ G('iris','Iris','cardio','Dix tours courts de course et de jacks : cœur et jambes.',[['run',100,'m'],['jacks',100]],{r:10}),
+ G('nyx','Nyx','cardio','Court et nerveux : cardio et abdos.',[['highknees',10],['burpee',10],['leglever',10],['highknees',10]],{r:3}),
+ G('kerberos','Kerberos','cardio','Cardio extrême, 100 répétitions par tour.',[['burpee',25],['mc',25],['highknees',25],['jump',25]],{r:3}),
+ G('eagle','Eagle','cardio','Dix tours rapides : cardio et jambes.',[['burpee',10],['highknees',10],['sqbw',10]],{r:10}),
+ G('athena','Athena','haut','Haut du corps et poussée en paliers dégressifs.',[['push'],['situp'],['sqbw']],{lad:[25,20,15,10,5]}),
+ G('kentauros','Kentauros','bas','Jambes et explosivité sur la distance.',[['lungewalk',40,'m'],['highknees',10],['burpeefrog',40,'m'],['jump',10]],{r:6}),
+ G('hera','Hera','haut','Haut du corps et sangle : pompes et climbers en volume.',[['push'],['mc'],['situp']],{lad:[40,30,20,10,5]}),
+ G('poseidon','Poseidon','haut','Tirage et poussée en express.',[['pullup'],['push']],{lad:[25,20,15,10,5]}),
+ G('ares','Ares','haut','Haut du corps et sprints.',[['pullup',7],['push',7],['sprint',80,'m']],{r:5}),
+ G('hephaistos','Hephaistos','haut','Poussée et gainage dorsal et abdominal.',[['push'],['situp'],['superman'],['leglever']],{lad:[20,15,10,5]}),
+ G('cronos','Cronos','haut','Gros volume haut et bas du corps, 250 répétitions par tour.',[['burpee',50],['sqbw',50],['push',50],['situp',50],['leglever',50]],{r:3}),
+ G('hyperion','Hyperion','haut','Force et endurance en montée progressive.',[['highknees',6],['push',12],['sqbw',18],['mc',24]],{r:5}),
+ G('zeus','Zeus','haut','Force pure, 2 min de repos entre les tours.',[['hspush',5],['pullup',15],['push',25],['situp',35],['sqbw',45]],{r:4,rest:120}),
+ G('prometheus','Prometheus','core','Sangle et full body en pyramide inversée.',[['mc'],['push'],['situp'],['sqbw'],['jacks']],{lad:[30,20,10,20,30]}),
+ G('hercules','Hercules','core','Sangle et haut du corps, 250 répétitions par tour.',[['push',50],['situp',50],['sqbw',50],['leglever',50],['burpee',50]],{r:3}),
+ G('triton','Triton','core','Sangle et jambes en paliers.',[['burpee'],['situp'],['leglever'],['sqbw']],{lad:[30,20,10]}),
+ G('apollon','Apollon','core','Sangle et cardio avec deux courses par tour.',[['burpee',25],['run',400,'m'],['sqbw',50],['run',400,'m']],{r:3}),
+ G('morpheus','Morpheus','core','Cardio doux, parfait pour un jour léger.',[['push',5],['lunge',10],['jacks',15]],{r:5}),
+ G('gaia','Gaia','core','Volume sangle et jambes sur dix tours.',[['jacks',10],['lunge',10],['standup',10]],{r:10}),
+ G('hades','Hades','bas','Jambes, sangle et poussée, avec un sprint final par tour.',[['burpee',25],['pullup',15],['push',15],['burpee',25],['run',60,'m']],{r:3}),
+ G('artemis','Artemis','bas','Endurance musculaire globale, un seul tour pour le chrono.',[['burpee',50],['pullup',50],['push',100],['sqbw',150],['burpee',50]],{r:1}),
+ G('persephone','Persephone','bas','Jambes et cardio en paliers.',[['lunge'],['burpee'],['leglever']],{lad:[30,20,10]}),
+ G('hermes','Hermes','bas','Explosivité : pompes et sprints, 2 min de repos entre les tours.',[['push',10],['sprint',20,'m'],['push',10],['sprint',20,'m']],{r:4,rest:120}),
+ G('odysseus','Odysseus','bas','Endurance de force équilibrée.',[['highknees',15],['push',15],['sqbw',15],['situp',15]],{r:5}),
+ G('kronos','Kronos','endu','L’ultra-endurance : 600 répétitions d’un seul tenant.',[['push',100],['situp',100],['sqbw',100],['leglever',100],['burpee',100],['pullup',100]],{r:1}),
+ G('hestia','Hestia','endu','Circuit rapide en paliers.',[['burpee'],['highknees'],['situp']],{lad:[20,15,10]}),
+ G('thanatos','Thanatos','endu','Cardio et sangle variés, volume croissant par exercice.',[['burpee',10],['leglever',20],['mc',30],['standup',40],['highknees',50]],{r:4})];
+DEFIS.forEach(d=>{d.cat=d.cat||'sommet';});DEFIS.push(...GODS);
+const CATS=[['all','Tous'],['sommet','⛰️ Sommets'],['cardio','🔥 Cardio'],['haut','💪 Haut du corps'],['core','🧱 Abdos & core'],['bas','🦵 Bas du corps'],['endu','♾️ Endurance']];
+const CATI={sommet:'⛰️',cardio:'🔥',haut:'💪',core:'🧱',bas:'🦵',endu:'♾️'};
+let defiCat='all';
 const LVN=['Base','★','★★'];
 const DEF_ID=id=>DEFIS.find(d=>d.id===id);
-const repsAt=(D,lv,k,base)=>D.lad?Math.max(1,Math.round(D.lad[k]*D.lvm[lv])):base;
-function lvLabel(D,i){return D.lad?`${LVN[i]} · ${D.lad.map(x=>Math.max(1,Math.round(x*D.lvm[i]))).slice(0,3).join('-')}…`:`${LVN[i]} · ${D.lv[i]} tours`;}
-function bestOf(id,lv){return (S.ch[id]||[]).filter(x=>x.lv===lv).reduce((b,x)=>!b||x.t<b.t?x:b,null);}
+const repsAt=(D,lv,k,base)=>D.lad?Math.max(1,Math.round(D.lad[k]*D.lvm[lv])):D.god?Math.max(1,Math.round(base*D.lvm[lv])):base;
+function defiPlan(D){const c={...CTX(),dur:'std'},mp=MP(),used=new Set();return D.it.map(([e,r,u])=>{const n=pickSub(e,c,mp,used)||e;used.add(n);return {id:n,base:r||0,u:u||'',from:n!==e?e:null,why:n!==e?why(e,c,mp):'',conv:n!==e&&u==='m'&&!['run','sprint','lungewalk','burpeefrog'].includes(n)};});}
+const planSig=its=>its.filter(x=>x.from).map(x=>x.from+'>'+x.id).join(',');
+function qty(D,lv,k,it){let r=repsAt(D,lv,k,it.base),u=it.u;if(it.conv){r=Math.min(100,Math.max(5,Math.round(r/2)));u='';}return r+(u?' '+u:'');}
+const SPD={jacks:1,stepjack:1.1,highknees:.6,slowknee:1,mc:.8,burpee:4,burpeefrog:5,pullup:3.2,hspush:4,push:2,sqbw:2,situp:2.4,leglever:2.6,standup:3,lunge:2.4,swing:2,goblet:2.6,jump:2,superman:2.5};
+function estMin(D,lv,its){let s=0;for(let k=0;k<D.lv[lv];k++)its.forEach(it=>{const q=parseInt(qty(D,lv,k,it));s+=it.u&&!it.conv?q*.3:q*(SPD[it.id]||2.3);});s+=(D.rest||0)*(D.lv[lv]-1);return Math.max(2,Math.round(s/60));}
+function lvLabel(D,i){if(D.god&&!D.lad)return `${LVN[i]} · ${Math.round(D.lvm[i]*100)} %`;return D.lad?`${LVN[i]} · ${D.lad.map(x=>Math.max(1,Math.round(x*D.lvm[i]))).slice(0,3).join('-')}…`:`${LVN[i]} · ${D.lv[i]} tours`;}
+function bestOf(id,lv,sig){return (S.ch[id]||[]).filter(x=>x.lv===lv&&(sig===undefined||(x.sig||'')===sig)).reduce((b,x)=>!b||x.t<b.t?x:b,null);}
 function unlocked(D,i){return i===0||(S.ch[D.id]||[]).some(x=>x.lv===i-1&&(x.d5?x.d5<=3&&x.te!=='deg':x.r&&x.r<=2));}
 function suggestLv(D){let l=0;for(let i=0;i<D.lv.length;i++)if(unlocked(D,i))l=i;return l;}
 const defiLv={};
 function renderDefis(){
-  const sug=DEFIS[Math.max(0,weekIdx())%DEFIS.length];
-  let h=`<div class="card"><h2>Défis Sommets</h2><p class="muted small">Un nombre fixe de répétitions à faire le plus vite possible, technique propre. Valide chaque tour : l’appli te montre en direct ton avance ou ton retard sur ton record. Note ton ressenti « facile » ou « parfait » pour débloquer le niveau suivant.</p></div>`;
-  for(const D of DEFIS){
-    const lv=Math.min(defiLv[D.id]??suggestLv(D),D.lv.length-1),b=bestOf(D.id,lv),tries=(S.ch[D.id]||[]).filter(x=>x.lv===lv);
-    h+=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1"><h2 style="margin:0">⛰️ ${D.n} <span class="muted small">${D.alt} m</span></h2><span class="muted small">${D.d}</span></div>${D.id===sug.id?'<span class="tag qual">Cette semaine</span>':''}</div>
+  const sug=DEFIS[Math.max(0,weekIdx())%DEFIS.length],list=DEFIS.filter(D=>defiCat==='all'||D.cat===defiCat);
+  let h=`<div class="card"><h2>Défis</h2><p class="muted small">Les Sommets et les 31 Dieux : un nombre fixe de répétitions, le plus vite possible, technique propre. Valide chaque tour pour voir en direct ton avance ou ton retard sur ton record. Les exercices impossibles avec ton matériel ou tes contraintes du jour sont remplacés automatiquement.</p>
+  <div class="chips">${CATS.map(([k,l])=>`<button class="chip sm ${defiCat===k?'on':''}" onclick="defiCat='${k}';renderDefis()">${l}</button>`).join('')}</div></div>`;
+  for(const D of list){
+    const lv=Math.min(defiLv[D.id]??suggestLv(D),D.lv.length-1),its=defiPlan(D),sig=planSig(its),b=bestOf(D.id,lv,sig),tries=(S.ch[D.id]||[]).filter(x=>x.lv===lv&&(x.sig||'')===sig),silent=!its.some(x=>hasT(x.id,'jump'));
+    const struct=D.lad?`Paliers <b>${D.lad.map((_,k)=>repsAt(D,lv,k,0)).join('-')}</b> de : ${its.map(x=>CUE[x.id][0].toLowerCase()).join(' · ')}`
+      :`<b>${D.lv[lv]} tour${D.lv[lv]>1?'s':''}</b>${D.rest?' (2 min de repos entre les tours)':''} : ${its.map(x=>`<b>${qty(D,lv,0,x)}</b> ${CUE[x.id][0].toLowerCase()}`).join(' · ')}`;
+    h+=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><div style="flex:1"><h2 style="margin:0">${CATI[D.cat]} ${D.n}${D.alt?` <span class="muted small">${D.alt} m</span>`:''}</h2><span class="muted small">${D.d}</span></div>${D.id===sug.id?'<span class="tag qual">Cette semaine</span>':''}</div>
     <div class="seg lvl">${D.lv.map((r,i)=>`<button class="${i===lv?'on':''}" ${unlocked(D,i)?'':'disabled'} onclick="defiLv['${D.id}']=${i};renderDefis()">${lvLabel(D,i)}${unlocked(D,i)?'':' 🔒'}</button>`).join('')}</div>
-    <p class="small">${D.lad?`Paliers <b>${D.lad.map(x=>Math.max(1,Math.round(x*D.lvm[lv]))).join('-')}</b> de : ${D.it.map(([e])=>CUE[e][0].toLowerCase()).join(' · ')}`:`Par tour : ${D.it.map(([e,r])=>`<b>${r}</b> ${CUE[e][0].toLowerCase()}`).join(' · ')}`}${D.it.some(([e])=>hasT(e,'jump'))?' <span class="tag">sauts</span>':' <span class="tag ef">🔇 silencieux</span>'}</p>
+    <p class="small" style="margin:6px 0">${struct}</p>
+    ${its.some(x=>x.from)?`<p class="rpl" style="margin:0 0 6px">${its.filter(x=>x.from).map(x=>`↻ ${CUE[x.from][0].toLowerCase()} → ${CUE[x.id][0].toLowerCase()} (${x.why})`).join('<br>')}</p>`:''}
+    <div class="chips" style="margin:0 0 10px"><span class="tag">≈ ${estMin(D,lv,its)} min</span> ${silent?'<span class="tag ef">🔇 silencieux</span>':'<span class="tag">sauts</span>'}</div>
     <div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${b?fmtDur(b.t):'–'}</b><small>record</small></div><div class="stat"><b>${tries.length?fmtDur(tries[tries.length-1].t):'–'}</b><small>dernier</small></div><div class="stat"><b>${tries.length}</b><small>tentatives</small></div></div>
     ${tries.length>=2?`<h3>Progression (plus haut = plus rapide)</h3>${lineChart(tries.map((x,i)=>[i,-x.t]),'var(--acc2)')}`:''}
     <button class="btn wide sm" onclick="startDefi('${D.id}',${lv})">▶ Lancer ${D.n}${lv?' '+LVN[lv]:''}</button></div>`;
   }
   $('[data-page=defis]').innerHTML=h;
 }
-function startDefi(id,lv){const D=DEF_ID(id);chReset();CH.mode='defi';CH.defi={id,lv,D,rounds:D.lv[lv],sp:[]};syncChronoUI();if(MOD!=='muscu')setMod('muscu','chrono');else showTab('chrono');}
-function defiLap(){const df=CH.defi;if(!CH.running||!df)return;df.sp.push(swElapsed());beep(990,.12);if(df.sp.length>=df.rounds){finishDefi();return;}say(df.D.lad?`${repsAt(df.D,df.lv,df.sp.length,0)}`:`Tour ${df.sp.length+1}`);drawChrono();}
+function startDefi(id,lv){const D=DEF_ID(id),its=defiPlan(D);chReset();CH.mode='defi';CH.defi={id,lv,D,its,sig:planSig(its),rounds:D.lv[lv],sp:[],restUntil:null};syncChronoUI();if(MOD!=='muscu')setMod('muscu','chrono');else showTab('chrono');}
+function defiLap(){const df=CH.defi;if(!CH.running||!df||df.restUntil)return;df.sp.push(swElapsed());beep(990,.12);if(df.sp.length>=df.rounds){finishDefi();return;}if(df.D.rest){df.restUntil=swElapsed()+df.D.rest*1000;say('Repos deux minutes');}else say(df.D.lad?`${repsAt(df.D,df.lv,df.sp.length,0)}`:`Tour ${df.sp.length+1}`);drawChrono();}
 let lastDefi=null;
 function finishDefi(){
   const df=CH.defi,t=swElapsed();clearInterval(CH.iv);CH.running=false;CH.acc=t;CH.done=true;wake(false);
   [0,250,500].forEach(x=>setTimeout(()=>beep(1200,.18),x));
-  const prev=bestOf(df.id,df.lv),rec={d:iso(new Date()),t:t/1000,lv:df.lv,sp:df.sp.map(x=>x/1000)};
+  const prev=bestOf(df.id,df.lv,df.sig),rec={d:iso(new Date()),t:t/1000,lv:df.lv,sp:df.sp.map(x=>x/1000),sig:df.sig};
   (S.ch[df.id]=S.ch[df.id]||[]).push(rec);save();lastDefi=rec;
   const pr=!prev||rec.t<prev.t;say(pr?'Nouveau record !':'Terminé, bravo');
   drawChrono();renderDefis();renderMuscuHome();
@@ -1357,16 +1419,16 @@ function drawChrono(){
   const disp=$('#chDisp');disp.classList.remove('ph-rest','ph-prep');
   $('#chGo').textContent=CH.running?'❚❚ Pause':(CH.done||(!CH.phases.length&&!CH.acc)?'▶ Démarrer':'▶ Reprendre');
   const lapB=$('#chLap'),goB=$('#chGo');
-  lapB.style.display=isSW(CH.mode)?'':'none';lapB.textContent=CH.mode==='defi'?'✓ Tour terminé':'Tour';
+  lapB.style.display=isSW(CH.mode)?'':'none';lapB.textContent=CH.mode==='defi'?(CH.defi&&CH.defi.restUntil?'Repos…':'✓ Tour terminé'):'Tour';
   lapB.classList.toggle('ghost',CH.mode!=='defi');goB.classList.toggle('ghost',CH.mode==='defi'&&CH.running);
-  if(CH.mode==='defi'&&CH.defi){const df=CH.defi,ms=swElapsed(),s=ms/1000,k=df.sp.length,pb=bestOf(df.id,df.lv);
+  if(CH.mode==='defi'&&CH.defi){const df=CH.defi,ms=swElapsed(),s=ms/1000,k=df.sp.length,pb=bestOf(df.id,df.lv,df.sig);if(df.restUntil&&ms>=df.restUntil){df.restUntil=null;beep(1100,.35);say(df.D.lad?`${repsAt(df.D,df.lv,k,0)}`:`Tour ${k+1}, go`);}const rest=df.restUntil?Math.ceil((df.restUntil-ms)/1000):0;
     goB.textContent=CH.running?'❚❚':(CH.done||!CH.acc?'▶ Go':'▶');goB.style.flex=CH.running?'0 0 64px':'1';
     $('#chLabel').textContent=`${df.D.n} ${LVN[df.lv]}`;$('#chTime').textContent=pad(Math.floor(s/60))+':'+pad(Math.floor(s%60))+'.'+Math.floor(ms%1000/100);
-    $('#chRound').textContent=CH.done?'Terminé 💪':df.D.lad?`Palier ${Math.min(k+1,df.rounds)} / ${df.rounds} · ${repsAt(df.D,df.lv,Math.min(k,df.rounds-1),0)} reps`:`Tour ${Math.min(k+1,df.rounds)} / ${df.rounds}`;
+    $('#chRound').textContent=CH.done?'Terminé 💪':rest?`Repos ${Math.floor(rest/60)}:${pad(rest%60)} · puis tour ${k+1}`:df.D.lad?`Palier ${Math.min(k+1,df.rounds)} / ${df.rounds} · ${repsAt(df.D,df.lv,Math.min(k,df.rounds-1),0)} reps`:`Tour ${Math.min(k+1,df.rounds)} / ${df.rounds}`;
     $('#chRing').style.strokeDashoffset=CIRC*(1-k/df.rounds);
     let g='';if(pb&&pb.sp&&pb.sp.length===df.rounds){if(k>0&&!CH.done){const dlt=df.sp[k-1]/1000-pb.sp[k-1];g=dlt<=0?`<span class="ghost-ok">▲ ${fmtDur(-dlt)} d’avance</span> sur ton record`:`<span class="ghost-ko">▼ ${fmtDur(dlt)} de retard</span> sur ton record`;}else if(!CH.done)g=`Record à battre : ${fmtDur(pb.t)}`;}else if(!CH.done)g='Premier passage : fixe ta référence';
     $('#chTotal').innerHTML=g;
-    const L=$('#chLaps');L.style.display='';L.innerHTML=`<h2>${CH.done?'Temps par tour':'Ce tour'}</h2>`+(CH.done?df.sp.map((x,i)=>`<div class="mes"><span>Tour ${i+1}</span><span>${fmtDur((x-(df.sp[i-1]||0))/1000)}</span></div>`).join(''):df.D.it.map(([e,r])=>`<div class="mes"><span>${CUE[e][0]}</span><b>${repsAt(df.D,df.lv,Math.min(k,df.rounds-1),r)}</b></div>`).join(''));
+    const L=$('#chLaps');L.style.display='';L.innerHTML=`<h2>${CH.done?'Temps par tour':'Ce tour'}</h2>`+(CH.done?df.sp.map((x,i)=>`<div class="mes"><span>Tour ${i+1}</span><span>${fmtDur((x-(df.sp[i-1]||0))/1000)}</span></div>`).join(''):(df.its||[]).map(it=>`<div class="mes"><span>${CUE[it.id][0]}${it.from?' <span class="rpl">↻</span>':''}</span><b>${qty(df.D,df.lv,Math.min(k,df.rounds-1),it)}</b></div>`).join(''));
     return;}
   goB.style.flex='1';
   if(CH.mode==='stopwatch'){const ms=swElapsed(),s=ms/1000;$('#chLabel').textContent=CH.running?'En cours':'Chrono';$('#chTime').textContent=pad(Math.floor(s/60))+':'+pad(Math.floor(s%60))+'.'+Math.floor(ms%1000/100);$('#chRound').textContent=CH.laps.length?CH.laps.length+' tours':'';$('#chRing').style.strokeDashoffset=CIRC*(1-(s%60)/60);$('#chTotal').textContent='';
