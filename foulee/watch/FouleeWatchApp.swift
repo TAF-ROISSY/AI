@@ -6,6 +6,7 @@ struct FouleeWatchApp: App {
     @StateObject private var engine = TimerEngine()
     @StateObject private var workout = WorkoutManager()
     @StateObject private var defiStore = DefiStore()
+    @StateObject private var figStore = FigStore()
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +14,7 @@ struct FouleeWatchApp: App {
                 .environmentObject(engine)
                 .environmentObject(workout)
                 .environmentObject(defiStore)
+                .environmentObject(figStore)
         }
     }
 }
@@ -65,6 +67,12 @@ struct ContentView: View {
                         DefiListView()
                     } label: {
                         Label("Défis Sommets", systemImage: "mountain.2.fill")
+                    }
+                    .foregroundStyle(.orange)
+                    NavigationLink {
+                        FigListView()
+                    } label: {
+                        Label("Figures", systemImage: "figure.gymnastics")
                     }
                     .foregroundStyle(.orange)
                     ForEach(presets.filter { !$0.running }) { p in
