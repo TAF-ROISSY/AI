@@ -29,7 +29,13 @@ Avec un compte Apple gratuit, l’app expire au bout de 7 jours : relance simple
 
 ## Défis Sommets
 
-Les 6 défis de l'appli (Ventoux → Kilimandjaro), 3 niveaux chacun. Tape **✓ Tour** à la fin de chaque tour : la montre vibre et affiche ton avance ▲ ou ton retard ▼ sur ton record. À la fin, donne ton ressenti : « Trop facile » ou « Parfait » débloque le niveau suivant. Les records sont gardés sur la montre (indépendants de ceux de l'iPhone).
+Les **39 défis** de l'appli, classés comme sur l'iPhone : 8 Sommets et les 31 Dieux (Aphrodite, Zeus, Kronos…), 3 niveaux chacun, avec les mêmes répétitions et les mêmes paliers (50-40-30-20-10…). Tape **✓ Tour** à la fin de chaque tour ou palier : la montre vibre et affiche ton avance ▲ ou ton retard ▼ sur ton record. Pour Zeus et Hermes, un **repos de 2 min** se lance tout seul entre les tours, avec une vibration au départ du tour suivant. À la fin, donne ton ressenti : « Trop facile » ou « Parfait » débloque le niveau suivant.
+
+La montre ne connaît pas ton matériel : les tractions s'affichent « Tractions (ou rowing KB) ». Les records sont gardés sur la montre (indépendants de ceux de l'iPhone).
+
+## Si l'installation via Xcode est trop contraignante
+
+Avec un compte Apple gratuit, l'app doit être réinstallée depuis Xcode tous les 7 jours. Alternative sans Mac : lance tes séances depuis l'iPhone (chrono de l'appli Foulée, écran allumé) et enregistre la fréquence cardiaque avec l'app **Exercice** de la montre (« Renforcement musculaire fonctionnel ») : la séance remonte dans Santé puis Strava.
 
 ## Lien avec Strava
 
