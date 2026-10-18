@@ -7,7 +7,7 @@ Minuteur Intervalles / EMOM / Tabata / AMRAP / Chrono, avec vibrations, fréquen
 1. **Xcode** (App Store) → *File › New › Project* → onglet **watchOS** → **App** → Suivant.
    - Product Name : `Foulee` · Interface : SwiftUI · Language : Swift
    - Watch-only App (pas besoin d’app iPhone compagnon).
-2. Supprime le `ContentView.swift` et le `FouleeApp.swift` générés, puis glisse les 4 fichiers `.swift` de ce dossier dans le projet (coche « Copy items if needed »).
+2. Supprime le `ContentView.swift` et le `FouleeApp.swift` générés, puis glisse les 5 fichiers `.swift` de ce dossier dans le projet (coche « Copy items if needed »).
 3. Cible **Foulee Watch App** → onglet **Signing & Capabilities** :
    - Team : ton identifiant Apple (compte gratuit possible).
    - **+ Capability › HealthKit**.
@@ -42,3 +42,7 @@ Avec un compte Apple gratuit, l'app doit être réinstallée depuis Xcode tous l
 Les séances sont enregistrées dans **Santé** (course à pied ou renforcement). Dans l’app Strava iPhone : *Paramètres › Applications, services et appareils › Santé* → active la synchronisation. Elles remontent dans Strava, puis dans l’analyse de l’appli Foulée.
 
 Pour une sortie trail avec trace GPS, utilise plutôt l’app **Exercice** native de la montre : cette app ne dessine pas le parcours.
+
+## Figures (callisthénie)
+
+Menu Muscu › **Figures** : les 12 parcours de l’appli, avec l’étape en cours, le chrono de maintien (vibration à l’objectif), le compteur de séries et le repos de 90 s. Les flèches changent d’étape ; l’étape est gardée sur la montre. Note toujours tes séries dans l’appli iPhone pour la validation et le suivi.
