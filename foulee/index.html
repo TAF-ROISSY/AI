@@ -351,6 +351,27 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 .vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;text-align:center;margin:10px 0}
 .vs .c{background:rgba(255,255,255,.035);border-radius:14px;padding:10px}.vs .c b{font-family:var(--disp);font-size:18px;display:block}
 .vs .x{font-family:var(--disp);color:var(--mut);font-size:18px}
+#cam{position:fixed;inset:0;z-index:58;background:#000;display:none;flex-direction:column}#cam.on{display:flex}
+#cam .cv{position:relative;flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#cam video,#cam .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#cam video.mir{transform:scaleX(-1)}
+#cam .ghost{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#cam .ghost path,#cam .ghost ellipse{fill:none;stroke:rgba(255,255,255,.75);stroke-width:1.2;stroke-dasharray:4 3}
+#cam .ghost line{stroke:rgba(244,124,138,.85);stroke-width:1}
+#cam .ghost text{fill:rgba(255,255,255,.85);font-size:3.2px;font-family:Barlow,sans-serif}
+#cam .top{position:absolute;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(rgba(0,0,0,.6),transparent);color:#fff;z-index:2}
+#cam .top b{font-family:var(--disp);font-size:22px}
+#cam .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:120px;font-weight:800;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6);pointer-events:none;z-index:2}
+#cam .bar{display:flex;align-items:center;justify-content:space-around;padding:16px 16px calc(18px + env(safe-area-inset-bottom));background:#000;gap:10px}
+#cam .bar button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:14px;padding:12px 14px;font-weight:700;font-size:14px}
+#cam .bar .snap{width:74px;height:74px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.4);padding:0}
+#cam .tip{position:absolute;left:12px;right:12px;top:calc(70px + env(safe-area-inset-top));background:rgba(0,0,0,.6);color:#fff;font-size:13px;border-radius:12px;padding:8px 12px;z-index:2;text-align:center}
+.bph{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bph div{aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:12px;position:relative}
+.bph img{width:100%;height:100%;object-fit:cover}
+.bph span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 6px;border-radius:6px}
+.cmp2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cmp2 div{aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);position:relative}.cmp2 img{width:100%;height:100%;object-fit:cover}.cmp2 span{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 7px;border-radius:6px}
+.zone{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.zone:last-child{border:0}.zone b{display:block}.zone .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--acc);color:#1A1214;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -414,6 +435,10 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 <div class="ch-q" id="chatQ"></div>
 <div class="ch-in2"><textarea id="chatIn" rows="1" placeholder="Pose ta question au coach…"></textarea><button id="chatSend" aria-label="Envoyer">↑</button></div></div>
 <div id="act"><div class="ch-h"><button class="icbtn" onclick="closeAct()" aria-label="Retour">‹</button><h2 id="actH">Sortie</h2><a class="icbtn" id="actStrava" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px;font-weight:700;color:#FC5200;width:auto;padding:0 10px">Strava</a></div><div class="ch-m" id="actBody"></div></div>
+<div id="cam"><div class="cv" id="camView"><video id="camVid" playsinline muted autoplay></video><img class="shot" id="camShot" style="display:none" alt=""><svg class="ghost" id="camGhost" viewBox="0 -14 60 124" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="top"><div><b id="camT">Face</b><div style="font-size:13px;opacity:.85" id="camS">Photo 1 / 3</div></div><button class="icbtn" style="background:rgba(0,0,0,.4);color:#fff;border:0" onclick="closeCam()">✕</button></div>
+<div class="cd" id="camCd"></div><div class="tip" id="camTip"></div></div>
+<div class="bar" id="camBar"></div><input type="file" id="camFile" accept="image/*" capture="user" style="display:none"></div>
 <div id="toast"></div>
 
 <script>
@@ -449,7 +474,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='5.7';
+const APP_VER='5.8';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -948,7 +973,7 @@ function badges(st){const ms=[...S.mesures].filter(m=>m.t).sort((a,b)=>a.d<b.d?-
    ['🏅','Record','1er record battu',st.prs.some(p=>!p.first)],['🥇','Chasseur','5 records',st.prs.filter(p=>!p.first).length>=5],
    ['🗺️','Tour des sommets','les 8 Sommets',DEFIS.filter(D=>D.cat==='sommet').every(D=>(S.ch[D.id]||[]).length)],['🏛️','Panthéon','10 Dieux terminés',GODS.filter(D=>(S.ch[D.id]||[]).length).length>=10],['⭐','Étoilé','un défi ★★',Object.values(S.ch||{}).flat().some(x=>x.lv===2)],
    ['🔇','Ninja','3 séances adaptées',st.adapted>=3],['📋','Bilan','bilan de départ',t.length>=1],['📈','Progrès','pompes en hausse',pushUp],
-   ['📏','−2 cm','tour de taille',dt>=2],['🎯','−5 cm','tour de taille',dt>=5]];}
+   ['📸','Miroir','1re analyse photo',!!S.bodyConsent],['📏','−2 cm','tour de taille',dt>=2],['🎯','−5 cm','tour de taille',dt>=5]];}
 
 /* ============ COACH IA (API Claude) ============ */
 const API_KEY_STORE='foulee_api';
@@ -1081,6 +1106,98 @@ function bilanCard(){const r=CO().review,k=getKey();
   else h+=`<p class="muted small">Le coach lit ta semaine (sorties Strava, séances, ressentis, charge, tour de taille) et te donne 3 ajustements concrets.</p>`;
   h+=k?`<button class="btn ai-b sm" onclick="genBilan()" ${bilanBusy?'disabled':''}>${bilanBusy?'Analyse en cours…':r?'↻ Nouveau bilan':'✨ Faire mon bilan'}</button> <button class="btn sm ghost" onclick="openCoach()">💬 En parler</button>`:`<button class="btn sm ghost" onclick="openSettings()">Ajouter ma clé API</button>`;
   return h+'</div>';}
+
+/* ============ PHOTOS CORPORELLES (stockées sur l'appareil, IndexedDB) ============ */
+const IDB={db:null,open(){if(this.db)return Promise.resolve(this.db);return new Promise((ok,ko)=>{const r=indexedDB.open('foulee',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos',{keyPath:'id'});};r.onsuccess=()=>{this.db=r.result;ok(this.db);};r.onerror=()=>ko(r.error);});},
+  async tx(mode,fn){const db=await this.open();return new Promise((ok,ko)=>{const t=db.transaction('photos',mode),st=t.objectStore('photos');let res;const q=fn(st);if(q)q.onsuccess=()=>{res=q.result;};t.oncomplete=()=>ok(res);t.onerror=()=>ko(t.error);});},
+  put(o){return this.tx('readwrite',st=>st.put(o));},get(id){return this.tx('readonly',st=>st.get(id));},all(){return this.tx('readonly',st=>st.getAll());},del(id){return this.tx('readwrite',st=>st.delete(id));}};
+const VIEWS=[['front','Face','Debout, pieds largeur de hanches, bras légèrement écartés du corps, regard droit.'],['side','Profil','Profil gauche, bras le long du corps, posture naturelle : ne rentre pas le ventre.'],['back','Dos','Dos à l’appareil, même position que de face.']];
+const GHOST={front:`<ellipse cx="30" cy="12" rx="4.6" ry="5.6"/><path d="M26 17.5 L21 20 Q17.5 21.5 17 26 L15.5 44 Q15.3 46 16.8 46 L18 45.5 L20 30 L21.5 30 L22 50 Q22 52 23 54 L23.5 76 Q23.6 88 24.5 94 L28 94 L29 66 L31 66 L32 94 L35.5 94 Q36.4 88 36.5 76 L37 54 Q38 52 38 50 L38.5 30 L40 30 L42 45.5 L43.2 46 Q44.7 46 44.5 44 L43 26 Q42.5 21.5 39 20 L34 17.5"/>`,
+ side:`<ellipse cx="30.5" cy="12" rx="4.3" ry="5.6"/><path d="M29 17.5 Q25.5 19.5 25.5 24 L25 34 Q24.5 42 26 50 L27 60 Q27.5 66 27 72 L27.5 90 L26 94 L33 94 L32 88 L33 70 Q34 62 33.5 56 L34.5 50 Q35.5 44 34.8 36 Q34 30 35 24 Q35 19.5 32 17.5"/><path d="M29 21 Q28 28 28.5 36 L29.5 46 L30.5 48"/>`};
+GHOST.back=GHOST.front;
+function ghostSvg(v){return `${GHOST[v]}<line x1="6" y1="5.5" x2="54" y2="5.5"/><line x1="6" y1="94.5" x2="54" y2="94.5"/><text x="6" y="4.6">haut de la tête</text><text x="6" y="97.6">pieds</text>`;}
+let CAM={stream:null,facing:'user',view:0,shots:{},timer:true,busy:false};
+async function openCam(){CAM={stream:null,facing:CAM.facing||'user',view:0,shots:{},timer:true,busy:false};$('#cam').classList.add('on');await startStream();camStep();}
+async function startStream(){stopStream();const v=$('#camVid');try{CAM.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:CAM.facing,width:{ideal:1080},height:{ideal:1920}},audio:false});v.srcObject=CAM.stream;v.classList.toggle('mir',CAM.facing==='user');await v.play().catch(()=>{});CAM.live=true;}
+  catch(e){CAM.live=false;}}
+function stopStream(){if(CAM.stream){CAM.stream.getTracks().forEach(t=>t.stop());CAM.stream=null;}}
+function closeCam(){stopStream();$('#cam').classList.remove('on');}
+function camStep(){const [k,lab,tip]=VIEWS[CAM.view],shot=CAM.shots[k];$('#camT').textContent=lab;$('#camS').textContent=`Photo ${CAM.view+1} / 3${k==='back'?' · facultative':''}`;$('#camGhost').innerHTML=ghostSvg(k);
+  $('#camTip').textContent=CAM.live?tip+' Cale ta tête et tes pieds sur les deux lignes.':'Caméra indisponible ici : touche « Prendre la photo » pour utiliser l’appareil photo de l’iPhone.';
+  $('#camShot').style.display=shot?'':'none';if(shot)$('#camShot').src=shot;$('#camVid').style.display=shot?'none':'';$('#camGhost').style.display=shot?'none':'';
+  $('#camBar').innerHTML=shot?`<button onclick="retake()">Reprendre</button><button style="background:var(--trail);color:#1A1214" onclick="nextView()">${CAM.view<2?'Valider ›':'Terminer'}</button>`
+    :`<button onclick="CAM.timer=!CAM.timer;camStep()">${CAM.timer?'⏱ 10 s':'⏱ Off'}</button><button class="snap" onclick="snap()" aria-label="Prendre la photo"></button>${CAM.live?`<button onclick="CAM.facing=CAM.facing==='user'?'environment':'user';startStream().then(camStep)">⟲</button>`:''}${k==='back'?'<button onclick="nextView(true)">Passer</button>':''}`;}
+function retake(){delete CAM.shots[VIEWS[CAM.view][0]];camStep();}
+async function snap(){if(CAM.busy)return;if(!CAM.live){const f=$('#camFile');f.onchange=()=>{const file=f.files[0];if(!file)return;const r=new FileReader();r.onload=async()=>{CAM.shots[VIEWS[CAM.view][0]]=await shrink(r.result,1280);f.value='';camStep();};r.readAsDataURL(file);};f.click();return;}
+  CAM.busy=true;if(CAM.timer){for(let s=10;s>0;s--){$('#camCd').textContent=s;if(s<=3)beep(880,.12);await new Promise(r=>setTimeout(r,1000));}$('#camCd').textContent='';}
+  const v=$('#camVid'),c=document.createElement('canvas'),W=v.videoWidth,H=v.videoHeight,sc=Math.min(1,1280/Math.max(W,H));c.width=Math.round(W*sc);c.height=Math.round(H*sc);const x=c.getContext('2d');if(CAM.facing==='user'){x.translate(c.width,0);x.scale(-1,1);}x.drawImage(v,0,0,c.width,c.height);
+  beep(1200,.15);CAM.shots[VIEWS[CAM.view][0]]=c.toDataURL('image/jpeg',.85);CAM.busy=false;camStep();}
+function shrink(src,max){return new Promise(ok=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.82));};im.onerror=()=>ok(src);im.src=src;});}
+async function nextView(skip){if(CAM.view<2&&!skip){CAM.view++;camStep();return;}
+  if(!CAM.shots.front||!CAM.shots.side){toast('Il faut au moins la face et le profil');CAM.view=CAM.shots.front?1:0;camStep();return;}
+  const rec={id:Date.now(),d:iso(new Date()),front:CAM.shots.front,side:CAM.shots.side,back:CAM.shots.back||null,an:null};
+  try{await IDB.put(rec);toast('Photos enregistrées sur ton iPhone');}catch(e){toast('Enregistrement impossible : '+e.message);}closeCam();fillBody();}
+
+/* ---------- analyse par le coach (vision) ---------- */
+const ZONES_B=['posture','épaules','pectoraux','dos','bras','sangle abdominale','fessiers','cuisses','mollets','équilibre gauche/droite'];
+const BODY_TOOL={name:'analyse_corporelle',strict:true,description:'Enregistre ton analyse des photos corporelles de l’utilisateur pour l’afficher dans l’appli. Appelle cet outil exactement une fois.',
+ input_schema:{type:'object',additionalProperties:false,required:['qualite_photos','resume','posture','points_forts','priorites','evolution','message'],properties:{
+  qualite_photos:{type:'string',description:'Les photos permettent-elles une analyse fiable ? Sinon, ce qu’il faut corriger (lumière, cadrage, tenue, distance).'},
+  resume:{type:'string',description:'2 à 3 phrases factuelles et bienveillantes'},
+  posture:{type:'array',items:{type:'object',additionalProperties:false,required:['zone','constat','impact'],properties:{zone:{type:'string'},constat:{type:'string'},impact:{type:'string',description:'conséquence possible en course ou en muscu'}}}},
+  points_forts:{type:'array',items:{type:'string'}},
+  priorites:{type:'array',description:'2 à 4 zones à travailler en priorité, de la plus importante à la moins importante',items:{type:'object',additionalProperties:false,required:['zone','pourquoi','exercices'],properties:{zone:{type:'string',enum:ZONES_B},pourquoi:{type:'string'},exercices:{type:'array',items:{type:'string'},description:'2 à 3 identifiants EXACTS pris dans la bibliothèque autorisée'}}}},
+  evolution:{type:'string',description:'Comparaison avec la séance photo précédente si fournie, sinon chaîne vide'},
+  message:{type:'string',description:'Une phrase d’encouragement centrée sur le progrès et la performance'}}}};
+const BODY_SYS=`Tu analyses des photos corporelles (face, profil, éventuellement dos) qu’un sportif adulte a prises lui-même pour orienter son entraînement de trail et de musculation.
+Règles : ton factuel, bienveillant et centré sur la fonction (posture, équilibre musculaire, besoins pour la course) ; aucun jugement esthétique, aucun commentaire sur l’attirance physique. Ne donne aucun pourcentage de graisse ni poids estimé : une photo ne permet pas de les mesurer de façon fiable. Aucun diagnostic médical : si quelque chose semble relever d’un professionnel (scoliose marquée, asymétrie importante), suggère simplement de consulter un kiné. Si les photos sont trop sombres, coupées ou trop différentes pour conclure, dis-le dans qualite_photos et reste prudent. Réponds en français.`;
+function dataPart(u){const m=u.match(/^data:(image\/[a-z]+);base64,(.*)$/);return m?{type:'image',source:{type:'base64',media_type:m[1],data:m[2]}}:null;}
+async function analyzeBody(id){if(!getKey()){openSettings();return;}
+  if(!S.bodyConsent){$('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">Envoyer les photos au coach ?</h2><button class="icbtn" onclick="closeSettings()">✕</button></div><p class="small">Pour l’analyse, tes photos sont envoyées à Anthropic (l’IA du coach) avec ton profil et tes mesures, comme les messages du chat. Elles restent par ailleurs stockées uniquement sur cet appareil.</p><button class="btn wide" onclick="S.bodyConsent=1;save();closeSettings();analyzeBody(${id})">J’accepte, lancer l’analyse</button>`;$('#sheet').classList.add('on');return;}
+  const all=(await IDB.all()).sort((a,b)=>a.id-b.id),cur=all.find(x=>x.id===id);if(!cur)return;const prev=all.filter(x=>x.id<id).pop();
+  BODYBUSY=id;fillBody();
+  try{const imgs=[];for(const [k,l] of [['front','Face'],['side','Profil'],['back','Dos']])if(cur[k]){imgs.push({type:'text',text:`Photo du ${cur.d} — ${l} :`});imgs.push(dataPart(await shrink(cur[k],900)));}
+    if(prev&&prev.front){imgs.push({type:'text',text:`Séance précédente (${prev.d}) — Face :`});imgs.push(dataPart(await shrink(prev.front,600)));if(prev.side){imgs.push({type:'text',text:'Séance précédente — Profil :'});imgs.push(dataPart(await shrink(prev.side,600)));}}
+    const c=CTX(),mp=MP(),lib=Object.keys(CUE).filter(x=>allowed(x,c,mp)).map(x=>`${x} = ${CUE[x][0]}`).join('\n');
+    imgs.push({type:'text',text:`Profil : ${JSON.stringify({objectif:GOALS[mp.goal][1],sports:'trail 15–35 km/sem + musculation kettlebell et poids du corps',mesures:[...S.mesures].sort((a,b)=>a.d<b.d?-1:1).slice(-4)})}
+Bibliothèque d’exercices autorisée (utilise UNIQUEMENT ces identifiants) :
+${lib}
+Analyse ces photos pour localiser les efforts à faire en priorité, puis enregistre le résultat avec l’outil analyse_corporelle.`});
+    const j=await claude({system:BODY_SYS,messages:[{role:'user',content:imgs.filter(Boolean)}],tools:[JSON.parse(JSON.stringify(BODY_TOOL))],max:8000});
+    const r=toolOf(j,'analyse_corporelle');if(!r||!Array.isArray(r.priorites))throw new Error('Analyse inexploitable, réessaie.');
+    const arr=x=>Array.isArray(x)?x:[];cur.an={d:iso(new Date()),qualite:String(r.qualite_photos||''),resume:String(r.resume||''),posture:arr(r.posture).map(p=>({zone:String(p.zone||''),constat:String(p.constat||''),impact:String(p.impact||'')})),
+      forts:arr(r.points_forts).map(String),prio:arr(r.priorites).map(p=>({zone:String(p.zone||''),pourquoi:String(p.pourquoi||''),ex:arr(p.exercices).filter(x=>CUE[x])})),evolution:String(r.evolution||''),message:String(r.message||'')};
+    await IDB.put(cur);toast('Analyse prête ✨');}
+  catch(e){toast(e.message);}
+  BODYBUSY=null;fillBody();}
+let BODYBUSY=null,BODYCMP=null;
+function applyFocus(id){IDB.get(id).then(cur=>{if(!cur||!cur.an)return;const ex=[...new Set(cur.an.prio.flatMap(p=>p.ex))].slice(0,5);if(!ex.length){toast('Aucun exercice à appliquer');return;}
+  S.focus={d:cur.d,zones:cur.an.prio.map(p=>p.zone),ex};save();renderAll();toast('Bloc ciblé ajouté au Programme 🎯');});}
+function focusObj(){const f=S.focus;if(!f)return null;const T=adaptSession({title:'Bloc ciblé',intro:`Issu de ton analyse photo du ${parseISO(f.d).toLocaleDateString('fr-FR')} : ${f.zones.join(', ')}. 3 tours, 40 s d’effort / 20 s de transition, à ajouter en fin de séance A, B ou C (2 à 3 fois par semaine).`,items:f.ex.map(id=>({id,p:'3 × 40 s'})),timer:{mode:'interval',work:40,rest:20,rounds:f.ex.length*3,prep:10}});
+  return {k:'focus_'+iso(new Date()),icon:'🎯',str:1,t:'Bloc ciblé · '+f.zones.slice(0,2).join(' & '),s:`${f.ex.length} exercices · ≈ ${Math.round(f.ex.length*3)} min`,x:exList(T)+`<button class="btn sm ghost" onclick="S.focus=null;save();renderAll()">Retirer le bloc ciblé</button>`,timer:{...T.timer,ex:T.items.map(i=>i.id)}};}
+async function fillBody(){const el=$('#bodyCard');if(!el)return;let all=[];try{all=(await IDB.all()).sort((a,b)=>b.id-a.id);}catch(e){el.innerHTML='<h2>📸 Analyse corporelle</h2><p class="muted small">Stockage photo indisponible sur ce navigateur.</p>';return;}
+  const k=getKey();let h=`<h2>📸 Analyse corporelle</h2>`;
+  if(!all.length){el.innerHTML=h+`<p class="muted small">Trois photos (face, profil, dos) prises toujours dans les mêmes conditions : le coach repère ta posture et ton équilibre musculaire, et en déduit les zones à travailler en priorité pour le trail et la muscu. Une séance par mois suffit pour suivre l’évolution.</p><p class="note">Les photos restent sur cet iPhone. Elles ne sont envoyées au coach que lorsque tu lances une analyse.</p><button class="btn sm" onclick="openCam()">📸 Prendre mes photos</button>`;return;}
+  const cur=all[0],img=(s,l)=>`<div>${s?`<img src="${s}" alt="${l}">`:'—'}<span>${l}</span></div>`;
+  h+=`<p class="note" style="margin:-6px 0 10px">Dernière séance : ${parseISO(cur.d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})} · ${all.length} séance${all.length>1?'s':''} au total</p><div class="bph">${img(cur.front,'Face')}${img(cur.side,'Profil')}${img(cur.back,'Dos')}</div>`;
+  if(cur.an){const a=cur.an;h+=`<div style="margin-top:14px"><p class="small">${esc(a.resume)}</p>${a.qualite?`<p class="note">📷 ${esc(a.qualite)}</p>`:''}
+    ${a.prio.length?`<div class="qlab">Zones à travailler en priorité</div>${a.prio.map((p,i)=>`<div class="zone"><div class="n">${i+1}</div><div><b>${esc(p.zone.charAt(0).toUpperCase()+p.zone.slice(1))}</b><span class="small">${esc(p.pourquoi)}</span>${p.ex.length?`<div class="small muted" style="margin-top:4px">${p.ex.map(x=>`<span class="exl" onclick="openEx('${x}')">${CUE[x][0]}</span>`).join(' · ')}</div>`:''}</div></div>`).join('')}`:''}
+    ${a.posture.length?`<div class="qlab">Posture</div><ul class="small rv">${a.posture.map(p=>`<li><b>${esc(p.zone)}</b> : ${esc(p.constat)} <span class="muted">${esc(p.impact)}</span></li>`).join('')}</ul>`:''}
+    ${a.forts.length?`<div class="qlab">Points forts</div><ul class="small rv">${a.forts.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${a.evolution?`<div class="qlab">Évolution</div><p class="small">${esc(a.evolution)}</p>`:''}${a.message?`<p class="small"><i>${esc(a.message)}</i></p>`:''}
+    <button class="btn sm" onclick="applyFocus(${cur.id})">🎯 Ajouter un bloc ciblé au programme</button></div>`;}
+  else h+=k?`<button class="btn ai-b sm" ${BODYBUSY?'disabled':''} onclick="analyzeBody(${cur.id})">${BODYBUSY===cur.id?'Analyse en cours… (≈ 30 s)':'✨ Analyser avec le coach'}</button>`:`<button class="btn sm ghost" onclick="openSettings()">Activer le coach (clé API) pour l’analyse</button>`;
+  h+=`<div class="row" style="margin-top:12px"><button class="btn sm ghost" style="margin:0" onclick="openCam()">📸 Nouvelle séance photo</button>${all.length>1?`<button class="btn sm ghost" style="margin:0" onclick="BODYCMP=BODYCMP?null:{v:'front',a:${all[all.length-1].id},b:${cur.id}};fillBody()">${BODYCMP?'Fermer la comparaison':'Comparer avant / après'}</button>`:''}<button class="btn sm ghost" style="margin:0" onclick="delBody(${cur.id})">Supprimer</button></div>`;
+  if(BODYCMP&&all.length>1){const A=all.find(x=>x.id===BODYCMP.a)||all[all.length-1],B=all.find(x=>x.id===BODYCMP.b)||cur,opt=sel=>all.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${parseISO(x.d).toLocaleDateString('fr-FR')}</option>`).join('');
+    h+=`<div style="margin-top:14px"><div class="chips" style="margin-bottom:8px">${[['front','Face'],['side','Profil'],['back','Dos']].map(([v,l])=>`<button class="chip sm ${BODYCMP.v===v?'on':''}" onclick="BODYCMP.v='${v}';fillBody()">${l}</button>`).join('')}</div>
+    <div class="f2" style="margin-bottom:8px"><select onchange="BODYCMP.a=+this.value;fillBody()">${opt(A.id)}</select><select onchange="BODYCMP.b=+this.value;fillBody()">${opt(B.id)}</select></div>
+    <div class="cmp2"><div>${A[BODYCMP.v]?`<img src="${A[BODYCMP.v]}" alt="">`:''}<span>${parseISO(A.d).toLocaleDateString('fr-FR')}</span></div><div>${B[BODYCMP.v]?`<img src="${B[BODYCMP.v]}" alt="">`:''}<span>${parseISO(B.d).toLocaleDateString('fr-FR')}</span></div></div></div>`;}
+  el.innerHTML=h;}
+async function delBody(id){if(!confirm('Supprimer définitivement cette séance photo de l’iPhone ?'))return;await IDB.del(id);BODYCMP=null;fillBody();toast('Photos supprimées');}
+
+/* ---------- composition corporelle (balance) ---------- */
+function compo(){const ms=[...S.mesures].filter(m=>m.p&&m.f).sort((a,b)=>a.d<b.d?-1:1);if(!ms.length)return null;const L=ms[ms.length-1],fk=m=>m.p*m.f/100,lk=m=>m.p-fk(m);
+  const ref=[...ms].reverse().find(m=>(parseISO(L.d)-parseISO(m.d))/DAY>=21)||ms[0];return {L,ref,fat:fk(L),lean:lk(L),dFat:ref!==L?fk(L)-fk(ref):null,dLean:ref!==L?lk(L)-lk(ref):null,days:Math.round((parseISO(L.d)-parseISO(ref.d))/DAY),ms};}
 
 /* ============ FORME DU JOUR & SÉRIE ============ */
 const RPE_FB={1:4,2:6,3:7,4:9};
@@ -1424,12 +1541,13 @@ function renderRenfo(){
   let h=`<div class="wsel"><button class="icbtn" onclick="shiftWeek(-1)">‹</button><div style="text-align:center"><b>Semaine ${w+1} / 12</b><div class="muted small">Phase ${ph.n} · KB ${ph.kb}</div></div><button class="icbtn" onclick="shiftWeek(1)">›</button></div>`;
   h+=`<div class="card"><h2>${ph.n}</h2>${ctxChips().length?`<div class="chips" style="margin-bottom:8px">${ctxChips().map(x=>`<span class="chip sm on">${x}</span>`).join('')}<button class="chip sm" onclick="openCtx()">Modifier</button></div>`:`<button class="btn sm ghost" style="margin:0 0 8px" onclick="openCtx()">⚙ Adapter les séances (bruit, espace, matériel, durée, douleurs)</button>`}<p class="muted small">${ph.d} Les jours se règlent dans <a href="#" onclick="setMod('cross');return false">Cross-training</a>, qui évite les conflits avec tes sorties.</p>`;
   for(const k of ['A','B','C'].sort((x,y)=>sd[x]-sd[y]))h+=`<div class="muted small" style="margin-top:12px">${JOURSL[sd[k]]}</div>`+sessCard(strObj(w,k));
+  {const fo=focusObj();if(fo)h+=`<div class="muted small" style="margin-top:12px">Bloc ciblé (analyse photo)</div>`+sessCard(fo);}
   h+=`<div class="muted small" style="margin-top:12px">Bonus (n’importe quel jour)</div><div class="sess str"><div class="sh"><div class="si">🔥</div><div class="st"><b>${ABS.title}</b><small>Hollow, dead bug, gainage, roue, climbers</small></div></div><details><summary>Détails de la séance</summary><div class="sx">${exList(adaptSession(ABS))}</div></details><button class="btn sm ghost" onclick='useTimer(${JSON.stringify({...adaptSession(ABS).timer,ex:adaptSession(ABS).items.map(i=>i.id)})})'>⏱ Lancer le chrono</button></div></div>`;
   $('[data-page=renfo]').innerHTML=h;
 }
 function renderSuivi(){
   const n=nutri(),st=muscuStats(),mp=MP(),B=badges(st);
-  let h=levelCard(st,false);
+  let h=levelCard(st,false)+'<div class="card" id="bodyCard"><h2>📸 Analyse corporelle</h2><p class="muted small">Chargement…</p></div>';
   h+=`<div class="card"><h2>Badges · ${B.filter(b=>b[3]).length}/${B.length}</h2><div class="badges">${B.map(([e,t,s,ok])=>`<div class="bdg ${ok?'':'off'}"><span>${e}</span><b>${t}</b><div class="muted">${s}</div></div>`).join('')}</div></div>`;
   const avg=(()=>{const r=st.fb.map(k=>S.fb[k]).filter(o=>o.d5&&(new Date()-parseISO(o.d))/DAY<28);return r.length?(r.reduce((s,o)=>s+o.d5,0)/r.length).toFixed(1):'–';})();
   h+=`<div class="card"><h2>Volume d’entraînement</h2><div class="grid"><div class="stat"><b>${st.done.length}</b><small>séances muscu</small></div><div class="stat"><b>${st.defs.length}</b><small>défis terminés</small></div><div class="stat"><b>${fmtDur(st.effort)}</b><small>temps d’effort cumulé</small></div><div class="stat"><b>${avg}</b><small>difficulté moy. 28 j (/5)</small></div></div></div>`;
@@ -1442,13 +1560,18 @@ function renderSuivi(){
    <ul class="small" style="padding-left:18px"><li>${n.off<0?`Déficit modéré (~400 kcal sous ta dépense estimée de ${n.tdee} kcal) : tu perds du gras sans sacrifier le muscle ni tes séances.`:n.off>0?`Léger surplus (+250 kcal sur ta dépense estimée de ${n.tdee} kcal) : du muscle, sans trop de gras.`:`Maintien autour de ta dépense estimée (${n.tdee} kcal). Passe en objectif « Sèche » pour viser le ventre.`}</li><li>Protéines à chaque repas (œufs, poisson, viande, skyr, légumineuses).</li><li>Jour de sortie longue ou de séance dure : +200 à 300 kcal de glucides.</li><li>Rythme visé : 0,25 à 0,5 kg par semaine. Plus vite = muscle perdu.</li><li>7 h de sommeil et 8 000 pas par jour pèsent autant que l’entraînement.</li></ul>
    <p class="note">Estimation à partir de ton profil (réglages ⚙︎). Ajuste selon l’évolution du tour de taille sur 3 semaines.</p></div>`;
   const ms=[...S.mesures].sort((x,y)=>x.d<y.d?-1:1);
-  h+=`<div class="card"><h2>Tour de taille & poids</h2><p class="note">Chaque semaine, même jour, le matin à jeun, mètre ruban au niveau du nombril.</p><div class="f2"><input type="number" step="0.1" inputmode="decimal" id="m_tour" placeholder="Tour (cm)"><input type="number" step="0.1" inputmode="decimal" id="m_poids" placeholder="Poids (kg)"></div><button class="btn sm wide" onclick="addMes()">Ajouter la mesure du jour</button>`;
+  h+=`<div class="card"><h2>Mesures & composition</h2><p class="note">Chaque semaine, même jour, le matin à jeun, après être passé aux toilettes. Balance à impédance : pieds nus et secs, jamais après le sport ou un repas (l’hydratation fausse le % de gras de 1 à 3 points).</p><div class="f2"><input type="number" step="0.1" inputmode="decimal" id="m_tour" placeholder="Tour de taille (cm)"><input type="number" step="0.1" inputmode="decimal" id="m_poids" placeholder="Poids (kg)"><input type="number" step="0.1" inputmode="decimal" id="m_fat" placeholder="% de graisse (balance)"><input type="number" step="0.1" inputmode="decimal" id="m_mus" placeholder="Masse musculaire (kg)"></div><button class="btn sm wide" onclick="addMes()">Ajouter la mesure du jour</button>`;
   if(ms.length){const tp=ms.filter(m=>m.t).map(m=>[parseISO(m.d).getTime(),m.t]);h+=`<h3>Tour de taille</h3>${lineChart(tp,'var(--acc)')}`;
     if(tp.length>=2)h+=`<p class="small"><b>${(tp[tp.length-1][1]-tp[0][1]).toFixed(1)} cm</b> depuis le ${parseISO(ms.find(m=>m.t).d).toLocaleDateString('fr-FR')}</p>`;
     const pp=ms.filter(m=>m.p).map(m=>[parseISO(m.d).getTime(),m.p]);if(pp.length>=2)h+=`<h3>Poids</h3>${lineChart(pp,'var(--blue)')}`;
-    h+=ms.slice(-6).reverse().map(m=>`<div class="mes"><span>${parseISO(m.d).toLocaleDateString('fr-FR')}</span><span>${m.t?m.t+' cm':''} ${m.p?'· '+m.p+' kg':''} <a href="#" onclick="delMes('${m.d}');return false" class="muted">✕</a></span></div>`).join('');}
+    const C=compo();if(C){h+=`<h3>Composition</h3><div class="grid"><div class="stat"><b>${C.L.f.toFixed(1)} %</b><small>graisse</small></div><div class="stat"><b>${C.fat.toFixed(1)} kg</b><small>masse grasse</small></div><div class="stat"><b>${C.lean.toFixed(1)} kg</b><small>masse maigre</small></div><div class="stat"><b>${C.L.mu?C.L.mu.toFixed(1)+' kg':'–'}</b><small>muscle (balance)</small></div></div>`;
+      if(C.dFat!=null){const df=C.dFat,dl=C.dLean,msg=df<-.2&&dl>=-.3?'Recomposition idéale : tu perds du gras en gardant ton muscle.':df<-.2&&dl<-.5?'Tu perds du gras mais aussi du muscle : remonte les protéines et ne creuse pas plus le déficit.':df>.3&&dl>.3?'Tu prends du muscle et un peu de gras : normal en prise de muscle, surveille le tour de taille.':df>.3?'La masse grasse remonte : vérifie les apports et la régularité des séances.':'Composition stable sur la période.';
+        h+=`<div class="ins ${df<-.2&&dl>=-.3?'ok':df>.3&&dl<=.3?'warn':'tip'}" style="margin-top:10px"><b>Sur ${C.days} jours : ${sgn(df,v=>v.toFixed(1)+' kg')} de gras, ${sgn(dl,v=>v.toFixed(1)+' kg')} de masse maigre</b>${msg}</div>`;}
+      const fp=C.ms.map(m=>[parseISO(m.d).getTime(),m.f]);if(fp.length>=2)h+=`<h3>% de graisse</h3>${lineChart(fp,'var(--trail)')}`;
+      h+=`<p class="note">Une balance à impédance donne une tendance, pas une mesure exacte : regarde l’évolution sur 3 à 4 semaines, pas une pesée isolée.</p>`;}
+    h+=ms.slice(-6).reverse().map(m=>`<div class="mes" style="gap:12px"><span style="flex:0 0 auto">${parseISO(m.d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span><span style="text-align:right">${[m.t&&m.t+' cm',m.p&&m.p+' kg',m.f&&m.f+' %'].filter(Boolean).join(' · ')}${m.mu?' · '+m.mu+' kg muscle':''} <a href="#" onclick="delMes('${m.d}');return false" class="muted">✕</a></span></div>`).join('');}
   h+=`</div></div>`;
-  $('[data-page=suivi]').innerHTML=h;
+  $('[data-page=suivi]').innerHTML=h;fillBody();
 }
 
 /* ============ CROSS-TRAINING : le pont ============ */
@@ -1501,8 +1624,8 @@ function renderForme(){
    <p class="small">Ratio 7 j / 28 j : <b>0,8 à 1,3</b> = zone de progression. Au-dessus de 1,5, le risque de blessure grimpe : allège la muscu jambes en priorité, garde la sortie longue.</p></div>`;
   $('[data-page=forme]').innerHTML=h;
 }
-function nutri(){const s=S.settings,g=MP().goal,bmr=10*s.poids+6.25*s.taille-5*s.age+(s.sexe==='f'?-161:5),tdee=bmr*1.6,off={seche:-400,masse:250,fonc:0,endurance:0}[g];return {tdee:Math.round(tdee/10)*10,target:Math.round((tdee+off)/50)*50,prot:Math.round(s.poids*(g==='masse'?2:1.8)),off,goal:g};}
-function addMes(){const t=parseFloat($('#m_tour').value),p=parseFloat($('#m_poids').value);if(!t&&!p){toast('Saisis au moins une valeur');return;}const d=iso(new Date());S.mesures=S.mesures.filter(m=>m.d!==d);S.mesures.push({d,t:t||null,p:p||null});if(p){S.settings.poids=p;}save();renderSuivi();renderMuscuHome();toast('Mesure enregistrée');}
+function nutri(){const s=S.settings,g=MP().goal,lf=[...S.mesures].filter(m=>m.f&&m.p).sort((a,b)=>a.d<b.d?-1:1).pop(),bmr=lf?370+21.6*lf.p*(1-lf.f/100):10*s.poids+6.25*s.taille-5*s.age+(s.sexe==='f'?-161:5),tdee=bmr*1.6,off={seche:-400,masse:250,fonc:0,endurance:0}[g];return {tdee:Math.round(tdee/10)*10,target:Math.round((tdee+off)/50)*50,prot:Math.round(s.poids*(g==='masse'?2:1.8)),off,goal:g};}
+function addMes(){const t=parseFloat($('#m_tour').value),p=parseFloat($('#m_poids').value),f=parseFloat($('#m_fat').value),mu=parseFloat($('#m_mus').value);if(!t&&!p&&!f){toast('Saisis au moins une valeur');return;}if(f&&(f<3||f>60)){toast('% de graisse invalide');return;}const d=iso(new Date());S.mesures=S.mesures.filter(m=>m.d!==d);S.mesures.push({d,t:t||null,p:p||null,f:f||null,mu:mu||null});if(p){S.settings.poids=p;}save();renderSuivi();renderMuscuHome();toast('Mesure enregistrée');}
 function delMes(d){S.mesures=S.mesures.filter(m=>m.d!==d);save();renderSuivi();renderMuscuHome();}
 function shiftWeek(x){viewWeek=Math.max(0,Math.min(11,viewWeek+x));renderPlan();renderRenfo();}
 function renderAll(){A=null;renderTrailHome();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderForme();}
