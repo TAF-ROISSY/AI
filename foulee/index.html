@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Foulée">
 <meta name="theme-color" content="#0e1116">
 <title>Foulée</title>
-<link rel="apple-touch-icon" id="touchIcon">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--bg:#0e1116;--card:#171b22;--card2:#1f252e;--line:#2a313c;--tx:#e9edf2;--mut:#8b95a3;--acc:#c6f432;--acc2:#ff8a4c;--blue:#4fb3ff;--red:#ff5d6c;--ok:#4ade80;--r:16px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -141,6 +143,12 @@ code{background:var(--card2);padding:2px 6px;border-radius:6px;font-size:13px;wo
 .rpl{color:var(--blue);font-size:12px}
 .tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl td,.tbl th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right}.tbl th{color:var(--mut);font-weight:600}.tbl td:first-child,.tbl th:first-child{text-align:left}
 .up{color:var(--ok)}.dn{color:var(--acc2)}
+#inst{max-width:920px;margin:12px auto 0;padding:0 16px;display:none}#inst.on{display:block}
+#inst .card{border:1px solid #c6f432;background:linear-gradient(135deg,rgba(198,244,50,.12),rgba(255,138,76,.06));margin:0}
+.istep{display:flex;gap:12px;align-items:center;margin-top:10px;font-size:15px}
+.istep b.n{flex:0 0 28px;height:28px;border-radius:50%;background:#c6f432;color:#111;display:flex;align-items:center;justify-content:center}
+.ishare{display:inline-flex;vertical-align:-4px}
+.ver{color:var(--mut);font-size:11px;text-align:center;margin-top:8px}
 #coach{position:fixed;inset:0;z-index:55;background:var(--bg);display:none;flex-direction:column}
 #coach.on{display:flex}
 .ch-h{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
@@ -191,6 +199,11 @@ body[data-mod=cross] .modseg button.on{color:#4fb3ff}
   <div class="seg modseg" id="modSeg"><button data-mod="trail">🏃 Trail</button><button data-mod="muscu">🏋️ Muscu</button><button data-mod="cross">🔀 Cross</button></div>
 </header>
 
+<div id="inst"><div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><h2 style="margin:0">📲 Installe Foulée sur ton iPhone</h2><button class="icbtn" style="width:32px;height:32px;font-size:14px" onclick="hideInstall()">✕</button></div>
+<div class="istep"><b class="n">1</b><span>Touche <b>Partager</b> <span class="ishare"><svg width="20" height="22" viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15V2M5 7l5-5 5 5M4 11H2v11h16V11h-2"/></svg></span> dans la barre de Safari</span></div>
+<div class="istep"><b class="n">2</b><span>Fais défiler et choisis <b>« Sur l’écran d’accueil »</b></span></div>
+<div class="istep"><b class="n">3</b><span>Touche <b>Ajouter</b>, puis ouvre Foulée depuis son icône</span></div>
+<p class="note" style="margin-top:12px">L’appli installée s’ouvre en plein écran et marche hors ligne. Elle a sa propre mémoire : fais tes réglages (Strava, clé du coach) <b>depuis l’icône</b>, pas dans Safari.</p></div></div>
 <main>
   <section class="page on" data-page="trail"></section>
   <section class="page" data-page="analyse"></section>
@@ -269,6 +282,13 @@ function fmtDur(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%360
 const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
+/* ============ INSTALLATION (PWA) ============ */
+const APP_VER='5.1';
+const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
+function hideInstall(){$('#inst').classList.remove('on');try{localStorage.setItem('foulee_inst_off','1');}catch(e){}}
+
 /* ============ STRAVA ============ */
 const REDIRECT=()=>location.origin+location.pathname;
 function stravaConnect(){
@@ -289,9 +309,22 @@ async function handleOAuth(){
   history.replaceState(null,'',REDIRECT());
   if(p.get('error')){toast('Connexion Strava refusée');return;}
   if(!(p.get('scope')||'').includes('activity:read')){toast('Autorise l’accès aux activités sur l’écran Strava');return;}
-  try{await tokenReq({code:p.get('code'),grant_type:'authorization_code'});S.demo=false;S.activities=[];save();toast('Strava connecté ✓');await syncStrava();}
+  if(!isStandalone()&&isIOS()&&(!S.settings.clientId||!S.settings.clientSecret)){linkSheet('C:'+p.get('code'),'Code valable quelques minutes : colle-le vite dans l’appli installée.');return;}
+  try{await tokenReq({code:p.get('code'),grant_type:'authorization_code'});S.demo=false;S.activities=[];save();toast('Strava connecté ✓');await syncStrava();
+    if(!isStandalone()&&isIOS())linkSheet('R:'+S.tokens.refresh,'Ce code relie durablement l’appli installée à ton compte Strava.');}
   catch(e){toast('Échec connexion : '+e.message);}
 }
+function linkSheet(code,sub){$('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">Strava autorisé ✓</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <p class="small">Tu es revenu dans <b>Safari</b>, pas dans l’appli installée (sur iPhone, elles ne partagent pas leurs données). Pour finir :</p>
+  <ol class="steps"><li>Copie ce code de liaison</li><li>Ouvre Foulée depuis son icône › ⚙︎ › Strava › <b>Code de liaison</b> › colle › <b>Lier</b></li></ol>
+  <input id="lnk" readonly value="${esc(code)}" onclick="this.select()"><button class="btn wide" style="margin-top:10px" onclick="copyLink()">📋 Copier le code</button><p class="note">${sub}</p>`;$('#sheet').classList.add('on');}
+function copyLink(){const i=$('#lnk');i.select();(navigator.clipboard?navigator.clipboard.writeText(i.value):Promise.reject()).then(()=>toast('Code copié'),()=>{document.execCommand('copy');toast('Code copié');});}
+async function linkStrava(){const v=($('#s_link').value||'').trim();if(!/^[CR]:.+/.test(v)){toast('Code de liaison invalide');return;}
+  const s=S.settings;s.clientId=$('#s_cid').value.trim()||s.clientId;s.clientSecret=$('#s_sec').value.trim()||s.clientSecret;save();
+  if(!s.clientId||!s.clientSecret){toast('Renseigne d’abord Client ID et Secret');return;}
+  try{if(v[0]==='C')await tokenReq({code:v.slice(2),grant_type:'authorization_code'});else await tokenReq({grant_type:'refresh_token',refresh_token:v.slice(2)});
+    S.demo=false;S.activities=[];save();closeSettings();toast('Strava connecté ✓');await syncStrava();}
+  catch(e){toast('Liaison impossible : '+e.message+(v[0]==='C'?' (code expiré ? recommence la connexion)':''));}}
 async function token(){
   if(!S.tokens)throw new Error('Strava non connecté');
   if(Date.now()/1000>S.tokens.exp-120)await tokenReq({grant_type:'refresh_token',refresh_token:S.tokens.refresh});
@@ -969,6 +1002,7 @@ function openSettings(){const s=S.settings;
    <ol class="steps"><li>Sur ordinateur ou Safari : <b>strava.com/settings/api</b> → crée une application (nom libre, catégorie « Training », site : l’adresse de cette page).</li><li><b>Authorization Callback Domain</b> : <code>${esc(location.hostname||'ton-domaine')}</code></li><li>Copie le Client ID et le Client Secret ci-dessous, enregistre, puis « Connecter ».</li></ol>
    <div class="form"><label>Client ID</label><input id="s_cid" inputmode="numeric" value="${esc(s.clientId)}"><label>Client Secret</label><input id="s_sec" type="password" value="${esc(s.clientSecret)}"></div>
    <p class="note">Ces identifiants restent dans ton appareil. Héberge la page sur ton GitHub Pages (comme tes applis TAF) : la connexion OAuth ne marche pas depuis un fichier ouvert en local.</p>
+   <details style="margin:4px 0 10px"><summary>Code de liaison (si la connexion s’est terminée dans Safari)</summary><div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="s_link" placeholder="C:… ou R:…" autocomplete="off"><button class="btn ghost" onclick="linkStrava()">Lier</button></div></details>
    <div class="row"><button class="btn" onclick="saveSettings(true)">${S.tokens?'Reconnecter':'Connecter Strava'}</button>${S.tokens?'<button class="btn ghost" onclick="disconnect()">Déconnecter</button>':''}<button class="btn ghost" onclick="loadDemo()">Démo</button></div></div>
   <div class="card"><h2>🧑‍🏫 Coach IA (Claude)</h2>
    <p class="muted small">Ta clé API Anthropic (console.anthropic.com › API Keys). Elle est stockée <b>uniquement sur cet appareil</b> : jamais dans le code, ni sur GitHub, ni dans les exports.</p>
@@ -982,7 +1016,8 @@ function openSettings(){const s=S.settings;
    <div class="form"><label>Début du plan (un lundi)</label><input id="s_start" type="date" value="${esc(s.start)}"></div>
    <p class="note">Volume de base vide = calculé automatiquement sur tes 4 dernières semaines Strava.</p>
    <button class="btn wide" onclick="saveSettings(false)">Enregistrer</button></div>
-  <div class="card"><h2>Données</h2><div class="row"><button class="btn ghost" onclick="exportData()">Exporter</button><label class="btn ghost" style="cursor:pointer">Importer<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label><button class="btn ghost" onclick="newCycle()">Nouveau cycle</button></div></div>`;
+  <div class="card"><h2>Données</h2><div class="row"><button class="btn ghost" onclick="exportData()">Exporter</button><label class="btn ghost" style="cursor:pointer">Importer<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label><button class="btn ghost" onclick="newCycle()">Nouveau cycle</button></div></div>
+  ${isStandalone()?'':'<button class="btn wide" onclick="showInstall(true)">📲 Installer sur l’iPhone</button>'}<div class="ver">Foulée v${APP_VER}${isStandalone()?' · appli installée':''}</div>`;
   $('#sheet').classList.add('on');}
 function saveCoachKey(){const k=$('#s_key').value.trim();if(k)setKey(k);CO().model=$('#s_model').value;save();$('#keyMsg').textContent=k?'Clé enregistrée sur cet appareil.':'Modèle enregistré.';$('#s_key').value='';}
 async function testCoach(){saveCoachKey();$('#keyMsg').textContent='Test en cours…';try{const j=await claude({system:'Réponds en français, en une phrase courte.',messages:[{role:'user',content:'Dis bonjour à ton nouvel athlète.'}],max:300});$('#keyMsg').textContent='✅ '+textOf(j);}catch(e){$('#keyMsg').textContent='❌ '+e.message;}}
@@ -1090,9 +1125,9 @@ function showTab(t){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
-(function icon(){try{const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');x.fillStyle='#0e1116';x.fillRect(0,0,180,180);x.strokeStyle='#c6f432';x.lineWidth=16;x.lineCap='round';x.lineJoin='round';x.beginPath();x.moveTo(28,135);x.lineTo(68,72);x.lineTo(96,108);x.lineTo(152,40);x.stroke();x.fillStyle='#ff8a4c';x.beginPath();x.arc(152,40,12,0,7);x.fill();document.getElementById('touchIcon').href=c.toDataURL('image/png');}catch(e){}})();
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-initChrono();renderAll();
+initChrono();renderAll();showInstall(false);
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 $('#chatSend').onclick=()=>sendChat($('#chatIn').value);
 $('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!/iPhone|iPad|Android/.test(navigator.userAgent)){e.preventDefault();sendChat($('#chatIn').value);}});
 $('#chatIn').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(120,e.target.scrollHeight)+'px';});
