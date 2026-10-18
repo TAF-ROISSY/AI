@@ -1,5 +1,5 @@
 // Foulée — service worker : appli disponible hors ligne, mises à jour récupérées en arrière-plan.
-const CACHE = 'foulee-v5.3';
+const CACHE = 'foulee-v5.4';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
