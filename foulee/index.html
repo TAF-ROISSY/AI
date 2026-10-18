@@ -408,6 +408,32 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 .danger{color:#F47C8A!important;border-color:rgba(244,124,138,.45)!important}
 .hmsg{background:rgba(255,255,255,.035);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:14px}.hmsg.u{background:color-mix(in srgb,var(--glacier) 10%,transparent)}.hmsg .hm{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--mut);margin-bottom:4px}.hmsg .hm button{background:none;border:1px solid rgba(255,255,255,.15);color:inherit;border-radius:8px;padding:2px 8px;font-size:12px}
 .lgset input[type=number].kgi{width:100%}
+/* --- v6.5 : mise en ordre --- */
+.card{margin-bottom:12px}
+.card>p.muted.small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.card>p.muted.small.open{display:block;-webkit-line-clamp:unset}
+.hi{display:inline-flex;align-items:center;justify-content:center;width:1.6em;height:1.6em;border-radius:.5em;background:color-mix(in srgb,var(--acc) 14%,transparent);font-size:.78em;margin-right:.5em;vertical-align:.12em;line-height:1;font-family:system-ui}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--tx);font-weight:inherit;font-size:inherit}
+details.fold>summary::before,details.fold[open]>summary::before{content:none}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:'';flex:0 0 auto;width:8px;height:8px;margin:0 4px 0 auto;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);transform:rotate(45deg);transition:transform .2s}
+details.fold[open]>summary::after{transform:rotate(-135deg)}
+details.fold>summary h2{margin:0!important}
+details.fold[open]>summary{margin-bottom:12px}
+details.fold>summary .fsub{font-size:13px;color:var(--mut);margin-top:3px}
+.sacts{display:flex;align-items:center;gap:6px;margin-top:10px}.sacts .btn.sm{margin:0}.sacts .sp{flex:1}
+.ib{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:16px;display:inline-flex;align-items:center;justify-content:center;color:var(--tx);padding:0;flex:0 0 auto}
+.ib.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+.sess details>summary{font-size:13px}
+.banner{display:flex;align-items:center;gap:12px;padding:14px 16px}.banner .bi{font-size:22px}.banner b{display:block;font-size:15px}
+.pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);white-space:nowrap}.pill.ok{color:#6FD3A5}.pill.tip{color:#E5B85C}.pill.warn{color:#F47C8A}
+.skc>summary .skh{flex:1;align-items:center}.skc>summary .dots{margin:8px 0 0}.skc>summary .muted.small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pinb{flex:0 0 auto;width:36px;height:36px;border-radius:11px;border:1px solid var(--line);background:none;font-size:15px;filter:grayscale(1);opacity:.55}.pinb.on{filter:none;opacity:1;border-color:var(--muscu);background:color-mix(in srgb,var(--muscu) 14%,transparent)}
+.dfs{flex:1;min-width:0}.dfs .muted.small{margin-top:3px}
+#fab{position:fixed;right:18px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:21;width:54px;height:54px;border-radius:18px;border:0;background:var(--acc);color:#1A1214;box-shadow:0 10px 28px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+#fab svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+body[data-tab=chrono] #hdChrono{color:var(--acc);border-color:var(--acc)}
+.bmore>summary{font-size:13px;color:var(--acc);font-weight:600;cursor:pointer;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -415,7 +441,7 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 <header>
   <div><h1>FOUL<span>É</span>E</h1><div class="sub" id="modSub">Trail</div></div>
   <div class="sp"></div>
-  <button class="icbtn" onclick="openCoach()" aria-label="Coach" style="margin-right:6px">💬</button><button class="icbtn" onclick="openSettings()" aria-label="Réglages">⚙︎</button>
+  <button class="icbtn" id="hdChrono" onclick="showTab('chrono')" aria-label="Chrono" style="margin-right:6px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg></button><button class="icbtn" onclick="openCoach()" aria-label="Coach" style="margin-right:6px">💬</button><button class="icbtn" onclick="openSettings()" aria-label="Réglages">⚙︎</button>
   <div class="seg modseg" id="modSeg"><button data-mod="trail">Trail</button><button data-mod="muscu">Muscu</button><button data-mod="cross">Cross-training</button></div>
 </header>
 
@@ -466,6 +492,7 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 
 <nav class="tabs" id="tabs"></nav>
 
+
 <div class="sheet" id="sheet" onclick="if(event.target===this)closeSettings()"><div id="sheetBody"></div></div>
 <div id="coach"><div class="ch-h"><span style="font-size:24px">🧑‍🏫</span><h2>Coach Foulée<div class="muted small" style="font-weight:400" id="coachSub">Trail · Muscu · Cross</div></h2><button class="icbtn" onclick="openCoachHist('chat')" aria-label="Historique du coach" style="margin-right:6px">🕘</button><button class="icbtn" onclick="clearChat()" aria-label="Effacer" style="margin-right:6px">🗑</button><button class="icbtn" onclick="closeCoach()" aria-label="Fermer">✕</button></div>
 <div class="ch-m" id="chatBox"></div>
@@ -511,7 +538,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.4';
+const APP_VER='6.5';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1520,10 +1547,10 @@ function skS(id){S.skills=S.skills||{};return S.skills[id]=S.skills[id]||{st:0,p
 const skTxt=(x)=>x[2]==='hold'?`${x[4]} × ${x[3]} s`:`${x[4]} × ${x[3]}${x[5]||''}`;
 function skOk(sk,i){const s=skS(sk.id),x=sk.st[i],days=new Set(s.log.filter(l=>l.st===i&&l.v.length>=x[4]&&l.v.slice(0,x[4]).every(v=>v>=x[3])&&(l.q==null||l.q>=6)).map(l=>l.d));return days.size+(s.vid.includes(i)?1:0);}
 const skLocked=sk=>sk.eq==='bar'&&!(MP().equip.bar||MP().equip.rings);
-let skCat='all';
+let skCat='all',skOpen={};
 function skCard(sk){const s=skS(sk.id),i=Math.min(s.st,sk.st.length-1),x=sk.st[i],done=s.st>=sk.st.length,lock=skLocked(sk),c=CTX(),pain=c.pains.filter(z=>(' '+sk.z+' ').includes(' '+z+' ')),last=[...s.log].reverse().find(l=>l.st===i),ok=skOk(sk,i);
-  return `<div class="card skc ${lock?'lock':''}"><div class="skh"><div class="ic">${sk.ic}</div><div style="flex:1"><h2>${sk.n}</h2><div class="muted small">${sk.d}</div></div><button class="chip sm ${s.pin?'on':''}" onclick="skPin('${sk.id}')" aria-label="Routine">${s.pin?'📌 Routine':'📌'}</button></div>
-  <div class="dots">${sk.st.map((_,j)=>`<i class="${j<s.st?'ok':j===i&&!done?'cur':''}"></i>`).join('')}</div>
+  return `<details class="card skc fold ${lock?'lock':''}" ${s.pin||skOpen[sk.id]?'open':''} ontoggle="skOpen['${sk.id}']=this.open"><summary><div class="skh"><div class="ic">${sk.ic}</div><div style="flex:1;min-width:0"><h2>${sk.n}</h2><div class="muted small">${lock?'🔒 Barre ou anneaux nécessaires':done?'🏆 Figure maîtrisée':`Étape ${i+1}/${sk.st.length} · ${x[0]}`}</div><div class="dots">${sk.st.map((_,j)=>`<i class="${j<s.st?'ok':j===i&&!done?'cur':''}"></i>`).join('')}</div></div><button class="pinb ${s.pin?'on':''}" onclick="event.preventDefault();event.stopPropagation();skPin('${sk.id}')" aria-label="${s.pin?'Retirer de la routine':'Ajouter à la routine'}" title="Routine">📌</button></div></summary>
+  <p class="note" style="margin:0 0 8px">${sk.d}</p>
   ${lock?`<p class="small">🔒 <b>Barre de traction (ou anneaux) nécessaire.</b> En attendant : <span class="exl" onclick="openEx('${sk.alt}')">${CUE[sk.alt][0].toLowerCase()}</span>. Une barre de porte (25–40 €) débloque 3 parcours : coche « Barre de traction » ou « Anneaux » dans ton profil Muscu.</p>`
    :done?`<p class="small">🏆 <b>Parcours terminé !</b> Garde la figure 1 à 2 fois par semaine pour ne pas la perdre.</p>`
    :`<div class="stp2"><div class="muted small">Étape ${i+1} / ${sk.st.length}</div><b>${x[0]}</b> · <span class="small">${skTxt(x)}</span><div class="small muted" style="margin-top:4px">${x[1]}</div>
@@ -1531,7 +1558,7 @@ function skCard(sk){const s=skS(sk.id),i=Math.min(s.st,sk.st.length-1),x=sk.st[i
    <div class="note">${ok?`✅ Objectif atteint ${ok} fois sur 2 pour valider l’étape`:'Objectif : toutes les séries au niveau indiqué, 2 séances (ou 1 séance + une vidéo notée 7/10 ou plus)'}</div></div>
    ${pain.length?`<div class="hint">⚠️ Zone à ménager : ${pain.map(z=>ZONES[z].toLowerCase()).join(', ')}. Mets ce parcours en pause tant que la douleur est là.</div>`:''}${sk.legs?'<div class="note">🦵 Jambes : pas la veille d’une séance de vitesse ni de la sortie longue.</div>':''}${skEqNote(sk).map(t=>`<div class="note">🧰 ${t}</div>`).join('')}
    <div class="row" style="margin-top:6px"><button class="btn sm" style="margin:0" onclick="skLogOpen('${sk.id}')">Noter</button><button class="btn sm ghost" style="margin:0" onclick='useTimer(${JSON.stringify(skTimer(x))})'>⏱ Chrono</button><button class="btn sm ghost" style="margin:0" onclick="openTech('sk_${sk.id}_${i}')">🎥 Vidéo</button>${!s.log.length&&!s.test&&!s.st?`<button class="btn sm ghost" style="margin:0" onclick="skTestOpen('${sk.id}')">🎯 Placement</button>`:''}</div>`}
-  <details><summary>Toutes les étapes</summary><ol class="stl small">${sk.st.map((y,j)=>`<li class="${j<s.st?'ok':j===i&&!done?'cur':''}">${y[0]} · ${skTxt(y)}</li>`).join('')}</ol>${s.st>0?`<button class="chip sm" onclick="skMove('${sk.id}',-1)">‹ Revenir à l’étape précédente</button> `:''}${!done&&!lock?`<button class="chip sm" onclick="skMove('${sk.id}',1)">Étape déjà maîtrisée ›</button>`:''}<div class="row" style="margin-top:8px"><button class="chip sm" onclick="skAlbum('${sk.id}')">📸 Album</button>${!lock?`<button class="chip sm" onclick="skTestOpen('${sk.id}')">🎯 Test de placement</button>`:''}${s.st>0?`<button class="chip sm" onclick="shareSkill('${sk.id}')">📤 Partager</button>`:''}</div></details></div>`;}
+  <details><summary>Toutes les étapes</summary><ol class="stl small">${sk.st.map((y,j)=>`<li class="${j<s.st?'ok':j===i&&!done?'cur':''}">${y[0]} · ${skTxt(y)}</li>`).join('')}</ol>${s.st>0?`<button class="chip sm" onclick="skMove('${sk.id}',-1)">‹ Revenir à l’étape précédente</button> `:''}${!done&&!lock?`<button class="chip sm" onclick="skMove('${sk.id}',1)">Étape déjà maîtrisée ›</button>`:''}<div class="row" style="margin-top:8px"><button class="chip sm" onclick="skAlbum('${sk.id}')">📸 Album</button>${!lock?`<button class="chip sm" onclick="skTestOpen('${sk.id}')">🎯 Test de placement</button>`:''}${s.st>0?`<button class="chip sm" onclick="shareSkill('${sk.id}')">📤 Partager</button>`:''}</div></details></details>`;}
 function skTimer(x){return x[2]==='hold'?{mode:'interval',work:x[3],rest:90,rounds:x[4],prep:10}:{mode:'interval',work:45,rest:90,rounds:x[4],prep:10};}
 function skPin(id){const s=skS(id);if(!s.pin&&SK.filter(k=>skS(k.id).pin).length>=3){toast('3 figures maximum dans la routine');return;}s.pin=!s.pin;save();renderAll();}
 function skMove(id,dlt){const sk=SKID(id),s=skS(id);s.st=Math.max(0,Math.min(sk.st.length,s.st+dlt));save();renderAll();}
@@ -1557,7 +1584,7 @@ function renderFigures(){const lockN=SK.filter(skLocked).length,list=SK.filter(k
   <div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${valid}</b><small>étapes validées</small></div><div class="stat"><b>${SK.filter(k=>skS(k.id).st>=k.st.length).length}</b><small>figures maîtrisées</small></div><div class="stat"><b>${pins.length}/3</b><small>en routine</small></div></div>
   ${skDeload()?'<div class="hint">🌙 Semaine de décharge, alignée sur la semaine allégée du plan course : le Bloc figures est réduit. Tests et validations restent possibles.</div>':''}${!SK.some(k=>skS(k.id).log.length||skS(k.id).test)?'<div class="hint">🎯 Commence par le test de placement des parcours qui t’intéressent (bouton « Placement ») : en 2 minutes, l’appli te place à la bonne étape.</div>':''}
   ${lockN?`<p class="note">🔒 ${lockN} parcours demandent une barre de traction ou des anneaux.</p>`:''}<div class="chips">${SKCAT.map(([k,l])=>`<button class="chip sm ${skCat===k?'on':''}" onclick="skCat='${k}';renderFigures()">${l}</button>`).join('')}</div></div>`;
-  h+=`<div class="card"><h2>Équilibre de ta callisthénie</h2>${skRadar()}${skWeak()}</div>`;
+  h+=`<details class="card fold"><summary><div><h2>Équilibre</h2><div class="fsub">${(()=>{const F=skFam(),mx=Math.max(...F.map(f=>f.v));return mx?'Point fort : '+F.find(f=>f.v===mx).l.toLowerCase():'Radar poussée, tirage, jambes, gainage, équilibre';})()}</div></div></summary>${skRadar()}${skWeak()}</details>`;
   h+=list.sort((a,b)=>(skS(b.id).pin-skS(a.id).pin)||(skLocked(a)-skLocked(b))).map(skCard).join('');
   $('[data-page=figures]').innerHTML=h;}
 
@@ -1614,8 +1641,8 @@ function saveXact(){xSync();const x=XD;if(!(x.min>0&&x.min<1440)){toast('Durée 
 function hrZ(){const s=S.settings,mx=+s.fcmax,rs=+s.fcrest||0;if(!(mx>120))return null;const k=rs>=30&&rs<mx-40,pc=[.5,.6,.7,.8,.9,1];
   return {k,b:pc.map(p=>Math.round(k?rs+p*(mx-rs):p*mx)),n:['Z1 Récupération','Z2 Endurance fondamentale','Z3 Tempo','Z4 Seuil','Z5 VMA'],c:['#7CCBEA','#6FD3A5','#E5B85C','#F4A261','#F47C8A']};}
 function hrZonesCard(){const Z=hrZ();if(!Z)return '';const obs=Math.max(0,...getA().runs.map(r=>r.max_heartrate||0));
-  return `<div class="card"><h2>❤️ Zones cardiaques</h2>${Z.n.map((n,i)=>`<div class="zrow"><b style="color:${Z.c[i]}">Z${i+1}</b><span style="text-align:left;color:inherit">${n.slice(3)}</span><span>${Z.b[i]}–${Z.b[i+1]} bpm</span></div>`).join('')}
-  <p class="note">${Z.k?`Méthode de Karvonen : FC de repos ${S.settings.fcrest} + % de ta réserve (FC max ${S.settings.fcmax} − repos).`:`En % de ta FC max (${S.settings.fcmax}). Ajoute ta FC de repos dans les réglages (mesurée au réveil, couché) pour des zones plus justes (méthode de Karvonen).`} Footings faciles et sortie longue en Z2, seuil en Z4, fractions courtes jusqu’en Z5.${obs>S.settings.fcmax?` <b>FC max observée sur tes sorties : ${Math.round(obs)} bpm</b>, plus haute que celle des réglages : mets-la à jour.`:''}</p></div>`;}
+  return `<details class="card fold"><summary><div><h2>❤️ Zones cardiaques</h2><div class="fsub">Z2 ${Z.b[1]}–${Z.b[2]} · Z4 ${Z.b[3]}–${Z.b[4]} bpm${Z.k?' · Karvonen':''}</div></div></summary>${Z.n.map((n,i)=>`<div class="zrow"><b style="color:${Z.c[i]}">Z${i+1}</b><span style="text-align:left;color:inherit">${n.slice(3)}</span><span>${Z.b[i]}–${Z.b[i+1]} bpm</span></div>`).join('')}
+  <p class="note">${Z.k?`Méthode de Karvonen : FC de repos ${S.settings.fcrest} + % de ta réserve (FC max ${S.settings.fcmax} − repos).`:`En % de ta FC max (${S.settings.fcmax}). Ajoute ta FC de repos dans les réglages (mesurée au réveil, couché) pour des zones plus justes (méthode de Karvonen).`} Footings faciles et sortie longue en Z2, seuil en Z4, fractions courtes jusqu’en Z5.${obs>S.settings.fcmax?` <b>FC max observée sur tes sorties : ${Math.round(obs)} bpm</b>, plus haute que celle des réglages : mets-la à jour.`:''}</p></details>`;}
 function zoneTimesCard(det){const Z=hrZ();if(!Z||!det||!det.hr||!det.t||det.hr.length!==det.t.length||det.hr.length<10)return '';const T=[0,0,0,0,0];let tot=0;
   for(let i=1;i<det.hr.length;i++){const dt=det.t[i]-det.t[i-1],h=det.hr[i];if(!(dt>0&&dt<60)||h==null)continue;let z=Z.b.findIndex((b,j)=>j>0&&h<b)-1;if(z<0)z=h<Z.b[0]?0:4;T[Math.max(0,Math.min(4,z))]+=dt;tot+=dt;}
   if(tot<60)return '';const mx=Math.max(...T);
@@ -1678,13 +1705,11 @@ function prevReco(cf,tp){if(cf.ql>=2)return {id:'pied',why:'Quadriceps à repose
   const a=getA(),t0=new Date(Date.now()-28*DAY),dnw=a.runs.filter(r=>localDate(r.start_date_local)>=t0).reduce((s,r)=>s+(r.total_elevation_gain||0),0)/4,ld=prevLast('descente');
   if(dnw>=300&&!tp&&(!ld||(new Date()-parseISO(ld))/DAY>=6))return {id:'descente',why:`≈ ${Math.round(dnw)} m de D− par semaine ces 4 dernières semaines : une séance excentrique par semaine protège tes quadriceps.`};
   const ids=Object.keys(PREV).sort((x,y)=>(prevLast(x)||'')<(prevLast(y)||'')?-1:1);return {id:ids[0],why:'La routine que tu as faite le moins récemment.'};}
-function fatigueCard(){const cf=crossFatigue(),tp=taperFor(new Date()),rc=prevReco(cf,tp),lv=['Fraîche','Modérée','Forte'],cl=['ok','tip','warn'];
-  let h=`<div class="card"><h2>🦵 Fatigue croisée trail → muscu</h2>`;
-  h+=cf.R.length?`<div class="grid"><div class="stat"><b class="${cl[cf.ql]}-c">${lv[cf.ql]}</b><small>quadriceps (D−)</small></div><div class="stat"><b class="${cl[cf.gl]}-c">${lv[cf.gl]}</b><small>mollets et fessiers (D+)</small></div></div><p class="small" style="margin-top:8px">${cf.R.map(r=>`${esc(r.name)} : ${r.km.toFixed(1)} km, +${Math.round(r.up)} / −${Math.round(r.dn)} m, il y a ${Math.round(r.hrs)} h`).join('<br>')}</p>`:'<p class="muted small">Aucune sortie dans les 72 dernières heures : séances muscu normales.</p>';
-  if(cf.sl)h+=`<p class="note">Courbatures jambes signalées : ${SORE[cf.sl].toLowerCase()}.</p>`;
-  if(cf.ql||cf.gl)h+=`<div class="ins ${cf.ql>=2?'warn':''}"><b>Séances d’aujourd’hui et de demain adaptées</b>${cf.ql>=2?'Quadriceps au repos : squats et fentes remplacés par mobilité, chevilles et gainage.':cf.ql?'Squats lourds et fentes explosives remplacés par de l’excentrique contrôlé (descente 4 s).':'Mollets et fessiers allégés.'}</div>`;
-  if(tp)h+=`<div class="ins"><b>🎯 Affûtage</b>${tp.why} : volume muscu −${Math.round((1-tp.f)*100)} %${tp.lvl>=2?', jambes au minimum':''}.</div>`;
-  return h+`<div class="qlab">Routine conseillée</div><p class="note">${rc.why}</p>${sessCard(prevObj(rc.id))}</div>`;}
+function fatigueCard(){const cf=crossFatigue(),tp=taperFor(new Date()),rc=prevReco(cf,tp),lv=['fraîches','entamées','chargées'],cl=['ok','tip','warn'];
+  let h=`<div class="card"><h2 style="margin-bottom:8px">🦵 Jambes</h2><div class="pills" style="justify-content:flex-start"><span class="pill ${cl[cf.ql]}">Quadriceps ${lv[cf.ql]}</span><span class="pill ${cl[cf.gl]}">Mollets et fessiers ${lv[cf.gl]}</span></div>`;
+  if(cf.ql||cf.gl)h+=`<div class="ins ${cf.ql>=2?'warn':''}" style="margin-top:12px"><b>${cf.ql>=2?'Quadriceps à reposer':cf.ql?'Quadriceps entamés':'Mollets et fessiers chargés'}</b>${cf.top?`${esc(cf.top.name)} : −${Math.round(cf.top.dn)} m il y a ${Math.round(cf.top.hrs)} h. `:''}Séances du jour et du lendemain adaptées.</div>`;
+  if(tp)h+=`<div class="ins" style="margin-top:10px"><b>🎯 Affûtage</b>${tp.why} : volume muscu −${Math.round((1-tp.f)*100)} %${tp.lvl>=2?', jambes au minimum':''}.</div>`;
+  return h+`<div class="muted small" style="margin-top:12px">Routine conseillée · ${rc.why}</div>${sessCard(prevObj(rc.id))}</div>`;}
 
 /* ============ SCORE DE POLYVALENCE HYBRIDE ============ */
 function hybridAt(t1){const t0=new Date(t1-28*DAY),a=getA(),ek=(a.runs.filter(r=>{const d=localDate(r.start_date_local);return d>=t0&&d<t1;}).reduce((s,r)=>s+effKm(r),0)+xactAll().filter(x=>{const d=new Date(x.d);return d>=t0&&d<t1;}).reduce((s,x)=>s+x.min*XTYPES[x.type][2]/6,0))/4;
@@ -2143,6 +2168,7 @@ function bestOf(id,lv,sig){return (S.ch[id]||[]).filter(x=>x.lv===lv&&(sig===und
 function unlocked(D,i){return i===0||(S.ch[D.id]||[]).some(x=>x.lv===i-1&&(x.d5?x.d5<=3&&x.te!=='deg':x.r&&x.r<=2));}
 function suggestLv(D){let l=0;for(let i=0;i<D.lv.length;i++)if(unlocked(D,i))l=i;return l;}
 const defiLv={};
+let defOpen={};
 function renderDefis(){
   const sug=DEFIS[Math.max(0,weekIdx())%DEFIS.length],list=DEFIS.filter(D=>defiCat==='all'||D.cat===defiCat);
   let h=`<div class="card"><h2>Défis</h2><p class="muted small">Les Sommets et les 31 Dieux : un nombre fixe de répétitions, le plus vite possible, technique propre. Valide chaque tour pour voir en direct ton avance ou ton retard sur ton record. Les exercices impossibles avec ton matériel ou tes contraintes du jour sont remplacés automatiquement.</p>
@@ -2151,14 +2177,14 @@ function renderDefis(){
     const lv=Math.min(defiLv[D.id]??suggestLv(D),D.lv.length-1),its=defiPlan(D),sig=planSig(its),b=bestOf(D.id,lv,sig),tries=(S.ch[D.id]||[]).filter(x=>x.lv===lv&&(x.sig||'')===sig),silent=!its.some(x=>hasT(x.id,'jump'));
     const struct=D.lad?`Paliers <b>${D.lad.map((_,k)=>repsAt(D,lv,k,0)).join('-')}</b> de : ${its.map(x=>CUE[x.id][0].toLowerCase()).join(' · ')}`
       :`<b>${D.lv[lv]} tour${D.lv[lv]>1?'s':''}</b>${D.rest?' (2 min de repos entre les tours)':''} : ${its.map(x=>`<b>${qty(D,lv,0,x)}</b> ${CUE[x.id][0].toLowerCase()}`).join(' · ')}`;
-    h+=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><div style="flex:1"><h2 style="margin:0">${CATI[D.cat]} ${D.n}${D.alt?` <span class="muted small">${D.alt} m</span>`:''}</h2><span class="muted small">${D.d}</span></div>${D.id===sug.id?'<span class="tag qual">Cette semaine</span>':''}</div>
+    h+=`<details class="card fold" ${defOpen[D.id]??D.id===sug.id?'open':''} ontoggle="defOpen['${D.id}']=this.open"><summary><div class="dfs"><h2>${CATI[D.cat]} ${D.n}${D.alt?` <span class="muted small">${D.alt} m</span>`:''}</h2><div class="muted small">${D.id===sug.id?'⭐ Cette semaine · ':''}${b?'Record '+fmtDur(b.t)+' · ':''}≈ ${estMin(D,lv,its)} min${tries.length?' · '+tries.length+' essai'+(tries.length>1?'s':''):''}</div></div></summary><p class="note" style="margin:0 0 8px">${D.d}</p>
     <div class="seg lvl">${D.lv.map((r,i)=>`<button class="${i===lv?'on':''}" ${unlocked(D,i)?'':'disabled'} onclick="defiLv['${D.id}']=${i};renderDefis()">${lvLabel(D,i)}${unlocked(D,i)?'':' 🔒'}</button>`).join('')}</div>
     <p class="small" style="margin:6px 0">${struct}</p>
     ${its.some(x=>x.from)?`<p class="rpl" style="margin:0 0 6px">${its.filter(x=>x.from).map(x=>`↻ ${CUE[x.from][0].toLowerCase()} → ${CUE[x.id][0].toLowerCase()} (${x.why})`).join('<br>')}</p>`:''}
     <div class="chips" style="margin:0 0 10px"><span class="tag">≈ ${estMin(D,lv,its)} min</span> ${silent?'<span class="tag ef">🔇 silencieux</span>':'<span class="tag">sauts</span>'}</div>
     <div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="stat"><b>${b?fmtDur(b.t):'–'}</b><small>record</small></div><div class="stat"><b>${tries.length?fmtDur(tries[tries.length-1].t):'–'}</b><small>dernier</small></div><div class="stat"><b>${tries.length}</b><small>tentatives</small></div></div>
     ${tries.length>=2?`<h3>Progression (plus haut = plus rapide)</h3>${lineChart(tries.map((x,i)=>[i,-x.t]),'var(--acc2)')}`:''}
-    <button class="btn wide sm" onclick="startDefi('${D.id}',${lv})">▶ Lancer ${D.n}${lv?' '+LVN[lv]:''}</button></div>`;
+    <button class="btn wide sm" onclick="startDefi('${D.id}',${lv})">▶ Lancer ${D.n}${lv?' '+LVN[lv]:''}</button></details>`;
   }
   $('[data-page=defis]').innerHTML=h;
 }
@@ -2180,7 +2206,7 @@ function setDefiFb(r){if(lastDefi)lastDefi.r=r;save();closeSettings();renderDefi
 
 /* ============ COMPOSANTS ============ */
 function sessCard(o){const done=!!S.done[o.k];if(o.wk)WKREG[o.k]=o;SREG[o.k]=o;const lg=o.str&&o.timer&&o.timer.ex&&o.timer.ex.length;if(lg)LOGREG[o.k]={title:o.t,ex:[...new Set(o.timer.ex)],presc:o.presc||{}};const nLog=lg?(S.log||[]).filter(l=>l.k===o.k).length:0;
-  return `<div class="sess ${o.str?'str':''} ${done?'done':''}"><div class="sh"><div class="si">${o.icon}</div><div class="st"><b>${o.t}${done&&S.fb[o.k]?`<span class="fbe">${S.fb[o.k].d5?D5[S.fb[o.k].d5-1][1]:FBL[S.fb[o.k].r][0]}</span>`:''}</b><small>${o.s||''}</small></div><button class="chk" onclick="toggleDone('${o.k}')" aria-label="Fait">${done?'✓':''}</button></div>${o.x?`<details><summary>Détails de la séance</summary><div class="sx">${o.x}</div></details>`:''}${o.timer?`<button class="btn sm ghost" onclick='useTimer(${JSON.stringify(o.timer)})'>⏱ Lancer le chrono</button>`:''}${o.x?` <button class="btn sm ghost" onclick="readSess('${o.k}')" aria-label="Écouter la séance">🔊</button>`:''}${o.adapt&&!done?` <button class="btn sm ghost" onclick="openCtx()">⚙ Adapter</button>`:''}${lg?` <button class="btn sm ghost" onclick="openLogFor('${o.k}')">📝 ${nLog?'Charges ✓':'Charges'}</button>`:''}${o.wk&&!done?` <button class="btn sm ghost" onclick="openWkExport('${o.k}')">⌚ Exporter</button>`:''}</div>`;}
+  return `<div class="sess ${o.str?'str':''} ${done?'done':''}"><div class="sh"><div class="si">${o.icon}</div><div class="st"><b>${o.t}${done&&S.fb[o.k]?`<span class="fbe">${S.fb[o.k].d5?D5[S.fb[o.k].d5-1][1]:FBL[S.fb[o.k].r][0]}</span>`:''}</b><small>${o.s||''}</small></div><button class="chk" onclick="toggleDone('${o.k}')" aria-label="Fait">${done?'✓':''}</button></div>${o.x?`<details><summary>Détails de la séance</summary><div class="sx">${o.x}</div></details>`:''}<div class="sacts">${o.timer?`<button class="btn sm" onclick='useTimer(${JSON.stringify(o.timer)})'>▶ Démarrer</button>`:''}<span class="sp"></span>${o.x?`<button class="ib" onclick="readSess('${o.k}')" aria-label="Écouter la séance" title="Écouter">🔊</button>`:''}${lg?`<button class="ib ${nLog?'on':''}" onclick="openLogFor('${o.k}')" aria-label="Carnet de charges" title="Charges">📝</button>`:''}${o.wk&&!done?`<button class="ib" onclick="openWkExport('${o.k}')" aria-label="Exporter vers la montre" title="Montre">⌚</button>`:''}${o.adapt&&!done?`<button class="ib" onclick="openCtx()" aria-label="Adapter la séance" title="Adapter">⚙︎</button>`:''}</div></div>`;}
 function toggleDone(k){if(S.done[k]){S.done[k]=false;delete S.fb[k];save();renderAll();return;}S.done[k]=true;save();renderAll();if(/^(s\d+[ABC]|c\d+|fig_.+|pv_.+)$/.test(k))openMuscuFb({type:'sess',k},'Comment c’était ?','<p class="muted small">Ton ressenti règle la prochaine séance du même type : répétitions, et remplacement des exercices si tu signales une douleur.</p>');else openFb(k);}
 function weekChart(weeks){
   const W=340,H=150,pl=6,bw=(W-pl*2)/weeks.length,max=Math.max(10,...weeks.map(w=>w.km)),maxd=Math.max(100,...weeks.map(w=>w.dp));
@@ -2228,30 +2254,21 @@ function renderTrailHome(){
 }
 function levelCard(st,compact){const pct=Math.min(100,Math.round((st.xp-st.lo)/(st.hi-st.lo)*100));return `<div class="card"${compact?` style="cursor:pointer" onclick="showTab('suivi')"`:''}><div class="lvl-t"><b>Niv. ${st.L}</b><span>${TITLES[st.L-1]}</span><span class="muted small" style="margin-left:auto">${st.xp} XP</span></div><div class="xpbar"><i style="width:${pct}%"></i></div><div class="note">${st.L<TITLES.length?`${st.hi-st.xp} XP avant « ${TITLES[st.L]} »`:'Niveau maximum atteint'}${compact?` · ${badges(st).filter(b=>b[3]).length} badges ›`:''}</div></div>`;}
 function renderMuscuHome(){
-  const w=weekIdx(),d=dayIdx(),mp=MP(),st=muscuStats();let h=formePill()+fatigueCard();
-  if(!mp.tests.length)h+=`<div class="card"><h2>📋 Bilan de départ (5 min)</h2><p class="muted small">Objectif, matériel et 4 tests simples : l’appli cale tes répétitions sur ton vrai niveau et mesurera tes progrès.</p><button class="btn sm" onclick="openProfile()">Faire mon bilan</button></div>`;
-  else if((new Date()-parseISO(mp.tests[mp.tests.length-1].d))/DAY>=28)h+=`<div class="card"><h2>📋 C’est l’heure du re-test</h2><p class="muted small">4 semaines depuis ton dernier bilan : refais les tests pour voir tes progrès.</p><button class="btn sm" onclick="openProfile()">Refaire le bilan</button></div>`;
-  {const fg=figObj();if(fg&&daySessions(w,d,'str').length)h+=`<div class="card"><h2>🤸 Avec ta séance du jour</h2>${sessCard(fg)}</div>`;}
-  const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
-  h+=`<div class="card ai"><h2>✨ Séance sur mesure</h2>${cus.length?sessCard(customObj(cus[0])):'<p class="muted small">Ton coach crée une séance unique selon ta forme du jour, tes sorties, tes ressentis et tes contraintes.</p>'}<button class="btn ai-b sm" onclick="${getKey()?'openGen()':'openSettings()'}">${getKey()?(cus.length?'✨ Nouvelle séance':'✨ Créer ma séance'):'Activer le coach (clé API)'}</button> <button class="btn sm ghost" onclick="openCoach()">💬 Coach</button></div>`;
-  h+=levelCard(st,true);
-  const lt=legsTired();if(lt&&CTX().legs==='auto')h+=`<div class="ins tip" style="margin:-4px 0 14px"><b>🦵 Jambes fatiguées détectées</b>${lt}. Les séances du jour réduisent le volume jambes et retirent les sauts. <a href="#" onclick="openCtx();return false">Modifier</a></div>`;
-  h+=ctxChips().length?`<div class="chips" style="margin:-4px 0 14px">${ctxChips().map(x=>`<span class="chip sm on">${x}</span>`).join('')}<button class="chip sm" onclick="openCtx()">Modifier</button></div>`:`<button class="btn sm ghost wide" style="margin:-4px 0 14px" onclick="openCtx()">⚙ Adapter ma séance : bruit, espace, matériel, durée, douleurs</button>`;
-  const ps=planStateCard(w);
+  const w=weekIdx(),d=dayIdx(),mp=MP();let h=formePill();const ps=planStateCard(w);
   if(ps)h+=ps;
-  else{const ph=PH[Math.min(2,Math.floor(w/4))],today=daySessions(w,d,'str'),st=streak('str');
-    h+=`<div class="card"><h2>${JOURSL[d]} · Semaine ${w+1}/12</h2><p class="muted small">Phase ${ph.n} · KB ${ph.kb}${st?` · 🔥 ${st} sem. d’affilée`:''}</p>`+(today.length?today.map(sessCard).join(''):restCard('str'))+weekStrip(w,'str')+'</div>';
-    const sug=DEFIS[w%DEFIS.length],lv=suggestLv(sug),b=bestOf(sug.id,lv);
-    h+=`<div class="card"><h2>⛰️ Défi de la semaine : ${sug.n}</h2><p class="muted small">${sug.d} ${b?'Record à battre : <b>'+fmtDur(b.t)+'</b>.':'Premier passage : fixe ton temps de référence.'}</p><button class="btn sm" onclick="startDefi('${sug.id}',${lv})">▶ Lancer</button> <button class="btn sm ghost" onclick="showTab('defis')">Tous les défis</button></div>`;}
-  const ms=[...S.mesures].filter(m=>m.t).sort((x,y)=>x.d<y.d?-1:1),n=nutri();
-  h+=`<div class="card"><h2>${mp.goal==='seche'?'Sèche & sangle abdominale':'Corps & nutrition'}</h2><div class="grid">
-   <div class="stat"><b>${ms.length?ms[ms.length-1].t+' cm':'–'}</b><small>tour de taille</small></div>
-   <div class="stat"><b>${ms.length>=2?(ms[ms.length-1].t-ms[0].t).toFixed(1)+' cm':'–'}</b><small>depuis le début</small></div>
-   <div class="stat"><b>${n.target}</b><small>kcal / jour</small></div>
-   <div class="stat"><b>${n.prot} g</b><small>protéines / jour</small></div></div>
-   <button class="btn sm ghost" onclick="showTab('suivi')">Mesurer / détails ›</button> <button class="btn sm ghost" onclick="openProfile()">Objectif : ${GOALS[mp.goal][1]}</button></div>`;
+  else{const ph=PH[Math.min(2,Math.floor(w/4))],today=daySessions(w,d,'str'),st=streak('str'),fg=figObj(),cc=ctxChips();
+    h+=`<div class="card"><h2>Aujourd’hui</h2><p class="muted small">${JOURSL[d]} · semaine ${w+1}/12 · ${ph.n} · KB ${ph.kb}${st?` · 🔥 ${st} sem. d’affilée`:''}</p>`+(today.length?today.map(sessCard).join('')+(fg?sessCard(fg):''):restCard('str'))+weekStrip(w,'str')
+      +(cc.length?`<div class="chips" style="margin-top:12px">${cc.map(x=>`<span class="chip sm on">${x}</span>`).join('')}<button class="chip sm" onclick="openCtx()">Modifier</button></div>`:'')+'</div>';}
+  if(!mp.tests.length)h+=banner('📋','Bilan de départ','5 min pour caler les répétitions sur ton niveau','Faire','openProfile()');
+  else if((new Date()-parseISO(mp.tests[mp.tests.length-1].d))/DAY>=28)h+=banner('📋','Re-test du mois','4 semaines depuis ton dernier bilan','Refaire','openProfile()');
+  h+=fatigueCard();
+  const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
+  h+=`<div class="card ai"><h2>✨ Séance sur mesure</h2>${cus.length?sessCard(customObj(cus[0])):'<p class="muted small">Le coach crée une séance unique selon ta forme du jour, tes sorties, tes ressentis et tes contraintes.</p>'}<div class="row" style="margin-top:10px"><button class="btn ai-b sm" style="margin:0" onclick="${getKey()?'openGen()':'openSettings()'}">${getKey()?(cus.length?'✨ Nouvelle séance':'✨ Créer ma séance'):'Activer le coach'}</button><button class="btn sm ghost" style="margin:0" onclick="openCoach()">💬 Discuter</button></div></div>`;
+  if(!ps){const sug=DEFIS[Math.max(0,w)%DEFIS.length],lv=suggestLv(sug),b=bestOf(sug.id,lv);
+    h+=`<div class="card banner"><span class="bi">⛰️</span><div style="flex:1;min-width:0"><b>Défi de la semaine : ${sug.n}</b><div class="muted small">${b?'Record à battre : '+fmtDur(b.t):'Fixe ton premier temps'}</div></div><button class="btn sm" style="margin:0" onclick="startDefi('${sug.id}',${lv})">▶</button></div>`;}
   $('[data-page=muscu]').innerHTML=h;
 }
+const banner=(ic,t,sub,bt,fn)=>`<div class="card banner"><span class="bi">${ic}</span><div style="flex:1;min-width:0"><b>${t}</b><div class="muted small">${sub}</div></div><button class="btn sm" style="margin:0" onclick="${fn}">${bt}</button></div>`;
 function renderAnalyse(){
   const a=getA();let h=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="margin:0">Analyse Strava</h2><span class="muted small">${S.demo?'Données de démonstration':S.lastSync?'Synchro '+new Date(S.lastSync).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Jamais synchronisé'}</span></div>`;
   h+=S.tokens?`<button class="btn" onclick="syncStrava()" ${syncing?'disabled':''}>${syncing?'Synchro…':'↻ Synchroniser'}</button>`:`<button class="btn" onclick="stravaConnect()">Connecter Strava</button>`;
@@ -2276,7 +2293,7 @@ function renderPlan(){
   h+=`<div class="card"><h2>Séances de course</h2>${rp.s.map(s=>`<div class="muted small" style="margin-top:12px">${JOURSL[s.day]}</div>`+sessCard(s)).join('')}</div>`;
   h+=hrZonesCard();
   h+=`<div class="cols"><div class="card"><h2>Tes allures cibles</h2><div class="pace"><span>Endurance facile</span><span>${fmtPace(P.easyLo)}–${fmtPace(P.easyHi)}</span><span>Sortie longue (plat)</span><span>${fmtPace(P.long)}</span><span>Seuil</span><span>${fmtPace(P.seuil)}</span><span>VMA longue (1000 m)</span><span>${fmtPace(P.vma)}</span><span>VMA courte (400 m)</span><span>${fmtPace(P.court)}</span></div><p class="note">min/km, recalculées à chaque synchro Strava. En côte, raisonne à l’effort, pas à l’allure.</p></div>`;
-  h+=`<div class="card"><h2>Logique du plan</h2><p class="small"><b>S1–4</b> côtes courtes : force et foulée. <b>S5–8</b> VMA : vitesse pure. <b>S9–12</b> seuil : tenir vite longtemps, puis test 5 km.<br>Semaines 4, 8 et 12 allégées pour assimiler.${rp.fQ!==1||rp.fV!==1?`<br><b>Ajusté à ton ressenti :</b> fractions ${rp.fQ>=1?'+':''}${Math.round((rp.fQ-1)*100)} %, volume ${rp.fV>=1?'+':''}${Math.round((rp.fV-1)*100)} %.`:'<br>Coche une séance et donne ton ressenti : la suite s’ajuste toute seule. Jours réglables dans Cross-training.'} 80 % du volume en facile, 1 séance dure par semaine : c’est ça qui rend plus rapide <i>et</i> plus confortable.</p></div></div>`;
+  h+=`<details class="card fold" ><summary><h2>Logique du plan</h2></summary><p class="small"><b>S1–4</b> côtes courtes : force et foulée. <b>S5–8</b> VMA : vitesse pure. <b>S9–12</b> seuil : tenir vite longtemps, puis test 5 km.<br>Semaines 4, 8 et 12 allégées pour assimiler.${rp.fQ!==1||rp.fV!==1?`<br><b>Ajusté à ton ressenti :</b> fractions ${rp.fQ>=1?'+':''}${Math.round((rp.fQ-1)*100)} %, volume ${rp.fV>=1?'+':''}${Math.round((rp.fV-1)*100)} %.`:'<br>Coche une séance et donne ton ressenti : la suite s’ajuste toute seule. Jours réglables dans Cross-training.'} 80 % du volume en facile, 1 séance dure par semaine : c’est ça qui rend plus rapide <i>et</i> plus confortable.</p></div></details>`;
   $('[data-page=plan]').innerHTML=h;
 }
 function renderRenfo(){
@@ -2293,7 +2310,8 @@ function renderRenfo(){
 function renderSuivi(){
   const n=nutri(),st=muscuStats(),mp=MP(),B=badges(st);
   let h=levelCard(st,false)+muscleMapCard()+logCard()+techCard()+'<div class="card" id="bodyCard"><h2>📸 Analyse corporelle</h2><p class="muted small">Chargement…</p></div>';
-  h+=`<div class="card"><h2>Badges · ${B.filter(b=>b[3]).length}/${B.length}</h2><div class="badges">${B.map(([e,t,s,ok])=>`<div class="bdg ${ok?'':'off'}"><span>${e}</span><b>${t}</b><div class="muted">${s}</div></div>`).join('')}</div></div>`;
+  {const bd=([e,t,s,ok])=>`<div class="bdg ${ok?'':'off'}"><span>${e}</span><b>${t}</b><div class="muted">${s}</div></div>`,got=B.filter(b=>b[3]),nxt=B.filter(b=>!b[3]),first=[...got,...nxt.slice(0,Math.max(3,6-got.length))],rest=nxt.slice(Math.max(3,6-got.length));
+   h+=`<div class="card"><h2>Badges · ${got.length}/${B.length}</h2><div class="badges">${first.map(bd).join('')}</div>${rest.length?`<details class="bmore"><summary>Voir les ${rest.length} autres badges</summary><div class="badges" style="margin-top:10px">${rest.map(bd).join('')}</div></details>`:''}</div>`;}
   const avg=(()=>{const r=st.fb.map(k=>S.fb[k]).filter(o=>o.d5&&(new Date()-parseISO(o.d))/DAY<28);return r.length?(r.reduce((s,o)=>s+o.d5,0)/r.length).toFixed(1):'–';})();
   h+=`<div class="card"><h2>Volume d’entraînement</h2><div class="grid"><div class="stat"><b>${st.done.length}</b><small>séances muscu</small></div><div class="stat"><b>${st.defs.length}</b><small>défis terminés</small></div><div class="stat"><b>${fmtDur(st.effort)}</b><small>temps d’effort cumulé</small></div><div class="stat"><b>${avg}</b><small>difficulté moy. 28 j (/5)</small></div></div></div>`;
   const recs=DEFIS.flatMap(D=>[0,1,2].map(lv=>({D,lv,b:bestOf(D.id,lv),n:(S.ch[D.id]||[]).filter(x=>x.lv===lv)})).filter(r=>r.b));
@@ -2345,9 +2363,9 @@ function renderCross(){
     const cell=(arr,c)=>arr.length?arr.map(x=>`<div class="xc ${c} ${S.done[x.k]?'done':''}">${S.done[x.k]?'✅ ':''}${x.t}</div>`).join(''):`<div class="xc ${c} o">—</div>`;
     h+=`<div class="xd ${i===d0?'today':''}">${JOURS[i]}</div><div>${cell(t,'t')}</div><div>${cell(m,'m')}</div>`;}
   h+=`</div></div>`;
-  h+=`<div class="card"><h2>Contrôle des conflits</h2>${C.map(i=>`<div class="ins ${i.l}"><b>${i.t}</b>${i.x}</div>`).join('')}</div>`;
-  h+=`<div class="card"><h2>Régler les jours</h2><div class="sched">${SLOTS.filter(x=>x[0]!=='r'||four).map(([k,l,c])=>`<span class="${c}">${l}</span><select onchange="setSched('${k}',this.value)">${JOURSL.map((j,i)=>`<option value="${i}" ${s[k]===i?'selected':''}>${j}</option>`).join('')}</select>`).join('')}</div><button class="btn sm ghost wide" onclick="resetSched()">Organisation recommandée</button></div>`;
-  h+=`<div class="card"><h2>Comment les deux se complètent</h2><ul class="small" style="padding-left:18px"><li><b>Muscu → trail</b> : renfo A (fentes, soulevé 1 jambe, mollets) = montées plus puissantes et chevilles solides en descente. Le gainage garde ta posture quand la fatigue arrive.</li><li><b>Trail → muscu</b> : les footings faciles augmentent la dépense sans casser la récupération musculaire : c’est ton meilleur allié pour la sèche.</li><li><b>Règle d’or</b> : jambes fraîches pour la vitesse et la sortie longue, muscu jambes loin d’elles, haut du corps quand tu veux.</li></ul></div>`;
+  h+=`<details class="card fold" ${C.some(i=>i.l==='warn')?'open':''}><summary><h2>Contrôle des conflits</h2></summary>${C.map(i=>`<div class="ins ${i.l}"><b>${i.t}</b>${i.x}</div>`).join('')}</details>`;
+  h+=`<details class="card fold" ><summary><h2>Régler les jours</h2></summary><div class="sched">${SLOTS.filter(x=>x[0]!=='r'||four).map(([k,l,c])=>`<span class="${c}">${l}</span><select onchange="setSched('${k}',this.value)">${JOURSL.map((j,i)=>`<option value="${i}" ${s[k]===i?'selected':''}>${j}</option>`).join('')}</select>`).join('')}</div><button class="btn sm ghost wide" onclick="resetSched()">Organisation recommandée</button></details>`;
+  h+=`<details class="card fold" ><summary><h2>Comment les deux se complètent</h2></summary><ul class="small" style="padding-left:18px"><li><b>Muscu → trail</b> : renfo A (fentes, soulevé 1 jambe, mollets) = montées plus puissantes et chevilles solides en descente. Le gainage garde ta posture quand la fatigue arrive.</li><li><b>Trail → muscu</b> : les footings faciles augmentent la dépense sans casser la récupération musculaire : c’est ton meilleur allié pour la sèche.</li><li><b>Règle d’or</b> : jambes fraîches pour la vitesse et la sortie longue, muscu jambes loin d’elles, haut du corps quand tu veux.</li></ul></details>`;
   $('[data-page=cross]').innerHTML=h;
 }
 function stackChart(weeks){
@@ -2533,11 +2551,17 @@ function initChrono(){
   $('#chLap').onclick=()=>{if(CH.mode==='defi'){defiLap();return;}if(CH.running){CH.laps.push(swElapsed());beep(990,.08);drawChrono();}};
   syncChronoUI();}
 
+/* ============ FINITIONS D'INTERFACE ============ */
+const EMO=/^((?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:️|‍\p{Extended_Pictographic}️?)*)\s*/u;
+function polish(root){root.querySelectorAll('.card h2,#sheetBody>.row h2').forEach(el=>{if(el.dataset.p)return;el.dataset.p='1';const n=el.firstChild;if(!n||n.nodeType!==3)return;const m=n.textContent.match(EMO);if(!m)return;n.textContent=n.textContent.slice(m[0].length);const s=document.createElement('span');s.className='hi';s.setAttribute('aria-hidden','true');s.textContent=m[1];el.insertBefore(s,n);});}
+let polT=0;new MutationObserver(()=>{if(polT)return;polT=requestAnimationFrame(()=>{polT=0;polish(document.body);});}).observe(document.body,{childList:true,subtree:true});
+document.addEventListener('click',e=>{const p=e.target.closest('.card>p.muted.small');if(p&&!e.target.closest('a,button'))p.classList.toggle('open');});
+
 /* ============ NAVIGATION & DÉMARRAGE ============ */
 const ICO={fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
 const MODS={
- trail:{sub:'Course à pied · Strava',tabs:[['trail','Accueil','home'],['histo','Historique','cal'],['analyse','Analyse','chart'],['plan','Plan','run'],['chrono','Chrono','clock']]},
- muscu:{sub:'Kettlebell · Poids du corps',tabs:[['muscu','Accueil','home'],['renfo','Séances','kb'],['figures','Figures','fig'],['defis','Défis','mount'],['suivi','Progrès','ruler'],['chrono','Chrono','clock']]},
+ trail:{sub:'Course à pied · Strava',tabs:[['trail','Accueil','home'],['histo','Historique','cal'],['analyse','Analyse','chart'],['plan','Plan','run']]},
+ muscu:{sub:'Kettlebell · Poids du corps',tabs:[['muscu','Accueil','home'],['renfo','Séances','kb'],['figures','Figures','fig'],['defis','Défis','mount'],['suivi','Progrès','ruler']]},
  cross:{sub:'Le pont entre trail et muscu',tabs:[['cross','Semaine','cal'],['forme','Forme & charge','pulse']]}};
 let MOD='trail';
 function setMod(m,tab){MOD=m;try{localStorage.setItem('foulee_mod',m);}catch(e){}
@@ -2548,7 +2572,7 @@ function setMod(m,tab){MOD=m;try{localStorage.setItem('foulee_mod',m);}catch(e){
   showTab(tab||MODS[m].tabs[0][0]);}
 function showTab(t){
   if(!MODS[MOD].tabs.some(x=>x[0]===t)){const owner=Object.keys(MODS).find(m=>MODS[m].tabs.some(x=>x[0]===t));if(owner){setMod(owner,t);return;}}
-  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));
+  document.body.dataset.tab=t;document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
