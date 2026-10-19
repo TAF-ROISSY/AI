@@ -2648,7 +2648,7 @@ function trParse(J,c,R){const els=J.elements||[],ways={};els.filter(e=>e.type===
   return out;}
 async function trSearch(){if(!TR.c){toast('Choisis d’abord une zone');return;}TR.busy=true;TR.err=null;renderCourses();
   const [la,lo]=TR.c,R=TR.rad*1000,dLa=TR.rad/111,dLo=TR.rad/(111*Math.cos(la*Math.PI/180)),bb=[la-dLa,lo-dLo,la+dLa,lo+dLo].map(x=>x.toFixed(5)).join(',');
-  const q=`[out:json][timeout:40];relation["type"="route"]["route"~"^(hiking|foot|running|trail_running|fitness_trail)$"](around:${R},${la.toFixed(5)},${lo.toFixed(5)})->.r;.r out tags geom(${bb}) 80;way(r.r)["highway"](${bb});out tags;`;
+  const q=`[out:json][timeout:40];relation["type"="route"]["route"~"^(hiking|foot|running|trail_running|fitness_trail)$"](around:${R},${la.toFixed(5)},${lo.toFixed(5)})->.r;.r out geom(${bb}) 80;way(r.r)["highway"](${bb});out tags;`;
   try{let J=null,last=null;
     for(const u of ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw new Error('serveur '+r.status);J=await r.json();break;}catch(e){last=e;}}
     if(!J)throw last||new Error('pas de réponse');
