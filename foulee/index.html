@@ -616,6 +616,7 @@ nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);colo
  #actBody>.act-in{overflow-y:auto;padding:24px 28px 40px;-webkit-overflow-scrolling:touch}
  #act{flex-direction:column}#act>.ch-m{min-height:0}
 }
+.prof .pc{fill:none;stroke:var(--glacier);stroke-width:1.4;opacity:.9}
 </style>
 </head>
 <body>
@@ -724,7 +725,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='8.2';
+const APP_VER='8.3';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -991,7 +992,7 @@ function renderAct(r,det){const a=getA(),c=a.cls(r),lab={ef:'Facile',gris:'Zone 
   <div class="grid" style="margin-top:14px">${st(km.toFixed(2),'km')}${st(fmtDur(r.moving_time),'temps en mouvement')}${st(fmtPace(pace),'allure moy. /km')}${st(Math.round(r.total_elevation_gain)+' m','dénivelé +')}
   ${st(r.average_heartrate?Math.round(r.average_heartrate):null,'FC moyenne')}${st(r.max_heartrate?Math.round(r.max_heartrate):null,'FC max')}${st(r.average_cadence?Math.round(r.average_cadence*2):null,'cadence pas/min')}${st(fmtPace(r.moving_time/effKm(r)),'allure km-effort')}
   ${st(r.max_speed?fmtPace(1000/r.max_speed):null,'allure max /km')}${st(det&&det.calories?det.calories:null,'kcal')}${st(det&&det.elev_high!=null?Math.round(det.elev_high)+' m':(r.elev_high!=null?Math.round(r.elev_high)+' m':null),'altitude max')}${st(det&&det.temp!=null?det.temp+' °C':null,'température')}</div>`;
-  if(det&&det.alt&&det.d){h+=`<div class="card" style="margin-top:14px"><h2>Profil${det.hr?' & fréquence cardiaque':''}</h2>${profSvg(det)}<div class="readout" id="actRead">Glisse le doigt sur le profil pour suivre le tracé.</div></div>`;}
+  if(det&&det.alt&&det.d){h+=`<div class="card" style="margin-top:14px"><h2>Profil${det.hr?' & fréquence cardiaque':''}</h2>${profSvg(det)}<div class="leg2"><span><i style="background:var(--trail)"></i>altitude</span>${det.hr?'<span><i style="background:#ff6b81"></i>FC</span>':''}${det.t?'<span><i style="background:var(--glacier)"></i>allure ajustée (haut = rapide)</span>':''}</div><div class="readout" id="actRead">Glisse le doigt sur le profil pour suivre le tracé.</div></div>`;}
   else if(!det&&!S.demo)h+=`<p class="note" style="margin-top:12px">${S.tokens?'Chargement du profil et des temps par km…':'Connecte Strava pour voir le profil détaillé.'}</p>`;
   if(det&&det.splits&&det.splits.length){h+=`<div class="card"><h2>Temps par km</h2><table class="tbl"><tr><th>Km</th><th>Allure</th><th>D+/D−</th><th>FC</th></tr>${det.splits.map((s,i)=>{const p=s.t/(s.d/1000);return `<tr><td>${i+1}</td><td><b>${fmtPace(p)}</b></td><td>${s.el>0?'+':''}${Math.round(s.el||0)} m</td><td>${s.hr?Math.round(s.hr):'–'}</td></tr>`;}).join('')}</table></div>`;}
   {const c=clusterOf(r);if(c){const rs=[...c.runs].sort((x,y)=>x.moving_time-y.moving_time),rank=rs.findIndex(x=>x.id===r.id)+1,i=c.runs.findIndex(x=>x.id===r.id),prev=i>0?c.runs[i-1]:null,best=c.best;
@@ -1000,15 +1001,75 @@ function renderAct(r,det){const a=getA(),c=a.cls(r),lab={ef:'Facile',gris:'Zone 
     <div class="stat"><b class="${prev?(r.moving_time<=prev.moving_time?'up':'dn'):''}">${prev?sgn(r.moving_time-prev.moving_time,fmtDur):'–'}</b><small>vs passage précédent</small></div></div>
     <div class="row" style="margin-top:12px">${r.id!==best.id?`<button class="btn ghost sm" style="margin:0" onclick="compareRuns(${r.id},${best.id})">Comparer au meilleur</button>`:''}${prev?`<button class="btn ghost sm" style="margin:0" onclick="compareRuns(${r.id},${prev.id})">Comparer au précédent</button>`:''}<button class="btn ghost sm" style="margin:0" onclick="renderRoute(${c.id})">Tous les passages</button></div></div>`;}
   else{const cp=comparables(r);if(cp.length)h+=`<div class="card"><h2>Sorties comparables</h2><p class="note" style="margin:-6px 0 6px">Même type, distance à ±10 %, dénivelé proche.</p>${cp.map(x=>{const d=x.moving_time/effKm(x)-r.moving_time/effKm(r);return `<div class="run" style="cursor:pointer" onclick="compareRuns(${r.id},${x.id})"><div class="rm"><b>${esc(x.name)}</b><small>${localDate(x.start_date_local).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'})} · ${(x.distance/1000).toFixed(1)} km · ${Math.round(x.total_elevation_gain)} m D+ · ${fmtPace(x.moving_time/effKm(x))}/km-effort</small></div><span class="tag ${d>0?'ef':'gris'}">${d>0?'tu es plus rapide':'plus lente ici'}</span></div>`;}).join('')}<p class="note">Touche une sortie pour la comparer km par km.</p></div>`;}}
+  {const AN=det?anaRun(det):null;if(AN){anaSave(r.id,r.start_date_local,r.name,AN);h+=anaCard(AN,r.id);}}
   {const zt=zoneTimesCard(det);if(zt)h+=zt;}
   if(det&&det.alt&&det.d&&det.t&&det.alt.length===det.d.length)h+=diagCard(diagRun({d:det.d,z:det.alt,t:det.t,hr:det.hr,cad:det.cad},r.distance/1000,dnOf(r)));
   {const R=det&&hrrOf(det);if(R){S.hrr=S.hrr||{};const o=S.hrr[r.id];if(!o||o.v!==R.v){S.hrr[r.id]={d:r.start_date_local.slice(0,10),v:R.v,n:R.n};save();}h+=hrrCard(R,r);}}
   h+=`<button class="btn ghost wide" onclick="shareAct()">📤 Partager cette sortie</button><button class="btn ai-b wide" onclick="askActCoach()">💬 Demander au coach d’analyser cette sortie</button></div>`;
   $('#actBody').innerHTML=h;if(det&&det.alt&&det.d)bindProf(det);}
+
+/* ============ v8.3 : ANALYSE ULTRA-PRÉCISE D'UNE SORTIE ============ */
+const BEST_D=[[400,'400 m'],[1000,'1 km'],[5000,'5 km'],[10000,'10 km'],[21097,'Semi']];
+function anaRun(det){if(!det||!det.d||!det.t)return null;const n=det.d.length;if(n<12||det.t.length!==n)return null;
+  const d=det.d,t=det.t,z=det.alt&&det.alt.length===n?smoothZ(det.alt,2):null,hr=det.hr&&det.hr.length===n&&det.hr.every(v=>v!=null)?det.hr:null;
+  let eq=0,mov=0,dist=0,hrW=0;const P=[];
+  for(let i=1;i<n;i++){const dd=d[i]-d[i-1],dt=t[i]-t[i-1];if(!(dd>0&&dt>0))continue;if(dd/dt<.55){P.push(null);continue;}
+    const g=z?Math.max(-.4,Math.min(.4,(z[i]-z[i-1])/dd)):0,e=dt/gradeMult(g);eq+=e;mov+=dt;dist+=dd;if(hr)hrW+=hr[i]*dt;P.push({i,dd,dt,e,g,h:hr?hr[i]:null,tm:mov});}
+  if(dist<500||mov<120)return null;const A={dist,mov,pace:mov/dist*1000,gap:eq/dist*1000,hr:hr?hrW/mov:null};
+  /* découplage cardiaque (allure ajustée / FC) : 1re moitié vs 2e moitié du temps en mouvement */
+  if(hr&&mov>=1200){const Q=P.filter(Boolean),half=mov/2,h1=Q.filter(q=>q.tm<=half),h2=Q.filter(q=>q.tm>half),ef=a=>{const dd=a.reduce((s,q)=>s+q.dd,0),e=a.reduce((s,q)=>s+q.e,0),hh=a.reduce((s,q)=>s+q.h*q.dt,0)/a.reduce((s,q)=>s+q.dt,0);return (dd/e*60)/hh;};
+    if(h1.length>4&&h2.length>4){const e1=ef(h1),e2=ef(h2);A.dec=(e1-e2)/e1;A.ef=(dist/eq*60)/A.hr;}}
+  else if(hr)A.ef=(dist/eq*60)/A.hr;
+  /* montées et descentes (hystérésis de 10 m sur l'altitude lissée) */
+  A.climbs=[];A.descents=[];
+  if(z){const push=(a,b,up)=>{const gain=Math.abs(z[b]-z[a]),dd=d[b]-d[a],dt=t[b]-t[a];if(gain<25||dd<150||gain/dd<.03||dt<=0)return;
+      let hh=null;if(hr){let s=0,w=0;for(let k=a+1;k<=b;k++){const q=t[k]-t[k-1];s+=hr[k]*q;w+=q;}hh=w?s/w:null;}
+      (up?A.climbs:A.descents).push({at:d[a],dd,gain:Math.round(gain),g:gain/dd,dt,vam:up?gain/(dt/3600):null,pace:dt/dd*1000,gap:null,hr:hh});};
+    let lo=0,hi=0,st='flat',top=0,bot=0;
+    for(let i=1;i<n;i++){if(st!=='up'&&z[i]<=z[lo])lo=i;if(st!=='down'&&z[i]>=z[top])top=i;
+      if(st!=='up'&&z[i]-z[lo]>=10){if(st==='down')push(top,lo,false);st='up';hi=i;top=i;}
+      else if(st==='up'){if(z[i]>z[hi])hi=i;else if(z[hi]-z[i]>=10){push(lo,hi,true);st='down';top=hi;bot=i;lo=i;}}
+      if(st==="down"){if(z[i]<z[bot])bot=i,lo=i;else if(z[i]-z[bot]>=10){push(top,bot,false);st='up';lo=bot;hi=i;top=i;}}}
+    if(st==='up')push(lo,hi,true);else if(st==='down')push(top,bot,false);
+    A.up=0;A.dn=0;for(let i=1;i<n;i++){const q=z[i]-z[i-1];if(q>0)A.up+=q;else A.dn-=q;}}
+  /* meilleurs efforts dans la sortie (fenêtre glissante, interpolée) */
+  A.best={};BEST_D.forEach(([L])=>{if(d[n-1]-d[0]<L*.98)return;let j=0,b=Infinity;for(let i=0;i<n;i++){while(j<n-1&&d[j]-d[i]<L)j++;if(d[j]-d[i]<L*.98)break;const tt=(t[j]-t[i])*L/(d[j]-d[i]);if(tt<b)b=tt;}if(isFinite(b))A.best[L]=Math.round(b);});
+  /* régularité : écart-type des allures ajustées par tranche de 500 m */
+  {const ch=[];let acc={dd:0,e:0};P.forEach(q=>{if(!q)return;acc.dd+=q.dd;acc.e+=q.e;if(acc.dd>=500){ch.push(acc.e/acc.dd*1000);acc={dd:0,e:0};}});if(ch.length>=4){const m=ch.reduce((a,b)=>a+b,0)/ch.length;A.cv=Math.sqrt(ch.reduce((a,b)=>a+(b-m)**2,0)/ch.length)/m;A.chunks=ch;}}
+  return A;}
+function anaSave(id,date,name,A){if(!A)return;S.eff=S.eff||{};const o={d:String(date).slice(0,10),n:name,b:A.best,ef:A.ef?+A.ef.toFixed(3):null,dec:A.dec!=null?+A.dec.toFixed(3):null,gap:Math.round(A.gap),km:+(A.dist/1000).toFixed(2),vam:A.climbs.length?Math.round(Math.max(...A.climbs.map(c=>c.vam))):null};
+  const old=S.eff[id];if(old&&JSON.stringify(old)===JSON.stringify(o))return;S.eff[id]=o;const k=Object.keys(S.eff);if(k.length>250)k.sort((a,b)=>S.eff[a].d<S.eff[b].d?-1:1).slice(0,k.length-250).forEach(x=>delete S.eff[x]);save(true);}
+function prOf(L){let b=null;Object.entries(S.eff||{}).forEach(([id,o])=>{const v=o.b&&o.b[L];if(v&&(!b||v<b.t))b={t:v,id,d:o.d,n:o.n};});return b;}
+function decVerdict(x){return x<.05?['ok','endurance solide : ta FC reste stable à allure égale']:x<.1?['tip','légère dérive : normal sur une sortie longue ou chaude']:['warn','forte dérive : départ trop rapide, chaleur ou manque d’eau et de sucre'];}
+function anaCard(A,id){if(!A)return '';const st=(v,l,tip)=>v==null?'':`<div class="stat"${tip?` data-tip="${tip}"`:''}><b>${v}</b><small>${l}</small></div>`;
+  let h=`<div class="card lum"><h2>🔬 Analyse avancée</h2><div class="grid" style="margin-top:10px">
+   ${st(fmtPace(A.gap),'allure ajustée pente','Allure équivalente sur le plat, corrigée de chaque montée et descente')}${st(fmtPace(A.pace),'allure réelle /km')}
+   ${st(A.dec!=null?(A.dec>0?'+':'')+(A.dec*100).toFixed(1).replace('.',',')+' %':null,'découplage cardiaque','Perte d’efficacité (allure ajustée ÷ FC) entre la 1re et la 2e moitié')}${st(A.ef?A.ef.toFixed(2).replace('.',','):null,'indice d’efficacité','Mètres par minute (allure ajustée) par battement : plus c’est haut, mieux c’est')}
+   ${st(A.cv!=null?Math.round(A.cv*100)+' %':null,'irrégularité','Écart-type des allures ajustées par tranche de 500 m')}${st(A.climbs.length?Math.round(Math.max(...A.climbs.map(c=>c.vam)))+' m/h':null,'meilleure VAM','Vitesse ascensionnelle sur la meilleure montée')}</div>`;
+  if(A.dec!=null){const v=decVerdict(A.dec);h+=`<div class="ins ${v[0]}" style="margin-top:10px"><b>Découplage ${(A.dec*100).toFixed(1).replace('.',',')} %</b>${v[1]}.</div>`;}
+  if(A.chunks){const C=A.chunks,mn=Math.min(...C),mx=Math.max(...C),W=340,H=70,bw=W/C.length;h+=`<div class="eyebrow" style="margin:14px 0 4px">Allure ajustée par tranche de 500 m</div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Régularité de l’allure">${C.map((p,i)=>{const hh=8+(mx===mn?.5:(mx-p)/(mx-mn))*(H-14);return `<rect x="${(i*bw+1).toFixed(1)}" y="${(H-hh).toFixed(1)}" width="${Math.max(1,bw-2).toFixed(1)}" height="${hh.toFixed(1)}" rx="2" fill="var(--glacier)" opacity="${p===mn?1:.6}" data-tip="${kmFr(i*.5)}–${kmFr(i*.5+.5)} km · ${fmtPace(p)}/km ajustée"/>`;}).join('')}</svg>`;}
+  if(A.climbs.length){h+=`<div class="eyebrow" style="margin:14px 0 6px">Montées (${A.climbs.length})</div><table class="tbl"><tr><th>Départ</th><th>Long.</th><th>D+</th><th>Pente</th><th>VAM</th><th>FC</th></tr>${A.climbs.map(c=>`<tr><td>km ${kmFr(c.at/1000)}</td><td>${c.dd>=1000?kmFr(c.dd/1000)+' km':Math.round(c.dd)+' m'}</td><td>${c.gain} m</td><td>${Math.round(c.g*100)} %</td><td><b>${Math.round(c.vam)}</b></td><td>${c.hr?Math.round(c.hr):'–'}</td></tr>`).join('')}</table>`;}
+  if(A.descents.length){h+=`<div class="eyebrow" style="margin:14px 0 6px">Descentes (${A.descents.length})</div><table class="tbl"><tr><th>Départ</th><th>Long.</th><th>D−</th><th>Pente</th><th>Allure</th></tr>${A.descents.map(c=>`<tr><td>km ${kmFr(c.at/1000)}</td><td>${c.dd>=1000?kmFr(c.dd/1000)+' km':Math.round(c.dd)+' m'}</td><td>${c.gain} m</td><td>−${Math.round(c.g*100)} %</td><td><b>${fmtPace(c.pace)}</b></td></tr>`).join('')}</table>`;}
+  const B=BEST_D.filter(([L])=>A.best[L]);if(B.length){h+=`<div class="eyebrow" style="margin:14px 0 6px">Meilleurs efforts de la sortie</div><div class="grid">${B.map(([L,l])=>{const pr=prOf(L),isPr=pr&&pr.id==id&&pr.t===A.best[L];return `<div class="stat"><b>${fmtDur(A.best[L])}</b><small>${l} · ${fmtPace(A.best[L]/L*1000)}/km${isPr?' · 🏆 record':pr?' · record '+fmtDur(pr.t):''}</small></div>`;}).join('')}</div>`;}
+  return h+`<p class="note">Allure ajustée : coût énergétique de la pente (Minetti). Découplage : &lt; 5 % = bonne endurance aérobie (Friel). VAM = mètres gravis par heure dans la montée.</p></div>`;}
+function recordsCard(){const E=S.eff||{},ids=Object.keys(E);if(!ids.length)return `<div class="card"><h2>🏆 Records & tendances</h2><p class="muted small">Ouvre tes sorties (ou lance l’analyse groupée) pour calculer tes meilleurs efforts, ton efficacité et ton découplage cardiaque.</p><button class="btn sm" onclick="anaBatch()">Analyser mes 20 dernières sorties</button></div>`;
+  const L=ids.map(id=>({id,...E[id]})).sort((a,b)=>a.d<b.d?-1:1),T=L.filter(x=>x.ef).slice(-15);
+  let h=`<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🏆 Records & tendances</h2><button class="chip sm" onclick="anaBatch()">↻ Analyser</button></div><div class="grid" style="margin-top:10px">${BEST_D.map(([D,l])=>{const p=prOf(D);return p?`<div class="stat" style="cursor:pointer" onclick="${String(p.id).startsWith('imp')||isNaN(+p.id)?`openImport('${p.id}')`:`openAct(${p.id})`}" data-tip="${esc(p.n||'')} · ${parseISO(p.d).toLocaleDateString('fr-FR')}"><b>${fmtDur(p.t)}</b><small>${l} · ${fmtPace(p.t/D*1000)}/km</small></div>`:'';}).join('')}</div>`;
+  if(T.length>=3){const W=340,H=90,mn=Math.min(...T.map(x=>x.ef)),mx=Math.max(...T.map(x=>x.ef)),X=i=>10+i*(W-20)/(T.length-1),Y=v=>H-14-(mx===mn?.5:(v-mn)/(mx-mn))*(H-28);
+    h+=`<div class="eyebrow" style="margin:14px 0 4px">Indice d’efficacité (15 dernières sorties analysées)</div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Évolution de l’efficacité"><polyline points="${T.map((x,i)=>X(i).toFixed(1)+','+Y(x.ef).toFixed(1)).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="2"/>${T.map((x,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(x.ef).toFixed(1)}" r="4.5" fill="var(--card)" stroke="var(--acc)" stroke-width="2" data-tip="${parseISO(x.d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · ${esc(x.n||'')} · ${x.ef.toFixed(2).replace('.',',')}${x.dec!=null?' · découplage '+(x.dec*100).toFixed(1).replace('.',',')+' %':''}"/>`).join('')}</svg>`;
+    const a=T.slice(0,Math.floor(T.length/2)),b=T.slice(Math.floor(T.length/2)),av=x=>x.reduce((s,y)=>s+y.ef,0)/x.length,dl=av(b)/av(a)-1;
+    h+=`<p class="small" style="margin:6px 0 0">${dl>.02?'📈 Ton efficacité progresse ('+'+'+Math.round(dl*100)+' %) : à FC égale, tu cours plus vite.':dl<-.02?'📉 Efficacité en baisse ('+Math.round(dl*100)+' %) : fatigue, chaleur ou manque de footings faciles.':'Efficacité stable sur la période.'}</p>`;}
+  return h+'</div>';}
+let anaBusy=false;
+async function anaBatch(){if(anaBusy)return;const R=getRuns().slice(0,20);if(!R.length){toast('Aucune sortie à analyser');return;}if(!S.tokens&&!S.demo){toast('Connecte Strava d’abord');return;}anaBusy=true;let n=0;toast('Analyse de '+R.length+' sorties…');
+  for(const r of R){const det=await getDetail(r);if(det){anaSave(r.id,r.start_date_local,r.name,anaRun(det));n++;}}
+  anaBusy=false;renderAll();toast(n+' sorties analysées ✓');}
 function profSvg(det){const W=340,H=150,d=det.d,al=det.alt,maxD=d[d.length-1]||1,mn=Math.min(...al),mxA=Math.max(...al),ry=Math.max(20,mxA-mn);
   const X=v=>v/maxD*W,Y=v=>H-18-(v-mn)/ry*(H-34);let p=`M0 ${H-18}`;al.forEach((v,i)=>p+=` L${X(d[i]).toFixed(1)} ${Y(v).toFixed(1)}`);p+=` L${W} ${H-18}Z`;
   let hr='';if(det.hr&&det.hr.length===al.length){const hmn=Math.min(...det.hr),hmx=Math.max(...det.hr),hry=Math.max(10,hmx-hmn);hr=`<polyline class="hr" points="${det.hr.map((v,i)=>X(d[i]).toFixed(1)+','+(8+(1-(v-hmn)/hry)*(H-40)).toFixed(1)).join(' ')}"/>`;}
-  return `<svg class="prof" id="profSvg" viewBox="0 0 ${W} ${H}"><path class="ar" d="${p}"/>${hr}<line class="cur" id="profCur" x1="-5" x2="-5" y1="0" y2="${H-18}"/><text x="2" y="${H-4}" class="cl" style="text-anchor:start">0 km</text><text x="${W-2}" y="${H-4}" class="cl" style="text-anchor:end">${(maxD/1000).toFixed(1)} km</text><text x="${W-2}" y="12" class="cl" style="text-anchor:end">${Math.round(mxA)} m</text><text x="${W-2}" y="${H-22}" class="cl" style="text-anchor:end">${Math.round(mn)} m</text></svg>`;}
+  let pc='';if(det.t&&det.t.length===al.length){const n=al.length,P=[];for(let i=0;i<n;i++){let a=i,b=i;while(a>0&&d[i]-d[a]<120)a--;while(b<n-1&&d[b]-d[i]<120)b++;const dd=d[b]-d[a],dt=det.t[b]-det.t[a],g=dd>0?(al[b]-al[a])/dd:0;P.push(dd>30&&dt>0&&dd/dt>.55?dt/gradeMult(Math.max(-.4,Math.min(.4,g)))/dd*1000:null);}
+    const V=P.filter(x=>x!=null).sort((x,y)=>x-y);if(V.length>10){const lo=V[Math.floor(V.length*.05)],hi=V[Math.floor(V.length*.95)],rg=Math.max(10,hi-lo);pc=`<polyline class="pc" points="${P.map((v,i)=>v==null?null:X(d[i]).toFixed(1)+','+(10+Math.min(1,Math.max(0,(v-lo)/rg))*(H-46)).toFixed(1)).filter(Boolean).join(' ')}"/>`;}}
+  return `<svg class="prof" id="profSvg" viewBox="0 0 ${W} ${H}"><path class="ar" d="${p}"/>${hr}${pc}<line class="cur" id="profCur" x1="-5" x2="-5" y1="0" y2="${H-18}"/><text x="2" y="${H-4}" class="cl" style="text-anchor:start">0 km</text><text x="${W-2}" y="${H-4}" class="cl" style="text-anchor:end">${(maxD/1000).toFixed(1)} km</text><text x="${W-2}" y="12" class="cl" style="text-anchor:end">${Math.round(mxA)} m</text><text x="${W-2}" y="${H-22}" class="cl" style="text-anchor:end">${Math.round(mn)} m</text></svg>`;}
 function bindProf(det){const svg=$('#profSvg');if(!svg)return;const d=det.d,maxD=d[d.length-1]||1;
   const mv=e=>{const rc=svg.getBoundingClientRect(),cx=(e.touches?e.touches[0].clientX:e.clientX)-rc.left,x=Math.max(0,Math.min(1,cx/rc.width)),target=x*maxD;let i=0;while(i<d.length-1&&d[i]<target)i++;
     $('#profCur').setAttribute('x1',x*340);$('#profCur').setAttribute('x2',x*340);
@@ -2008,7 +2069,7 @@ function openImport(id){const r=(S.imports||[]).find(x=>x.id===id);if(!r)return;
   const det={d:s.d,alt:s.z,hr:s.hr&&s.hr.every(v=>v!=null)?s.hr:null,t:s.t};
   $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${esc(r.name)}</h2><button class="icbtn" onclick="closeSettings()">✕</button></div><p class="note">${new Date(r.date).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} · fichier importé</p>
   <div class="grid">${st(r.km.toFixed(2),'km')}${st(r.mov?fmtDur(r.mov):null,'temps en mouvement')}${st('+'+r.up+' m','D+')}${st('−'+r.dn+' m','D−')}${st(r.mov?fmtPace(r.mov/r.km):null,'allure /km')}${st(r.hr,'FC moyenne')}${st(r.cad,'cadence pas/min')}${st(r.mov?fmtPace(r.mov/(r.km+r.up/100)):null,'allure km-effort')}</div>
-  <div class="card" style="margin-top:12px"><h2>Profil</h2>${profSvg(det)}<div class="readout" id="actRead">Glisse le doigt sur le profil.</div></div>${diagCard(D)}
+  <div class="card" style="margin-top:12px"><h2>Profil</h2>${profSvg(det)}<div class="readout" id="actRead">Glisse le doigt sur le profil.</div></div>${(()=>{const AN=det.t&&det.t.every(v=>v!=null)?anaRun(det):null;if(AN)anaSave(r.id,r.date,r.name,AN);return anaCard(AN,r.id);})()}${diagCard(D)}
   <div class="row" style="margin-top:10px"><button class="btn ghost sm" style="margin:0" onclick="shareImport('${id}')">📤 Partager</button><button class="btn ghost sm" style="margin:0" onclick="if(confirm('Supprimer ce fichier ?')){S.imports=S.imports.filter(x=>x.id!=='${id}');save();closeSettings();renderAll();}">Supprimer</button></div>`;
   $('#sheet').classList.add('on');bindProf(det);}
 function shareImport(id){const r=(S.imports||[]).find(x=>x.id===id);if(!r)return;shareImg({color:'#F47C8A',kicker:'Trail',title:r.name,big:r.km.toFixed(1)+' km',poly:r.ll,lines:[`${r.km.toFixed(1).replace('.',',')} km${r.mov?' · '+fmtDur(r.mov)+' · '+fmtPace(r.mov/r.km)+'/km':''}`,`+${r.up} m / −${r.dn} m`]});}
@@ -2557,7 +2618,7 @@ function renderAnalyse(){
   const a=getA();let h=`<div class="card"><div class="row" style="justify-content:space-between"><div><h2 style="margin:0">Analyse Strava</h2><span class="muted small">${S.demo?'Données de démonstration':S.lastSync?'Synchro '+new Date(S.lastSync).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Jamais synchronisé'}</span></div>`;
   h+=S.tokens?`<button class="btn" onclick="syncStrava()" ${syncing?'disabled':''}>${syncing?'Synchro…':'↻ Synchroniser'}</button>`:`<button class="btn" onclick="stravaConnect()">Connecter Strava</button>`;
   h+=`</div></div>`;
-  h+=importCard()+hrrTrendCard();
+  h+=recordsCard()+importCard()+hrrTrendCard();
   if(a.runs.length){
     h+=`<div class="card"><h2>Volume des 12 dernières semaines</h2>${weekChart(a.weeks)}</div>`;
     h+=`<div class="card"><h2>Le coach a regardé tes sorties</h2>${a.I.map(i=>`<div class="ins ${i.l}"><b>${i.t}</b>${i.x}</div>`).join('')}</div>`;
