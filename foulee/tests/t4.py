@@ -11,7 +11,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+APP+'/index.html')
         await pg.evaluate('loadDemo()')
-        await pg.click('#modSeg button[data-mod=muscu]')
+        await pg.evaluate("showTab('muscu')")
         await pg.screenshot(path='n_home.png',full_page=True)
         # bilan
         await pg.evaluate('openProfile()')
@@ -25,7 +25,7 @@ async def main():
             print(k,T)
         T=await pg.evaluate("(()=>{const T=adaptSession(strSession('A',9));return T.items.map(i=>i.id+(i.from?'<'+i.from:'')+' '+i.p).join(' | ')+' || '+JSON.stringify(T.timer)})()")
         print('P3 A',T)
-        await pg.click('#tabs button[data-tab=renfo]')
+        await pg.evaluate("showTab('renfo')")
         await pg.evaluate("document.querySelectorAll('[data-page=renfo] details').forEach(d=>d.open=true)")
         await pg.screenshot(path='n_renfo.png',full_page=True)
         # legs auto
