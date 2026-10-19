@@ -63,6 +63,10 @@ ol.ex{padding-left:20px;margin:8px 0}ol.ex li{margin-bottom:8px}ol.ex small{colo
 .ins{border-radius:12px;padding:12px;margin-top:10px;background:var(--card2);border-left:4px solid var(--blue)}
 .ins.warn{border-left-color:var(--acc2)}.ins.ok{border-left-color:var(--ok)}
 .ins b{display:block;margin-bottom:2px}
+.rc-row,.tr-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.rc-row:first-of-type,.tr-row:first-of-type{border-top:0}.rc-row.past{opacity:.7}
+.rc-d{flex:0 0 46px;text-align:center;background:var(--card2);border-radius:12px;padding:6px 0}.rc-d b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:22px;line-height:1;color:var(--trail)}.rc-d small{font-size:11px;color:var(--mut);text-transform:uppercase}
+.rc-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.rc-tags .chip{padding:5px 10px;font-size:12px}.rc-j{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--trail);white-space:nowrap}
+.tr-row .ib{text-decoration:none;flex:0 0 auto}.cs-map{height:300px;border-radius:14px;margin-top:10px;overflow:hidden;background:var(--card2)}
 .star-r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.star-r:first-of-type{border-top:0}.star-r .sc{font-size:26px;color:var(--mut);width:28px;text-align:center}.star-r.on .sc{color:var(--muscu)}
 .star-h{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}.star-h div{background:var(--card2);border-radius:10px;padding:6px 2px;text-align:center}.star-h div.cur{outline:1px solid var(--muscu)}.star-h b{display:block;font-size:12px;color:var(--muscu);letter-spacing:-1px}.star-h small{font-size:11px;color:var(--mut)}
 .fbb button.on{border-color:var(--glacier);background:rgba(124,203,234,.12)}
@@ -457,6 +461,7 @@ body[data-tab=chrono] #hdChrono{color:var(--acc);border-color:var(--acc)}
   <section class="page" data-page="histo"></section>
   <section class="page" data-page="analyse"></section>
   <section class="page" data-page="plan"></section>
+  <section class="page" data-page="courses"></section>
   <section class="page" data-page="muscu"></section>
   <section class="page" data-page="renfo"></section>
   <section class="page" data-page="figures"></section>
@@ -540,7 +545,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.7';
+const APP_VER='6.8';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1083,6 +1088,8 @@ function coachContext(){
       sorties_recentes:a.runs.slice(0,12).map(r=>({date:r.start_date_local.slice(0,10),nom:r.name,km:+(r.distance/1000).toFixed(1),dplus:Math.round(r.total_elevation_gain),duree:fmtDur(r.moving_time),allure:fmtPace(r.moving_time/(r.distance/1000)),fc:r.average_heartrate?Math.round(r.average_heartrate):null,type:{ef:'facile',gris:'zone grise',qual:'qualité',long:'longue'}[a.cls(r)]}))},
     muscu:{phase:PH[Math.min(2,Math.floor(Math.max(0,w)/4))].n,niveau:`${st.L} (${TITLES[st.L-1]})`,seances_faites:st.done.length,contraintes_actives:ctxChips(),zones_a_menager:CTX().pains.map(z=>ZONES[z]),jambes_fatiguees:legsTired(),bilans:mp.tests.slice(-3),records:recs,ressentis_recents:fbs},
     cross:{forme_sur_100:R.sc,statut:R.t,raisons:R.why,ratio_charge_7j_28j:R.acwr!=null?+R.acwr.toFixed(2):null,ratio_prevu_dimanche_si_plan_fait:(()=>{const r=weekProjection(now).sun;return r!=null?+r.toFixed(2):null;})(),etoiles_semaine:w>=0&&w<=11?weekStars(w,now).st.map(x=>`${x.n} : ${x.ok?'tenu':'pas encore'} (${x.x})`):null},
+    courses_prevues:RACES().filter(r=>r.st!=='fait').sort((a,b)=>rWhen(a.d)-rWhen(b.d)).slice(0,8).map(r=>({nom:r.n,lieu:r.v||null,date:r.d.length===7?r.d+' (jour à confirmer)':r.d,km:r.km,dplus:r.dp,statut:RST[r.st][1],priorite:r.prio+' '+RPRIO[r.prio]})),
+    courses_faites:RACES().filter(r=>r.st==='fait').slice(-5).map(r=>({nom:r.n,date:r.d,km:r.km,temps:r.res?fmtH(r.res):null})),
     sommeil_7_nuits:[...Array(7)].map((_,i)=>{const d=new Date(now);d.setDate(d.getDate()-i);const x=sleepOf(iso(d));return x?{date:iso(d),heures:x.h,qualite:SLQ[x.q][1]}:null;}).filter(Boolean),
     zones_fc:hrZ()?{methode:hrZ().k?'Karvonen (FC de réserve)':'% de FC max',zones:hrZ().n.map((n,i)=>`${n} : ${hrZ().b[i]}–${hrZ().b[i+1]} bpm`)}:null,
     autres_sports_28j:xactAll().filter(x=>(Date.now()-new Date(x.d))/DAY<=28).map(x=>({sport:XTYPES[x.type][1],date:String(x.d).slice(0,10),minutes:Math.round(x.min),effort:x.rpe,km:x.km||null,dplus:x.dp||null,charge:Math.round(xLoad(x))})),
@@ -1305,13 +1312,13 @@ async function gh(path,opt={}){const r=await fetch('https://api.github.com'+path
 async function fileText(f){if(!f)return null;if(!f.truncated)return f.content;const r=await fetch(f.raw_url);if(!r.ok)throw new Error('Lecture du coffre impossible');return r.text();}
 async function findGist(){const v=VC();if(v.gist){try{return await gh('/gists/'+v.gist);}catch(e){if(!/404/.test(e.message))throw e;}}
   for(let p=1;p<=5;p++){const l=await gh(`/gists?per_page=100&page=${p}`);const g=l.find(x=>x.description===GIST_DESC);if(g){setVC({gist:g.id});return gh('/gists/'+g.id);}if(l.length<100)break;}return null;}
-const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail'];
+const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb'];
 function syncPayload(){const d={};for(const k of Object.keys(S))if(!NOSYNC.includes(k))d[k]=S[k];return {mt:S.mt||0,data:JSON.parse(JSON.stringify(d)),key:getKey()||null};}
 function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'+x.d;if(x.id!=null)return 'i:'+x.id;if(x.t!=null&&x.role)return 'c:'+x.t+x.role;}return 's:'+JSON.stringify(x);}
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
   if(L&&R&&typeof L==='object'&&typeof R==='object'&&!Array.isArray(L)&&!Array.isArray(R)){const o={...L};for(const k of Object.keys(R))o[k]=k in L?vmerge(L[k],R[k],rN,k):R[k];return o;}
   return rN?(R===undefined?L:R):(L===undefined?R:L);}
-function applyTomb(){const D=S.del||{};if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
+function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
 function tomb(kind,id){S.del=S.del||{};S.del[kind]=[...new Set([...(S.del[kind]||[]),id])].slice(-300);}
 let pushT=null,syncBusy=false;
 function schedulePush(){if(!VC().on)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(false),12000);}
@@ -1419,7 +1426,7 @@ function openRace(){const r=S.race||{};raceDraft={...r};$('#sheetBody').innerHTM
 function loadGpx(inp){const f=inp.files[0];if(!f)return;f.text().then(t=>{try{const g=parseGpx(t),st=gpxStats(g.pts);raceDraft.gpx=g;$('#r_km').value=st.km.toFixed(1);$('#r_dp').value=st.up;if(!$('#r_name').value&&g.name)$('#r_name').value=g.name;inp.parentElement.firstChild.textContent=`✓ ${st.km.toFixed(1)} km · ${st.up} m D+ `;toast('Tracé importé');}catch(e){toast(e.message);}});}
 function saveRace(){const name=$('#r_name').value.trim(),date=$('#r_date').value,km=parseFloat($('#r_km').value),dp=parseInt($('#r_dp').value)||0,gm=$('#r_goal').value.trim().match(/^(\d{1,2})[:h](\d{1,2})$/);
   if(!name||!date||!(km>0)){toast('Nom, date et distance sont nécessaires');return;}
-  S.race={name,date,km,dp,goal:gm?(+gm[1])*3600+(+gm[2])*60:null,aid:$('#r_aid').value.split(/[,;]/).map(x=>parseFloat(x.replace(',','.'))).filter(x=>x>0&&x<km).sort((a,b)=>a-b),gpx:raceDraft.gpx||null,temp:isFinite(parseFloat($('#r_temp').value))?parseFloat($('#r_temp').value):null,hum:parseInt($('#r_hum').value)||null};
+  {const pr=RACES().find(x=>S.race&&x.n===S.race.name&&x.prio==='A');if(pr){pr.n=name;pr.d=date;pr.km=km;pr.dp=dp;}}S.race={name,date,km,dp,goal:gm?(+gm[1])*3600+(+gm[2])*60:null,aid:$('#r_aid').value.split(/[,;]/).map(x=>parseFloat(x.replace(',','.'))).filter(x=>x>0&&x<km).sort((a,b)=>a-b),gpx:raceDraft.gpx||null,temp:isFinite(parseFloat($('#r_temp').value))?parseFloat($('#r_temp').value):null,hum:parseInt($('#r_hum').value)||null};
   save();closeSettings();renderAll();toast('Objectif enregistré 🏁');}
 function raceCard(full){const r=S.race;if(!r)return full?`<div class="card race"><h2>🏁 Objectif course</h2><p class="muted small">Ajoute ta prochaine course (date, distance, D+, tracé GPX) : l’appli calcule tes temps de passage selon la pente et le coach construit le programme jusqu’au jour J.</p><button class="btn sm" onclick="openRace()">Définir ma course</button></div>`:'';
   const j=daysTo(r.date),R=raceStrategy(r);
@@ -2342,6 +2349,144 @@ function renderSuivi(){
   $('[data-page=suivi]').innerHTML=h;fillBody();
 }
 
+/* ============ COURSES : planning + recherche de trails ============ */
+/* Calendrier des trails de l'Oise (60), relevé le 19/10/2026 sur Miles Republic, Go Trail et Ahotu.
+   [id, nom, commune, date (AAAA-MM-JJ, ou AAAA-MM si à confirmer), distances km, note] */
+const OISE_UPD='2026-10-19';
+const OISE_TRAILS=[
+ ['grandparc','Tour du Grand Parc','Compiègne','2026-10-25',[8,15]],
+ ['sauttrail','La Saut’trail','Verberie','2026-11-01',[4.9,9.9,21]],
+ ['imperatrice','Sur les chemins de l’Impératrice','Compiègne','2026-11-07',[6,12]],
+ ['maudite','Trail de la Montagne Maudite (nocturne)','Lagny','2026-11-07',[7,18]],
+ ['gury','Trail nocturne de la Montagne de Gury','Gury','2026-11-14',[12]],
+ ['montmacq','Montmacq’ximum','Montmacq','2026-11-15',[6,13]],
+ ['novbleu','Trail Novembre Bleu','Foulangues','2026-11-15',[5,10]],
+ ['siberien','Trail Sibérien','Feuquières','2026-11-21',[8.5,20]],
+ ['pontoise','Trail de la Pont’Oise','Pont-Sainte-Maxence','2026-11-21',[8,16,25]],
+ ['senlis','Trail de Senlis','Senlis','2026-11-29',[10,15,29],'10 km de nuit le samedi 28'],
+ ['tracy','La Trail’çotaine','Tracy-le-Val','2026-11',[5,6,8,10.2]],
+ ['paradis','Trail nocturne de la Montagne du Paradis','Élincourt-Sainte-Marguerite','2026-11',[12]],
+ ['orry','L’Orrygeoise','Orry-la-Ville','2026-12-12',[4.9,9.9,21,42.2],'version nocturne 5 et 10 km'],
+ ['noctrail','La 14-18 Noctrail','Noyon','2026-12-19',[10,16,24],'nocturne'],
+ ['blaincourt','Le 13 de Blaincourt','Blaincourt-lès-Précy','2027-01-09',[7,13]],
+ ['pierrefonds','Trail du Château de Pierrefonds','Pierrefonds','2027-01',[13,27]],
+ ['clermontrail','ClermonTrail','Saint-Aubin-sous-Erquery','2027-02',[8,16]],
+ ['rochers','Trail du Château des Rochers','Nogent-sur-Oise','2027-03',[10,15,30]],
+ ['gladiateurs','Trail des Gladiateurs','Clairoix','2027-03',[10,20]],
+ ['vadrouille','La P’tite Vadrouille','Agnetz','2027-03',[12,19,38]],
+ ['aigles','Trail des Aigles','Gouvieux','2027-03-21',[9,15],'≈ 120 m D+ sur le 15 km'],
+ ['paillardeine','La Paillardeine','Paillart','2027-03',[5,12,14.5]],
+ ['jaux','La Jaux-viale','Jaux','2027-03',[5,9]],
+ ['mareuil','La Mareuil’oise','Mareuil-la-Motte','2027-03',[7,12]],
+ ['lucioles','Trail des P’tites Lucioles','Fleurines','2027-03',[],'distances non publiées'],
+ ['daniel','Les Chemins de Daniel','Ferrières','2027-04',[8,16]],
+ ['coye','Courir pour Coye','Coye-la-Forêt','2027-04',[5,10]],
+ ['solitrail','Soli’Trail Picard','Pontpoint','2027-04',[12,21]],
+ ['lapstrail','Laps’trail','Vieux-Moulin','2027-04',[8,12,16]],
+ ['hermites','Trail des Hermites','Autrêches','2027-04',[6.6,12,25]],
+ ['salency','Trail de la Fontaine Saint-Pierre','Salency','2027-04',[7,14,22]],
+ ['fay','Trail de Fay-les-Étangs','Fay-les-Étangs','2027-04',[3.5,10,20]],
+ ['cauvigny','Semi-marathon des 4 communes','Cauvigny','2027-04',[5,10,20,21]],
+ ['blacourt','Course nature de Blacourt','Blacourt','2027-04',[12,22,42]],
+ ['deuxmonts','Trail des 2 Monts','Fleurines','2027-04',[11,22,30]],
+ ['bieres','Trail des Bières Sacrées','Larbroye','2027-04',[10,18]],
+ ['bethisy','Trail de Béthisy-Saint-Martin','Béthisy-Saint-Martin','2027-04',[5,10,21]],
+ ['fees','Trail de la Pierre aux Fées','Ponchon','2027-05',[10,15,27]],
+ ['fresnoy','Trail des Fresnoy','Grandfresnoy','2027-05',[7.2,10,13.2]],
+ ['lignerouge','Ultra-trail de la Ligne Rouge','Thiescourt','2027-05',[10,20,43,100]],
+ ['lysoise','La Lys’oise','Lamorlaye','2027-05',[5.3,10.5]],
+ ['neuilly','Neuilly en Trail','Neuilly-en-Thelle','2027-05',[9,12,15,23]],
+ ['verneuil','Trail du Château de Verneuil','Verneuil-en-Halatte','2027-05-30',[5,10,15,30]],
+ ['ardente','Foulées de l’Ardente','Vineuil-Saint-Firmin','2027-06',[5,10,11,18]],
+ ['boissy','Les Foulées de Boissy-Fresnoy','Boissy-Fresnoy','2027-06',[5,7,10,15,20,85]],
+ ['boisdescotes','Trail du Bois des Côtes','Bailleval','2027-06-19',[10,17,45,62]]];
+const OISE_GEO={'Compiègne':[49.4006,2.8547],'Verberie':[49.3074,2.7386],'Lagny':[49.6109,2.915],'Gury':[49.5718,2.8005],'Montmacq':[49.4826,2.9132],'Foulangues':[49.2756,2.3156],'Feuquières':[49.6511,1.8455],'Pont-Sainte-Maxence':[49.308,2.6151],'Senlis':[49.2156,2.5912],'Tracy-le-Val':[49.4903,3.0142],'Élincourt-Sainte-Marguerite':[49.5295,2.8394],'Orry-la-Ville':[49.1414,2.5087],'Noyon':[49.578,3.0074],'Blaincourt-lès-Précy':[49.2271,2.3455],'Pierrefonds':[49.3455,2.9681],'Saint-Aubin-sous-Erquery':[49.4125,2.4909],'Nogent-sur-Oise':[49.2764,2.4644],'Clairoix':[49.4411,2.8438],'Agnetz':[49.3944,2.3784],'Gouvieux':[49.19,2.4161],'Paillart':[49.6669,2.3245],'Jaux':[49.3948,2.7703],'Mareuil-la-Motte':[49.55,2.8037],'Fleurines':[49.2628,2.5905],'Ferrières':[49.5883,2.5134],'Coye-la-Forêt':[49.1453,2.4678],'Pontpoint':[49.3006,2.65],'Vieux-Moulin':[49.3905,2.9279],'Autrêches':[49.4501,3.1295],'Salency':[49.5873,3.046],'Fay-les-Étangs':[49.2509,1.9418],'Cauvigny':[49.3015,2.2394],'Blacourt':[49.4579,1.8598],'Larbroye':[49.5713,2.9591],'Béthisy-Saint-Martin':[49.2895,2.8083],'Ponchon':[49.3484,2.1872],'Grandfresnoy':[49.3798,2.66],'Thiescourt':[49.5581,2.8642],'Lamorlaye':[49.1604,2.4262],'Neuilly-en-Thelle':[49.2281,2.2769],'Verneuil-en-Halatte':[49.2723,2.5347],'Vineuil-Saint-Firmin':[49.2053,2.4982],'Boissy-Fresnoy':[49.166,2.8885],'Bailleval':[49.3485,2.4692]};
+const MOISC=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const MOISL=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const RST={env:['💭','Envisagée'],ins:['✅','Inscrit'],fait:['🏁','Faite']},RPRIO={A:'Objectif',B:'Importante',C:'Préparation'};
+const geoKm=(a,b)=>{const R=6371,r=x=>x*Math.PI/180,dl=r(b[0]-a[0]),dn=r(b[1]-a[1]),h=Math.sin(dl/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));};
+const kmFr=k=>String(Math.round(k*10)/10).replace('.',',');
+const rDate=d=>d&&d.length===7?`${MOISL[+d.slice(5,7)-1]} ${d.slice(0,4)} · date à confirmer`:parseISO(d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+const rWhen=d=>d.length===7?parseISO(d+'-15'):parseISO(d);
+const RACES=()=>{S.races=S.races||[];return S.races;};
+let CS={more:12,q:'',dist:'all',per:'6m',sort:'date',me:null,map:false,web:null,busy:false,zone:'Oise (60)'};
+function oiseList(){const now=new Date(new Date().toDateString()),lim=CS.per==='3m'?90:CS.per==='6m'?183:9999,q=CS.q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const band={all:()=>true,s:k=>k>=5&&k<12,m:k=>k>=12&&k<22,l:k=>k>=22&&k<36,xl:k=>k>=36}[CS.dist];
+  let L=OISE_TRAILS.map(([id,n,v,d,ds,note])=>({id,n,v,d,ds:ds.filter(k=>k>=3),note,geo:OISE_GEO[v],src:'oise'}));
+  if(CS.web&&CS.web.items)L=L.concat(CS.web.items.filter(w=>!L.some(o=>o.n.toLowerCase()===w.n.toLowerCase())));
+  L=L.filter(o=>{const t=rWhen(o.d),dd=(t-now)/DAY;if(o.d.length===7?t<new Date(now.getFullYear(),now.getMonth(),1):dd<0)return false;if(dd>lim)return false;
+    if(CS.dist!=='all'&&!(o.ds.length?o.ds.some(band):false))return false;if(q&&!(o.n+' '+o.v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q))return false;return true;});
+  L.forEach(o=>o.km=CS.me&&o.geo?geoKm(CS.me,o.geo):null);
+  return L.sort((a,b)=>CS.sort==='near'&&CS.me?(a.km??1e9)-(b.km??1e9):rWhen(a.d)-rWhen(b.d));}
+function inPlan(id){return RACES().find(r=>r.src===id);}
+function racesCard(){const R=RACES(),now=new Date(new Date().toDateString()),up=R.filter(r=>r.st!=='fait'&&rWhen(r.d)>=now).sort((a,b)=>rWhen(a.d)-rWhen(b.d)),past=R.filter(r=>!up.includes(r)).sort((a,b)=>rWhen(b.d)-rWhen(a.d));
+  const warn=[];for(let i=1;i<up.length;i++){const a=up[i-1],b=up[i],gap=(rWhen(b.d)-rWhen(a.d))/DAY;if(gap<21&&(a.prio!=='C'||b.prio!=='C')&&(a.km>=20||b.km>=20))warn.push(`${esc(a.n)} et ${esc(b.n)} : ${Math.round(gap)} j d’écart. Prévois 1 jour de récupération par 10 km de course avant de repartir fort.`);}
+  const A=up.filter(r=>r.prio==='A');if(A.length>1)warn.push(`${A.length} courses en objectif : garde un seul objectif principal par bloc de 12 semaines, les autres en préparation.`);
+  const row=r=>{const j=Math.round((rWhen(r.d)-now)/DAY),obj=S.race&&S.race.name===r.n&&S.race.date===r.d;return `<div class="rc-row ${r.st==='fait'?'past':''}"><div class="rc-d"><b>${r.d.length===7?'?':parseISO(r.d).getDate()}</b><small>${MOISC[+r.d.slice(5,7)-1]}</small></div>
+    <div style="flex:1;min-width:0"><b>${esc(r.n)}</b><div class="muted small">${esc(r.v||'')}${r.km?' · '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.d.length===7?' · date à confirmer':''}</div>
+    <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
+    <div class="rc-j">${r.st==='fait'||j<0?'':j===0?'Jour J':'J-'+j}<button class="ib" onclick="openRaceEdit('${r.id}')" aria-label="Modifier">✎</button></div></div>`;};
+  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🗓️ Mon planning</h2><button class="btn sm" style="margin:0;white-space:nowrap" onclick="openRaceEdit()">＋ Course</button></div>
+  ${up.length?up.map(row).join(''):'<p class="muted small" style="margin-top:8px">Aucune course prévue. Ajoute-en une à la main ou depuis la recherche ci-dessous.</p>'}
+  ${warn.map(w=>`<div class="ins warn"><b>Calendrier chargé</b>${w}</div>`).join('')}
+  ${past.length?`<details class="bmore" style="margin-top:10px"><summary>Courses passées (${past.length})</summary>${past.map(row).join('')}</details>`:''}
+  <p class="note">Touche le statut ou la priorité pour les changer. « A · Objectif » cale le plan de 12 semaines, l’affûtage et la stratégie d’allure sur cette course.</p></div>`;}
+function findCard(){const L=oiseList(),ch=(k,v,l)=>`<button class="chip sm ${CS[k]===v?'on':''}" onclick="CS.${k}='${v}';CS.more=12;renderCourses()">${l}</button>`;
+  const item=o=>{const p=inPlan(o.id);return `<div class="tr-row"><div style="flex:1;min-width:0"><b>${esc(o.n)}</b><div class="muted small">${rDate(o.d)} · ${esc(o.v)}${o.km!=null?` · ${Math.round(o.km)} km de toi`:''}${o.src==='web'?' · 🔎 trouvée en ligne':''}</div>
+    <div class="rc-tags">${o.ds.length?o.ds.map(k=>`<button class="chip sm ${p&&p.km===k?'on':''}" onclick="addFound('${o.id}',${k})">${kmFr(k)} km</button>`).join(''):'<span class="muted small">Distances non publiées</span>'}${o.note?`<span class="muted small" style="align-self:center">${esc(o.note)}</span>`:''}</div></div>
+    <a class="ib" href="${o.url?esc(o.url):'https://www.google.com/search?q='+encodeURIComponent(o.n+' '+o.v+' trail '+o.d.slice(0,4))}" target="_blank" rel="noopener" aria-label="Site de la course">↗</a></div>`;};
+  return `<div class="card"><h2>🔎 Trouver un trail</h2>
+  <input id="cs_q" type="search" placeholder="Nom ou commune (ex. Senlis, Compiègne)" value="${esc(CS.q)}" oninput="CS.q=this.value;clearTimeout(window.__csT);window.__csT=setTimeout(()=>{renderCourses();const e=$('#cs_q');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},300)">
+  <div class="chips">${ch('per','3m','3 mois')}${ch('per','6m','6 mois')}${ch('per','all','Tout')}</div>
+  <div class="chips">${ch('dist','all','Toutes distances')}${ch('dist','s','5–12 km')}${ch('dist','m','12–22 km')}${ch('dist','l','22–36 km')}${ch('dist','xl','36 km et +')}</div>
+  <div class="chips">${ch('sort','date','Par date')}<button class="chip sm ${CS.sort==='near'?'on':''}" onclick="csNear()">📍 Près de moi</button><button class="chip sm ${CS.map?'on':''}" onclick="CS.map=!CS.map;renderCourses()">🗺️ Carte</button></div>
+  ${CS.map?'<div id="csMap" class="cs-map"></div>':''}
+  <div class="muted small" style="margin-top:10px">${L.length} trail${L.length>1?'s':''} dans l’Oise${CS.web&&CS.web.items.length?` + ${CS.web.items.length} trouvés en ligne (${esc(CS.web.zone)})`:''}</div>
+  ${L.slice(0,CS.more).map(item).join('')||'<p class="muted small">Aucun trail pour ces filtres.</p>'}${L.length>CS.more?`<button class="btn ghost wide sm" onclick="CS.more+=15;renderCourses()">Voir ${Math.min(15,L.length-CS.more)} trails de plus (${L.length-CS.more} restants)</button>`:''}
+  <div class="ins" style="margin-top:12px"><b>🔎 Recherche en ligne par le coach</b>Le calendrier intégré date du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}. Le coach peut chercher sur le web les dates à jour, ou des trails dans une autre zone.
+   <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="cs_zone" value="${esc(CS.zone)}" style="flex:1" placeholder="Zone (ex. Oise, Somme, Val-d’Oise)"><button class="btn ai-b sm" style="margin:0" ${CS.busy?'disabled':''} onclick="${getKey()?'raceWebSearch()':'openSettings()'}">${CS.busy?'Recherche…':getKey()?'Chercher':'Activer le coach'}</button></div></div>
+  <p class="note">Sources : Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire.</p></div>`;}
+function renderCourses(){const el=$('[data-page=courses]');if(!el)return;el.innerHTML=raceCard(true)+racesCard()+findCard();if(CS.map)csMapDraw();}
+let csMapObj=null;
+function csMapDraw(){ensureLeaflet().then(()=>{const el=$('#csMap');if(!window.L||!el)return;if(csMapObj){try{csMapObj.remove();}catch(e){}}const T=TILES.relief;csMapObj=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(csMapObj);
+  const pts=[];oiseList().filter(o=>o.geo).forEach(o=>{pts.push(o.geo);L.circleMarker(o.geo,{radius:7,color:'#0D131A',weight:2,fillColor:inPlan(o.id)?'#E5B85C':'#F47C8A',fillOpacity:.95}).addTo(csMapObj).bindPopup(`<b>${esc(o.n)}</b><br>${rDate(o.d)}<br>${esc(o.v)}${o.ds.length?' · '+o.ds.map(kmFr).join(' / ')+' km':''}`);});
+  if(CS.me){pts.push(CS.me);L.circleMarker(CS.me,{radius:6,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(csMapObj).bindPopup('Toi');}
+  if(pts.length)csMapObj.fitBounds(pts,{padding:[24,24],maxZoom:11});else csMapObj.setView([49.41,2.42],9);});}
+function csNear(){if(CS.me){CS.sort='near';renderCourses();return;}if(!navigator.geolocation){toast('Géolocalisation indisponible');return;}toast('Localisation…');
+  navigator.geolocation.getCurrentPosition(p=>{CS.me=[p.coords.latitude,p.coords.longitude];CS.sort='near';renderCourses();},e=>toast(e&&e.code===1?'Position refusée : tri par date':'Position indisponible'),{timeout:12000,maximumAge:600e3});}
+function addFound(id,km){const o=oiseList().find(x=>x.id===id)||(CS.web&&CS.web.items.find(x=>x.id===id));if(!o)return;const ex=inPlan(id);
+  if(ex){if(ex.km===km){if(!confirm(`Retirer « ${o.n} » de ton planning ?`))return;S.races=RACES().filter(r=>r!==ex);tomb('races',ex.id);save();renderCourses();toast('Course retirée');return;}ex.km=km;save();renderCourses();toast(`Distance changée : ${kmFr(km)} km`);return;}
+  const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dp||null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);}
+function raceCycle(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.st={env:'ins',ins:'fait',fait:'env'}[r.st];save();renderCourses();if(r.st==='fait')openRaceEdit(id);}
+function racePrio(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.prio={A:'B',B:'C',C:'A'}[r.prio];if(r.prio==='A'&&r.d.length===7){r.prio='B';toast('Date à confirmer : saisis la date exacte (✎) pour en faire ton objectif');}if(r.prio==='A'){RACES().forEach(x=>{if(x!==r&&x.prio==='A'&&x.st!=='fait')x.prio='B';});raceToPlan(r);}save();renderAll();}
+function raceToPlan(r,quiet){if(r.d.length===7){if(!quiet)toast('Date à confirmer : saisis la date exacte pour caler le plan');return false;}const keep=S.race&&S.race.name===r.n?S.race:{};
+  S.race={...keep,name:r.n,date:r.d,km:r.km||keep.km||10,dp:r.dp!=null?r.dp:(keep.dp||0)};if(!quiet)toast('Course calée comme objectif du plan 🏁');return true;}
+let RED=null;
+function openRaceEdit(id){const r=id?RACES().find(x=>x.id===id):null;RED=r?{...r,_e:1}:{id:'r'+Date.now().toString(36),n:'',v:'',d:'',km:null,dp:null,st:'env',prio:'C'};renderRaceEdit();$('#sheet').classList.add('on');}
+function renderRaceEdit(){const x=RED,dd=x.d&&x.d.length===10?x.d:'',res=x.res?Math.floor(x.res/3600)+':'+pad(Math.round(x.res%3600/60)):'';
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${x._e?'Modifier la course':'Ajouter une course'}</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <div class="form"><label>Nom</label><input id="re_n" value="${esc(x.n)}" placeholder="ex. Trail de Senlis"><label>Lieu</label><input id="re_v" value="${esc(x.v||'')}" placeholder="Commune">
+  <div class="f2"><div><label>Date${x.d&&x.d.length===7?' (prévue en '+MOISL[+x.d.slice(5,7)-1]+')':''}</label><input id="re_d" type="date" value="${dd}"></div><div><label>Distance (km)</label><input id="re_km" type="number" step="0.1" inputmode="decimal" value="${x.km??''}"></div>
+  <div><label>D+ (m)</label><input id="re_dp" type="number" inputmode="numeric" value="${x.dp??''}"></div><div><label>Temps réalisé (h:mm)</label><input id="re_res" placeholder="après la course" value="${res}"></div></div>
+  <label>Site de la course</label><input id="re_url" type="url" value="${esc(x.url||'')}" placeholder="https://…"></div>
+  <h3>Statut</h3><div class="chips">${Object.entries(RST).map(([k,v])=>`<button class="chip ${x.st===k?'on':''}" onclick="reSync();RED.st='${k}';renderRaceEdit()">${v[0]} ${v[1]}</button>`).join('')}</div>
+  <h3>Priorité</h3><div class="chips">${Object.entries(RPRIO).map(([k,v])=>`<button class="chip ${x.prio===k?'on':''}" onclick="reSync();RED.prio='${k}';renderRaceEdit()">${k} · ${v}</button>`).join('')}</div>
+  <div class="row" style="margin-top:14px"><button class="btn" style="flex:1" onclick="saveRaceEdit()">Enregistrer</button>${x._e?`<button class="btn ghost" onclick="delRaceEdit()">Supprimer</button>`:''}</div>`;}
+function reSync(){const g=i=>$(i)?$(i).value.trim():'';RED.n=g('#re_n');RED.v=g('#re_v');const d=g('#re_d');if(d)RED.d=d;RED.km=parseFloat(g('#re_km').replace(',','.'))||null;RED.dp=parseInt(g('#re_dp'))||null;RED.url=g('#re_url')||null;const m=g('#re_res').match(/^(\d{1,2})[:h](\d{2})$/);RED.res=m?(+m[1])*3600+(+m[2])*60:null;}
+function saveRaceEdit(){reSync();const x={...RED};delete x._e;if(!x.n){toast('Donne un nom à la course');return;}if(!x.d){toast('Choisis une date');return;}
+  const L=RACES(),i=L.findIndex(r=>r.id===x.id);if(i>=0)L[i]=x;else L.push(x);if(S.del&&S.del.races)S.del.races=S.del.races.filter(z=>z!==x.id);
+  if(x.prio==='A'&&x.st!=='fait'){L.forEach(y=>{if(y.id!==x.id&&y.prio==='A'&&y.st!=='fait')y.prio='B';});raceToPlan(x,true);}save();closeSettings();renderAll();toast(x.prio==='A'?'Course enregistrée et calée comme objectif 🏁':'Course enregistrée');}
+function delRaceEdit(){if(!confirm('Supprimer cette course du planning ?'))return;S.races=RACES().filter(r=>r.id!==RED.id);tomb('races',RED.id);save();closeSettings();renderAll();}
+async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim())||'Oise (60)';CS.zone=z;CS.busy=true;renderCourses();
+  try{const today=iso(new Date());let messages=[{role:'user',content:`Nous sommes le ${today}. Cherche sur le web les courses de trail (et courses nature) prévues dans les 12 prochains mois dans cette zone : ${z}. Utilise des calendriers fiables (sites d'organisateurs, Miles Republic, Go Trail, Ahotu, Finishers, jogging-plus). Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme {"courses":[{"nom":"…","commune":"…","date":"AAAA-MM-JJ ou AAAA-MM si le jour n'est pas connu","distances_km":[10,21],"dplus_m":null,"url":"https://…"}]}. Au plus 40 courses, triées par date, sans les courses enfants ni les marches.`}],j=null;
+    for(let i=0;i<4;i++){j=await claude({system:'Tu es l’assistant de recherche de l’appli Foulée. Tu réponds en JSON strict.',messages,tools:[{type:'web_search_20250305',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'FR',timezone:'Europe/Paris'}}],max:8000});
+      if(j.stop_reason!=='pause_turn')break;messages=[...messages,{role:'assistant',content:j.content}];}
+    const t=textOf(j),m=t.match(/\{[\s\S]*\}/);let o=null;try{o=m?JSON.parse(m[0]):null;}catch(e){}
+    const arr=(o&&o.courses)||[];if(!arr.length)throw new Error('Le coach n’a trouvé aucune course exploitable. Réessaie ou change la zone.');
+    const items=arr.filter(c=>c&&c.nom&&/^\d{4}-\d{2}(-\d{2})?$/.test(c.date||'')).map((c,i)=>({id:'w'+i+'_'+String(c.nom).toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,16),n:String(c.nom).slice(0,80),v:String(c.commune||'').slice(0,60),d:c.date,ds:(c.distances_km||[]).map(Number).filter(k=>k>=3&&k<400).slice(0,8),dp:c.dplus_m||null,url:/^https?:\/\//.test(c.url||'')?c.url:null,geo:OISE_GEO[c.commune]||null,src:'web'}));
+    CS.web={zone:z,at:Date.now(),items};S.raceWeb=CS.web;save(true);toast(`${items.length} courses trouvées en ligne`);}
+  catch(e){toast(e.message);}finally{CS.busy=false;renderCourses();}}
+
 /* ============ SOMMEIL ============ */
 const SLQ=[null,['😫','Très mauvaise'],['😕','Moyenne'],['🙂','Bonne'],['😴','Excellente']];
 const slH=h=>{const m=Math.round(h*60),hh=Math.floor(m/60),mm=m%60;return `${hh} h${mm?' '+pad(mm):''}`;};
@@ -2542,7 +2687,7 @@ function nutri(){const s=S.settings,g=MP().goal,lf=[...S.mesures].filter(m=>m.f&
 function addMes(){const t=parseFloat($('#m_tour').value),p=parseFloat($('#m_poids').value),f=parseFloat($('#m_fat').value),mu=parseFloat($('#m_mus').value);if(!t&&!p&&!f){toast('Saisis au moins une valeur');return;}if(f&&(f<3||f>60)){toast('% de graisse invalide');return;}const d=iso(new Date());S.mesures=S.mesures.filter(m=>m.d!==d);S.mesures.push({d,t:t||null,p:p||null,f:f||null,mu:mu||null});if(p){S.settings.poids=p;}save();renderSuivi();renderMuscuHome();toast('Mesure enregistrée');}
 function delMes(d){S.mesures=S.mesures.filter(m=>m.d!==d);tomb('mesures',d);save();renderSuivi();renderMuscuHome();}
 function shiftWeek(x){viewWeek=Math.max(0,Math.min(11,viewWeek+x));renderPlan();renderRenfo();}
-function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderForme();}
+function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderForme();renderCourses();}
 
 /* ============ RÉGLAGES ============ */
 function openSettings(){const s=S.settings;
@@ -2709,9 +2854,9 @@ function polish(root){root.querySelectorAll('.card h2,#sheetBody>.row h2').forEa
 let polT=0;new MutationObserver(()=>{if(polT)return;polT=requestAnimationFrame(()=>{polT=0;polish(document.body);});}).observe(document.body,{childList:true,subtree:true});
 
 /* ============ NAVIGATION & DÉMARRAGE ============ */
-const ICO={fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
+const ICO={flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
 const MODS={
- trail:{sub:'Course à pied · Strava',tabs:[['trail','Accueil','home'],['histo','Historique','cal'],['analyse','Analyse','chart'],['plan','Plan','run']]},
+ trail:{sub:'Course à pied · Strava',tabs:[['trail','Accueil','home'],['histo','Historique','cal'],['analyse','Analyse','chart'],['plan','Plan','run'],['courses','Courses','flag']]},
  muscu:{sub:'Kettlebell · Poids du corps',tabs:[['muscu','Accueil','home'],['renfo','Séances','kb'],['figures','Figures','fig'],['defis','Défis','mount'],['suivi','Progrès','ruler']]},
  cross:{sub:'Le pont entre trail et muscu',tabs:[['cross','Semaine','cal'],['forme','Forme & charge','pulse']]}};
 let MOD='trail';
@@ -2727,7 +2872,7 @@ function showTab(t){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-initChrono();renderAll();showInstall(false);setTimeout(cdjTick,2500);
+if(S.raceWeb)CS.web=S.raceWeb;initChrono();renderAll();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
