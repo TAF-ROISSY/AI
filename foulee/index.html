@@ -489,6 +489,8 @@ html[data-font=systeme] body{font-family:-apple-system,BlinkMacSystemFont,'SF Pr
 .lk-th{width:30px;height:30px;border-radius:9px;flex:none;border:1px solid rgba(var(--ink),.2)}
 html[data-th=clair] .btn:not(.ghost){color:#fff}
 .lk-ft{font-size:22px;width:30px;text-align:center;flex:none;font-weight:700}
+.trk{cursor:pointer;align-items:center;gap:10px}.tr-mini{flex:none;width:64px;height:30px;display:inline-flex;align-items:center;justify-content:center}
+.tr-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.tr-kpi{background:var(--card2);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}.tr-kpi b{font-family:var(--disp);font-size:20px}
 </style>
 </head>
 <body>
@@ -594,7 +596,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.7';
+const APP_VER='7.8';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1368,7 +1370,7 @@ function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
   if(L&&R&&typeof L==='object'&&typeof R==='object'&&!Array.isArray(L)&&!Array.isArray(R)){const o={...L};for(const k of Object.keys(R))o[k]=k in L?vmerge(L[k],R[k],rN,k):R[k];return o;}
   return rN?(R===undefined?L:R):(L===undefined?R:L);}
-function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
+function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.trfav&&S.trFav)S.trFav=S.trFav.filter(x=>!D.trfav.includes(x.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
 function tomb(kind,id){S.del=S.del||{};S.del[kind]=[...new Set([...(S.del[kind]||[]),id])].slice(-300);}
 let pushT=null,syncBusy=false;
 function schedulePush(){if(!VC().on)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(false),12000);}
@@ -2609,7 +2611,139 @@ function findCard(){const L=oiseList(),P=oiseList({past:true}),ch=(k,v,l)=>`<but
   <div class="ins" style="margin-top:12px"><b>🔄 Actualiser en ligne</b>Calendrier intégré relevé le ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}${last?`, actualisé le ${new Date(last).toLocaleDateString('fr-FR')} (${web} épreuves en cache sur cet appareil)`:''}. Le coach cherche les dates à jour sur Adeorun et les calendriers de trail, pour le périmètre choisi ou une zone saisie.
    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="cs_zone" value="${esc(CS.zone||REG[CS.reg][0])}" style="flex:1" placeholder="Zone (ex. Oise, Somme, Val-d’Oise)"><button class="btn ai-b sm" style="margin:0" ${CS.busy?'disabled':''} onclick="${getKey()?'raceWebSearch()':'openSettings()'}">${CS.busy?'Recherche…':getKey()?'Actualiser':'Activer le coach'}</button></div></div>
   <p class="note">Sources : Adeorun, Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire. Distances à vol d’oiseau depuis ta position.</p></div>`;}
-function renderCourses(){const el=$('[data-page=courses]');if(!el)return;el.innerHTML=raceCard(true)+racesCard()+findCard();if(CS.map)csMapDraw();}
+/* ============ TRACES DE TRAIL (v7.8) : itinéraires balisés OpenStreetMap partout, avec filtres ============ */
+const TR={c:null,cn:'',rad:15,busy:false,err:null,list:[],at:0,more:10,map:false,open:null,
+  f:{q:'',dist:'all',dp:'all',prof:'all',loop:'all',path:0,net:'all',sort:'near'}};
+const TR_RADII=[5,10,15,30,50];
+const TR_NET={all:'Tous',gr:'GR',grp:'GRP / régional',pr:'PR / local',run:'Trail & running'};
+const TRC_K='foulee_trc';
+function trc(){try{return JSON.parse(localStorage.getItem(TRC_K))||{};}catch(e){return {};}}
+function trcPut(id,o){const c=trc();c[id]={...o,t:Date.now()};const k=Object.keys(c);if(k.length>150)k.sort((a,b)=>c[a].t-c[b].t).slice(0,k.length-150).forEach(x=>delete c[x]);try{localStorage.setItem(TRC_K,JSON.stringify(c));}catch(e){}}
+function trNet(t){const n=t.network||'',r=t.route||'';if(/running|trail_running|fitness_trail/.test(r))return 'run';if(n==='iwn'||n==='nwn'||/^GR\s?\d/i.test(t.ref||''))return 'gr';if(n==='rwn'||/^GRP/i.test(t.ref||'')||/GR de Pays/i.test(t.name||''))return 'grp';return 'pr';}
+function trNature(t){const h=t.highway||'',sf=t.surface||'';if(/^(asphalt|paved|concrete|paving_stones|sett|metal|wood)$/.test(sf))return false;
+  if(/^(path|track|bridleway)$/.test(h))return true;if(h==='footway'||h==='steps'||h==='cycleway')return /^(ground|dirt|earth|grass|gravel|fine_gravel|compacted|sand|mud|rock|unpaved|woodchips|pebblestone)$/.test(sf);return false;}
+function trChain(segs){/* relie les tronçons d'un itinéraire bout à bout (retourne les morceaux inversés) */
+  const P=[];let cur=null;
+  for(const s of segs){if(s.length<2)continue;
+    if(!cur){cur=s.slice();P.push(cur);continue;}
+    const e=cur[cur.length-1],b=cur[0],d1=geoKm(e,s[0]),d2=geoKm(e,s[s.length-1]);
+    if(Math.min(d1,d2)<=.25){if(d2<d1)s.reverse();cur.push(...s.slice(1));continue;}
+    if(P.length===1&&cur.length&&Math.min(geoKm(b,s[0]),geoKm(b,s[s.length-1]))<=.25){cur.reverse();const e2=cur[cur.length-1];if(geoKm(e2,s[s.length-1])<geoKm(e2,s[0]))s.reverse();cur.push(...s.slice(1));continue;}
+    cur=s.slice();P.push(cur);}
+  return P;}
+function plen(p){let d=0;for(let i=1;i<p.length;i++)d+=geoKm(p[i-1],p[i]);return d;}
+function trParse(J,c,R){const els=J.elements||[],ways={};els.filter(e=>e.type==='way').forEach(w=>ways[w.id]=w.tags||{});
+  const out=[];
+  els.filter(e=>e.type==='relation').forEach(r=>{const t=r.tags||{};let clip=false,nat=0,tot=0;const segs=[];
+    (r.members||[]).forEach(m=>{if(m.type!=='way'||/alternative|excursion|approach/.test(m.role||''))return;const g=m.geometry;if(!g||!g.length){clip=true;return;}
+      let run=[];g.forEach(p=>{if(p&&p.lat!=null)run.push([p.lat,p.lon]);else{clip=true;if(run.length>1)segs.push(run);run=[];}});if(run.length>1)segs.push(run);
+      const L=plen(g.filter(p=>p&&p.lat!=null).map(p=>[p.lat,p.lon]));if(ways[m.ref]){tot+=L;if(trNature(ways[m.ref]))nat+=L;}});
+    const P=trChain(segs);if(!P.length)return;const km=P.reduce((a,p)=>a+plen(p),0);if(km<1)return;
+    let near=1e9;P.forEach(p=>{for(let i=0;i<p.length;i+=Math.max(1,Math.floor(p.length/60)))near=Math.min(near,geoKm(c,p[i]));});
+    const known=Object.keys(ways).length>0,tagged=(r.members||[]).filter(m=>m.type==='way'&&ways[m.ref]).length;
+    const sent=tot>0&&known&&tagged&&tot>=km*.5?Math.round(nat/tot*100):null,a=P[0][0],z=P[P.length-1][P[P.length-1].length-1];
+    const dist=t.distance?parseFloat(String(t.distance).replace(',','.')):null,full=dist&&dist>km*1.3;
+    out.push({id:'r'+r.id,osm:r.id,n:t.name||t['name:fr']||t.ref||'Itinéraire sans nom',ref:t.ref||'',net:trNet(t),km,loop:P.length===1&&geoKm(a,z)<.35,pieces:P.length,clip:clip||full,full:full?dist:null,
+      sent,near,P,from:t.from||'',to:t.to||'',op:t.operator||'',web:t.website||t.url||'',sym:t['osmc:symbol']||'',dp:t.ascent?parseFloat(t.ascent):null,dpSrc:t.ascent?'osm':null});});
+  return out;}
+async function trSearch(){if(!TR.c){toast('Choisis d’abord une zone');return;}TR.busy=true;TR.err=null;renderCourses();
+  const [la,lo]=TR.c,R=TR.rad*1000,dLa=TR.rad/111,dLo=TR.rad/(111*Math.cos(la*Math.PI/180)),bb=[la-dLa,lo-dLo,la+dLa,lo+dLo].map(x=>x.toFixed(5)).join(',');
+  const q=`[out:json][timeout:40];relation["type"="route"]["route"~"^(hiking|foot|running|trail_running|fitness_trail)$"](around:${R},${la.toFixed(5)},${lo.toFixed(5)})->.r;.r out tags geom(${bb}) 80;way(r.r)["highway"](${bb});out tags;`;
+  try{let J=null,last=null;
+    for(const u of ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw new Error('serveur '+r.status);J=await r.json();break;}catch(e){last=e;}}
+    if(!J)throw last||new Error('pas de réponse');
+    const c=trc();TR.list=trParse(J,TR.c,R).map(o=>c[o.id]?{...o,dp:o.dp??c[o.id].dp,dm:c[o.id].dm,ele:c[o.id].ele,dpSrc:o.dpSrc||'dem'}:o);TR.at=Date.now();TR.more=10;
+    if(!TR.list.length)TR.err='Aucun itinéraire balisé trouvé dans ce rayon : élargis le rayon ou choisis un autre lieu.';}
+  catch(e){TR.err='Recherche impossible ('+e.message+'). OpenStreetMap est peut-être surchargé : réessaie dans une minute.';}
+  TR.busy=false;renderCourses();trElevAll();}
+function trSample(o,n=100){/* points régulièrement espacés le long des morceaux */const all=[];o.P.forEach((p,pi)=>{let d=0;p.forEach((x,i)=>{if(i)d+=geoKm(p[i-1],x);all.push([x[0],x[1],pi,d]);});});
+  const tot=o.km,step=tot/(n-1),res=[];let acc=0,j=0;const cum=[0];for(let i=1;i<all.length;i++)cum.push(cum[i-1]+(all[i][2]===all[i-1][2]?geoKm(all[i-1],all[i]):0));
+  for(let k=0;k<n;k++){const target=k*step;while(j<cum.length-1&&cum[j+1]<target)j++;res.push([all[j][0],all[j][1],cum[j]]);}const z=all.length-1;res[n-1]=[all[z][0],all[z][1],cum[z]];return res;}
+async function trElev(o){if(o.ele||o.elBusy)return;o.elBusy=true;try{const S2=trSample(o,100),u=`https://api.open-meteo.com/v1/elevation?latitude=${S2.map(p=>p[0].toFixed(5)).join(',')}&longitude=${S2.map(p=>p[1].toFixed(5)).join(',')}`;
+    const r=await fetch(u);if(!r.ok)throw 0;const J=await r.json(),E=J.elevation||[];if(E.length!==S2.length)throw 0;
+    let up=0,dn=0,ref=E[0];for(const z of E){if(z-ref>=3){up+=z-ref;ref=z;}else if(ref-z>=3){dn+=ref-z;ref=z;}}
+    const fac=1.12;/* échantillon tous les ~200 m : on corrige un peu la sous-estimation */o.ele=S2.map((p,i)=>[+p[0].toFixed(5),+p[1].toFixed(5),Math.round(E[i]),Math.round(p[2]*1000)]);
+    if(o.dpSrc!=='osm'){o.dp=Math.round(up*fac/10)*10;o.dpSrc='dem';}o.dm=Math.round(dn*fac/10)*10;o.zmin=Math.min(...E);o.zmax=Math.max(...E);trcPut(o.id,{dp:o.dp,dm:o.dm,ele:o.ele});}
+  catch(e){o.elErr=true;}o.elBusy=false;}
+async function trElevAll(){const L=trFilter(true).slice(0,40).filter(o=>!o.ele);let i=0;const run=async()=>{while(i<L.length){const o=L[i++];await trElev(o);}};await Promise.all([run(),run(),run()]);if(L.length)renderCourses();}
+function trProf(o){if(o.dp==null)return null;const r=o.dp/Math.max(o.km,.1);return r<15?'roulant':r<35?'vallonne':'cassant';}
+function trFilter(ignoreDp){const f=TR.f,q=f.q.trim().toLowerCase();let L=TR.list.filter(o=>{
+    if(q&&!(o.n+' '+o.ref+' '+o.from+' '+o.to).toLowerCase().includes(q))return false;
+    const k=o.km;if(f.dist==='a'&&k>=10||f.dist==='b'&&(k<10||k>20)||f.dist==='c'&&(k<20||k>35)||f.dist==='d'&&k<=35)return false;
+    if(f.loop==='loop'&&!o.loop||f.loop==='line'&&o.loop)return false;
+    if(f.net!=='all'&&o.net!==f.net)return false;
+    if(f.path&&(o.sent==null||o.sent<f.path))return false;
+    if(!ignoreDp&&f.dp!=='all'){if(o.dp==null)return false;if(f.dp==='lo'&&o.dp>=300||f.dp==='mid'&&(o.dp<300||o.dp>800)||f.dp==='hi'&&o.dp<=800)return false;}
+    if(!ignoreDp&&f.prof!=='all'&&trProf(o)!==f.prof)return false;
+    return true;});
+  const S2={near:(a,b)=>a.near-b.near,km:(a,b)=>a.km-b.km,kmd:(a,b)=>b.km-a.km,dp:(a,b)=>(b.dp??-1)-(a.dp??-1),pente:(a,b)=>((b.dp??0)/b.km)-((a.dp??0)/a.km)}[f.sort]||((a,b)=>a.near-b.near);
+  return L.sort(S2);}
+function trMe(){if(!navigator.geolocation){toast('Géolocalisation indisponible');return;}toast('Localisation…');
+  navigator.geolocation.getCurrentPosition(p=>{TR.c=[p.coords.latitude,p.coords.longitude];TR.cn='ta position';trSearch();},()=>toast('Position refusée : saisis plutôt un lieu'),{enableHighAccuracy:false,timeout:12000,maximumAge:300000});}
+async function trPlace(){const v=($('#tr_place')||{}).value||'';if(!v.trim()){toast('Saisis une ville, un massif ou un lieu');return;}TR.busy=true;renderCourses();
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=fr&q='+encodeURIComponent(v.trim()));const J=await r.json();
+    if(!J.length){TR.busy=false;TR.err='Lieu introuvable : « '+v+' ».';renderCourses();return;}TR.c=[+J[0].lat,+J[0].lon];TR.cn=J[0].display_name.split(',').slice(0,2).join(',');}
+  catch(e){TR.busy=false;TR.err='Recherche du lieu impossible (hors ligne ?)';renderCourses();return;}
+  trSearch();}
+function trBadge(o){return {gr:'GR',grp:'GRP',pr:'PR',run:'Trail'}[o.net];}
+function trMini(o){if(!o.ele)return `<span class="tr-mini muted small">${o.elErr?'—':'…'}</span>`;const E=o.ele.map(p=>p[2]),mn=Math.min(...E),mx=Math.max(...E),ry=Math.max(25,mx-mn),W=64,H=30;
+  const pts=E.map((z,i)=>`${(i/(E.length-1)*W).toFixed(1)},${(H-2-(z-mn)/ry*(H-4)).toFixed(1)}`).join(' ');
+  return `<svg class="tr-mini" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><polyline points="0,${H} ${pts} ${W},${H}" fill="color-mix(in srgb,var(--trail) 22%,transparent)" stroke="none"/><polyline points="${pts}" fill="none" stroke="var(--trail)" stroke-width="1.6"/></svg>`;}
+function trRow(o){const fav=(S.trFav||[]).some(x=>x.id===o.id);return `<div class="tr-row trk" onclick="trOpen('${o.id}')" role="button" tabindex="0">${trMini(o)}<div style="flex:1;min-width:0"><b>${fav?'⭐ ':''}${esc(o.n)}</b>
+  <div class="muted small">${kmFr(o.km)} km${o.clip?' (tronçon dans la zone)':''} · ${o.dp!=null?(o.dpSrc==='osm'?'':'≈ ')+o.dp+' m D+':o.elBusy||!o.elErr?'D+ en calcul…':'D+ inconnu'} · ${o.loop?'boucle':o.pieces>1?o.pieces+' morceaux':'aller simple'}${o.sent!=null?' · '+o.sent+' % nature':''} · ${o.near<.3?'départ ici':kmFr(o.near)+' km'}</div></div><span class="tag ${o.net==='gr'?'qual':o.net==='run'?'ef':'long'}">${trBadge(o)}</span></div>`;}
+function trCard(){const f=TR.f,ch=(k,v,l)=>`<button class="chip sm ${f[k]===v?'on':''}" onclick="TR.f.${k}=${typeof v==='number'?v:`'${v}'`};TR.more=10;renderCourses();trElevAll()">${l}</button>`;
+  const L=TR.list.length?trFilter():[],fav=S.trFav||[];
+  return `<div class="card" id="trCard"><h2>🧭 Traces de trail</h2><p class="muted small">Itinéraires balisés (GR, GRP, PR, parcours trail permanents) partout dans le monde, depuis OpenStreetMap. Dénivelé calculé sur le relief.</p>
+  <div class="row" style="flex-wrap:nowrap;margin-top:8px"><input id="tr_place" type="search" placeholder="Ville, massif, forêt… (ex. Compiègne, Chamonix)" value="${esc(TR.cn&&TR.cn!=='ta position'?TR.cn:'')}" style="flex:1" onkeydown="if(event.key==='Enter')trPlace()"><button class="btn sm" style="margin:0" ${TR.busy?'disabled':''} onclick="trPlace()">Chercher</button></div>
+  <div class="cs-near"><button class="btn sm ${TR.cn==='ta position'?'':'ghost'}" style="margin:0" ${TR.busy?'disabled':''} onclick="trMe()">📍 Autour de moi</button>${TR.list.length?`<button class="chip sm ${TR.map?'on':''}" onclick="TR.map=!TR.map;renderCourses()">🗺️ Carte</button>`:''}</div>
+  <div class="cs-rad"><label for="tr_rad">Rayon : <b>${TR.rad} km</b></label><input id="tr_rad" type="range" min="0" max="4" step="1" value="${TR_RADII.indexOf(TR.rad)}" oninput="TR.rad=TR_RADII[+this.value];$('#tr_rad').previousElementSibling.querySelector('b').textContent=TR.rad+' km'" onchange="if(TR.c)trSearch();else renderCourses()"><div class="cs-rt"><span>5</span><span>10</span><span>15</span><span>30</span><span>50 km</span></div></div>
+  ${TR.busy?'<p class="muted small">🔎 Recherche des itinéraires…</p>':''}${TR.err?`<div class="ins warn" style="margin-top:8px">${esc(TR.err)}</div>`:''}
+  ${TR.list.length?`<details class="bmore" ${TR.fOpen?'open':''} ontoggle="TR.fOpen=this.open"><summary>Filtres${trNbF()?` (${trNbF()} actif${trNbF()>1?'s':''})`:''}</summary>
+   <input type="search" placeholder="Nom, GR 11, départ…" value="${esc(f.q)}" style="margin-top:8px" oninput="TR.f.q=this.value;clearTimeout(window.__trT);window.__trT=setTimeout(()=>{renderCourses();const e=$('#trCard input[type=search]:not(#tr_place)');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},300)">
+   <div class="cs-lab">Distance</div><div class="chips">${ch('dist','all','Toutes')}${ch('dist','a','< 10 km')}${ch('dist','b','10–20 km')}${ch('dist','c','20–35 km')}${ch('dist','d','> 35 km')}</div>
+   <div class="cs-lab">Dénivelé</div><div class="chips">${ch('dp','all','Tous')}${ch('dp','lo','< 300 m')}${ch('dp','mid','300–800 m')}${ch('dp','hi','> 800 m')}</div>
+   <div class="cs-lab">Profil</div><div class="chips">${ch('prof','all','Tous')}${ch('prof','roulant','Roulant < 15 m/km')}${ch('prof','vallonne','Vallonné')}${ch('prof','cassant','Cassant > 35 m/km')}</div>
+   <div class="cs-lab">Forme</div><div class="chips">${ch('loop','all','Toutes')}${ch('loop','loop','Boucle')}${ch('loop','line','Aller simple')}</div>
+   <div class="cs-lab">Terrain</div><div class="chips">${ch('path',0,'Tous')}${ch('path',50,'≥ 50 % nature')}${ch('path',75,'≥ 75 % nature')}${ch('path',90,'≥ 90 % nature')}</div>
+   <div class="cs-lab">Balisage</div><div class="chips">${Object.entries(TR_NET).map(([k,v])=>ch('net',k,v)).join('')}</div>
+   <div class="cs-lab">Trier par</div><div class="chips">${ch('sort','near','Proximité')}${ch('sort','km','Plus courtes')}${ch('sort','kmd','Plus longues')}${ch('sort','dp','Plus de D+')}${ch('sort','pente','Plus pentues')}</div>
+   ${trNbF()?`<button class="chip sm" style="margin-top:8px" onclick="TR.f={q:'',dist:'all',dp:'all',prof:'all',loop:'all',path:0,net:'all',sort:TR.f.sort};renderCourses()">✕ Effacer les filtres</button>`:''}</details>`:''}
+  ${TR.map&&TR.list.length?'<div id="trMap" class="cs-map"></div>':''}
+  ${TR.list.length?`<div class="muted small" style="margin-top:10px">${L.length} itinéraire${L.length>1?'s':''} sur ${TR.list.length} à moins de ${TR.rad} km de ${esc(TR.cn||'la zone')}</div>${L.slice(0,TR.more).map(trRow).join('')||'<p class="muted small">Aucun itinéraire pour ces filtres.</p>'}${L.length>TR.more?`<button class="btn ghost wide sm" onclick="TR.more+=10;renderCourses();trElevAll()">Voir ${Math.min(10,L.length-TR.more)} de plus</button>`:''}`:''}
+  ${fav.length?`<details class="bmore" style="margin-top:10px"><summary>⭐ Mes traces favorites (${fav.length})</summary>${fav.map(x=>`<div class="tr-row"><div style="flex:1;min-width:0;cursor:pointer" onclick="trOpenFav('${x.id}')"><b>${esc(x.n)}</b><div class="muted small">${kmFr(x.km)} km${x.dp!=null?' · ≈ '+x.dp+' m D+':''} · ${x.loop?'boucle':'aller simple'}${x.cn?' · '+esc(x.cn):''}</div></div><button class="ib" aria-label="Retirer des favoris" onclick="trFav('${x.id}',false)">✕</button></div>`).join('')}</details>`:''}
+  <p class="note">Données © contributeurs OpenStreetMap (ODbL), relief Open-Meteo. Le D+ est une estimation (± 15 %). Vérifie le balisage et l’accès sur place.</p></div>`;}
+function trNbF(){const f=TR.f;return ['dist','dp','prof','loop','net'].filter(k=>f[k]!=='all').length+(f.path?1:0)+(f.q.trim()?1:0);}
+let trMapObj=null,trMapOne=null;
+function trMapDraw(){ensureLeaflet().then(()=>{const el=$('#trMap');if(!window.L||!el)return;if(trMapObj){try{trMapObj.remove();}catch(e){}}const T=TILES.relief;trMapObj=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(trMapObj);
+  const col={gr:'#E5B85C',grp:'#7CCBEA',pr:'#F47C8A',run:'#6FD3A5'},b=[];trFilter().slice(0,40).forEach(o=>{o.P.forEach(p=>{const pl=L.polyline(p,{color:col[o.net],weight:3.5,opacity:.85}).addTo(trMapObj);pl.on('click',()=>trOpen(o.id));pl.bindTooltip(o.n);b.push(...p.filter((x,i)=>i%10===0));});});
+  if(TR.c){L.circleMarker(TR.c,{radius:7,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(trMapObj);b.push(TR.c);}
+  if(b.length)trMapObj.fitBounds(b,{padding:[20,20],maxZoom:13});});}
+function trById(id){return TR.list.find(o=>o.id===id)||null;}
+async function trOpen(id){const o=trById(id);if(!o)return;TR.open=id;trSheet(o);$('#sheet').classList.add('on');if(!o.ele){await trElev(o);if(TR.open===id)trSheet(o);renderCourses();}}
+function trSheet(o){const fav=(S.trFav||[]).some(x=>x.id===o.id),R=o.ele?{pts:o.ele.map(p=>[p[0],p[1],p[2],p[3]]),aid:[]}:null;
+  const dk=o.dp!=null?o.dp/Math.max(o.km,.1):null,tps=o.dp!=null?trTime(o):null;
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${esc(o.n)}</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+   <div class="muted small" style="margin:4px 0 10px">${{gr:'Grande randonnée',grp:'GR de Pays / régional',pr:'Promenade et randonnée (local)',run:'Parcours trail / running'}[o.net]}${o.ref&&o.ref!==o.n?' · '+esc(o.ref):''}${o.op?' · '+esc(o.op):''}${o.from||o.to?'<br>'+esc(o.from||'?')+' → '+esc(o.to||'?'):''}</div>
+   <div class="tr-kpis">
+    <div class="tr-kpi"><span class="muted small">Distance</span><b>${kmFr(o.km)} km</b></div><div class="tr-kpi"><span class="muted small">Dénivelé</span><b>${o.dp!=null?'+'+o.dp+' m':'…'}</b>${o.dm!=null?`<span class="muted small">−${o.dm} m</span>`:''}</div><div class="tr-kpi"><span class="muted small">Pente moy.</span><b>${dk!=null?Math.round(dk)+' m/km':'…'}</b></div>
+    <div class="tr-kpi"><span class="muted small">Forme</span><b>${o.loop?'Boucle':o.pieces>1?o.pieces+' morceaux':'Aller simple'}</b></div><div class="tr-kpi"><span class="muted small">Nature</span><b>${o.sent!=null?o.sent+' %':'?'}</b></div><div class="tr-kpi"><span class="muted small">Temps estimé</span><b>${tps||'…'}</b></div></div>
+   ${o.clip?`<p class="note">Seule la partie de l’itinéraire située dans ton rayon est affichée${o.full?' (itinéraire complet : '+kmFr(o.full)+' km)':''}.</p>`:''}
+   <div id="trOneMap" class="cs-map" style="margin-top:10px"></div>
+   ${R?`<div style="margin-top:10px">${profileSvg(R)}</div><div class="muted small">Altitude ${Math.round(o.zmin??Math.min(...o.ele.map(p=>p[2])))}–${Math.round(o.zmax??Math.max(...o.ele.map(p=>p[2])))} m</div>`:o.elErr?'<p class="muted small">Profil indisponible (hors ligne ?)</p>':'<p class="muted small">Calcul du profil…</p>'}
+   <div class="row" style="margin-top:12px"><button class="btn" onclick="trGpx('${o.id}')">⬇️ GPX</button><button class="btn ghost" onclick="trFav('${o.id}',${!fav})">${fav?'★ Retirer des favoris':'☆ Favori'}</button><a class="btn ghost" href="https://www.openstreetmap.org/relation/${o.osm}" target="_blank" rel="noopener">Voir sur OSM ↗</a>${o.web?`<a class="btn ghost" href="${esc(o.web)}" target="_blank" rel="noopener">Site ↗</a>`:''}</div>
+   <p class="note">Le GPX s’ouvre dans Strava (Routes › Importer), Komoot, Garmin Connect ou l’app Plans. Temps estimé à ton allure facile, corrigé du dénivelé.</p>`;
+  ensureLeaflet().then(()=>{const el=$('#trOneMap');if(!window.L||!el)return;if(trMapOne){try{trMapOne.remove();}catch(e){}}const T=TILES.relief;trMapOne=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(trMapOne);
+    const b=[];o.P.forEach(p=>{L.polyline(p,{color:'#F47C8A',weight:4}).addTo(trMapOne);b.push(...p);});const a=o.P[0][0];L.circleMarker(a,{radius:6,color:'#fff',weight:2,fillColor:'#6FD3A5',fillOpacity:1}).addTo(trMapOne).bindTooltip('Départ');
+    if(TR.c)L.circleMarker(TR.c,{radius:5,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(trMapOne);trMapOne.fitBounds(b,{padding:[16,16]});setTimeout(()=>trMapOne&&trMapOne.invalidateSize(),250);});}
+function trTime(o){/* allure facile du profil (ou 6:15/km), +1 min par 10 m de D+ (équivalence trail courante) */let pace=375;try{const P=getA().P;if(P&&P.long>200&&P.long<600)pace=P.long;}catch(e){}
+  const s=o.km*pace+(o.dp||0)*6;const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h} h ${String(m).padStart(2,'0')}`:`${m} min`;}
+function trGpxStr(o){const x=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');const segs=o.P.map(p=>'<trkseg>'+p.map(q=>`<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}"/>`).join('')+'</trkseg>').join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Foulée" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(o.n)}</name><copyright author="OpenStreetMap contributors"><license>https://opendatacommons.org/licenses/odbl/</license></copyright></metadata><trk><name>${x(o.n)}</name><desc>${x(kmFr(o.km)+' km'+(o.dp!=null?' · ≈ '+o.dp+' m D+':'')+' · openstreetmap.org/relation/'+o.osm)}</desc>\n${segs}\n</trk></gpx>`;}
+function trGpx(id){const o=trById(id);if(!o)return;dlFile((o.n.replace(/[^\p{L}\p{N} _-]+/gu,'').trim().replace(/\s+/g,'_')||'trace')+'.gpx',trGpxStr(o),'application/gpx+xml');}
+function trFav(id,on){S.trFav=S.trFav||[];if(on){const o=trById(id);if(!o)return;S.trFav=S.trFav.filter(x=>x.id!==id);S.trFav.unshift({id,osm:o.osm,n:o.n,km:Math.round(o.km*10)/10,dp:o.dp??null,loop:o.loop,net:o.net,c:o.P[0][0],cn:TR.cn&&TR.cn!=='ta position'?TR.cn:''});if(S.del&&S.del.trfav)S.del.trfav=S.del.trfav.filter(x=>x!==id);toast('Ajoutée à tes favorites ⭐');}
+  else{S.trFav=S.trFav.filter(x=>x.id!==id);tomb('trfav',id);}save();renderCourses();const o=trById(id);if(o&&TR.open===id&&$('#sheet').classList.contains('on'))trSheet(o);}
+function trOpenFav(id){if(trById(id)){trOpen(id);return;}const x=(S.trFav||[]).find(y=>y.id===id);if(!x)return;TR.c=x.c;TR.cn=x.cn||x.n;TR.rad=Math.max(TR.rad,15);trSearch().then(()=>{if(trById(id))trOpen(id);else toast('Itinéraire introuvable autour de son départ');});}
+function renderCourses(){const el=$('[data-page=courses]');if(!el)return;el.innerHTML=raceCard(true)+racesCard()+trCard()+findCard();if(CS.map)csMapDraw();if(TR.map&&TR.list.length)trMapDraw();}
 let csMapObj=null;
 function evPin(c,inp){return L.divIcon({className:'ev-pin',html:`<svg viewBox="0 0 24 32" width="24" height="32"><path d="M12 1C6 1 1.5 5.5 1.5 11.3 1.5 19 12 31 12 31S22.5 19 22.5 11.3C22.5 5.5 18 1 12 1z" fill="${c}" stroke="#0D131A" stroke-width="2"/><circle cx="12" cy="11.5" r="${inp?5:3.6}" fill="${inp?'#fff':'#0D131A'}"/></svg>`,iconSize:[24,32],iconAnchor:[12,31],popupAnchor:[0,-26]});}
 function csMapDraw(){ensureLeaflet().then(()=>{const el=$('#csMap');if(!window.L||!el)return;if(csMapObj){try{csMapObj.remove();}catch(e){}}const T=TILES.relief;csMapObj=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(csMapObj);
