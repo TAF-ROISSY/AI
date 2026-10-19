@@ -594,7 +594,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.6';
+const APP_VER='7.7';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2935,21 +2935,35 @@ function pickVoice(){const L=frVoices(),n=S.settings.voiceName;return L.find(v=>
 /* iOS Safari : la voix doit être « débloquée » par un premier speak() pendant un toucher, cancel() suivi
    aussitôt de speak() est ignoré, et les énoncés sans référence peuvent être coupés par le ramasse-miettes. */
 const VX={ok:false,utts:[],warned:false,last:null};
-function vUnlock(){if(VX.ok||!window.speechSynthesis)return;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='fr-FR';speechSynthesis.speak(u);VX.ok=true;}catch(e){}}
+/* v7.7 : iPhone — la synthèse vocale de Safari est coupée par le bouton silencieux ; on passe la session audio en « lecture » (comme une appli de musique) */
+function vSession(){try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback';}catch(e){}}
+function wavURL(ms,f){const sr=22050,n=Math.round(sr*ms/1000),b=new ArrayBuffer(44+n*2),d=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)d.setUint8(o+i,t.charCodeAt(i));};
+  w(0,'RIFF');d.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,sr,true);d.setUint32(28,sr*2,true);d.setUint16(32,2,true);d.setUint16(34,16,true);w(36,'data');d.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){const env=f?Math.min(1,i/400,(n-i)/400):0;d.setInt16(44+i*2,f?Math.round(Math.sin(2*Math.PI*f*i/sr)*12000*env):0,true);}return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));}
+const VA={el:null,keep:false,tones:{}};
+function vAudio(){if(!VA.el){try{VA.el=new Audio(wavURL(1000,0));VA.el.setAttribute('playsinline','');VA.el.preload='auto';}catch(e){}}return VA.el;}
+function vPrime(){vSession();const a=vAudio();if(!a)return;try{a.loop=VA.keep;const p=a.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+function vKeep(on){VA.keep=!!on;const a=vAudio();if(!a)return;if(on)vPrime();else{try{a.loop=false;a.pause();}catch(e){}}}
+function tone(f=880,ms=160){/* bip lu comme un média : audible même en mode silencieux, sert de secours si la voix ne sort pas */try{vSession();const k=f+'-'+ms;if(!VA.tones[k])VA.tones[k]=wavURL(ms,f);const a=new Audio(VA.tones[k]);a.setAttribute('playsinline','');const p=a.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+function vUnlock(){if(VX.ok||!window.speechSynthesis)return;try{vPrime();const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='fr-FR';speechSynthesis.speak(u);VX.ok=true;}catch(e){}}
 ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,vUnlock,{capture:true,passive:true}));
-function vSpeak(parts,vc,rt){parts.forEach(x=>{const u=new SpeechSynthesisUtterance(x);u.lang=vc?vc.lang:'fr-FR';if(vc)u.voice=vc;u.rate=rt;u.volume=1;
+function vSpeak(parts,vc,rt){vPrime();VX.n=(VX.n||0)+1;parts.forEach(x=>{const u=new SpeechSynthesisUtterance(x);u.lang=vc?vc.lang:'fr-FR';if(vc)u.voice=vc;u.rate=rt;u.volume=1;
     u.onstart=()=>{VX.last=Date.now();};u.onend=u.onerror=()=>{VX.utts=VX.utts.filter(y=>y!==u);};VX.utts.push(u);speechSynthesis.speak(u);});
   try{speechSynthesis.resume();}catch(e){}
-  const t0=Date.now();setTimeout(()=>{if(!VX.warned&&(!VX.last||VX.last<t0)&&!speechSynthesis.speaking){VX.warned=true;toast('🔇 Pas de voix ? Vérifie le bouton silencieux de l’iPhone et le volume, puis touche l’écran une fois.');}},2500);}
+  const t0=Date.now();setTimeout(()=>{if((!VX.last||VX.last<t0)&&!speechSynthesis.speaking){VX.fail=(VX.fail||0)+1;if(S.settings.voiceBeep!==false){tone(880,150);setTimeout(()=>tone(1320,200),260);}}if(!VX.warned&&(!VX.last||VX.last<t0)&&!speechSynthesis.speaking){VX.warned=true;toast('🔇 Pas de voix ? Vérifie le bouton silencieux de l’iPhone et le volume, puis touche l’écran une fois.');}},2500);}
 function vSay(t,o={}){if(!window.speechSynthesis||!t)return;try{const parts=(speakFix(t).replace(/\s+/g,' ').match(/[^.!?]+[.!?]?/g)||[t]).map(x=>x.trim()).filter(Boolean),vc=pickVoice(),rt=Math.min(1.4,Math.max(.8,+(S.settings.voiceRate||1.05)));
   const busy=speechSynthesis.speaking||speechSynthesis.pending,gest=!!(navigator.userActivation&&navigator.userActivation.isActive);if(busy&&!o.queue){speechSynthesis.cancel();VX.utts=[];if(gest)vSpeak(parts,vc,rt);else setTimeout(()=>vSpeak(parts,vc,rt),120);}else vSpeak(parts,vc,rt);}catch(e){}}
-function vTest(){const el=$('#s_vdiag'),t0=Date.now();VX.warned=true;vSay('Salut, c’est ton coach. Kilomètre 3 en 5 minutes 42, tu es pile dans ta cible.');if(el)el.textContent='Test en cours…';
-  setTimeout(()=>{const ok=VX.last&&VX.last>=t0,n=frVoices().length;if(el)el.innerHTML=ok?'✅ La voix fonctionne.':`❌ Aucun son détecté. 1) Bouton silencieux de l’iPhone (sur le côté) : désactive le mode silencieux, la synthèse vocale de Safari est coupée en silencieux. 2) Monte le volume pendant que la voix parle. 3) ${n?n+' voix française'+(n>1?'s':'')+' disponible'+(n>1?'s':'')+' : choisis-en une autre ci-dessus.':'Aucune voix française trouvée : Réglages iPhone › Accessibilité › Contenu énoncé › Voix › Français, télécharge une voix.'} 4) Si rien ne change, ouvre Foulée dans Safari (pas depuis l’écran d’accueil) et refais le test.`;},2500);}
+function vTest(){const el=$('#s_vdiag'),t0=Date.now();VX.warned=true;tone(660,140);setTimeout(()=>tone(990,180),220);
+  setTimeout(()=>vSay('Salut, c’est ton coach. Kilomètre 3 en 5 minutes 42, tu es pile dans ta cible.'),600);if(el)el.textContent='Test en cours : un double bip, puis la voix…';
+  setTimeout(()=>{const ok=VX.last&&VX.last>=t0,n=frVoices().length,ss=!!window.speechSynthesis,as=!!navigator.audioSession,sa=window.matchMedia&&matchMedia('(display-mode: standalone)').matches;
+    const info=`<span class="muted small">Synthèse vocale : ${ss?'oui':'non'} · voix françaises : ${n} · session audio : ${as?'oui':'non (iOS 16 ou moins)'} · ${sa?'app écran d’accueil':'navigateur'}</span>`;
+    if(!el)return;if(ok){el.innerHTML='✅ La voix fonctionne.<br>'+info;return;}
+    el.innerHTML=`❌ La voix n’a pas démarré.<br><b>Tu as entendu le double bip ?</b><br>• <b>Oui</b> : le son passe, c’est la voix qui manque. Réglages iPhone › Accessibilité › Contenu énoncé › Voix › Français : télécharge « Thomas » ou « Amélie », puis ferme complètement Foulée et rouvre-la. ${n?'Ou choisis une autre voix dans la liste ci-dessus.':'Aucune voix française n’est visible pour l’instant.'}<br>• <b>Non</b> : désactive le mode silencieux (bouton sur le côté de l’iPhone${as?'':' — ton iOS ne permet pas de passer outre'}) et monte le volume pendant le test.<br>• Si l’app est lancée depuis l’écran d’accueil, essaie aussi dans Safari : certaines versions d’iOS coupent la voix des apps web installées.<br>En course, si la voix ne sort pas, Foulée joue des bips à la place (réglage ci-dessous).<br>${info}`;},3200);}
 function sayCoach(t){if(window.speechSynthesis&&speechSynthesis.speaking){speechSynthesis.cancel();toast('Lecture arrêtée');return;}vSay(strip(String(t).replace(/\*\*/g,'').replace(/^#+\s*/gm,'').replace(/^\s*[-•*]\s+/gm,'. ')));}
 function voiceCard(){const L=frVoices(),cur=pickVoice();return `<div class="card"><h2>🗣️ Voix du coach</h2><p class="muted small">Utilisée pour le guidage vocal (chrono, course guidée) et la lecture des conseils du coach. Les voix « améliorées » de l’iPhone (Réglages › Accessibilité › Contenu énoncé › Voix › Français) sonnent beaucoup plus naturel.</p>
   <div class="form"><label>Voix</label><select id="s_voice" onchange="S.settings.voiceName=this.value;save(true)">${L.length?L.map(v=>`<option value="${esc(v.name)}" ${cur&&cur.name===v.name?'selected':''}>${esc(v.name)}${v.localService?'':' (en ligne)'}</option>`).join(''):'<option>Voix française du système</option>'}</select>
   <label>Débit : <b id="s_vr">${String(S.settings.voiceRate||1.05).replace('.',',')}</b></label><input type="range" min="0.8" max="1.4" step="0.05" value="${S.settings.voiceRate||1.05}" oninput="S.settings.voiceRate=+this.value;$('#s_vr').textContent=String(this.value).replace('.',',')" onchange="save(true)"></div>
-  <button class="btn sm ghost" onclick="vTest()">▶ Tester la voix</button><p class="note" id="s_vdiag"></p></div>`;}
+  <button class="btn sm ghost" onclick="vTest()">▶ Tester la voix</button><p class="note" id="s_vdiag"></p><label class="tg"><input type="checkbox" ${S.settings.voiceBeep!==false?'checked':''} onchange="S.settings.voiceBeep=this.checked;save(true)"> Bips de secours si la voix ne sort pas (audibles même en mode silencieux)</label></div>`;}
 try{if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};}catch(e){}
 
 /* ============ COURSE GUIDÉE (GPS + voix) ============ */
@@ -2972,11 +2986,11 @@ function grOpen(k){const o=SREG[k]||WKREG[k];if(!o){toast('Séance introuvable')
   $('#grv').classList.add('on');grDraw();}
 function grClose(){if(GR.on&&!confirm('Arrêter la course guidée ? La sortie ne sera pas enregistrée.'))return;grStop(false);$('#grv').classList.remove('on');}
 function grElapsed(){return GR.on?(GR.paused?GR.acc:GR.acc+(Date.now()-GR.t0)):GR.acc;}
-function grStart(){if(!navigator.geolocation){toast('GPS indisponible sur cet appareil');return;}ac();GR.on=true;GR.paused=false;GR.t0=Date.now();GR.acc=0;GR.si=0;GR.dist=0;GR.pts=[];GR.stepD0=0;GR.stepT0=0;GR.lastKm=0;GR.splits=[];GR.stepRes=[];GR.half=GR.near=GR.warned=false;
+function grStart(){if(!navigator.geolocation){toast('GPS indisponible sur cet appareil');return;}ac();vKeep(true);GR.on=true;GR.paused=false;GR.t0=Date.now();GR.acc=0;GR.si=0;GR.dist=0;GR.pts=[];GR.stepD0=0;GR.stepT0=0;GR.lastKm=0;GR.splits=[];GR.stepRes=[];GR.half=GR.near=GR.warned=false;
   try{GR.wid=navigator.geolocation.watchPosition(p=>grFeed({t:p.timestamp||Date.now(),lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy}),e=>{if(e&&e.code===1){toast('Position refusée : autorise la localisation pour Foulée');grStop(false);}},{enableHighAccuracy:true,maximumAge:0,timeout:20000});}catch(e){}
   GR.iv=setInterval(grTick,1000);wake(true);beep(880,.25);vSay(`C’est parti. ${grStepIntro(GR.steps[0])}`);grDraw();}
 function grPause(){if(!GR.on)return;if(GR.paused){GR.paused=false;GR.t0=Date.now();vSay('Reprise.');}else{GR.acc+=Date.now()-GR.t0;GR.paused=true;vSay('Pause.');}grDraw();}
-function grStop(save){if(GR.wid!=null)try{navigator.geolocation.clearWatch(GR.wid);}catch(e){}GR.wid=null;clearInterval(GR.iv);GR.iv=null;if(GR.on&&!GR.paused)GR.acc+=Date.now()-GR.t0;GR.on=false;wake(false);if(save)grSave();}
+function grStop(save){vKeep(false);if(GR.wid!=null)try{navigator.geolocation.clearWatch(GR.wid);}catch(e){}GR.wid=null;clearInterval(GR.iv);GR.iv=null;if(GR.on&&!GR.paused)GR.acc+=Date.now()-GR.t0;GR.on=false;wake(false);if(save)grSave();}
 function grFeed(f){if(!GR.on||GR.paused||!f||f.acc>35)return;const L=GR.pts[GR.pts.length-1];GR.fix=f;
   if(L){const d=geoKm([L.lat,L.lon],[f.lat,f.lon])*1000,dt=(f.t-L.t)/1000;if(dt<=0)return;if(d<2&&dt<10)return;if(d/dt>9)return;GR.dist+=d;}
   GR.pts.push({t:f.t,lat:f.lat,lon:f.lon,d:GR.dist});if(GR.pts.length>4000)GR.pts.splice(1,1);grCheck();}
@@ -3234,13 +3248,13 @@ const SREG={};
 function speakText(t){if(!window.speechSynthesis){toast('Lecture vocale indisponible sur cet appareil');return;}vSay(t);}
 function readSess(k){const o=SREG[k];if(!o)return;if(window.speechSynthesis&&speechSynthesis.speaking){speechSynthesis.cancel();toast('Lecture arrêtée');return;}const tmp=document.createElement('div');tmp.innerHTML=(o.x||'').replace(/<li>/g,'<li>. ').replace(/<br\s*\/?>/g,'. ').replace(/<\/p>/g,'.</p>');tmp.querySelectorAll('button').forEach(b=>b.remove());speakText(`${strip(o.t)}. ${strip(o.s||'')}. ${tmp.textContent}`);toast('🔊 Lecture de la séance (touche à nouveau pour arrêter)');}
 const isSW=m=>m==='stopwatch'||m==='defi';
-function chStart(){ac();if(CH.running)return;
+function chStart(){ac();vKeep(true);if(CH.running)return;
   if(isSW(CH.mode)&&CH.done){CH.acc=0;CH.laps=[];if(CH.defi)CH.defi.sp=[];CH.done=false;}
   if(isSW(CH.mode)){CH.start=performance.now();if(CH.mode==='defi'&&!CH.acc){beep(880,.25);say('Go');}}
   else{if(!CH.phases.length||CH.done){CH.phases=buildPhases();CH.i=0;CH.rem=CH.phases[0].d;CH.done=false;CH.lastBeep=-1;beep(880,.2);announce();}CH.end=performance.now()+CH.rem*1000;}
   CH.running=true;CH.iv=setInterval(chTick,100);wake(true);drawChrono();}
-function chPause(){if(!CH.running)return;clearInterval(CH.iv);CH.running=false;if(isSW(CH.mode))CH.acc+=performance.now()-CH.start;else CH.rem=Math.max(0,(CH.end-performance.now())/1000);wake(false);drawChrono();}
-function chReset(){if(CH.defi)CH.defi.sp=[];clearInterval(CH.iv);CH.running=false;CH.phases=[];CH.i=0;CH.rem=0;CH.acc=0;CH.laps=[];CH.done=false;wake(false);drawChrono();}
+function chPause(){if(!CH.running)return;vKeep(false);clearInterval(CH.iv);CH.running=false;if(isSW(CH.mode))CH.acc+=performance.now()-CH.start;else CH.rem=Math.max(0,(CH.end-performance.now())/1000);wake(false);drawChrono();}
+function chReset(){vKeep(false);if(CH.defi)CH.defi.sp=[];clearInterval(CH.iv);CH.running=false;CH.phases=[];CH.i=0;CH.rem=0;CH.acc=0;CH.laps=[];CH.done=false;wake(false);drawChrono();}
 function chTick(){if(isSW(CH.mode)){drawChrono();return;}
   CH.rem=(CH.end-performance.now())/1000;
   const s=Math.ceil(CH.rem);if(s>=1&&s<=3&&s!==CH.lastBeep){CH.lastBeep=s;beep(660,.1);}
@@ -3249,7 +3263,7 @@ function chTick(){if(isSW(CH.mode)){drawChrono();return;}
   if(changed){CH.halfDone=false;CH.tenDone=false;beep(CH.phases[CH.i].k==='work'?1100:520,.35);announce();if(navigator.vibrate)navigator.vibrate(250);}
   else{const p=CH.phases[CH.i];if(p&&p.k==='work'&&p.d>=20&&CH.mode!=='emom'&&!CH.halfDone&&CH.rem<=p.d/2){CH.halfDone=true;say('Moitié.');}if(p&&p.k==='rest'&&p.d>=30&&!CH.tenDone&&CH.rem<=10.2){CH.tenDone=true;say('Prêt, 10 secondes.');}}
   drawChrono();}
-function finish(){clearInterval(CH.iv);CH.running=false;CH.done=true;CH.rem=0;[0,250,500].forEach(t=>setTimeout(()=>beep(1200,.18),t));say('Terminé, bravo !');wake(false);drawChrono();}
+function finish(){clearInterval(CH.iv);setTimeout(()=>vKeep(false),4000);CH.running=false;CH.done=true;CH.rem=0;[0,250,500].forEach(t=>setTimeout(()=>beep(1200,.18),t));say('Terminé, bravo !');wake(false);drawChrono();}
 function swElapsed(){return CH.acc+(CH.running?performance.now()-CH.start:0);}
 function fmtClock(s){s=Math.max(0,Math.ceil(s));return pad(Math.floor(s/60))+':'+pad(s%60);}
 function exIdxSet(i){CH.exIdx=i;renderMedia();}
