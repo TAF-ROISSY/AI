@@ -546,7 +546,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.0';
+const APP_VER='7.1';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2416,13 +2416,13 @@ function racesCard(){const R=RACES(),now=new Date(new Date().toDateString()),up=
   const A=up.filter(r=>r.prio==='A');if(A.length>1)warn.push(`${A.length} courses en objectif : garde un seul objectif principal par bloc de 12 semaines, les autres en préparation.`);
   const row=r=>{const j=Math.round((rWhen(r.d)-now)/DAY),obj=S.race&&S.race.name===r.n&&S.race.date===r.d;return `<div class="rc-row ${r.st==='fait'?'past':''}"><div class="rc-d"><b>${r.d.length===7?'?':parseISO(r.d).getDate()}</b><small>${MOISC[+r.d.slice(5,7)-1]}</small></div>
     <div style="flex:1;min-width:0"><b ${r.src&&evById(r.src)?`style="cursor:pointer" onclick="openEvent('${r.src}')"`:''}>${esc(r.n)}</b><div class="muted small">${esc(r.v||'')}${r.km?' · '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.d.length===7?' · date à confirmer':''}</div>
-    <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${gpxChip(r)}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
+    <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${gpxChip(r)}${calChip(r)}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
     <div class="rc-j">${r.st==='fait'||j<0?'':j===0?'Jour J':'J-'+j}<button class="ib" onclick="openRaceEdit('${r.id}')" aria-label="Modifier">✎</button></div></div>`;};
-  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🗓️ Mon planning</h2><button class="btn sm" style="margin:0;white-space:nowrap" onclick="openRaceEdit()">＋ Course</button></div>
+  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🗓️ Mon planning</h2><div class="row" style="flex-wrap:nowrap;gap:6px">${up.some(r=>r.d.length===10)?'<button class="ib" onclick="openCalShare(\'*\')" aria-label="Partager le planning au calendrier famille" title="Calendrier famille">📅</button>':''}<button class="btn sm" style="margin:0;white-space:nowrap" onclick="openRaceEdit()">＋ Course</button></div></div>
   ${up.length?up.map(row).join(''):'<p class="muted small" style="margin-top:8px">Aucune course prévue. Ajoute-en une à la main ou depuis la recherche ci-dessous.</p>'}
   ${warn.map(w=>`<div class="ins warn"><b>Calendrier chargé</b>${w}</div>`).join('')}
   ${past.length?`<details class="bmore" style="margin-top:10px"><summary>Courses passées (${past.length})</summary>${past.map(row).join('')}</details>`:''}
-  <p class="note">Touche le statut ou la priorité pour les changer. « A · Objectif » cale le plan de 12 semaines, l’affûtage et la stratégie d’allure sur cette course.</p></div>`;}
+  <p class="note">📅 partage une course (ou tout le planning) vers le calendrier famille ; il est proposé dès que tu passes une course en « Inscrit ». Touche le statut ou la priorité pour les changer. « A · Objectif » cale le plan de 12 semaines, l’affûtage et la stratégie d’allure sur cette course.</p></div>`;}
 /* ---------- Épreuves hors Oise (relevé du 19/10/2026 sur Go Trail et Miles Republic) ----------
    {id, n, v, dep, d, ds, t:type (jour|nuit|urban|obst), dpk:{km:D+}, note, url} */
 const EXTRA_TRAILS=[
@@ -2578,7 +2578,7 @@ async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim(
 function addFound(id,km){const o=evById(id);if(!o)return;const ex=inPlan(id);
   if(ex){if(ex.km===km){if(!confirm(`Retirer « ${o.n} » de ton planning ?`))return;S.races=RACES().filter(r=>r!==ex);tomb('races',ex.id);save();renderCourses();toast('Course retirée');return;}const wasObj=S.race&&S.race.name===ex.n&&S.race.date===ex.d;ex.km=km;if(ex.gpxInfo&&ex.dp===ex.gpxInfo.up)ex.dp=null;delete ex.gpx;delete ex.gpxInfo;delete ex.gpxLinks;if(wasObj)raceToPlan(ex,true);save();renderCourses();toast(`Distance changée : ${kmFr(km)} km`);if(gpxAutoOn())setTimeout(()=>findGpx(ex.id,true),400);return;}
   const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dpk&&o.dpk[km]!=null?o.dpk[km]:null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);if(gpxAutoOn())setTimeout(()=>findGpx(nr.id,true),1200);}
-function raceCycle(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.st={env:'ins',ins:'fait',fait:'env'}[r.st];save();renderCourses();if(r.st==='fait')openRaceEdit(id);}
+function raceCycle(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.st={env:'ins',ins:'fait',fait:'env'}[r.st];save();renderCourses();if(r.st==='fait')openRaceEdit(id);else if(r.st==='ins'&&r.d.length===10&&calState(r)!=='ok')openCalShare(id);}
 function racePrio(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.prio={A:'B',B:'C',C:'A'}[r.prio];if(r.prio==='A'&&r.d.length===7){r.prio='B';toast('Date à confirmer : saisis la date exacte (✎) pour en faire ton objectif');}if(r.prio==='A'){RACES().forEach(x=>{if(x!==r&&x.prio==='A'&&x.st!=='fait')x.prio='B';});raceToPlan(r);}save();renderAll();}
 function raceToPlan(r,quiet){if(r.d.length===7){if(!quiet)toast('Date à confirmer : saisis la date exacte pour caler le plan');return false;}const keep=S.race&&S.race.name===r.n?S.race:{};
   S.race={...keep,name:r.n,date:r.d,km:r.km||keep.km||10,dp:r.dp!=null?r.dp:(keep.dp||0)};if(r.gpx)S.race.gpx=r.gpx;else if(keep.km&&keep.km!==S.race.km)delete S.race.gpx;if(!quiet)toast('Course calée comme objectif du plan 🏁');return true;}
@@ -2601,6 +2601,56 @@ function saveRaceEdit(quiet){reSync();const x={...RED};delete x._e;if(!x.n){toas
   if(kmCh&&x.km&&!x.gpx&&x.st!=='fait'&&gpxAutoOn()&&!quiet)setTimeout(()=>findGpx(x.id,true),400);if(i>=0)L[i]=x;else L.push(x);if(S.del&&S.del.races)S.del.races=S.del.races.filter(z=>z!==x.id);
   if(x.prio==='A'&&x.st!=='fait'){L.forEach(y=>{if(y.id!==x.id&&y.prio==='A'&&y.st!=='fait')y.prio='B';});raceToPlan(x,true);}save();closeSettings();renderAll();if(!quiet)toast(x.prio==='A'?'Course enregistrée et calée comme objectif 🏁':'Course enregistrée');}
 function delRaceEdit(){if(!confirm('Supprimer cette course du planning ?'))return;S.races=RACES().filter(r=>r.id!==RED.id);tomb('races',RED.id);save();closeSettings();renderAll();}
+/* ---------- Partage des courses vers le calendrier famille (.ics) ---------- */
+const icsEsc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+function icsFold(l){const enc=new TextEncoder(),out=[];let cur='',n=0;for(const ch of l){const b=enc.encode(ch).length;if(n+b>(out.length?74:75)){out.push(cur);cur=ch;n=b;}else{cur+=ch;n+=b;}}out.push(cur);return out.join('\r\n ');}
+const icsD=d=>d.replace(/-/g,''),icsDT=t=>`${t.getFullYear()}${pad(t.getMonth()+1)}${pad(t.getDate())}T${pad(t.getHours())}${pad(t.getMinutes())}00`;
+function raceStart(r){const ev=r.src?evById(r.src):null,h0=(ev&&ev.h)||r.h||'',seg=r.km?h0.split('·').find(x=>x.includes('('+kmFr(r.km)+' km)')):null,h=seg||h0;const m=h.match(/(\d{1,2})\s*h\s*(\d{2})?/);if(!m||r.d.length!==10)return null;const t=parseISO(r.d);t.setHours(+m[1],+(m[2]||0),0,0);return t;}
+function raceSig(r){return [r.n,r.d,r.km,r.v,raceStart(r)?icsDT(raceStart(r)):''].join('|');}
+function raceEstT(r){if(!r.km)return null;try{return raceStrategy({name:r.n,date:r.d,km:r.km,dp:r.dp||0,gpx:r.gpx}).T;}catch(e){return null;}}
+function icsEvent(r){const ev=r.src?evById(r.src):null,st=raceStart(r),T=raceEstT(r),who=(S.settings.calWho||'').trim(),url=r.url||(ev&&ev.url)||'';
+  const title=`🏃 ${who?who+' · ':''}${r.n}${r.km?' ('+kmFr(r.km)+' km)':''}`;
+  const desc=[`${who||'Course'} : ${r.n}${r.km?' — '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}`,`Statut : ${RST[r.st][1].toLowerCase()}`,T?`Temps estimé : ${fmtH(T)}${st?' (arrivée vers '+new Date(st.getTime()+T*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+')':''}`:'',ev&&ev.note?ev.note:'',url?'Infos : '+url:'','Ajouté depuis Foulée'].filter(Boolean).join('\n');
+  const seq=(r.cal&&r.cal.seq)||0,L=['BEGIN:VEVENT',`UID:foulee-${r.id}@foulee.app`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'')}`,`SEQUENCE:${seq}`];
+  if(st){const end=new Date(st.getTime()+((T||7200)+1800)*1000);L.push(`DTSTART;TZID=Europe/Paris:${icsDT(st)}`,`DTEND;TZID=Europe/Paris:${icsDT(end)}`);}
+  else{const e=parseISO(r.d);e.setDate(e.getDate()+1);L.push(`DTSTART;VALUE=DATE:${icsD(r.d)}`,`DTEND;VALUE=DATE:${icsD(iso(e))}`,'TRANSP:TRANSPARENT');}
+  L.push(`SUMMARY:${icsEsc(title)}`,`LOCATION:${icsEsc(r.v||'')}`,`DESCRIPTION:${icsEsc(desc)}`);if(url)L.push(`URL:${icsEsc(url)}`);
+  if(r.st==='env')L.push('STATUS:TENTATIVE');
+  L.push('BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEsc('Demain : '+r.n)}`,st?'TRIGGER:-P1D':'TRIGGER:-PT6H','END:VALARM','END:VEVENT');return L;}
+const ICS_TZ=['BEGIN:VTIMEZONE','TZID:Europe/Paris','BEGIN:DAYLIGHT','TZOFFSETFROM:+0100','TZOFFSETTO:+0200','TZNAME:CEST','DTSTART:19700329T020000','RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU','END:DAYLIGHT','BEGIN:STANDARD','TZOFFSETFROM:+0200','TZOFFSETTO:+0100','TZNAME:CET','DTSTART:19701025T030000','RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU','END:STANDARD','END:VTIMEZONE'];
+function icsFor(list){const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Foulee//Courses//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Courses Foulée'];if(list.some(r=>raceStart(r)))L.push(...ICS_TZ);list.forEach(r=>L.push(...icsEvent(r)));L.push('END:VCALENDAR');return L.map(icsFold).join('\r\n')+'\r\n';}
+function gcalUrl(r){const st=raceStart(r),T=raceEstT(r),who=(S.settings.calWho||'').trim();let dates;if(st){const e=new Date(st.getTime()+((T||7200)+1800)*1000);dates=icsDT(st)+'/'+icsDT(e)+'&ctz=Europe/Paris';}else{const e=parseISO(r.d);e.setDate(e.getDate()+1);dates=icsD(r.d)+'/'+icsD(iso(e));}
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(`🏃 ${who?who+' · ':''}${r.n}${r.km?' ('+kmFr(r.km)+' km)':''}`)+'&dates='+dates+'&location='+encodeURIComponent(r.v||'')+'&details='+encodeURIComponent(`${r.km?kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.url?'\n'+r.url:''}\nAjouté depuis Foulée`);}
+const calState=r=>!r.cal?null:r.cal.sig===raceSig(r)?'ok':'maj';
+function calChip(r){if(r.st==='fait'||r.d.length!==10)return '';const s=calState(r);return `<span class="chip sm ${s==='ok'?'on':''}" onclick="openCalShare('${r.id}')">📅 ${s==='ok'?'Famille ✓':s==='maj'?'Famille · à mettre à jour':'Famille'}</span>`;}
+let CALD=null;
+function openCalShare(id){const all=id==='*',L=all?RACES().filter(r=>r.st!=='fait'&&r.d.length===10&&rWhen(r.d)>=new Date(new Date().toDateString())).sort((a,b)=>rWhen(a.d)-rWhen(b.d)):[RACES().find(r=>r.id===id)].filter(Boolean);
+  if(!L.length){toast(all?'Aucune course à venir avec une date exacte':'Course introuvable');return;}const r=L[0];if(!all&&r.d.length!==10){toast('Date à confirmer : saisis le jour exact (✎) avant de partager');return;}
+  CALD={ids:L.map(x=>x.id),all};const st=!all&&raceStart(r),s=!all&&calState(r);
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">📅 Calendrier famille</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">${all?`${L.length} course${L.length>1?'s':''} à venir : ${L.map(x=>esc(x.n)).join(', ')}.`:`<b>${esc(r.n)}</b>${r.km?' · '+kmFr(r.km)+' km':''} · ${parseISO(r.d).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}${st?' à '+st.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):' (journée entière)'}${r.v?' · '+esc(r.v):''}`}</p>
+  ${s==='maj'?'<div class="ins warn"><b>La course a changé depuis le dernier partage</b>Ajoute-la à nouveau : le calendrier remplace l’ancien événement (même identifiant).</div>':''}
+  <div class="form"><label>Nom affiché dans le titre (facultatif)</label><input id="cal_who" value="${esc(S.settings.calWho||'')}" placeholder="ex. Christophe" onchange="S.settings.calWho=this.value.trim();save()"></div>
+  <button class="btn wide" style="margin-top:12px" onclick="calIcs()">📅 Ajouter au calendrier de l’iPhone</button>
+  <p class="note">Dans la fenêtre qui s’ouvre, touche « Calendrier » et choisis <b>Famille</b> (le calendrier partagé du partage familial iCloud), puis « Ajouter ». Rappel la veille inclus.</p>
+  ${all?'':`<a class="btn ghost wide" style="margin-top:8px;display:block;text-align:center" href="${gcalUrl(r)}" target="_blank" rel="noopener" onclick="calMark()">Google Agenda (agenda partagé)</a>`}
+  <button class="btn ghost wide" style="margin-top:8px" onclick="calSend()">✉️ Envoyer à la famille (Messages, WhatsApp, mail)</button>
+  <p class="note">L’envoi joint le fichier .ics : chacun l’ouvre et l’ajoute à son calendrier.</p>
+  ${!all&&RACES().filter(x=>x.st!=='fait'&&x.d.length===10).length>1?`<button class="btn sm ghost" style="margin-top:6px" onclick="openCalShare('*')">Partager tout le planning à venir</button>`:''}`;
+  $('#sheet').classList.add('on');}
+function calList(){return (CALD?CALD.ids:[]).map(id=>RACES().find(r=>r.id===id)).filter(Boolean);}
+function calBump(L){L.forEach(r=>{const sig=raceSig(r),prev=r.cal;r.cal={at:Date.now(),sig,seq:prev&&prev.sig!==sig?(prev.seq||0)+1:(prev&&prev.seq)||0};});}
+function calMark(){calBump(calList());save();renderCourses();}
+function calName(L){return L.length===1?'course-'+norm(L[0].n).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'.ics':'courses-foulee.ics';}
+function calIcs(){const L=calList();if(!L.length)return;calBump(L);const ics=icsFor(L);
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(ios){const u='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);const w=window.open(u,'_blank');if(!w)location.href=u;}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'}));a.download=calName(L);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);}
+  window.__lastIcs=ics;save();renderCourses();toast(L.length>1?`${L.length} courses envoyées au calendrier`:'Course envoyée au calendrier 📅');}
+async function calSend(){const L=calList();if(!L.length)return;calBump(L);const ics=icsFor(L),name=calName(L),file=new File([ics],name,{type:'text/calendar'}),txt=L.map(r=>`🏃 ${r.n}${r.km?' ('+kmFr(r.km)+' km)':''} — ${parseISO(r.d).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}${r.v?' à '+r.v:''}`).join('\n');window.__lastIcs=ics;
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Mes prochaines courses',text:txt});save();renderCourses();return;}if(navigator.share){await navigator.share({title:'Mes prochaines courses',text:txt});save();renderCourses();return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  try{await navigator.clipboard.writeText(txt);toast('Texte copié : colle-le dans Messages');}catch(e){toast('Partage indisponible sur cet appareil');}calIcs();}
+
 /* ---------- Tracé GPX des courses du planning ---------- */
 const GPXB={};
 const okUrl=u=>typeof u==='string'&&/^https?:\/\/\S+$/.test(u)?u:null;
