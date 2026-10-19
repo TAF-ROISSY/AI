@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>/* Apparence (v7.6) : réglée par appareil, appliquée avant l'affichage pour éviter un flash */
-var LOOK_FONTS={moderne:'Figtree:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700;800',lisible:'Atkinson+Hyperlegible:wght@400;700',arrondi:'Nunito:wght@400;600;700;800'};
-function lookGet(){try{return Object.assign({th:'sombre',pal:'alpin',font:'sport'},JSON.parse(localStorage.getItem('foulee_look')||'{}'))}catch(e){return {th:'sombre',pal:'alpin',font:'sport'}}}
+var LOOK_FONTS={inter:'Inter:wght@400;500;600;700;800',moderne:'Figtree:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700;800',lisible:'Atkinson+Hyperlegible:wght@400;700',arrondi:'Nunito:wght@400;600;700;800'};
+var LOOK_DEF={th:'sombre',pal:'sport',font:'inter'};
+function lookGet(){try{var o=JSON.parse(localStorage.getItem('foulee_look')||'{}');if(!o.v){if(o.th==='sombre'&&o.pal==='alpin'&&o.font==='sport')o={};o.v=2;try{localStorage.setItem('foulee_look',JSON.stringify(Object.assign({},LOOK_DEF,o)))}catch(e){}}return Object.assign({},LOOK_DEF,o)}catch(e){return Object.assign({},LOOK_DEF)}}
 function lookTheme(L){return L.th==='auto'?(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'clair':'sombre'):L.th}
 function lookApply(L){L=L||lookGet();var h=document.documentElement,th=lookTheme(L);h.dataset.th=th;h.dataset.pal=L.pal;h.dataset.font=L.font;
  var f=LOOK_FONTS[L.font];if(f&&!document.getElementById('lookFont')){var l=document.createElement('link');l.id='lookFont';l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+f+'&display=swap';document.head.appendChild(l)}
  else if(f){var e=document.getElementById('lookFont');var u='https://fonts.googleapis.com/css2?family='+f+'&display=swap';if(e.href!==u)e.href=u}
- var m=document.querySelector('meta[name=theme-color]');if(m)m.content=th==='clair'?'#F3F5F8':th==='nuit'?'#000000':'#0D131A';}
+ var m=document.querySelector('meta[name=theme-color]');if(m)m.content=th==='clair'?'#F3F5F8':th==='nuit'?'#000000':th==='crepuscule'?'#0D131A':'#0A0C0F';}
 lookApply();try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(){if(lookGet().th==='auto')lookApply()})}catch(e){}
 </script>
 <style>
@@ -529,6 +530,92 @@ nav.tabs button span{display:block}
 }
 @media(min-width:1500px){[data-page=today].on,[data-page=forme].on,[data-page=analyse].on{column-count:3}}
 .dot.x{border-color:var(--glacier)}.dot.x.ok{background:var(--glacier)}.xc.xo{border-left-color:var(--glacier)!important}
+/* ======================================================================
+   DESIGN SYSTEM « PRO » (v8.2) — jetons, surfaces vitrées, micro-interactions
+   1. Jetons   2. Fond   3. Surfaces   4. Actions   5. Données   6. Chrome   7. Mouvement
+   ====================================================================== */
+:root{--ease:cubic-bezier(.2,.8,.2,1);--ease-out:cubic-bezier(.16,1,.3,1);--t-fast:.14s;--t:.24s;--t-slow:.42s;
+ --r-xl:26px;--r-lg:22px;--r-md:16px;--r-sm:12px;
+ --edge:rgba(var(--ink),.08);--edge-hi:rgba(var(--ink),.16);--hl:rgba(var(--ink),.07);
+ --shadow:0 14px 34px -18px rgba(0,0,0,.75);--shadow-hi:0 22px 48px -20px rgba(0,0,0,.85);--glow:color-mix(in srgb,var(--acc) 42%,transparent)}
+html[data-th=sombre]{--bg:#0A0C0F;--card:#13161B;--card2:#1A1E25;--tx:#F2F4F7;--tx2:#C5CCD6;--mut:#8C96A5;--line:rgba(255,255,255,.08);
+ --hdr:rgba(10,12,15,.72);--navb:rgba(22,25,31,.74);--sheet:#111419;--hero1:#171B22;--hero2:#0D1014}
+html[data-pal=sport]{--pT:#FF5F2E;--pM:#FFB224;--pC:#2FD3C7}
+html[data-th=clair]{--shadow:0 10px 26px -16px rgba(13,19,26,.28);--shadow-hi:0 18px 40px -18px rgba(13,19,26,.35)}
+html[data-font=inter] body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-feature-settings:'cv11','ss01','ss03';letter-spacing:-.006em}
+html[data-font=inter]{--disp:'Inter',system-ui,-apple-system,sans-serif}
+html[data-font=inter] :is(.hero-t,.stat b,.spk b,.tr-kpi b,.card h2,header .sub,.act-t,.wr-v,.la-m b){letter-spacing:-.025em}
+html[data-font=inter] header h1{letter-spacing:.04em}
+/* 2. fond : lueur d’accent + halo froid, fixes */
+body{background:radial-gradient(1000px 520px at 100% -8%,color-mix(in srgb,var(--acc) 13%,transparent),transparent 62%),radial-gradient(820px 480px at -12% 10%,color-mix(in srgb,var(--glacier) 7%,transparent),transparent 60%),var(--bg);background-attachment:fixed}
+/* 3. surfaces */
+.card{background:linear-gradient(180deg,rgba(var(--ink),.05),rgba(var(--ink),.012) 55%),var(--card);border:1px solid var(--edge);border-radius:var(--r-lg);box-shadow:inset 0 1px 0 var(--hl),var(--shadow);transition:border-color var(--t) var(--ease),box-shadow var(--t) var(--ease),transform var(--t) var(--ease)}
+@media(hover:hover) and (pointer:fine){.card:hover{border-color:var(--edge-hi);box-shadow:inset 0 1px 0 var(--hl),var(--shadow-hi)}}
+.hero{border-color:transparent;isolation:isolate;box-shadow:var(--shadow-hi)}
+.hero::after,.lum::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:2;
+ background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 80%,transparent),transparent 34%,transparent 66%,rgba(var(--ink),.2));
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.lum{position:relative}
+.stat{background:rgba(var(--ink),.04);border:1px solid var(--edge);border-radius:var(--r-md)}
+.stat small,.eyebrow{text-transform:uppercase;letter-spacing:.07em;font-size:10.5px;font-weight:650;color:var(--mut)}
+/* 4. actions */
+.btn{border-radius:14px;transition:transform var(--t-fast) var(--ease),filter var(--t) var(--ease),box-shadow var(--t) var(--ease),background var(--t);box-shadow:0 10px 24px -12px var(--glow),inset 0 1px 0 rgba(255,255,255,.22)}
+.btn:not(.ghost):not(.ai-b){background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 88%,#fff),var(--acc))}
+.btn.ghost{background:rgba(var(--ink),.06);border:1px solid var(--edge);box-shadow:none}
+@media(hover:hover) and (pointer:fine){.btn:hover{filter:brightness(1.07)}.btn.ghost:hover{border-color:var(--edge-hi);background:rgba(var(--ink),.09)}.chip:hover{border-color:var(--edge-hi)}}
+:is(.btn,.chip,.ib,.icbtn,.ptile,.lk-opt,nav.tabs button,.modseg button):active{transform:scale(.96)}
+.chip,.ib,.icbtn,.ptile,.lk-opt{transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t),transform var(--t-fast) var(--ease),box-shadow var(--t)}
+.chip.on{box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 45%,transparent),0 8px 18px -12px var(--glow)}
+.icbtn{background:rgba(var(--ink),.06);border:1px solid var(--edge)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:10px}
+/* 5. données */
+.stat b,.spk b,.tr-kpi b,.wr-v,.la-m b,.readout,.tbl td{font-variant-numeric:tabular-nums}
+.chart [data-tip],.prof [data-tip]{transition:filter var(--t-fast)}
+@media(hover:hover){.chart [data-tip]:hover{filter:brightness(1.25) saturate(1.1)}}
+#tip{position:fixed;z-index:95;left:0;top:0;pointer-events:none;padding:7px 11px;border-radius:11px;font-size:12.5px;font-weight:600;line-height:1.3;color:var(--tx);
+ background:color-mix(in srgb,var(--card2) 82%,transparent);-webkit-backdrop-filter:blur(16px) saturate(160%);backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--edge-hi);box-shadow:var(--shadow-hi);
+ opacity:0;transform:translate(-50%,-100%) scale(.96);transition:opacity .12s var(--ease),transform .16s var(--ease);white-space:nowrap;max-width:min(320px,90vw);overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+#tip.on{opacity:1;transform:translate(-50%,calc(-100% - 12px)) scale(1)}
+/* 6. chrome vitré */
+header{background:var(--hdr);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);border-bottom:1px solid var(--edge)}
+nav.tabs{background:var(--navb);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border:1px solid var(--edge);box-shadow:0 22px 50px -22px rgba(0,0,0,.85),inset 0 1px 0 var(--hl)}
+nav.tabs button{transition:color var(--t) var(--ease),background var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);color:var(--acc);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 26%,transparent)}
+.sheet{background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.sheet>div{border:1px solid var(--edge);box-shadow:0 -24px 60px -24px rgba(0,0,0,.8),inset 0 1px 0 var(--hl)}
+.modseg button{transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+/* 7. mouvement */
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes sheetIn{from{opacity:.3;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes ringIn{from{stroke-dasharray:0 999}}
+.page.on{animation:pgIn var(--t-slow) var(--ease-out) both}
+.sheet.on>div{animation:sheetIn .36s var(--ease-out) both}
+@media(prefers-reduced-motion:reduce){.page.on,.sheet.on>div,.wr-fg{animation:none!important}*{transition-duration:.01ms!important}}
+/* ===== Tableau de bord : anneaux de la semaine, dernière activité ===== */
+.wr{display:flex;align-items:center;gap:18px}.wr svg{flex:none;width:118px;height:118px}
+.wr-bg{fill:none;stroke:rgba(var(--ink),.08)}.wr-fg{fill:none;stroke-linecap:round;animation:ringIn 1s var(--ease-out) both;filter:drop-shadow(0 0 6px color-mix(in srgb,currentColor 45%,transparent))}
+.wr-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.wr-i{display:flex;align-items:baseline;gap:8px}.wr-i i{width:9px;height:9px;border-radius:50%;flex:none;align-self:center}
+.wr-v{font-family:var(--disp);font-weight:750;font-size:20px;line-height:1}.wr-i small{color:var(--mut);font-size:12.5px}
+.la-top{display:flex;gap:14px;align-items:flex-start}.la-top>div{flex:1;min-width:0}
+.la-t{font-family:var(--disp);font-weight:750;font-size:21px;line-height:1.15;margin:4px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.la-route{flex:none;width:96px;height:76px;border-radius:14px;background:rgba(var(--ink),.04);border:1px solid var(--edge)}
+.la-route polyline{fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px var(--glow))}
+.la-m{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 4px}
+.la-m>div{background:rgba(var(--ink),.04);border:1px solid var(--edge);border-radius:14px;padding:10px 10px 8px}
+.la-m b{display:block;font-family:var(--disp);font-weight:750;font-size:19px;line-height:1.1}.la-m small{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.la-prev{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--edge);cursor:pointer}.la-prev:first-of-type{margin-top:8px}
+.src{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--acc) 15%,transparent);color:var(--acc)}
+.src.file{background:color-mix(in srgb,var(--glacier) 15%,transparent);color:var(--glacier)}
+@media(max-width:380px){.la-m{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ===== Analyse d’une sortie : écran partagé sur iPad / Mac ===== */
+@media(min-width:1024px){
+ nav.tabs{background:color-mix(in srgb,var(--card) 80%,transparent);border:0;border-right:1px solid var(--edge);box-shadow:none;border-radius:0}
+ #act .ch-m#actBody{max-width:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(400px,1fr);overflow:hidden;height:100%}
+ #actBody>#actMap{height:100%;min-height:0;border-right:1px solid var(--edge)}
+ #actBody>.act-in{overflow-y:auto;padding:24px 28px 40px;-webkit-overflow-scrolling:touch}
+ #act{flex-direction:column}#act>.ch-m{min-height:0}
+}
 </style>
 </head>
 <body>
@@ -637,7 +724,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='8.1';
+const APP_VER='8.2';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -760,7 +847,7 @@ function renderRoute(cid){const c=routeClusters().find(x=>x.id===cid);if(!c)retu
   <div class="row"><button class="btn ghost" style="flex:1" onclick="compareRuns(${last.id},${best.id})" ${last.id===best.id?'disabled':''}>Dernier vs meilleur</button><button class="btn ghost" style="flex:1" onclick="compareRuns(${last.id},${first.id})" ${last.id===first.id?'disabled':''}>Dernier vs premier</button></div></div>`;
   $('#actBody').innerHTML=h;$('#act .ch-m').scrollTop=0;
   ensureLeaflet().then(()=>{if(!window.L)return;const el=$('#actMap');if(actMap){try{actMap.remove();}catch(e){}}const T=TILES[mapStyle]||TILES.relief;actMap=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(actMap);
-    let bounds=null;rs.slice(-6).forEach((r,i,arr)=>{const p=decPoly(r.poly||'');if(p.length<2)return;const l=L.polyline(p,{color:i===arr.length-1?'#F47C8A':'#7CCBEA',weight:i===arr.length-1?4:2,opacity:i===arr.length-1?1:.45}).addTo(actMap);bounds=bounds?bounds.extend(l.getBounds()):l.getBounds();});if(bounds)actMap.fitBounds(bounds,{padding:[24,24]});}).catch(()=>{});}
+    let bounds=null;rs.slice(-6).forEach((r,i,arr)=>{const p=decPoly(r.poly||'');if(p.length<2)return;const l=L.polyline(p,{color:i===arr.length-1?cssv('--pT'):cssv('--pC'),weight:i===arr.length-1?4:2,opacity:i===arr.length-1?1:.45}).addTo(actMap);bounds=bounds?bounds.extend(l.getBounds()):l.getBounds();});if(bounds)actMap.fitBounds(bounds,{padding:[24,24]});}).catch(()=>{});}
 async function compareRuns(aId,bId){const A=S.activities.find(x=>x.id==aId),B=S.activities.find(x=>x.id==bId);if(!A||!B)return;curAct=null;closeSettings();$('#act').classList.add('on');$('#actH').textContent='Comparaison';$('#actStrava').style.display='none';
   const dA=localDate(A.start_date_local).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'}),dB=localDate(B.start_date_local).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'});
   const row=(l,a,b,fmt,lowBetter=true)=>{if(a==null||b==null)return '';const d=a-b,good=lowBetter?d<0:d>0;return `<tr><td>${l}</td><td><b>${fmt(a)}</b></td><td>${fmt(b)}</td><td class="${d===0?'':good?'up':'dn'}">${d===0?'=':sgn(d,fmt)}</td></tr>`;};
@@ -890,9 +977,9 @@ function drawMap(r){const el=$("#actMap");if(!el||!window.L)return;if(actMap){tr
   const pts=(actDet&&actDet.ll&&actDet.ll.length>1)?actDet.ll:decPoly(r.poly||'');
   if(pts.length<2){el.innerHTML='<div class="empty" style="padding-top:20vh">Pas de tracé GPS pour cette sortie</div>';return;}
   const T=TILES[mapStyle]||TILES.relief;actMap=L.map(el,{zoomControl:false,attributionControl:true,tap:true});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(actMap);
-  L.polyline(pts,{color:'#0D131A',weight:7,opacity:.55}).addTo(actMap);const line=L.polyline(pts,{color:'#F47C8A',weight:4}).addTo(actMap);
+  L.polyline(pts,{color:'#0D131A',weight:7,opacity:.55}).addTo(actMap);const line=L.polyline(pts,{color:cssv('--pT'),weight:4}).addTo(actMap);
   L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#6FD3A5',fillOpacity:1}).addTo(actMap);L.circleMarker(pts[pts.length-1],{radius:6,color:'#fff',weight:2,fillColor:'#E5B85C',fillOpacity:1}).addTo(actMap);
-  actMarker=L.circleMarker(pts[0],{radius:7,color:'#fff',weight:3,fillColor:'#F47C8A',fillOpacity:1,opacity:0,fillOpacity:0}).addTo(actMap);
+  actMarker=L.circleMarker(pts[0],{radius:7,color:'#fff',weight:3,fillColor:cssv('--pT'),fillOpacity:1,opacity:0,fillOpacity:0}).addTo(actMap);
   actMap.fitBounds(line.getBounds(),{padding:[24,24]});
   const sw=document.createElement('div');sw.className='mapsw';sw.innerHTML=Object.keys(TILES).map(k=>`<button class="${k===mapStyle?'on':''}" onclick="setMapStyle('${k}')">${k==='relief'?'Relief':'Sombre'}</button>`).join('');el.appendChild(sw);}
 function setMapStyle(k){mapStyle=k;try{localStorage.setItem('foulee_map',k);}catch(e){}if(curAct)drawMap(curAct);}
@@ -1528,7 +1615,7 @@ function raceCard(full){const r=S.race;if(!r)return full?`<div class="card race"
   <div class="row" style="margin-top:4px"><button class="btn sm" onclick="openStrategy()">Stratégie d’allure</button><button class="btn sm ghost" onclick="openRace()">Modifier</button></div></div>`;}
 function profileSvg(R){const W=340,H=130,pts=R.pts,maxD=pts[pts.length-1][3]||1,al=pts.map(p=>p[2]),mn=Math.min(...al),mx=Math.max(...al),ry=Math.max(30,mx-mn),X=d=>d/maxD*W,Y=z=>H-18-(z-mn)/ry*(H-30);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart">`;for(let i=1;i<pts.length;i++){const g=(pts[i][2]-pts[i-1][2])/((pts[i][3]-pts[i-1][3])||1),c=g>.12?'#F47C8A':g>.05?'#E5B85C':g<-.05?'#7CCBEA':'#6FD3A5';
-    s+=`<path d="M${X(pts[i-1][3]).toFixed(1)} ${H-18} L${X(pts[i-1][3]).toFixed(1)} ${Y(pts[i-1][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${Y(pts[i][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${H-18}Z" fill="${c}" opacity=".55"/>`;}
+    s+=`<path d="M${X(pts[i-1][3]).toFixed(1)} ${H-18} L${X(pts[i-1][3]).toFixed(1)} ${Y(pts[i-1][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${Y(pts[i][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${H-18}Z" fill="${c}" opacity=".55" data-tip="km ${(pts[i][3]/1000).toFixed(1).replace('.',',')} · ${Math.round(pts[i][2])} m · ${g>0?'+':''}${Math.round(g*100)} %"/>`;}
   R.aid.forEach(a=>{s+=`<line x1="${X(a.k*1000)}" x2="${X(a.k*1000)}" y1="4" y2="${H-18}" stroke="#EDF2F6" stroke-dasharray="3 3"/><text x="${X(a.k*1000)}" y="10" class="cl">🥤</text>`;});
   return s+`<text x="2" y="${H-4}" class="cl" style="text-anchor:start">0</text><text x="${W-2}" y="${H-4}" class="cl" style="text-anchor:end">${(maxD/1000).toFixed(1)} km</text><text x="${W-2}" y="12" class="cl" style="text-anchor:end">${Math.round(mx)} m</text></svg><div class="leg2"><span><i style="background:#6FD3A5"></i>plat</span><span><i style="background:#E5B85C"></i>5–12 %</span><span><i style="background:#F47C8A"></i>> 12 %</span><span><i style="background:#7CCBEA"></i>descente</span></div>`;}
 function openStrategy(){const r=S.race;if(!r)return;const R=raceStrategy(r),gpx=!!r.gpx,hrs=R.T/3600;curAct=null;closeSettings();$('#act').classList.add('on');$('#actH').textContent='Stratégie d’allure';$('#actStrava').style.display='none';
@@ -1545,7 +1632,7 @@ function openStrategy(){const r=S.race;if(!r)return;const R=raceStrategy(r),gpx=
   <button class="btn ai-b wide" onclick="askRaceCoach()">💬 Demander une stratégie au coach</button></div>`;
   $('#actBody').innerHTML=h;$('#act .ch-m').scrollTop=0;
   if(gpx)ensureLeaflet().then(()=>{if(!window.L)return;const el=$('#actMap');if(actMap){try{actMap.remove();}catch(e){}}const T=TILES[mapStyle]||TILES.relief;actMap=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(actMap);
-    const ll=r.gpx.pts.map(p=>[p[0],p[1]]),line=L.polyline(ll,{color:'#F47C8A',weight:4}).addTo(actMap);R.aid.forEach(a=>{const p=r.gpx.pts.find(x=>x[3]>=a.k*1000);if(p)L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(actMap).bindTooltip('Ravito km '+a.k);});
+    const ll=r.gpx.pts.map(p=>[p[0],p[1]]),line=L.polyline(ll,{color:cssv('--pT'),weight:4}).addTo(actMap);R.aid.forEach(a=>{const p=r.gpx.pts.find(x=>x[3]>=a.k*1000);if(p)L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(actMap).bindTooltip('Ravito km '+a.k);});
     L.circleMarker(ll[0],{radius:6,color:'#fff',weight:2,fillColor:'#6FD3A5',fillOpacity:1}).addTo(actMap);actMap.fitBounds(line.getBounds(),{padding:[24,24]});}).catch(()=>{});}
 function copySplits(){const r=S.race,R=raceStrategy(r),t=`${r.name} — ${fmtH(R.T)}\n`+R.km.map(k=>`km ${k.k} : ${fmtH(k.cum)} (${fmtPace(k.t/(k.d/1000))}/km)`).join('\n')+(R.aid.length?'\nRavitos : '+R.aid.map(a=>`km ${a.k} → ${fmtH(a.cum)}`).join(', '):'');
   (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Temps de passage copiés'),()=>toast('Copie impossible'));}
@@ -2409,7 +2496,7 @@ function weekChart(weeks){
   const W=340,H=150,pl=6,bw=(W-pl*2)/weeks.length,max=Math.max(10,...weeks.map(w=>w.km)),maxd=Math.max(100,...weeks.map(w=>w.dp));
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart">`;
   weeks.forEach((w,i)=>{const h=w.km/max*(H-40),x=pl+i*bw+3,cur=i===weeks.length-1;
-    s+=`<rect x="${x}" y="${H-20-h}" width="${bw-6}" height="${Math.max(h,1)}" rx="3" fill="${cur?'var(--mut)':'var(--acc)'}" opacity="${cur?.45:1}"/>`;
+    s+=`<rect x="${x}" y="${H-20-h}" width="${bw-6}" height="${Math.max(h,1)}" rx="3" fill="${cur?'var(--mut)':'var(--acc)'}" opacity="${cur?.45:1}" data-tip="Semaine du ${w.ws.getDate()}/${w.ws.getMonth()+1}${cur?' (en cours)':''} · ${String(Math.round(w.km*10)/10).replace('.',',')} km · ${Math.round(w.dp)} m D+"/>`;
     if(w.km>0)s+=`<text x="${x+(bw-6)/2}" y="${H-24-h}" class="cv">${Math.round(w.km)}</text>`;
     s+=`<text x="${x+(bw-6)/2}" y="${H-6}" class="cl">${w.ws.getDate()}/${w.ws.getMonth()+1}</text>`;});
   s+=`<polyline points="${weeks.map((w,i)=>`${pl+i*bw+bw/2},${H-20-w.dp/maxd*(H-40)}`).join(' ')}" fill="none" stroke="var(--acc2)" stroke-width="2"/></svg>`;
@@ -2829,7 +2916,7 @@ function trSheet(o){const fav=(S.trFav||[]).some(x=>x.id===o.id),R=o.ele?{pts:o.
    <div class="row" style="margin-top:12px"><button class="btn" onclick="trGpx('${o.id}')">⬇️ GPX</button><button class="btn ghost" onclick="trFav('${o.id}',${!fav})">${fav?'★ Retirer des favoris':'☆ Favori'}</button><a class="btn ghost" href="https://www.openstreetmap.org/relation/${o.osm}" target="_blank" rel="noopener">Voir sur OSM ↗</a>${o.web?`<a class="btn ghost" href="${esc(o.web)}" target="_blank" rel="noopener">Site ↗</a>`:''}</div>
    <p class="note">Le GPX s’ouvre dans Strava (Routes › Importer), Komoot, Garmin Connect ou l’app Plans. Temps estimé à ton allure facile, corrigé du dénivelé.</p>`;
   ensureLeaflet().then(()=>{const el=$('#trOneMap');if(!window.L||!el)return;if(trMapOne){try{trMapOne.remove();}catch(e){}}const T=TILES.relief;trMapOne=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(trMapOne);
-    const b=[];o.P.forEach(p=>{L.polyline(p,{color:'#F47C8A',weight:4}).addTo(trMapOne);b.push(...p);});const a=o.P[0][0];L.circleMarker(a,{radius:6,color:'#fff',weight:2,fillColor:'#6FD3A5',fillOpacity:1}).addTo(trMapOne).bindTooltip('Départ');
+    const b=[];o.P.forEach(p=>{L.polyline(p,{color:cssv('--pT'),weight:4}).addTo(trMapOne);b.push(...p);});const a=o.P[0][0];L.circleMarker(a,{radius:6,color:'#fff',weight:2,fillColor:'#6FD3A5',fillOpacity:1}).addTo(trMapOne).bindTooltip('Départ');
     if(TR.c)L.circleMarker(TR.c,{radius:5,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(trMapOne);trMapOne.fitBounds(b,{padding:[16,16]});setTimeout(()=>trMapOne&&trMapOne.invalidateSize(),250);});}
 function trTime(o){/* allure facile du profil (ou 6:15/km), +1 min par 10 m de D+ (équivalence trail courante) */let pace=375;try{const P=getA().P;if(P&&P.long>200&&P.long<600)pace=P.long;}catch(e){}
   const s=o.km*pace+(o.dp||0)*6;const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h} h ${String(m).padStart(2,'0')}`:`${m} min`;}
@@ -3037,7 +3124,7 @@ function saveSleep(){const i=$('#sl_h');if(i){const v=parseFloat(String(i.value)
 function delSleep(){if(S.sleep)delete S.sleep[slDraft.d];tomb('sleep',slDraft.d);save();closeSettings();renderAll();}
 function sleepCard(){const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return {d,s:sleepOf(iso(d))};}),a=sleepAvg(new Date(),7),W=340,H=110,bw=W/7,Y=h=>H-22-Math.min(10,h)/10*(H-34);
   let svg=`<svg viewBox="0 0 ${W} ${H}" class="chart"><rect x="0" y="${Y(8)}" width="${W}" height="${Y(7)-Y(8)}" fill="var(--glacier)" opacity=".10"/><line x1="0" x2="${W}" y1="${Y(7)}" y2="${Y(7)}" stroke="var(--glacier)" stroke-dasharray="3 4" opacity=".6"/>`;
-  days.forEach((o,i)=>{const x=i*bw+bw*.2,w=bw*.6;if(o.s){const c=o.s.h<6||o.s.q<=1?'#F47C8A':o.s.h<7||o.s.q===2?'#E5B85C':'#6FD3A5';svg+=`<rect x="${x}" y="${Y(o.s.h)}" width="${w}" height="${H-22-Y(o.s.h)}" rx="4" fill="${c}"/><text x="${x+w/2}" y="${Y(o.s.h)-4}" class="cv">${String(Math.round(o.s.h*10)/10).replace('.',',')}</text>`;}else svg+=`<text x="${x+w/2}" y="${H-30}" class="cl">–</text>`;svg+=`<text x="${x+w/2}" y="${H-6}" class="cl">${JOURS[dayIdx(o.d)]}</text>`;});
+  days.forEach((o,i)=>{const x=i*bw+bw*.2,w=bw*.6;if(o.s){const c=o.s.h<6||o.s.q<=1?'#F47C8A':o.s.h<7||o.s.q===2?'#E5B85C':'#6FD3A5';svg+=`<rect x="${x}" y="${Y(o.s.h)}" width="${w}" height="${H-22-Y(o.s.h)}" rx="4" fill="${c}" data-tip="${o.d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric'})} · ${slH(o.s.h)} · ${SLQ[o.s.q]?SLQ[o.s.q][0]:''}"/><text x="${x+w/2}" y="${Y(o.s.h)-4}" class="cv">${String(Math.round(o.s.h*10)/10).replace('.',',')}</text>`;}else svg+=`<text x="${x+w/2}" y="${H-30}" class="cl">–</text>`;svg+=`<text x="${x+w/2}" y="${H-6}" class="cl">${JOURS[dayIdx(o.d)]}</text>`;});
   svg+='</svg>';const t=sleepOf(iso(new Date()));
   return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">😴 Sommeil</h2><button class="btn sm" style="margin:0" onclick="openSleep()">${t?'Modifier':'Noter ma nuit'}</button></div>
   ${a?`<div class="grid" style="margin-top:10px"><div class="stat"><b>${slH(a.h)}</b><small>moyenne ${a.n} nuit${a.n>1?'s':''}</small></div><div class="stat"><b>${SLQ[Math.max(1,Math.min(4,Math.round(a.q)))][0]}</b><small>qualité moyenne</small></div></div>${svg}<p class="note">Zone bleue : 7 à 8 h. Une nuit courte (moins de 6 h) ou mauvaise baisse la forme du jour et le coach allège la séance dure.</p>`:'<p class="muted small" style="margin-top:8px">Note ta nuit le matin en 2 touchers (durée et qualité) : la forme du jour en tient compte, et le coach allège la séance dure après une mauvaise nuit.</p>'}</div>`;}
@@ -3347,7 +3434,7 @@ function stackChart(weeks){
   const W=340,H=150,pl=6,bw=(W-pl*2)/weeks.length,max=Math.max(300,...weeks.map(w=>w.tot));
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart">`;
   weeks.forEach((w,i)=>{const x=pl+i*bw+3,hr=w.run/max*(H-40),hm=w.mus/max*(H-40),hx=(w.xt||0)/max*(H-40),cur=i===weeks.length-1;
-    s+=`<rect x="${x}" y="${H-20-hr}" width="${bw-6}" height="${Math.max(hr,0)}" fill="#F47C8A" opacity="${cur?.5:1}"/><rect x="${x}" y="${H-20-hr-hm}" width="${bw-6}" height="${Math.max(hm,0)}" fill="#E5B85C" opacity="${cur?.5:1}"/><rect x="${x}" y="${H-20-hr-hm-hx}" width="${bw-6}" height="${Math.max(hx,0)}" fill="#7CCBEA" opacity="${cur?.5:1}"/>`;
+    {const tip=`Semaine du ${w.ws.getDate()}/${w.ws.getMonth()+1} · charge ${Math.round(w.tot)} · trail ${Math.round(w.run)} · muscu ${Math.round(w.mus)}${w.xt?' · autres '+Math.round(w.xt):''}`;s+=`<g data-tip="${tip}"><rect x="${x}" y="${H-20-hr}" width="${bw-6}" height="${Math.max(hr,0)}" fill="var(--trail)" opacity="${cur?.5:1}"/><rect x="${x}" y="${H-20-hr-hm}" width="${bw-6}" height="${Math.max(hm,0)}" fill="var(--muscu)" opacity="${cur?.5:1}"/><rect x="${x}" y="${H-20-hr-hm-hx}" width="${bw-6}" height="${Math.max(hx,0)}" fill="var(--glacier)" opacity="${cur?.5:1}"/><rect x="${x}" y="8" width="${bw-6}" height="${H-28}" fill="transparent"/></g>`;}
     if(w.tot>0)s+=`<text x="${x+(bw-6)/2}" y="${H-24-hr-hm-hx}" class="cv">${Math.round(w.tot)}</text>`;
     s+=`<text x="${x+(bw-6)/2}" y="${H-6}" class="cl">${w.ws.getDate()}/${w.ws.getMonth()+1}</text>`;});
   return s+`</svg><div class="legend"><span><i style="background:#F47C8A"></i>Trail</span><span><i style="background:#E5B85C"></i>Muscu</span><span><i style="background:#7CCBEA"></i>Autres sports</span></div>`;
@@ -3368,15 +3455,45 @@ function delMes(d){S.mesures=S.mesures.filter(m=>m.d!==d);tomb('mesures',d);save
 function shiftWeek(x){viewWeek=Math.max(0,Math.min(11,viewWeek+x));renderPlan();renderRenfo();}
 /* ============ v8 : AUJOURD’HUI (trail + muscu réunis) & PLUS ============ */
 function weekStrip2(w){const d0=dayIdx();let h='<div class="wk wk2">';for(let i=0;i<7;i++){const ss=daySessions(w,i);h+=`<div class="wd ${i===d0?'today':''}"><b>${JOURS[i]}</b><i>${ss.map(s=>`<span class="dot ${s.str?'m':s.xs?'x':'t'} ${S.done[s.k]?'ok':''}" title="${esc(s.t)}"></span>`).join('')||'<span class="dot o"></span>'}</i></div>`;}return h+'</div>';}
-function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill();
+/* ===== v8.2 : tableau de bord (anneaux, dernière activité) & infobulles ===== */
+function cssv(k){try{return getComputedStyle(document.documentElement).getPropertyValue(k).trim()||'#FF5F2E';}catch(e){return '#FF5F2E';}}
+function weekRings(){const w=weekIdx();if(w<0||w>11)return '';const ws=sessDate(w,0),we=new Date(ws);we.setDate(we.getDate()+7);
+  const km=getRuns().filter(r=>{const d=localDate(r.start_date_local);return d>=ws&&d<we;}).reduce((a,r)=>a+r.distance/1000,0),kmT=runPlan(w).vol||0;
+  let n=0,f=0,nm=0,fm=0;for(let i=0;i<7;i++)daySessions(w,i).forEach(x=>{if(x.str){nm++;if(S.done[x.k])fm++;}else{n++;if(S.done[x.k])f++;}});
+  const R=[[km,kmT,'var(--trail)','Kilomètres',`${kmFr(km)} <small>/ ${kmT} km</small>`,`${kmFr(km)} km sur ${kmT} prévus`],[f,n,'var(--glacier)','Séances endurance',`${f} <small>/ ${n}</small>`,`${f} séance${f>1?'s':''} d’endurance sur ${n}`],[fm,nm,'var(--muscu)','Muscu',`${fm} <small>/ ${nm}</small>`,`${fm} séance${fm>1?'s':''} de muscu sur ${nm}`]];
+  const rr=[50,37,24];let svg='<svg viewBox="0 0 120 120" role="img" aria-label="Progression de la semaine">';
+  R.forEach((x,i)=>{const r=rr[i],c=2*Math.PI*r,p=x[1]?Math.min(1,x[0]/x[1]):0;svg+=`<g data-tip="${x[5]}"><circle class="wr-bg" cx="60" cy="60" r="${r}" stroke-width="10"/>${p>0?`<circle class="wr-fg" cx="60" cy="60" r="${r}" stroke-width="10" stroke="${x[2]}" style="color:${x[2]}" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 60 60)"/>`:''}</g>`;});
+  svg+='</svg>';
+  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:10px"><h2 style="margin:0">Ta semaine</h2><span class="eyebrow">Semaine ${w+1} / 12</span></div><div class="wr">${svg}<div class="wr-l">${R.map(x=>`<div class="wr-i"><i style="background:${x[2]}"></i><div><div class="wr-v">${x[4]}</div><small>${x[3]}</small></div></div>`).join('')}</div></div></div>`;}
+function lastActs(){const R=getRuns().slice(0,4).map(r=>({src:'strava',name:r.name,date:localDate(r.start_date_local),km:r.distance/1000,t:r.moving_time,dp:Math.round(r.total_elevation_gain||0),pts:decPoly(r.poly||''),open:`openAct(${r.id})`,trail:r.sport_type==='TrailRun'}));
+  const I=(S.imports||[]).map(r=>({src:'file',name:r.name,date:new Date(r.date),km:r.km,t:r.mov,dp:r.up,pts:r.ll||[],open:`openImport('${r.id}')`}));
+  return [...R,...I].filter(x=>x.km>0&&!isNaN(x.date)).sort((a,b)=>b.date-a.date);}
+function routeSvg(pts,W=96,H=76){if(!pts||pts.length<2)return `<svg class="la-route" viewBox="0 0 ${W} ${H}" aria-hidden="true"></svg>`;const step=Math.max(1,Math.floor(pts.length/120)),P=pts.filter((_,i)=>i%step===0);
+  const la=P.map(p=>p[0]),lo=P.map(p=>p[1]),k=Math.cos((Math.min(...la)+Math.max(...la))/2*Math.PI/180),x0=Math.min(...lo),y1=Math.max(...la),sx=(Math.max(...lo)-x0)*k||1e-6,sy=(y1-Math.min(...la))||1e-6,sc=Math.min((W-16)/sx,(H-16)/sy),ox=(W-sx*sc)/2,oy=(H-sy*sc)/2;
+  return `<svg class="la-route" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${P.map(p=>((p[1]-x0)*k*sc+ox).toFixed(1)+','+((y1-p[0])*sc+oy).toFixed(1)).join(' ')}"/></svg>`;}
+function relDay(d){const t=new Date(new Date().toDateString()),x=new Date(d.toDateString()),n=Math.round((t-x)/DAY);return n===0?'aujourd’hui':n===1?'hier':n<7?'il y a '+n+' jours':d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}
+function lastActCard(){const L=lastActs(),inp='<label class="btn ghost sm" style="margin:0;cursor:pointer">📂 Importer GPX / FIT<input type="file" style="display:none" onchange="importFile(this)"></label>';
+  if(!L.length)return `<div class="card"><h2>Dernière activité</h2><p class="muted small">Connecte Strava ou importe un fichier de ta montre pour voir ici ta dernière sortie et son analyse.</p><div class="row">${S.tokens?'':'<button class="btn sm" style="margin:0" onclick="openSettings()">Connecter Strava</button>'}${inp}</div></div>`;
+  const a=L[0],pace=a.t&&a.km?a.t/a.km:null;
+  return `<div class="card lum"><div class="la-top"><div><div class="row" style="gap:8px"><span class="src ${a.src==='file'?'file':''}">${a.src==='file'?'Fichier':'Strava'}</span><span class="eyebrow">${relDay(a.date)}</span></div><div class="la-t">${esc(a.name)}</div><div class="muted small">${a.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}${a.trail?' · trail':''}</div></div>${routeSvg(a.pts)}</div>
+   <div class="la-m"><div><b>${kmFr(a.km)}</b><small>km</small></div><div><b>${a.t?fmtDur(a.t):'–'}</b><small>durée</small></div><div><b>${pace?fmtPace(pace):'–'}</b><small>/km</small></div><div><b>${a.dp||0}</b><small>m D+</small></div></div>
+   <div class="row" style="margin-top:10px"><button class="btn sm" style="margin:0" onclick="${a.open}">Analyser</button>${inp}<button class="chip sm" style="margin-left:auto" onclick="showTab('histo')">Toutes</button></div>
+   ${L.slice(1,3).map(x=>`<div class="la-prev" role="button" tabindex="0" onclick="${x.open}">${routeSvg(x.pts,44,36).replace('class="la-route"','class="la-route" style="width:44px;height:36px;border-radius:10px"')}<div style="flex:1;min-width:0"><b class="small" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</b><span class="muted small">${relDay(x.date)} · ${kmFr(x.km)} km${x.t?' · '+fmtDur(x.t):''}${x.dp?' · '+x.dp+' m D+':''}</span></div><span class="src ${x.src==='file'?'file':''}">${x.src==='file'?'Fichier':'Strava'}</span></div>`).join('')}</div>`;}
+(function tipInit(){const T=document.createElement('div');T.id='tip';T.setAttribute('role','tooltip');document.body.appendChild(T);let hideT=null;
+  const place=(el,x,y)=>{T.textContent=el.getAttribute('data-tip');const w=innerWidth,tw=Math.min(320,T.offsetWidth||200)/2+8;T.style.left=Math.max(tw,Math.min(w-tw,x))+'px';T.style.top=Math.max(48,y)+'px';T.classList.add('on');clearTimeout(hideT);};
+  const at=e=>e.target&&e.target.closest?e.target.closest('[data-tip]'):null;
+  document.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const el=at(e);if(el)place(el,e.clientX,e.clientY);else T.classList.remove('on');},{passive:true});
+  document.addEventListener('pointerdown',e=>{const el=at(e);if(el){place(el,e.clientX,e.clientY);hideT=setTimeout(()=>T.classList.remove('on'),2400);}else T.classList.remove('on');},{passive:true});
+  ['scroll','wheel'].forEach(ev=>document.addEventListener(ev,()=>T.classList.remove('on'),{passive:true,capture:true}));})();
+function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill()+weekRings();
   if(!S.tokens&&!S.demo)h+=`<div class="card"><h2>Connecte Strava</h2><p class="muted small">Pour adapter les allures et le volume à tes vraies sorties. En attendant, le plan tourne sur des valeurs par défaut.</p><div class="row"><button class="btn" onclick="openSettings()">Configurer</button><button class="btn ghost" onclick="loadDemo()">Voir une démo</button></div></div>`;
   const ps=planStateCard(w);
   if(ps)h+=ps;else{const run=daySessions(w,d,'run'),str=daySessions(w,d,'str'),fg=figObj(),rp=runPlan(w);
     const xs=daySessions(w,d,'x'),all=[...run,...str,...xs];let n=0,f=0;for(let i=0;i<7;i++)daySessions(w,i).forEach(x=>{n++;if(S.done[x.k])f++;});
-    h+=`<div class="card today-c"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">Au programme</h2><span class="muted small">Sem. ${w+1}/12 · ${f}/${n} faites · ${rp.vol} km</span></div>
+    h+=`<div class="card today-c lum"><h2 style="margin:0">Au programme</h2><div class="eyebrow" style="margin-top:4px">Semaine ${w+1}/12 · ${f}/${n} faites · ${rp.vol} km prévus</div>
       ${all.length?all.map(sessCard).join('')+(str.length&&fg?sessCard(fg):''):`<p class="muted small" style="margin:10px 0 4px">Repos aujourd’hui.${(()=>{const x=nextSess();return x?' Prochaine séance : '+esc(x.ss[0].t)+' · '+JOURSL[dayIdx(x.dt)].toLowerCase()+'.':'';})()}</p>`}
       ${weekStrip2(w)}<div class="leg2" style="margin-top:6px"><span><i style="background:var(--trail)"></i>trail</span><span><i style="background:var(--muscu)"></i>muscu</span>${(S.xplan||[]).length?'<span><i style="background:var(--glacier)"></i>autres</span>':''}<button class="chip sm" style="margin-left:auto" onclick="showTab('cross')">Voir la semaine</button></div></div>`;}
-  h+=cdjCard();
+  h+=lastActCard()+cdjCard();
   if(S.race&&daysTo(S.race.date)>=0)h+=raceCard(false);else h+=banner('🏁','Pas encore de course objectif','Choisis-la dans le calendrier des trails','Courses',"showTab('courses')");
   h+=sleepCard()+heatCard();
   const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
@@ -3391,18 +3508,18 @@ function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderToda
 
 /* ============ RÉGLAGES ============ */
 /* ===== Apparence (v7.6) ===== */
-const LOOK_TH=[['sombre','Crépuscule','sombre par défaut','#0D131A'],['nuit','Nuit','noir pur (OLED)','#000'],['clair','Clair','plein soleil','#F3F5F8'],['auto','Auto','suit l’iPhone','linear-gradient(135deg,#0D131A 50%,#F3F5F8 50%)']];
-const LOOK_PAL=[['alpin','Crépuscule alpin',['#F47C8A','#E5B85C','#7CCBEA']],['foret','Forêt',['#7FD18B','#E8B04A','#79B8FF']],['ocean','Océan',['#5DB7FF','#FFB36B','#6FE0CF']],['volcan','Volcan',['#FF7A45','#FFC145','#B794FF']],['lavande','Lavande',['#B79CFF','#FFB4C8','#7FD6E8']],['mono','Monochrome',['#E8EEF4','#B9C4CF','#8FA3B6']]];
-const LOOK_FT=[['sport','Sport','Barlow',"'Barlow Condensed',sans-serif"],['moderne','Moderne','Figtree',"'Figtree',sans-serif"],['lisible','Très lisible','Atkinson',"'Atkinson Hyperlegible',sans-serif"],['arrondi','Arrondie','Nunito',"'Nunito',sans-serif"],['systeme','Système','SF Pro',"-apple-system,BlinkMacSystemFont,sans-serif"]];
+const LOOK_TH=[['sombre','Nuit pro','noir mat, par défaut','#0A0C0F'],['crepuscule','Crépuscule','bleu nuit d’origine','#0D131A'],['nuit','Nuit','noir pur (OLED)','#000'],['clair','Clair','plein soleil','#F3F5F8'],['auto','Auto','suit l’iPhone','linear-gradient(135deg,#0D131A 50%,#F3F5F8 50%)']];
+const LOOK_PAL=[['sport','Sport (corail)',['#FF5F2E','#FFB224','#2FD3C7']],['alpin','Crépuscule alpin',['#F47C8A','#E5B85C','#7CCBEA']],['foret','Forêt',['#7FD18B','#E8B04A','#79B8FF']],['ocean','Océan',['#5DB7FF','#FFB36B','#6FE0CF']],['volcan','Volcan',['#FF7A45','#FFC145','#B794FF']],['lavande','Lavande',['#B79CFF','#FFB4C8','#7FD6E8']],['mono','Monochrome',['#E8EEF4','#B9C4CF','#8FA3B6']]];
+const LOOK_FT=[['inter','Inter','par défaut',"'Inter',sans-serif"],['sport','Sport','Barlow',"'Barlow Condensed',sans-serif"],['moderne','Moderne','Figtree',"'Figtree',sans-serif"],['lisible','Très lisible','Atkinson',"'Atkinson Hyperlegible',sans-serif"],['arrondi','Arrondie','Nunito',"'Nunito',sans-serif"],['systeme','Système','SF Pro',"-apple-system,BlinkMacSystemFont,sans-serif"]];
 function lookCard(){const L=lookGet(),o=(k,v)=>L[k]===v?' on':'';
  return `<div class="card" id="lookCard"><h2>🎨 Apparence</h2><p class="muted small">Propre à cet appareil (pas synchronisée). Les couleurs suivent les trois sports : Trail, Muscu, Cross.</p>
  <label>Thème</label><div class="lk-grid">${LOOK_TH.map(([k,n,d,c])=>`<button type="button" class="lk-opt${o('th',k)}" aria-pressed="${L.th===k}" onclick="lookSet('th','${k}')"><span class="lk-th" style="background:${c}"></span><span>${n}<small>${d}</small></span></button>`).join('')}</div>
  <label>Couleurs</label><div class="lk-grid">${LOOK_PAL.map(([k,n,c])=>`<button type="button" class="lk-opt${o('pal',k)}" aria-pressed="${L.pal===k}" onclick="lookSet('pal','${k}')"><span class="lk-sw" aria-hidden="true">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span><span>${n}</span></button>`).join('')}</div>
  <label>Police</label><div class="lk-grid">${LOOK_FT.map(([k,n,d,f])=>`<button type="button" class="lk-opt${o('font',k)}" aria-pressed="${L.font===k}" onclick="lookSet('font','${k}')"><span class="lk-ft" style="font-family:${f}" aria-hidden="true">Aa</span><span>${n}<small>${d}</small></span></button>`).join('')}</div>
- <div class="row"><button class="btn ghost" onclick="lookReset()">Style d’origine</button></div></div>`;}
+ <div class="row"><button class="btn ghost" onclick="lookReset()">Style par défaut</button></div></div>`;}
 function lookSave(L){try{localStorage.setItem('foulee_look',JSON.stringify(L))}catch(e){}lookApply(L);const c=$('#lookCard');if(c)c.outerHTML=lookCard();try{renderAll()}catch(e){}}
 function lookSet(k,v){const L=lookGet();L[k]=v;lookSave(L);}
-function lookReset(){lookSave({th:'sombre',pal:'alpin',font:'sport'});toast('Style d’origine rétabli');}
+function lookReset(){lookSave(Object.assign({v:2},LOOK_DEF));toast('Style d’origine rétabli');}
 function openSettings(){const s=S.settings;
   $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">Réglages</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
   <div class="card" style="margin-top:14px"><h2>Strava ${S.tokens?'<span class="tag ef">connecté'+(S.tokens.athlete?' · '+esc(S.tokens.athlete):'')+'</span>':''}</h2>
