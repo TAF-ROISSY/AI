@@ -621,6 +621,9 @@ nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);colo
 .perio i.past{opacity:.35}.perio i.now{outline:2px solid var(--tx);outline-offset:1px;opacity:1}
 .perio-l{display:flex;gap:3px;margin-top:6px;font-size:11px;color:var(--mut)}.perio-l span{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}.perio-l span:last-child{justify-content:flex-end}.perio-l i{width:8px;height:8px;border-radius:50%;flex:none}
 .acc{height:6px;border-radius:4px;background:rgba(var(--ink),.1);margin-top:8px;overflow:hidden}.acc i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--muscu),var(--trail))}
+.pz2{border-color:var(--muscu)!important}.pz3{border-color:var(--red)!important;color:var(--red)!important}
+.pj{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center;margin-top:8px}.pj-l{font-size:12.5px;color:var(--tx2);white-space:nowrap}.pj-r{display:grid;grid-template-columns:repeat(28,minmax(0,1fr));gap:2px}.pj-r i{height:14px;border-radius:3px}
+.shoe{padding:12px 0;border-top:1px solid var(--edge)}
 </style>
 </head>
 <body>
@@ -729,7 +732,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='8.5';
+const APP_VER='8.6';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -788,7 +791,8 @@ async function syncStrava(){
       if(!r.ok)throw new Error('API '+r.status);
       const j=await r.json();all=all.concat(j);if(j.length<100)break;
     }
-    S.activities=all.map(a=>({id:a.id,name:a.name,sport_type:a.sport_type||a.type,start_date_local:a.start_date_local,distance:a.distance,moving_time:a.moving_time,total_elevation_gain:a.total_elevation_gain||0,average_heartrate:a.average_heartrate||null,max_heartrate:a.max_heartrate||null,average_cadence:a.average_cadence||null,poly:(a.map&&a.map.summary_polyline)||'',max_speed:a.max_speed||null,elev_high:a.elev_high??null,elev_low:a.elev_low??null,kudos:a.kudos_count||0,suffer:a.suffer_score||null}));
+    S.activities=all.map(a=>({id:a.id,name:a.name,sport_type:a.sport_type||a.type,start_date_local:a.start_date_local,distance:a.distance,moving_time:a.moving_time,total_elevation_gain:a.total_elevation_gain||0,average_heartrate:a.average_heartrate||null,max_heartrate:a.max_heartrate||null,average_cadence:a.average_cadence||null,poly:(a.map&&a.map.summary_polyline)||'',max_speed:a.max_speed||null,elev_high:a.elev_high??null,elev_low:a.elev_low??null,kudos:a.kudos_count||0,suffer:a.suffer_score||null,gear_id:a.gear_id||null}));
+    try{const ra=await fetch('https://www.strava.com/api/v3/athlete',{headers:{Authorization:'Bearer '+await token()}});if(ra.ok){const at=await ra.json();S.gearStrava=(at.shoes||[]).map(g=>({id:g.id,name:g.name||g.nickname||'Chaussures',km:Math.round((g.distance||0)/100)/10,primary:!!g.primary,retired:!!g.retired}));}}catch(e){}
     S.demo=false;S.lastSync=Date.now();S.histV=2;save();A=null;
     toast(getRuns().length+' courses analysées');setTimeout(()=>{if(linkPlan())renderAll();stravaDescFlush();},1200);
   }catch(e){toast('Synchro : '+e.message);}
@@ -1559,13 +1563,13 @@ async function gh(path,opt={}){const r=await fetch('https://api.github.com'+path
 async function fileText(f){if(!f)return null;if(!f.truncated)return f.content;const r=await fetch(f.raw_url);if(!r.ok)throw new Error('Lecture du coffre impossible');return r.text();}
 async function findGist(){const v=VC();if(v.gist){try{return await gh('/gists/'+v.gist);}catch(e){if(!/404/.test(e.message))throw e;}}
   for(let p=1;p<=5;p++){const l=await gh(`/gists?per_page=100&page=${p}`);const g=l.find(x=>x.description===GIST_DESC);if(g){setVC({gist:g.id});return gh('/gists/'+g.id);}if(l.length<100)break;}return null;}
-const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns','watchSent','planCalAt'];
+const NOSYNC=['gearStrava','tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns','watchSent','planCalAt'];
 function syncPayload(){const d={};for(const k of Object.keys(S))if(!NOSYNC.includes(k))d[k]=S[k];return {mt:S.mt||0,data:JSON.parse(JSON.stringify(d)),key:getKey()||null};}
 function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'+x.d;if(x.id!=null)return 'i:'+x.id;if(x.t!=null&&x.role)return 'c:'+x.t+x.role;}return 's:'+JSON.stringify(x);}
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
   if(L&&R&&typeof L==='object'&&typeof R==='object'&&!Array.isArray(L)&&!Array.isArray(R)){const o={...L};for(const k of Object.keys(R))o[k]=k in L?vmerge(L[k],R[k],rN,k):R[k];return o;}
   return rN?(R===undefined?L:R):(L===undefined?R:L);}
-function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.trfav&&S.trFav)S.trFav=S.trFav.filter(x=>!D.trfav.includes(x.id));if(D.xplan&&S.xplan)S.xplan=S.xplan.filter(x=>!D.xplan.includes(x.id));if(D.xact&&S.xact)S.xact=S.xact.filter(x=>!D.xact.includes(x.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
+function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.trfav&&S.trFav)S.trFav=S.trFav.filter(x=>!D.trfav.includes(x.id));if(D.check&&S.check)D.check.forEach(d=>{delete S.check[d];});if(D.xplan&&S.xplan)S.xplan=S.xplan.filter(x=>!D.xplan.includes(x.id));if(D.xact&&S.xact)S.xact=S.xact.filter(x=>!D.xact.includes(x.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
 function tomb(kind,id){S.del=S.del||{};S.del[kind]=[...new Set([...(S.del[kind]||[]),id])].slice(-300);}
 let pushT=null,syncBusy=false;
 function schedulePush(){if(!VC().on)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(false),12000);}
@@ -1899,6 +1903,77 @@ function renderXact(edit){const x=XD;$('#sheetBody').innerHTML=`<div class="row"
   <div class="row" style="margin-top:12px"><button class="btn" style="flex:1" onclick="saveXact()">Enregistrer</button>${edit?`<button class="btn ghost" onclick="if(confirm('Supprimer cette activité ?')){S.xact=(S.xact||[]).filter(y=>y.id!=='${x.id}');tomb('xact','${x.id}');if(/^px/.test('${x.id}'))S.done['${x.id}'.slice(1)]=false;save();closeSettings();renderAll();}">Supprimer</button>`:''}</div>`;}
 function xSync(){const g=id=>$(id)?$(id).value:'';XD.d=g('#x_d')||XD.d;XD.min=+g('#x_min')||XD.min;XD.km=parseFloat(g('#x_km'))||null;XD.dp=parseInt(g('#x_dp'))||null;XD.name=g('#x_name').trim();}
 function saveXact(){xSync();const x=XD;if(!(x.min>0&&x.min<1440)){toast('Durée invalide');return;}if(!x.d){toast('Date nécessaire');return;}S.xact=[...(S.xact||[]).filter(y=>y.id!==x.id),{id:x.id,type:x.type,d:x.d,min:x.min,rpe:x.rpe,km:x.km,dp:x.dp,name:x.name}];A=null;save();closeSettings();renderAll();toast(`${XTYPES[x.type][1]} enregistré · charge ${Math.round(xLoad(x))}`);}
+
+/* ============ v8.6 : CHECK-UP DU MATIN & JOURNAL DES DOULEURS ============ */
+const CHZ={pied:'Pied / voûte',cheville:'Cheville',achille:'Tendon d’Achille',mollet:'Mollet',tibia:'Tibia',genou:'Genou',cuisse:'Cuisse / ischios',hanche:'Hanche / TFL',dos:'Bas du dos',epaule:'Épaule'};
+const CHLEG=['pied','cheville','achille','mollet','tibia','genou','cuisse','hanche'],CH2CTX={genou:'knee',hanche:'tfl',dos:'lowback',epaule:'shoulder'};
+const CKSORE=['Aucune','Légères','Marquées','Fortes'],CKMOOD=['😫 Épuisé','😕 Bof','🙂 Bien','😄 En forme'];
+function chkOf(d){return (S.check||{})[d]||null;}
+function fcBase(){const L=Object.entries(S.check||{}).filter(([d,c])=>c.fc&&(Date.now()-parseISO(d))/DAY<=30&&d!==iso(new Date())).map(([,c])=>c.fc);if(L.length>=4)return L.sort((a,b)=>a-b)[Math.floor(L.length/2)];return +S.settings.fcrest||null;}
+function checkEffect(now=new Date()){const c=chkOf(iso(now));if(!c)return null;const out=[],b=fcBase();
+  if(c.fc&&b){const dv=c.fc-b;if(dv>=8)out.push({d:-14,t:`FC au réveil +${dv} bpm`});else if(dv>=5)out.push({d:-8,t:`FC au réveil +${dv} bpm`});else if(dv<=-2)out.push({d:3,t:'FC au réveil basse'});}
+  if(c.sore>=3)out.push({d:-12,t:'courbatures fortes'});else if(c.sore===2)out.push({d:-6,t:'courbatures marquées'});
+  if(c.mood===0)out.push({d:-8,t:'moral et énergie au plus bas'});else if(c.mood===3)out.push({d:3,t:'bonne énergie'});
+  const pm=Math.max(0,...(c.pain||[]).map(p=>p.lv));if(pm>=3)out.push({d:-14,t:'douleur forte'});else if(pm===2)out.push({d:-6,t:'douleur gênante'});
+  return out;}
+function chkPain(){const now=new Date();let best=null;for(let i=0;i<3;i++){const d=new Date(now);d.setDate(d.getDate()-i);const c=chkOf(iso(d));if(c){best=c;break;}}if(!best)return null;const L=(best.pain||[]).filter(p=>p.lv>=2&&CHLEG.includes(p.z));return L.length?L.sort((a,b)=>b.lv-a.lv)[0]:null;}
+function chkO(w,d){const P=chkPain(),t=new Date(new Date().toDateString()),dt=sessDate(w,d),dd=Math.round((dt-t)/DAY);return o=>{if(o.str||o.xs||o.cancel||dd<0||dd>1||S.done[o.k])return o;
+  const z=CHZ[P.z].toLowerCase(),c={...o,pain:P.lv};if(P.lv>=3){c.t='🩹 '+o.t;c.s=`Douleur forte (${z}) : pas de course aujourd’hui. Vélo, natation ou repos, et consulte si ça dure plus de 3 jours.`+(o.s?' · <span class="muted">prévu : '+o.s+'</span>':'');delete c.timer;delete c.wk;}
+  else{c.t='🩹 '+o.t;c.s=`Douleur (${z}) : ${/[ql]$/.test(o.k)?'remplace par 30 à 40 min faciles sur terrain souple':'footing facile et court'}, arrêt si la douleur monte au-dessus de 3/10.`+(o.s?' · <span class="muted">prévu : '+o.s+'</span>':'');}return c;};}
+let CK=null;
+function openCheck(d){d=d||iso(new Date());const c=chkOf(d);CK=c?JSON.parse(JSON.stringify({...c,d})):{d,fc:null,sore:0,mood:2,pain:[]};renderCheck();$('#sheet').classList.add('on');}
+function ckPain(z){const p=CK.pain.find(x=>x.z===z);if(!p)CK.pain.push({z,lv:1});else if(p.lv<3)p.lv++;else CK.pain=CK.pain.filter(x=>x.z!==z);renderCheck();}
+function renderCheck(){const x=CK,b=fcBase();$('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">☀️ Check-up du matin</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">10 secondes au réveil : ta forme du jour et les séances s’ajustent.</p>
+  <div class="form"><label for="ck_fc">FC au réveil (bpm, facultatif)${b?` · ta référence : ${b}`:''}</label><input id="ck_fc" type="number" inputmode="numeric" placeholder="ex. 52" value="${x.fc||''}" oninput="CK.fc=+this.value||null"></div>
+  <div class="qlab">Courbatures</div><div class="chips">${CKSORE.map((l,i)=>`<button class="chip ${x.sore===i?'on':''}" onclick="CK.sore=${i};renderCheck()">${l}</button>`).join('')}</div>
+  <div class="qlab">Énergie, moral</div><div class="chips">${CKMOOD.map((l,i)=>`<button class="chip ${x.mood===i?'on':''}" onclick="CK.mood=${i};renderCheck()">${l}</button>`).join('')}</div>
+  <div class="qlab">Douleurs <span class="muted small">(touche pour 1 → 2 → 3 → aucune)</span></div><div class="chips">${Object.entries(CHZ).map(([k,l])=>{const p=x.pain.find(y=>y.z===k);return `<button class="chip ${p?'on':''} ${p&&p.lv>=3?'pz3':p&&p.lv===2?'pz2':''}" onclick="ckPain('${k}')">${l}${p?' · '+['','légère','gênante','forte'][p.lv]:''}</button>`;}).join('')}</div>
+  <div class="row" style="margin-top:14px"><button class="btn" style="flex:1" onclick="saveCheck()">Enregistrer</button>${chkOf(x.d)?'<button class="btn ghost" onclick="delCheck()">Effacer</button>':''}</div>
+  <p class="note">Douleur « gênante » ou « forte » au bas du corps : les séances de course d’aujourd’hui et de demain passent en version adaptée (🩹). Genou, hanche, dos ou épaule : la muscu remplace les exercices concernés. Une douleur qui dure plus de 5 jours ou qui te fait boiter mérite un avis médical.</p>`;}
+function saveCheck(){const x=CK,fe=$('#ck_fc');if(fe)x.fc=+fe.value||null;S.check=S.check||{};if(S.del&&S.del.check)S.del.check=S.del.check.filter(y=>y!==x.d);S.check[x.d]={fc:x.fc,sore:x.sore,mood:x.mood,pain:x.pain,t:Date.now()};
+  const cp=x.pain.filter(p=>p.lv>=2&&CH2CTX[p.z]).map(p=>CH2CTX[p.z]);if(cp.length){const c=CTX();S.ctx={...c,pains:[...new Set([...c.pains,...cp])]};}
+  const k=Object.keys(S.check).sort();if(k.length>120)k.slice(0,k.length-120).forEach(y=>delete S.check[y]);save();closeSettings();renderAll();const R=readiness();toast(`Check-up noté · forme ${R.sc}/100`);}
+function delCheck(){if(S.check)delete S.check[CK.d];tomb('check',CK.d);save();closeSettings();renderAll();}
+function checkCard(){const c=chkOf(iso(new Date())),P=chkPain();
+  if(!c)return `<div class="card banner"><span class="bi">☀️</span><div style="flex:1;min-width:0"><b>Check-up du matin</b><div class="muted small">FC au réveil, courbatures, énergie, douleurs : 10 secondes</div></div><button class="btn sm" style="margin:0" onclick="openCheck()">Faire</button></div>`;
+  const e=checkEffect()||[],pn=(c.pain||[]).map(p=>CHZ[p.z]+' '+['','·','··','···'][p.lv]);
+  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">☀️ Check-up</h2><button class="chip sm" onclick="openCheck()">Modifier</button></div><div class="grid" style="margin-top:10px"><div class="stat"><b>${c.fc||'–'}</b><small>FC réveil${fcBase()&&c.fc?' ('+(c.fc-fcBase()>=0?'+':'')+(c.fc-fcBase())+')':''}</small></div><div class="stat"><b>${CKSORE[c.sore]}</b><small>courbatures</small></div><div class="stat"><b>${CKMOOD[c.mood].split(' ')[0]}</b><small>${CKMOOD[c.mood].split(' ').slice(1).join(' ')}</small></div><div class="stat"><b>${(c.pain||[]).length||'0'}</b><small>douleur${(c.pain||[]).length>1?'s':''}</small></div></div>
+   ${pn.length?`<p class="small" style="margin:8px 0 0">🩹 ${pn.join(' · ')}</p>`:''}${P?`<div class="ins warn" style="margin-top:8px"><b>Séances adaptées</b>Douleur ${CHZ[P.z].toLowerCase()} : les courses d’aujourd’hui et de demain sont allégées (🩹).</div>`:''}${e.length?`<p class="note">Effet sur la forme : ${e.map(x=>x.t+' ('+(x.d>0?'+':'')+x.d+')').join(', ')}.</p>`:''}</div>`;}
+function painJournalCard(){const days=[...Array(28)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-27+i);return iso(d);}),C=S.check||{},used=Object.keys(CHZ).filter(z=>days.some(d=>C[d]&&(C[d].pain||[]).some(p=>p.z===z)));const fcs=days.map(d=>C[d]&&C[d].fc).filter(Boolean);
+  if(!used.length&&fcs.length<3)return '';const col=lv=>lv>=3?'var(--red)':lv===2?'var(--muscu)':'color-mix(in srgb,var(--muscu) 45%,transparent)';
+  let h=`<div class="card"><h2>🩹 Journal du corps (28 jours)</h2>`;
+  if(used.length)h+=`<div class="pj">${used.map(z=>`<div class="pj-l">${CHZ[z]}</div><div class="pj-r">${days.map(d=>{const p=C[d]&&(C[d].pain||[]).find(x=>x.z===z);return `<i style="background:${p?col(p.lv):'rgba(var(--ink),.06)'}" data-tip="${parseISO(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}${p?' · '+['','légère','gênante','forte'][p.lv]:''}"></i>`;}).join('')}</div>`).join('')}</div>`;
+  if(fcs.length>=3){const pts=days.map((d,i)=>C[d]&&C[d].fc?[i,C[d].fc]:null).filter(Boolean),mn=Math.min(...fcs)-2,mx=Math.max(...fcs)+2,W=340,H=70,X=i=>6+i*(W-12)/27,Y=v=>H-8-(v-mn)/(mx-mn)*(H-16);
+    h+=`<div class="eyebrow" style="margin:12px 0 4px">FC au réveil</div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="FC au réveil sur 28 jours"><polyline points="${pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}" fill="none" stroke="var(--trail)" stroke-width="2"/>${pts.map(p=>`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.5" fill="var(--trail)" data-tip="${parseISO(days[p[0]]).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · ${p[1]} bpm"/>`).join('')}</svg>`;}
+  return h+'<p class="note">Une FC au réveil 5 à 8 bpm au-dessus de ta référence plusieurs jours de suite signale fatigue, maladie qui couve ou manque de sommeil.</p></div>';}
+/* ============ v8.6 : CHAUSSURES ============ */
+const SHOE_LIM=700;
+function shoesAll(){const st=S.gearStrava||[],man=S.shoes||[],runs=getRuns(),out=[];
+  st.forEach(g=>{const o=man.find(m=>m.id===g.id)||{};const rs=runs.filter(r=>r.gear_id===g.id);out.push({id:g.id,src:'strava',name:o.name||g.name,km:g.km||rs.reduce((a,r)=>a+r.distance/1000,0),limit:o.limit||SHOE_LIM,retired:o.retired!=null?o.retired:g.retired,primary:g.primary,runs:rs});});
+  man.filter(m=>m.src==='manuel').forEach(m=>{const rs=runs.filter(r=>!r.gear_id&&m.def&&r.start_date_local.slice(0,10)>=m.since);out.push({id:m.id,src:'manuel',name:m.name,km:(m.km0||0)+rs.reduce((a,r)=>a+r.distance/1000,0),limit:m.limit||SHOE_LIM,retired:!!m.retired,primary:!!m.def,runs:rs});});
+  return out;}
+function shoeUse(sh){const a=getA(),u={};sh.runs.forEach(r=>{const k=r.sport_type==='TrailRun'?'trail':{ef:'facile',gris:'zone grise',qual:'qualité',long:'longue'}[a.cls(r)];u[k]=(u[k]||0)+r.distance/1000;});return Object.entries(u).sort((x,y)=>y[1]-x[1]).map(([k,v])=>k+' '+Math.round(v)+' km').join(' · ');}
+function shoeAlert(){return shoesAll().filter(s=>!s.retired&&s.km>=s.limit*.9).sort((a,b)=>b.km/b.limit-a.km/a.limit)[0]||null;}
+function openShoes(){const L=shoesAll(),act=L.filter(s=>!s.retired),ret=L.filter(s=>s.retired);
+  const row=s=>{const p=Math.min(100,Math.round(s.km/s.limit*100)),c=p>=100?'var(--red)':p>=90?'var(--muscu)':'var(--glacier)';return `<div class="shoe"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:8px"><b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👟 ${esc(s.name)}${s.primary?' <span class="src">par défaut</span>':''}</b><span class="small" style="white-space:nowrap">${Math.round(s.km)} / ${s.limit} km</span></div><div class="acc"><i style="width:${p}%;background:${c}"></i></div><div class="muted small" style="margin-top:4px">${s.src==='strava'?'Strava':'saisie'}${s.runs.length?' · '+s.runs.length+' sorties · '+shoeUse(s):''}</div>
+   <div class="row" style="margin-top:6px"><button class="chip sm" onclick="shoeEdit('${s.id}')">Réglages</button>${s.retired?`<button class="chip sm" onclick="shoeSet('${s.id}','retired',false)">Remettre en service</button>`:`<button class="chip sm" onclick="shoeSet('${s.id}','retired',true)">Retirer</button>`}</div></div>`;};
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">👟 Chaussures</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">Les paires déclarées sur Strava arrivent avec leur kilométrage à chaque synchro. Sans Strava, ajoute tes paires : les sorties sans chaussure sont comptées sur la paire par défaut.</p>
+  ${act.length?act.map(row).join(''):'<p class="muted small" style="margin:10px 0">Aucune paire pour l’instant.</p>'}
+  ${ret.length?`<details class="bmore" style="margin-top:8px"><summary>Retirées (${ret.length})</summary>${ret.map(row).join('')}</details>`:''}
+  <button class="btn ghost wide" style="margin-top:12px" onclick="shoeEdit()">＋ Ajouter une paire</button>
+  <p class="note">Repère : 600 à 800 km pour une chaussure de route, 500 à 700 km en trail. Semelle lisse, mousse tassée ou douleurs nouvelles : il est temps d’en changer.</p>`;$('#sheet').classList.add('on');}
+function shoeSet(id,k,v){S.shoes=S.shoes||[];let o=S.shoes.find(m=>m.id===id);if(!o){o={id,src:'strava'};S.shoes.push(o);}o[k]=v;save();openShoes();renderAll();}
+function shoeEdit(id){const s=id?shoesAll().find(x=>x.id===id):null,m=id?(S.shoes||[]).find(x=>x.id===id)||{}:{};
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${s?'Réglages':'Nouvelle paire'}</h2><button class="icbtn" aria-label="Retour" onclick="openShoes()">‹</button></div>
+  <div class="form"><label for="sh_n">Nom</label><input id="sh_n" value="${esc(s?s.name:'')}" placeholder="ex. Speedgoat 6"><label for="sh_l">Durée de vie (km)</label><input id="sh_l" type="number" inputmode="numeric" value="${s?s.limit:SHOE_LIM}">${!s||s.src==='manuel'?`<label for="sh_k">Kilomètres déjà faits</label><input id="sh_k" type="number" inputmode="numeric" value="${m.km0||0}">`:''}</div>
+  ${!s||s.src==='manuel'?`<label class="tg"><input type="checkbox" id="sh_d" ${!s||m.def?'checked':''}> Paire par défaut pour les sorties sans chaussure</label>`:''}
+  <button class="btn wide" style="margin-top:12px" onclick="shoeSave('${id||''}')">Enregistrer</button>`;}
+function shoeSave(id){const n=$('#sh_n').value.trim()||'Chaussures',l=+$('#sh_l').value||SHOE_LIM,k=$('#sh_k')?+$('#sh_k').value||0:null,d=$('#sh_d')?$('#sh_d').checked:null;S.shoes=S.shoes||[];
+  if(!id){id='sh'+Date.now().toString(36);S.shoes.push({id,src:'manuel',name:n,limit:l,km0:k||0,def:!!d,since:iso(new Date())});}
+  else{let o=S.shoes.find(m=>m.id===id);if(!o){o={id,src:'strava'};S.shoes.push(o);}o.name=n;o.limit=l;if(k!=null)o.km0=k;if(d!=null)o.def=d;}
+  if(d)S.shoes.forEach(m=>{if(m.id!==id&&m.src==='manuel')m.def=false;});save();renderAll();openShoes();}
 
 /* ============ v8.5 : MODE CHALEUR & VOYAGE — acclimatation ============ */
 function heatLog(h){if(!h||!h.d)return;S.heatLog=S.heatLog||{};const mx=h.hours&&h.hours.length?Math.max(...h.hours.map(x=>x[1])):h.T;S.heatLog[h.d]={T:Math.round(h.T),Tmax:Math.round(mx),Td:Math.round(h.Td),pct:+heatPct(h.T,h.Td).toFixed(3)};
@@ -2381,6 +2456,7 @@ function readiness(){
   else why.push('pas encore assez d’historique pour la charge');
   if(fbAvg!=null){if(fbAvg>=3.3){sc-=16;why.push('séances ressenties dures cette semaine');}else if(fbAvg<=1.7){sc+=10;why.push('séances ressenties faciles');}}
   const se=sleepEffect(now);if(se&&se.d){sc+=se.d;why.push(se.t);}
+  const ce=checkEffect(now);if(ce){ce.forEach(x=>{sc+=x.d;why.push(x.t);});}
   const y=new Date(now-DAY),hard=daySessions(weekIdx(y),dayIdx(y)).some(s=>S.done[s.k]&&(/s\d+[AC]$/.test(s.k)||/[ql]$/.test(s.k)));
   if(hard){sc-=6;why.push('séance exigeante hier');}
   sc=Math.max(10,Math.min(100,Math.round(sc)));
@@ -2571,7 +2647,7 @@ function modeCard(){const m=defMode(),mp=MP(),bar=mp.equip.bar;return `<div clas
 function strSession(key,w,mode){const ph=Math.min(2,Math.floor(w/4)),i=w%4,f=adj(key);const sc=x=>typeof x==='number'?Math.max(1,Math.round(x*f)):x;const E=(id,s,r,u='')=>({id,p:`${v(s,i)} × ${sc(v(r,i))}${u}`});return {...(mode==='bw'?STRBW:STR)[ph][key](i,E,f),ph,f,mode:mode==='bw'?'bw':'kb'};}
 function exList(T){return `<p>${T.intro}</p>${T.notes&&T.notes.length?`<p class="rpl">${T.notes.join('<br>')}</p>`:''}<ol class="ex">${T.items.map(it=>`<li><b class="exl" onclick="openEx('${it.id}')">${CUE[it.id][0]}</b> — ${it.p}${it.from?`<br><span class="rpl">↻ remplace ${CUE[it.from][0].toLowerCase()} (${it.why})</span>`:''}<br><small>${CUE[it.id][1]}</small></li>`).join('')}</ol>`;}
 function strObj(w,key){const mk=`s${w}${key}`,md=sMode(mk),T=adaptSession({...strSession(key,w,md),when:sessDate(w,SD()[key])}),c=CTX(),mp=MP(),kb=md==='bw'?'poids du corps'+(!c.bw&&mp.equip.bar?' · barre':''):c.bw?'poids du corps':(T.ph>0&&!kbList(mp).some(k=>k>=16)?'KB '+Math.max(12,...kbList(mp))+' kg tempo lent':'KB '+PH[T.ph].kb+(mp.equip.pair&&T.ph>0?' · paire':'')),dur=c.dur==='express'?'≈ 15 min':c.dur==='int'?'≈ 45 min':'30–40 min';return {k:mk,modeK:mk,icon:md==='bw'?'🤸':'🏋️',str:1,adapt:1,t:`Renfo ${key} · ${T.title}`,s:`${PH[T.ph].n} · ${kb} · ${dur}${adjTxt(T.f)}${T.adapted?' · adaptée':''}`,x:exList(T),presc:Object.fromEntries(T.items.map(i=>[i.id,i.p])),timer:{...T.timer,ex:T.items.map(i=>i.id)}};}
-function daySessions(w,d,kind){const out=[];if(w<0||w>11)return out;if(!kind||kind==='run')runPlan(w).s.filter(s=>s.day===d).forEach(s=>out.push(s));if(!kind||kind==='str')['A','B','C'].filter(k=>SD()[k]===d).forEach(k=>out.push(strObj(w,k)));if(!kind||kind==='x')xSess(w,d).forEach(o=>out.push(o));return S.adj?out.map(adjO):out;}
+function daySessions(w,d,kind){const out=[];if(w<0||w>11)return out;if(!kind||kind==='run')runPlan(w).s.filter(s=>s.day===d).forEach(s=>out.push(s));if(!kind||kind==='str')['A','B','C'].filter(k=>SD()[k]===d).forEach(k=>out.push(strObj(w,k)));if(!kind||kind==='x')xSess(w,d).forEach(o=>out.push(o));const o2=S.adj?out.map(adjO):out;return chkPain()?o2.map(chkO(w,d)):o2;}
 
 /* ============ DÉFIS SOMMETS ============ */
 const DEFIS=[
@@ -3632,7 +3708,7 @@ function renderForme(){
   const R=readiness(),m0=mondayOf(new Date()),weeks=[];
   for(let i=7;i>=0;i--){const ws=new Date(m0);ws.setDate(ws.getDate()-7*i);const we=new Date(ws);we.setDate(we.getDate()+7);weeks.push({ws,...loadsBetween(ws,we)});}
   const last4=weeks.slice(3,7),tr=last4.reduce((s,w)=>s+w.run,0),mu=last4.reduce((s,w)=>s+w.mus,0),xo=last4.reduce((s,w)=>s+(w.xt||0),0),tot=tr+mu+xo;
-  let h=`<div class="hero" style="cursor:default">${topo()}<div class="hero-in"><div class="hero-d">Forme du jour</div><div class="hero-t">${R.t}</div><div class="hero-r">${gauge(R.sc,R.c)}<div><div class="small">${R.x}</div><div class="note" style="margin-top:6px">${R.why.join(', ')}</div></div></div></div></div>`+projCard()+sleepCard();
+  let h=`<div class="hero" style="cursor:default">${topo()}<div class="hero-in"><div class="hero-d">Forme du jour</div><div class="hero-t">${R.t}</div><div class="hero-r">${gauge(R.sc,R.c)}<div><div class="small">${R.x}</div><div class="note" style="margin-top:6px">${R.why.join(', ')}</div></div></div></div></div>`+projCard()+checkCard()+painJournalCard()+sleepCard();
   h+=`<div class="card"><h2>Charge globale par semaine</h2>${stackChart(weeks)}<p class="note">Charge = durée × intensité. Trail : minutes × intensité estimée de la sortie (facile 3, longue 4, zone grise 5, qualité 7). Muscu : 40 min × ton ressenti (4 à 9). Autres sports : minutes × coefficient du sport × effort ressenti (1 à 10).</p></div>`;
   h+=`<div class="card"><h2>Équilibre sur 4 semaines</h2><div class="grid"><div class="stat"><b>${tot?Math.round(tr/tot*100):0} %</b><small>trail</small></div><div class="stat"><b>${tot?Math.round(mu/tot*100):0} %</b><small>muscu</small></div>${xo?`<div class="stat"><b>${Math.round(xo/tot*100)} %</b><small>autres sports</small></div>`:''}<div class="stat"><b>${R.acwr!=null?R.acwr.toFixed(2):'–'}</b><small>ratio 7 j / 28 j</small></div><div class="stat"><b>${Math.round(R.chW)}</b><small>charge moy. / sem.</small></div></div>
    <p class="small">Ratio 7 j / 28 j : <b>0,8 à 1,3</b> = zone de progression. Au-dessus de 1,5, le risque de blessure grimpe : allège la muscu jambes en priorité, garde la sortie longue.</p></div>`;
@@ -3674,7 +3750,8 @@ function lastActCard(){const L=lastActs(),inp='<label class="btn ghost sm" style
   document.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const el=at(e);if(el)place(el,e.clientX,e.clientY);else T.classList.remove('on');},{passive:true});
   document.addEventListener('pointerdown',e=>{const el=at(e);if(el){place(el,e.clientX,e.clientY);hideT=setTimeout(()=>T.classList.remove('on'),2400);}else T.classList.remove('on');},{passive:true});
   ['scroll','wheel'].forEach(ev=>document.addEventListener(ev,()=>T.classList.remove('on'),{passive:true,capture:true}));})();
-function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill()+weekRings();
+function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill()+checkCard()+weekRings();
+  {const sa=shoeAlert();if(sa)h+=banner('👟',`${esc(sa.name)} : ${Math.round(sa.km)} km`,sa.km>=sa.limit?'Durée de vie dépassée : pense à la remplacer':'Bientôt en fin de vie ('+sa.limit+' km)','Voir','openShoes()');}
   if(!S.tokens&&!S.demo)h+=`<div class="card"><h2>Connecte Strava</h2><p class="muted small">Pour adapter les allures et le volume à tes vraies sorties. En attendant, le plan tourne sur des valeurs par défaut.</p><div class="row"><button class="btn" onclick="openSettings()">Configurer</button><button class="btn ghost" onclick="loadDemo()">Voir une démo</button></div></div>`;
   const ps=planStateCard(w);
   if(ps)h+=ps;else{const run=daySessions(w,d,'run'),str=daySessions(w,d,'str'),fg=figObj(),rp=runPlan(w);
@@ -3690,7 +3767,7 @@ function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=wee
   el.innerHTML=h;}
 function renderPlus(){const el=$('[data-page=plus]');if(!el)return;const T=(ic,t,sub,fn)=>`<button class="ptile" onclick="${fn}"><span class="pi" aria-hidden="true">${ic}</span><b>${t}</b><small>${sub}</small></button>`;
   el.innerHTML=`<div class="card"><h2>Entraînement</h2><div class="ptiles">${T('⏱️','Chrono','Intervalles, EMOM, Tabata',"showTab('chrono')")}${T('🤸','Figures','Équilibre et calisthénie',"showTab('figures')")}${T('⛰️','Défis','Records chronométrés',"showTab('defis')")}${T('🏃','Bilan trail','Volume, estimations, alertes',"showTab('trail')")}${T('🏋️','Bilan muscu','Phase, fatigue, défi',"showTab('muscu')")}${T('📋','Bilan de niveau','Tester tes répétitions',"openProfile()")}${T('🏁','Test VMA','Calibrer tes allures',"showTab('plan');setTimeout(()=>{const c=[...document.querySelectorAll('[data-page=plan] .card h2')].find(h=>h.textContent.includes('Test VMA'));if(c)c.scrollIntoView({block:'center'})},120)")}</div></div>
-  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('🍌','Nutrition','Glucides, eau, sel, sac',"FU=null;openFuel()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
+  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('🍌','Nutrition','Glucides, eau, sel, sac',"FU=null;openFuel()")}${T('☀️','Check-up','FC réveil, douleurs',"openCheck()")}${T('👟','Chaussures','Kilomètres par paire',"openShoes()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
   <div class="card"><h2>Réglages</h2><div class="ptiles">${T('⚙️','Réglages','Strava, profil, coach, synchro',"openSettings()")}${T('🎨','Apparence','Thème, couleurs, police',"openSettings();setTimeout(()=>{const c=$('#lookCard');if(c)c.scrollIntoView({block:'start'})},80)")}${T('⬇️','Exporter mes données','Sauvegarde .json',"exportData()")}</div>
   <p class="note">Foulée v${APP_VER} · ${VC().on?'synchro activée':'synchro désactivée'}</p></div>`;}
 function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderToday();renderPlus();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderSports();renderForme();renderCourses();}
