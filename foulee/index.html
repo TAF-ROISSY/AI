@@ -620,6 +620,7 @@ nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);colo
 .perio{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}.perio i{height:22px;border-radius:6px;opacity:.85;display:flex;align-items:center;justify-content:center;font-size:12px;font-style:normal}
 .perio i.past{opacity:.35}.perio i.now{outline:2px solid var(--tx);outline-offset:1px;opacity:1}
 .perio-l{display:flex;gap:3px;margin-top:6px;font-size:11px;color:var(--mut)}.perio-l span{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}.perio-l span:last-child{justify-content:flex-end}.perio-l i{width:8px;height:8px;border-radius:50%;flex:none}
+.acc{height:6px;border-radius:4px;background:rgba(var(--ink),.1);margin-top:8px;overflow:hidden}.acc i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--muscu),var(--trail))}
 </style>
 </head>
 <body>
@@ -728,7 +729,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='8.4';
+const APP_VER='8.5';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1678,7 +1679,7 @@ function raceCard(full){const r=S.race;if(!r)return full?`<div class="card race"
   const j=daysTo(r.date),R=raceStrategy(r);
   return `<div class="card race"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><div style="flex:1"><h2 style="margin:0 0 4px">🏁 ${esc(r.name)}</h2><div class="muted small">${parseISO(r.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} · ${r.km} km · ${r.dp} m D+</div></div><div style="text-align:right"><div class="jx">${j>0?'J-'+j:j===0?'Jour J':'✓'}</div></div></div>
   <div class="grid" style="margin-top:12px"><div class="stat"><b>${fmtH(R.T)}</b><small>${r.goal?'objectif':'temps estimé'}</small></div><div class="stat"><b>${fmtPace(R.T/r.km)}</b><small>allure moyenne /km</small></div></div>
-  <div class="row" style="margin-top:4px"><button class="btn sm" onclick="openStrategy()">Stratégie d’allure</button><button class="btn sm ghost" onclick="openRace()">Modifier</button></div></div>`;}
+  <div class="row" style="margin-top:4px"><button class="btn sm" onclick="openStrategy()">Stratégie d’allure</button><button class="btn sm ghost" onclick="FU=null;openFuel()">🍌 Nutrition</button><button class="btn sm ghost" onclick="openRace()">Modifier</button></div></div>`;}
 function profileSvg(R){const W=340,H=130,pts=R.pts,maxD=pts[pts.length-1][3]||1,al=pts.map(p=>p[2]),mn=Math.min(...al),mx=Math.max(...al),ry=Math.max(30,mx-mn),X=d=>d/maxD*W,Y=z=>H-18-(z-mn)/ry*(H-30);
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart">`;for(let i=1;i<pts.length;i++){const g=(pts[i][2]-pts[i-1][2])/((pts[i][3]-pts[i-1][3])||1),c=g>.12?'#F47C8A':g>.05?'#E5B85C':g<-.05?'#7CCBEA':'#6FD3A5';
     s+=`<path d="M${X(pts[i-1][3]).toFixed(1)} ${H-18} L${X(pts[i-1][3]).toFixed(1)} ${Y(pts[i-1][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${Y(pts[i][2]).toFixed(1)} L${X(pts[i][3]).toFixed(1)} ${H-18}Z" fill="${c}" opacity=".55" data-tip="km ${(pts[i][3]/1000).toFixed(1).replace('.',',')} · ${Math.round(pts[i][2])} m · ${g>0?'+':''}${Math.round(g*100)} %"/>`;}
@@ -1898,6 +1899,46 @@ function renderXact(edit){const x=XD;$('#sheetBody').innerHTML=`<div class="row"
   <div class="row" style="margin-top:12px"><button class="btn" style="flex:1" onclick="saveXact()">Enregistrer</button>${edit?`<button class="btn ghost" onclick="if(confirm('Supprimer cette activité ?')){S.xact=(S.xact||[]).filter(y=>y.id!=='${x.id}');tomb('xact','${x.id}');if(/^px/.test('${x.id}'))S.done['${x.id}'.slice(1)]=false;save();closeSettings();renderAll();}">Supprimer</button>`:''}</div>`;}
 function xSync(){const g=id=>$(id)?$(id).value:'';XD.d=g('#x_d')||XD.d;XD.min=+g('#x_min')||XD.min;XD.km=parseFloat(g('#x_km'))||null;XD.dp=parseInt(g('#x_dp'))||null;XD.name=g('#x_name').trim();}
 function saveXact(){xSync();const x=XD;if(!(x.min>0&&x.min<1440)){toast('Durée invalide');return;}if(!x.d){toast('Date nécessaire');return;}S.xact=[...(S.xact||[]).filter(y=>y.id!==x.id),{id:x.id,type:x.type,d:x.d,min:x.min,rpe:x.rpe,km:x.km,dp:x.dp,name:x.name}];A=null;save();closeSettings();renderAll();toast(`${XTYPES[x.type][1]} enregistré · charge ${Math.round(xLoad(x))}`);}
+
+/* ============ v8.5 : MODE CHALEUR & VOYAGE — acclimatation ============ */
+function heatLog(h){if(!h||!h.d)return;S.heatLog=S.heatLog||{};const mx=h.hours&&h.hours.length?Math.max(...h.hours.map(x=>x[1])):h.T;S.heatLog[h.d]={T:Math.round(h.T),Tmax:Math.round(mx),Td:Math.round(h.Td),pct:+heatPct(h.T,h.Td).toFixed(3)};
+  const k=Object.keys(S.heatLog).sort();if(k.length>60)k.slice(0,k.length-60).forEach(x=>delete S.heatLog[x]);}
+function acclim(){const L=S.heatLog||{},now=new Date(),out=[];for(let i=0;i<14;i++){const d=new Date(now);d.setDate(d.getDate()-i);const k=iso(d),h=L[k];
+    const runs=getRuns().filter(r=>r.start_date_local.slice(0,10)===k&&r.moving_time>=1800),xs=xactAll().filter(x=>String(x.d).slice(0,10)===k&&x.min>=30),gr=(S.gruns||[]).filter(g=>g.d===k&&g.t>=1800);
+    const det=runs.map(r=>{const c=typeof cacheGet==='function'?cacheGet(r.id):null;return c&&c.temp!=null?c.temp:null;}).filter(v=>v!=null),hot=(h&&(h.Tmax>=25||h.pct>=.02))||det.some(t=>t>=24);
+    if(hot&&(runs.length||xs.length||gr.length))out.push(k);}
+  const n=out.length;return {n,pct:Math.min(100,Math.round(n/10*100)),days:out,hotNow:!!(heatNow()&&heatNow().pct>=.02)};}
+function acclimBlock(compact){const a=acclim();if(!a.n&&!a.hotNow)return '';const lv=a.pct>=80?['ok','acclimaté']:a.pct>=40?['tip','en cours']:['warn','début'];
+  return `<div class="ins ${lv[0]}" style="margin:${compact?'0 0 10px':'10px 0 0'}"><b>Acclimatation à la chaleur : ${a.pct} % (${lv[1]})</b>${a.n} séance${a.n>1?'s':''} au chaud sur les 14 derniers jours (objectif : 10 séances de 45 à 90 min). ${a.pct<40?'Les premiers jours : allures 5 à 10 % plus lentes que l’affichage, footings seulement, et 1 litre de plus par jour.':a.pct<80?'Le corps s’adapte (plus de plasma, sueur plus précoce) : tu peux reprendre une séance de qualité tôt le matin.':'Adaptation acquise : elle se perd en 2 à 3 semaines sans chaleur.'}<div class="acc"><i style="width:${a.pct}%"></i></div></div>`;}
+function heatAutoRun(){if(!S.settings.heatAuto||heatNow()||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{heatLoad.quiet=1;heatLoad(p.coords.latitude,p.coords.longitude).catch(()=>{}).finally(()=>{heatLoad.quiet=0;});},()=>{},{timeout:12000,maximumAge:3600e3});}
+/* ============ v8.5 : PLAN NUTRITION & HYDRATATION ============ */
+let FU=null;
+function fuelCalc(o){const h=o.min/60,T=o.T,w=o.kg||72,ek=o.km+(o.dp||0)/100;
+  const cph=h<1?0:h<1.5?30:h<2.5?45:h<4?60:70,fph=Math.round(Math.min(1000,(T<10?400:T<18?500:T<24?650:T<28?800:900)*(w/72)**.5/50)*50),nph=T<18?300:T<24?500:700;
+  const step=20,prises=[];let carbAcc=0,gels=0,bars=0,flu=0;
+  for(let t=step;t<o.min;t+=step){const it=[];const dr=Math.round(fph*step/60/10)*10;if(dr>0){it.push(`💧 ${dr} ml`);flu+=dr;}
+    carbAcc+=cph*step/60;if(carbAcc>=25){const solid=h>=3&&t%90===0;if(solid){it.push('🍫 barre ou pâte de fruits (≈ 25 g)');bars++;}else{it.push('⚡ gel (≈ 25 g de glucides)');gels++;}carbAcc-=25;}
+    if(nph&&t%60===0&&h>=1.5)it.push(`🧂 sel (≈ ${nph} mg de sodium, pastille ou boisson)`);
+    if(it.length)prises.push({t,it});}
+  const tot={c:Math.round(cph*h),f:Math.round(fph*h/50)*50,n:Math.round(nph*h)},flasks=Math.max(o.aid&&o.aid.length?Math.ceil(fph*(o.maxGap||h)/500):Math.ceil(tot.f/500),cph||h>=1?1:0);
+  return {cph,fph,nph,tot,prises,gels,bars,flasks,salt:h>=1.5?Math.ceil(tot.n/250):0,pre:{d1:Math.round(w*8),bk:Math.round(w*1.5)}};}
+function fuelDefaults(){const r=S.race;if(r&&daysTo(r.date)>=0){const R=raceStrategy(r);return {name:r.name,min:Math.max(30,Math.round(R.T/900)*15),km:r.km,dp:r.dp||0,T:r.temp!=null?r.temp:(heatNow()?Math.round(heatNow().T):18),kg:+S.settings.poids||72,aid:(R.aid||[]).map(a=>({k:a.k,min:Math.round(a.cum/60)})),night:false};}
+  return {name:'Sortie longue',min:120,km:20,dp:300,T:heatNow()?Math.round(heatNow().T):18,kg:+S.settings.poids||72,aid:[],night:false};}
+function openFuel(){FU=FU||fuelDefaults();renderFuel();$('#sheet').classList.add('on');}
+function fuSync(){const g=i=>$(i)?$(i).value:'';const hh=parseFloat(String(g('#fu_h')).replace(',','.'))||0;FU.min=Math.max(20,Math.round(hh*60));FU.T=+g('#fu_t');FU.kg=+g('#fu_kg')||FU.kg;FU.km=parseFloat(String(g('#fu_km')).replace(',','.'))||FU.km;}
+function renderFuel(){const o=FU,aidGap=o.aid.length?Math.max(...o.aid.map((a,i)=>a.min-(i?o.aid[i-1].min:0)),o.min-o.aid[o.aid.length-1].min)/60:null,R=fuelCalc({...o,maxGap:aidGap});
+  const ft=m=>m>=60?Math.floor(m/60)+' h '+String(m%60).padStart(2,'0'):m+' min';
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">🍌 Nutrition & hydratation</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">${esc(o.name)}${o.aid.length?' · '+o.aid.length+' ravito'+(o.aid.length>1?'s':''):''}. Repères pour un coureur entraîné : teste-les à l’entraînement, jamais pour la première fois en course.</p>
+  <div class="form f2"><div><label for="fu_h">Durée prévue (h)</label><input id="fu_h" type="number" step="0.25" inputmode="decimal" value="${(o.min/60).toFixed(2).replace(/0$/,'')}" onchange="fuSync();renderFuel()"></div><div><label for="fu_t">Température (°C)</label><input id="fu_t" type="number" inputmode="numeric" value="${o.T}" onchange="fuSync();renderFuel()"></div>
+  <div><label for="fu_km">Distance (km)</label><input id="fu_km" type="number" inputmode="decimal" value="${o.km}" onchange="fuSync();renderFuel()"></div><div><label for="fu_kg">Poids (kg)</label><input id="fu_kg" type="number" inputmode="decimal" value="${o.kg}" onchange="fuSync();renderFuel()"></div></div>
+  <div class="grid" style="margin-top:12px"><div class="stat"><b>${R.cph} g</b><small>glucides / heure</small></div><div class="stat"><b>${R.fph} ml</b><small>eau / heure</small></div><div class="stat"><b>${R.nph} mg</b><small>sodium / heure</small></div><div class="stat"><b>${(R.tot.f/1000).toFixed(1).replace('.',',')} L</b><small>${R.tot.c} g glucides au total</small></div></div>
+  <div class="eyebrow" style="margin:14px 0 6px">Dans le sac</div><ul class="small rv">${R.flasks?`<li>${R.flasks} flasque${R.flasks>1?'s':''} de 500 ml${o.aid.length?' (remplies à chaque ravito)':''}</li>`:''}${R.gels?`<li>${R.gels} gel${R.gels>1?'s':''} (+1 de secours)</li>`:''}${R.bars?`<li>${R.bars} barre${R.bars>1?'s':''} ou pâtes de fruits</li>`:''}${R.salt?`<li>${R.salt} pastille${R.salt>1?'s':''} de sel ou boisson d’effort salée</li>`:''}${o.min>=180?'<li>Coupe-vent, couverture de survie, téléphone chargé</li>':''}${o.T>=24?'<li>Casquette, lunettes, eau pour s’asperger</li>':''}</ul>
+  <div class="eyebrow" style="margin:14px 0 6px">Plan de prises (toutes les 20 min)</div>
+  <table class="tbl"><tr><th>Temps</th><th style="text-align:left">Prise</th></tr>${R.prises.map(p=>{const ra=o.aid.find(a=>Math.abs(a.min-p.t)<10);return `<tr><td>${ft(p.t)}${ra?'<br><span class="src">ravito km '+ra.k+'</span>':''}</td><td style="text-align:left">${p.it.join('<br>')}</td></tr>`;}).join('')||'<tr><td colspan="2" style="text-align:left">Moins d’une heure : eau à la soif, pas besoin de sucre (un bain de bouche sucré suffit).</td></tr>'}</table>
+  <div class="eyebrow" style="margin:14px 0 6px">Avant</div><ul class="small rv"><li>La veille : repas riche en glucides (≈ ${R.pre.d1} g dans la journée, pâtes, riz, pain), peu de fibres.</li><li>Petit-déjeuner 3 h avant : ≈ ${R.pre.bk} g de glucides (pain, confiture, banane), 500 ml d’eau.</li><li>15 min avant le départ : quelques gorgées et, au-delà de 2 h de course, un gel.</li></ul>
+  <label class="tg" style="margin-top:10px"><input type="checkbox" ${S.settings.fuelVoice!==false?'checked':''} onchange="S.settings.fuelVoice=this.checked;save()"> Rappels vocaux « boire / manger » pendant les sorties guidées de plus d’1 h 15</label>
+  <p class="note">Bases : 30 à 60 g de glucides par heure au-delà d’1 h, jusqu’à 90 g en ultra avec un mélange glucose-fructose et un intestin entraîné ; 400 à 800 ml d’eau par heure selon la chaleur, sans dépasser la soif ; sodium 300 à 700 mg par heure. Prise de poids pendant l’effort = trop bu.</p>`;}
 
 /* ============ v8.4 : COACH PRO — périodisation, réajustement de la semaine ============ */
 function adjO(o){const a=S.adj[o.k];if(!a||a.action==='garder')return o;const c={...o,adj:a.action,adjWhy:a.detail||''};
@@ -2250,20 +2291,20 @@ async function heatLoad(la,lo){const r=await fetch(`https://api.open-meteo.com/v
   const now=new Date().getHours(),hrs=j.hourly.time.map((t,i)=>({h:+t.slice(11,13),T:j.hourly.temperature_2m[i],Td:j.hourly.dew_point_2m[i]})).filter(x=>x.h>=5&&x.h<=21);
   const fut=hrs.filter(x=>x.h>=now),best=fut.length?fut.reduce((a,b)=>heatPct(b.T,b.Td)<heatPct(a.T,a.Td)-.001?b:a):null;
   S.heat={d:iso(new Date()),src:'auto',T:j.current.temperature_2m,RH:j.current.relative_humidity_2m,Td:j.current.dew_point_2m,best:best&&{h:best.h,T:best.T,p:heatPct(best.T,best.Td)},hours:hrs.map(x=>[x.h,Math.round(x.T),heatPct(x.T,x.Td)]),at:Date.now()};
-  save();renderAll();toast('Allures du jour ajustées à la météo 🌡️');}
+  heatLog(S.heat);save();renderAll();if(!heatLoad.quiet)toast('Allures du jour ajustées à la météo 🌡️');}
 function heatManual(){const h=heatNow();$('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">🌡️ Météo du jour</h2><button class="icbtn" onclick="closeSettings()">✕</button></div><p class="note">Température et humidité à l’heure où tu vas courir (appli Météo de l’iPhone).</p>
   <div class="form f2"><div><label>Température (°C)</label><input id="h_t" type="number" inputmode="decimal" value="${h?h.T:''}"></div><div><label>Humidité (%)</label><input id="h_rh" type="number" inputmode="numeric" value="${h?h.RH:''}"></div></div>
   <button class="btn wide" style="margin-top:14px" onclick="heatSave()">Ajuster mes allures</button>${h?'<button class="btn ghost wide" style="margin-top:8px" onclick="S.heat=null;save();closeSettings();renderAll()">Retirer l’ajustement</button>':''}`;$('#sheet').classList.add('on');}
-function heatSave(){const T=parseFloat($('#h_t').value),RH=parseFloat($('#h_rh').value);if(!isFinite(T)||!(RH>0&&RH<=100)){toast('Température et humidité nécessaires');return;}S.heat={d:iso(new Date()),src:'manuel',T,RH,Td:dewOf(T,RH),at:Date.now()};save();closeSettings();renderAll();toast('Allures du jour ajustées 🌡️');}
+function heatSave(){const T=parseFloat($('#h_t').value),RH=parseFloat($('#h_rh').value);if(!isFinite(T)||!(RH>0&&RH<=100)){toast('Température et humidité nécessaires');return;}S.heat={d:iso(new Date()),src:'manuel',T,RH,Td:dewOf(T,RH),at:Date.now()};heatLog(S.heat);save();closeSettings();renderAll();toast('Allures du jour ajustées 🌡️');}
 function heatCard(){const H=heatNow();
-  if(!H)return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><h2 style="margin:0">🌡️ Chaleur</h2><span class="muted small">Adapte les allures du jour à la température et à l’humidité.</span></div><div class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" style="margin:0" onclick="heatFetch()">Météo</button><button class="btn sm ghost" style="margin:0" onclick="heatManual()">Saisir</button></div></div></div>`;
+  if(!H)return `<div class="card">${acclimBlock(true)}<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><h2 style="margin:0">🌡️ Chaleur</h2><span class="muted small">Adapte les allures du jour à la température et à l’humidité.</span></div><div class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" style="margin:0" onclick="heatFetch()">Météo</button><button class="btn sm ghost" style="margin:0" onclick="heatManual()">Saisir</button></div></div></div>`;
   const p=H.pct,c=p<.005?'ok':p<.03?'tip':'warn',msg=p<.005?'Conditions idéales : allures normales.':p<.03?`Allures ralenties de ${pctFr(p)}. Bois 400 à 600 ml par heure et cherche l’ombre.`:p<.06?`Chaleur marquée : allures ralenties de ${pctFr(p)}. Cours tôt, garde l’effort de la séance plutôt que l’allure, et bois 500 à 800 ml par heure avec du sel.`:p<.10?`Chaleur forte (+${pctFr(p)}) : séance de qualité à l’aube, sur tapis, ou remplacée par un footing facile. Pas de sortie longue en pleine journée.`:'Chaleur extrême : course en extérieur déconseillée à cette heure. Tapis, piscine ou repos.';
   const hb=H.hours&&H.hours.length?`<div class="hbar" aria-label="Ralentissement par heure">${H.hours.filter((_,i)=>i%2===0).map(([hh,T,pp])=>`<div class="${H.best&&H.best.h===hh?'b':''}"><i style="height:${Math.max(3,Math.min(1,pp/.1)*40)}px"></i>${hh}h</div>`).join('')}</div>`:'';
   return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🌡️ Chaleur</h2><button class="icbtn" onclick="${H.src==='auto'?'heatFetch()':'heatManual()'}" aria-label="Mettre à jour">↻</button></div>
   <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px"><div class="stat"><b>${Math.round(H.T)}°</b><small>température</small></div><div class="stat"><b>${Math.round(H.RH)} %</b><small>humidité</small></div><div class="stat"><b class="${c}-c">+${pctFr(p)}</b><small>sur tes allures</small></div></div>
   <div class="ins ${c==='ok'?'':c}" style="margin-top:10px"><b>${c==='ok'?'Rien à changer':'Allures ajustées sur les séances du jour'}</b>${msg}</div>
   ${H.best&&H.best.p<p-.004?`<p class="small">Meilleur créneau restant : <b>${H.best.h} h</b> (${Math.round(H.best.T)} °C, +${pctFr(H.best.p)}).</p>`:''}${hb}
-  <p class="note">Point de rosée ${Math.round(H.Td)} °C. Il faut 10 à 14 jours de sorties régulières au chaud pour s’acclimater : les premiers jours, ralentis encore et fie-toi à la fréquence cardiaque. Frissons, chair de poule, nausée ou confusion : arrêt immédiat, à l’ombre.</p></div>`;}
+  ${acclimBlock()}<label class="tg" style="margin-top:8px"><input type="checkbox" ${S.settings.heatAuto?'checked':''} onchange="S.settings.heatAuto=this.checked;save()"> Météo automatique chaque jour à l’ouverture (où que tu sois)</label><p class="note">Point de rosée ${Math.round(H.Td)} °C. Il faut 10 à 14 jours de sorties régulières au chaud pour s’acclimater : les premiers jours, ralentis encore et fie-toi à la fréquence cardiaque. Frissons, chair de poule, nausée ou confusion : arrêt immédiat, à l’ombre.</p></div>`;}
 
 /* ============ RÉCUPÉRATION CARDIAQUE ============ */
 function hrrOf(det){if(!det||!det.hr||!det.t||det.hr.length!==det.t.length||det.hr.length<20)return null;const hr=det.hr,t=det.t,n=hr.length,avg=hr.reduce((a,b)=>a+b,0)/n,pk=[];
@@ -3443,7 +3484,8 @@ function grPlan(o){const a=getA(),H=heatNow(),hf=H&&o.day===dayIdx()?1+H.pct:1,P
   else if(ty==='r')st.push({n:o.t,k:'run',d:km?km*1000:null,t:km?null:2400,lo:easy[1],hi:easy[1]*1.12});
   else st.push({n:o.t,k:'run',d:km?km*1000:null,t:km?null:2700,lo:easy[0],hi:easy[1]});
   return {steps:st,hf};}
-function grOpen(k){const o=SREG[k]||WKREG[k];if(!o){toast('Séance introuvable');return;}const pl=grPlan(o);Object.assign(GR,{vmaRes:null,tmin:null,t10:0,on:false,paused:false,steps:pl.steps,hf:pl.hf,si:0,pts:[],dist:0,t0:0,acc:0,stepD0:0,stepT0:0,lastKm:0,lastWarn:0,lastAuto:0,half:false,near:false,warned:false,k,o,splits:[],stepRes:[],fix:null});
+function grPlanMin(st){const P=getA().P;return st.reduce((a,s)=>a+(s.t?s.t:s.d?s.d/1000*(s.hi||P.easyHi):0),0)/60;}
+function grOpen(k){const o=SREG[k]||WKREG[k];if(!o){toast('Séance introuvable');return;}const pl=grPlan(o);Object.assign(GR,{fuelOn:grPlanMin(pl.steps)>=75,fuelCarb:grPlanMin(pl.steps)>=90,fuelNext:20,vmaRes:null,tmin:null,t10:0,on:false,paused:false,steps:pl.steps,hf:pl.hf,si:0,pts:[],dist:0,t0:0,acc:0,stepD0:0,stepT0:0,lastKm:0,lastWarn:0,lastAuto:0,half:false,near:false,warned:false,k,o,splits:[],stepRes:[],fix:null});
   $('#grv').classList.add('on');grDraw();}
 function grClose(){if(GR.on&&!confirm('Arrêter la course guidée ? La sortie ne sera pas enregistrée.'))return;grStop(false);$('#grv').classList.remove('on');}
 function grElapsed(){return GR.on?(GR.paused?GR.acc:GR.acc+(Date.now()-GR.t0)):GR.acc;}
@@ -3472,7 +3514,8 @@ function grCheck(){if(!GR.on||GR.paused)return;const g=grStepProg();if(!g)return
   if(s.k==='run'||s.k==='warm'||s.k==='cool'){const km=Math.floor(GR.dist/1000);if(km>GR.lastKm){GR.lastKm=km;const t=grElapsed()/1000,prev=GR.splits.reduce((a,x)=>a+x,0),sp=t-prev;GR.splits.push(sp);const avg=t/(GR.dist/1000);
       const remD=s.d?Math.max(0,s.d-g.dd):0;vSay(`Kilomètre ${km} en ${durSay(sp)}. Allure moyenne ${paceSay(avg)}${s.lo?', '+grVerdict(sp,s):''}.${remD>=500?` Encore ${distSay(remD)}, environ ${durSay(remD/1000*avg)}.`:''}`,{queue:true});GR.lastWarn=Date.now();}}
   const pn=grPaceNow(45);if(pn&&s.lo&&s.k!=='rest'&&Date.now()-GR.lastWarn>120000&&g.dt>60&&(pn<s.lo*.95||pn>s.hi*1.06)){GR.lastWarn=Date.now();vSay(`Allure ${paceSay(pn)} : ${grVerdict(pn,s)}.`);}
-  const ev=+(S.settings.grEvery||0);if(ev&&Date.now()-Math.max(GR.lastAuto,GR.t0)>ev*60000){GR.lastAuto=Date.now();grStatus(true);}}
+  const ev=+(S.settings.grEvery||0);if(ev&&Date.now()-Math.max(GR.lastAuto,GR.t0)>ev*60000){GR.lastAuto=Date.now();grStatus(true);}
+  if(S.settings.fuelVoice!==false&&GR.fuelOn){const el=grElapsed()/60000;if(el>=GR.fuelNext){const n=Math.round(GR.fuelNext/20);vSay(n%2===0&&GR.fuelCarb?'Ravitaillement : quelques gorgées et un gel ou une boisson sucrée.':'Pense à boire quelques gorgées.',{queue:true});GR.fuelNext+=20;}}}
 function grTick(){if(!GR.on||GR.paused){grDraw();return;}const g=grStepProg();if(g&&g.s.t&&!g.s.d){const r=Math.ceil(g.rem);if(r<=3&&r>=1&&r!==GR.lb){GR.lb=r;beep(660,.1);}if(g.s.k==='rest'&&g.s.t>=30&&r===10&&!GR.warned){GR.warned=true;vSay('Prêt, 10 secondes.');}}grCheck();grDraw();}
 function grNext(auto){const g=grStepProg();if(!g)return;const s=g.s,res={n:s.n,k:s.k,d:Math.round(g.dd),t:Math.round(g.dt)};GR.stepRes.push(res);
   let msg='';if(s.test){const v=vmaSave(s.test,g.dd,'gps');GR.vmaRes=v||{bad:1,d:g.dd};msg=v?`Test terminé : ${Math.round(g.dd)} mètres. Ta VMA est de ${String(v.v).replace('.',' virgule ')} kilomètres heure. Toutes tes allures sont recalculées. `:'Test trop court pour être valable. ';}
@@ -3647,7 +3690,7 @@ function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=wee
   el.innerHTML=h;}
 function renderPlus(){const el=$('[data-page=plus]');if(!el)return;const T=(ic,t,sub,fn)=>`<button class="ptile" onclick="${fn}"><span class="pi" aria-hidden="true">${ic}</span><b>${t}</b><small>${sub}</small></button>`;
   el.innerHTML=`<div class="card"><h2>Entraînement</h2><div class="ptiles">${T('⏱️','Chrono','Intervalles, EMOM, Tabata',"showTab('chrono')")}${T('🤸','Figures','Équilibre et calisthénie',"showTab('figures')")}${T('⛰️','Défis','Records chronométrés',"showTab('defis')")}${T('🏃','Bilan trail','Volume, estimations, alertes',"showTab('trail')")}${T('🏋️','Bilan muscu','Phase, fatigue, défi',"showTab('muscu')")}${T('📋','Bilan de niveau','Tester tes répétitions',"openProfile()")}${T('🏁','Test VMA','Calibrer tes allures',"showTab('plan');setTimeout(()=>{const c=[...document.querySelectorAll('[data-page=plan] .card h2')].find(h=>h.textContent.includes('Test VMA'));if(c)c.scrollIntoView({block:'center'})},120)")}</div></div>
-  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
+  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('🍌','Nutrition','Glucides, eau, sel, sac',"FU=null;openFuel()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
   <div class="card"><h2>Réglages</h2><div class="ptiles">${T('⚙️','Réglages','Strava, profil, coach, synchro',"openSettings()")}${T('🎨','Apparence','Thème, couleurs, police',"openSettings();setTimeout(()=>{const c=$('#lookCard');if(c)c.scrollIntoView({block:'start'})},80)")}${T('⬇️','Exporter mes données','Sauvegarde .json',"exportData()")}</div>
   <p class="note">Foulée v${APP_VER} · ${VC().on?'synchro activée':'synchro désactivée'}</p></div>`;}
 function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderToday();renderPlus();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderSports();renderForme();renderCourses();}
@@ -3859,7 +3902,7 @@ function showTab(t){if(!document.querySelector(`.page[data-page="${t}"]`))t='tod
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));renderNav();window.scrollTo(0,0);}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-initChrono();linkPlan(true);renderAll();evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
+initChrono();linkPlan(true);renderAll();setTimeout(heatAutoRun,1800);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
