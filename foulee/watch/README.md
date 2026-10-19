@@ -4,20 +4,41 @@ Minuteur Intervalles / EMOM / Tabata / AMRAP / Chrono, avec vibrations, fréquen
 
 ## Installer sur ta montre (Mac + Xcode, gratuit)
 
+Depuis la v7.4, le projet a **deux cibles** : l’app de la montre et une mini-app iPhone « Foulée ⌚ » qui sert de relais pour recevoir les séances guidées envoyées depuis l’appli web. Si tu avais déjà le projet « Watch-only », recrée-le avec le modèle ci-dessous (les records des défis restent sur la montre).
+
 1. **Xcode** (App Store) → *File › New › Project* → onglet **watchOS** → **App** → Suivant.
    - Product Name : `Foulee` · Interface : SwiftUI · Language : Swift
-   - Watch-only App (pas besoin d’app iPhone compagnon).
-2. Supprime le `ContentView.swift` et le `FouleeApp.swift` générés, puis glisse les 5 fichiers `.swift` de ce dossier dans le projet (coche « Copy items if needed »).
-3. Cible **Foulee Watch App** → onglet **Signing & Capabilities** :
+   - **Watch App with New Companion iOS App** (cible iPhone + cible montre).
+2. Cible montre (**Foulee Watch App**) : supprime le `ContentView.swift` et le fichier `…App.swift` générés, puis glisse les **6 fichiers `.swift`** de ce dossier (`FouleeWatchApp`, `TimerEngine`, `WorkoutManager`, `Defis`, `Figures`, `GuidedRun`) en cochant uniquement la cible montre et « Copy items if needed ».
+3. Cible iPhone (**Foulee**) : supprime ses `ContentView.swift` et `…App.swift` générés, puis glisse `iPhone/FouleeCompanionApp.swift` en cochant uniquement la cible iPhone.
+4. Cible **Foulee Watch App** → **Signing & Capabilities** :
    - Team : ton identifiant Apple (compte gratuit possible).
    - **+ Capability › HealthKit**.
-   - **+ Capability › Background Modes** → coche **Workout processing**.
-4. Onglet **Info**, ajoute deux clés :
-   - `Privacy - Health Share Usage Description` : *Lire la fréquence cardiaque pendant la séance.*
+   - **+ Capability › Background Modes** → coche **Workout processing** et **Audio** (la voix continue écran baissé).
+5. Cible **Foulee Watch App** → onglet **Info**, ajoute :
+   - `Privacy - Health Share Usage Description` : *Lire la fréquence cardiaque et la distance pendant la séance.*
    - `Privacy - Health Update Usage Description` : *Enregistrer tes séances dans Santé.*
-5. Branche l’iPhone appairé à la montre, active le **Mode développeur** (montre : Réglages › Confidentialité et sécurité), choisis ta montre comme destination, puis **▶ Run**.
+6. Cible iPhone **Foulee** → **Signing & Capabilities** : même Team. Puis onglet **Info › URL Types › +** : Identifier `com.foulee.watch`, **URL Schemes** `fouleewatch`. C’est ce qui permet à l’appli web d’ouvrir le relais.
+7. Branche l’iPhone appairé à la montre, active le **Mode développeur** (iPhone et montre : Réglages › Confidentialité et sécurité), choisis ton iPhone comme destination avec le schéma **Foulee**, puis **▶ Run** : l’app iPhone s’installe, et l’app montre avec elle (sinon, choisis le schéma *Foulee Watch App* et ta montre, puis Run).
 
-Avec un compte Apple gratuit, l’app expire au bout de 7 jours : relance simplement *Run* depuis Xcode. Avec le programme développeur payant (99 €/an), elle reste un an.
+Avec un compte Apple gratuit, les apps expirent au bout de 7 jours : relance simplement *Run* depuis Xcode. Avec le programme développeur payant (99 €/an), elles restent un an.
+
+## Course guidée à la voix (v7.4)
+
+1. Dans Foulée (iPhone) : séance de course du plan → **🎧 Guidée** → **⌚ Envoyer à l’Apple Watch**. iOS demande d’ouvrir « Foulée ⌚ » : accepte, l’écran confirme « Envoyée à la montre ✓ ».
+2. Sur la montre : **Foulée › 🏃 Trail › Course guidée 🔊** → la séance reçue est en tête de liste (les 10 dernières sont gardées). Sans iPhone, *Footing libre* règle distance et allure à la Digital Crown.
+3. **Démarrer** : la montre lance une séance course à pied (GPS de la montre, fréquence cardiaque, enregistrée dans Santé puis Strava) et parle :
+   - au début de chaque étape (échauffement, fraction « 400 mètres, vise 4:02 au kilomètre », récupération et fractions restantes, retour au calme) ;
+   - à la moitié de chaque fraction ou du footing, avec ton allure et le verdict (« dans la cible », « ralentis de 8 secondes au kilomètre ») ;
+   - « Plus que 100 mètres », puis le temps et l’allure de la fraction terminée ;
+   - à chaque kilomètre : temps du km, allure moyenne, verdict, distance et temps restants ;
+   - si l’allure sort de la cible plus de 45 s (au plus toutes les 2 min), avec une vibration montante ou descendante ;
+   - « Prêt, 10 secondes » et 3 tapes avant la fin d’une récupération.
+4. Bouton **🔊 Où j’en suis ?** : distance, temps, allure actuelle, verdict et ce qui reste. Option point vocal toutes les 5 ou 10 min.
+5. La voix sort par le haut-parleur de la montre, ou par les AirPods s’ils sont connectés **à la montre**. Si Spotify joue sur la montre, la musique baisse pendant l’annonce. Si Spotify joue depuis l’iPhone dans les AirPods, la voix sort par le haut-parleur de la montre.
+6. À la fin, **Enregistrer** : la séance part dans Santé, puis Strava, et Foulée la rattache automatiquement à la séance du plan.
+
+À vérifier sur ta montre au premier essai : la voix écran baissé (Apple a eu des soucis de synthèse vocale en arrière-plan sur certaines versions de watchOS ; les vibrations, elles, marchent toujours). L’app ne dessine pas encore la trace GPS dans Strava (distance et allure oui).
 
 ## Utilisation
 

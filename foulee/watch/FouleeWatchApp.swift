@@ -7,6 +7,8 @@ struct FouleeWatchApp: App {
     @StateObject private var workout = WorkoutManager()
     @StateObject private var defiStore = DefiStore()
     @StateObject private var figStore = FigStore()
+    @StateObject private var planStore = PlanStore()
+    @StateObject private var guided = GuidedEngine()
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +17,8 @@ struct FouleeWatchApp: App {
                 .environmentObject(workout)
                 .environmentObject(defiStore)
                 .environmentObject(figStore)
+                .environmentObject(planStore)
+                .environmentObject(guided)
         }
     }
 }
@@ -52,6 +56,12 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             List {
                 Section("🏃 Trail") {
+                    NavigationLink {
+                        GuidedListView()
+                    } label: {
+                        Label("Course guidée 🔊", systemImage: "waveform")
+                    }
+                    .foregroundStyle(Color(red: 0.96, green: 0.49, blue: 0.54))
                     ForEach(presets.filter { $0.running }) { p in
                         Button {
                             engine.configure(mode: p.mode, config: p.config)

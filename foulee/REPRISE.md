@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v7.3** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v7.4** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v7.3 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v7.4 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -17,7 +17,7 @@ Application personnelle de Christophe pour le trail et le renforcement (kettlebe
 | `index.html` | Toute l'app. Constante `APP_VER`. |
 | `sw.js` | Service worker. `CACHE = 'foulee-vX.Y'` à incrémenter à chaque version. |
 | `manifest.webmanifest`, `icon-*.png` | Installation PWA. |
-| `watch/*.swift` + `README.md` | App Apple Watch (5 fichiers). `Foulee-Watch.zip` = le même dossier zippé. |
+| `watch/*.swift` + `README.md` | App Apple Watch (6 fichiers) ; `watch/iPhone/FouleeCompanionApp.swift` = app iPhone relais (lien `fouleewatch://`, WatchConnectivity). |
 | `tests/` | Suite Playwright (voir plus bas). |
 | `REPRISE.md` | Cette fiche. |
 
@@ -37,7 +37,7 @@ L'adresse publique est celle de GitHub Pages pour le dossier `foulee/` (celle d�
 ## Tests
 
 ```
-pip install playwright icalendar   # Chromium est déjà présent dans l'environnement cloud
+pip install playwright icalendar tree-sitter tree-sitter-swift   # Chromium est déjà présent dans l'environnement cloud
 python3 tests/run.py          # toute la suite ; ou : python3 tests/run.py t16 t17
 ```
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t27 | Envoi d’une séance guidée à l’Apple Watch (URL `fouleewatch://plan?d=` en base64url, format compatible GuidedRun.swift, accents) + analyse syntaxique tree-sitter de tous les fichiers Swift |
 | t26 | Voix du coach (choix de la voix, débit), chrono (moitié, efforts restants, 10 s), course guidée GPS simulée (km, cible, fractions de 400 m, récup, point à la demande, enregistrement), rattachement Strava (type, ±1 jour, détacher) |
 | t25 | Séances avec matériel ou au poids du corps : programme STRBW sans KB, bascule par séance et défaut, barre ou table, adaptations (genou, silencieux), contexte du coach |
 | t24 | Calendrier famille : fichier .ics validé avec `icalendar` (fuseau Europe/Paris, rappel, UID, SEQUENCE, lignes ≤ 75 octets), journée entière, Google Agenda, envoi, tout le planning, état à mettre à jour, ouverture sur iPhone |
@@ -77,6 +78,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 7.4 | Apple Watch : course guidée vocale écran verrouillé (GuidedRun.swift : AVSpeechSynthesizer fr-FR, distance HealthKit, mêmes annonces que l’iPhone, vibrations), app iPhone compagnon relais, bouton « ⌚ Envoyer à l’Apple Watch » dans Foulée |
 | 7.3 | Course guidée GPS avec voix (annonces de départ, moitié, fin, fractions restantes, km et allure cible, « Où j’en suis ? »), chrono enrichi, rattachement automatique des sorties Strava aux séances du plan (`S.links`, détacher), voix du coach réglable et lecture des conseils |
 | 7.2 | Muscu : choix « Avec matériel » / « Poids du corps (callisthénie) » par défaut (carte dans Séances) et par séance (bascule sur chaque carte A/B/C) ; programme STRBW de 12 semaines sans kettlebell (11 nouveaux exercices : dips, pompes archer, pistol sur chaise, nordic curl, L-sit, front lever groupé…) |
 | 7.1 | Partage des courses du planning vers le calendrier famille : .ics (heure de départ du format, fin estimée, rappel la veille, UID stable et SEQUENCE pour les mises à jour), Google Agenda, envoi par Messages ; proposé au passage en « Inscrit » |
@@ -98,7 +100,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 - Import d'un vrai fichier FIT de montre (seuls des fichiers générés ont été testés).
 - Fichier .FIT de séance chargé sur une vraie montre Garmin ou Coros.
 - Guidage vocal sur iPhone (testé avec une voix simulée).
-- Compilation de l'app Watch dans Xcode (syntaxe Swift vérifiée seulement).
+- Compilation de l'app Watch et de l'app iPhone compagnon dans Xcode (syntaxe Swift vérifiée avec tree-sitter seulement) ; voix de la montre écran baissé ; passage du lien `fouleewatch://` depuis la PWA installée.
 - Météo Open-Meteo et partage natif depuis l'iPhone.
 - Course guidée sur iPhone : GPS et voix tant que l’écran reste allumé et Foulée au premier plan ; mélange de la voix avec Spotify.
 - Ajout du .ics au calendrier « Famille » depuis la PWA installée (ouverture d'une URL data:text/calendar).
@@ -110,7 +112,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 ## Idées en attente
 
-- Annonces vocales et suivi d’allure dans l’app Apple Watch (AVSpeechSynthesizer + séance HealthKit) pour courir écran verrouillé.
+- Trace GPS des courses guidées de la montre dans Santé/Strava (HKWorkoutRouteBuilder + CoreLocation).
 
 - Journal alimentaire (une question restait ouverte dans le document d'analyse : chaleur ou journal alimentaire en priorité ; la chaleur a été faite en v6.2).
 - Synchro des étapes de figures entre l'iPhone et la montre (impossible depuis une PWA sans app iOS native).

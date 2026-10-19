@@ -557,7 +557,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.3';
+const APP_VER='7.4';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1325,7 +1325,7 @@ async function gh(path,opt={}){const r=await fetch('https://api.github.com'+path
 async function fileText(f){if(!f)return null;if(!f.truncated)return f.content;const r=await fetch(f.raw_url);if(!r.ok)throw new Error('Lecture du coffre impossible');return r.text();}
 async function findGist(){const v=VC();if(v.gist){try{return await gh('/gists/'+v.gist);}catch(e){if(!/404/.test(e.message))throw e;}}
   for(let p=1;p<=5;p++){const l=await gh(`/gists?per_page=100&page=${p}`);const g=l.find(x=>x.description===GIST_DESC);if(g){setVC({gist:g.id});return gh('/gists/'+g.id);}if(l.length<100)break;}return null;}
-const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns'];
+const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns','watchSent'];
 function syncPayload(){const d={};for(const k of Object.keys(S))if(!NOSYNC.includes(k))d[k]=S[k];return {mt:S.mt||0,data:JSON.parse(JSON.stringify(d)),key:getKey()||null};}
 function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'+x.d;if(x.id!=null)return 'i:'+x.id;if(x.t!=null&&x.role)return 'c:'+x.t+x.role;}return 's:'+JSON.stringify(x);}
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
@@ -1694,7 +1694,8 @@ function buildTcxWorkout(name,model){let id=0;const xs=s=>asciiName(s).replace(/
 function openWkExport(k){const o=WKREG[k];if(!o)return;const M=wkSteps(o),rp=M[1],w=rp.steps[0];
   $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">⌚ ${esc(o.t)}</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
   <ol class="wkst"><li>Échauffement 20 min (gammes à la fin)</li><li><b>${rp.rep} ×</b> ${wkTxt(w)}${w.p?` à ${fmtPace(w.p)}/km (cible ${fmtPace(w.p*.96)}–${fmtPace(w.p*1.04)})`:', effort vif et relâché'} · récup ${wkTxt(rp.steps[1])}</li><li>Retour au calme 10 min</li></ol>
-  <div class="row" style="margin-top:12px"><button class="btn" style="flex:1;margin:0" onclick="wkDl('${k}','fit')">.FIT</button><button class="btn ghost" style="flex:1;margin:0" onclick="wkDl('${k}','tcx')">.TCX</button></div>
+  <button class="btn wide" style="margin-top:12px" onclick="sendWatch('${k}')">⌚ Envoyer à l’Apple Watch (course guidée vocale)</button>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1;margin:0" onclick="wkDl('${k}','fit')">.FIT</button><button class="btn ghost" style="flex:1;margin:0" onclick="wkDl('${k}','tcx')">.TCX</button></div>
   <p class="note">.FIT = format natif des montres (Garmin, Coros, Suunto, Wahoo) : étapes, répétitions et allures cibles. Garmin : copie le fichier dans le dossier GARMIN/NewFiles de la montre branchée en USB, il apparaît dans Entraînements. .TCX = pour les applis et plateformes qui importent ce format. Un GPX ne peut pas contenir d’étapes d’entraînement : il n’est donc pas proposé.</p>`;$('#sheet').classList.add('on');}
 async function wkDl(k,fmt){const o=WKREG[k];if(!o)return;const M=wkSteps(o),nm=asciiName(o.t).slice(0,15)||'Foulee',fn='foulee-'+asciiName(o.t).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'.'+fmt;
   if(fmt==='fit')await dlFile(fn,buildFitWorkout(nm,M),'application/octet-stream');else await dlFile(fn,buildTcxWorkout(nm,M),'application/vnd.garmin.tcx+xml');}
@@ -2962,13 +2963,20 @@ function grDraw(){const el=$('#grBody');if(!el)return;const g=grStepProg(),s=g&&
   <div class="gr-grid"><div><b>${kmFr(GR.dist/1000)}</b><small>km</small></div><div><b>${fmtDur(t)}</b><small>temps</small></div><div><b>${paceTxt(avg)}</b><small>moyenne</small></div><div><b>${g?(s.d?(g.rem>=1000?kmFr(g.rem/1000)+' km':Math.round(g.rem)+' m'):fmtClock(g.rem)):'–'}</b><small>reste (étape)</small></div></div>
   ${g?`<div class="gr-bar"><i style="width:${Math.min(100,Math.round(g.frac*100))}%"></i></div>`:''}
   ${GR.on?`<button class="gr-talk" onclick="grStatus()">🔊 Où j’en suis ?</button><div class="row" style="flex-wrap:nowrap"><button class="btn ghost" style="flex:1" onclick="grPause()">${GR.paused?'▶ Reprendre':'⏸ Pause'}</button><button class="btn ghost" style="flex:1" onclick="grNext()">Étape suivante ›</button></div><button class="btn sm ghost wide" style="margin-top:8px" onclick="if(confirm('Terminer et enregistrer la sortie ?')){grStop(true);GR.si=GR.steps.length;grDraw();}">Terminer</button>`:
-   `<button class="btn wide" style="margin-top:10px" onclick="grStart()">▶ Démarrer la course guidée</button><div class="ins" style="margin-top:12px"><b>Avant de partir</b>Garde Foulée ouverte, écran allumé (il reste allumé tout seul) : iOS coupe le GPS et la voix d’une appli web quand l’écran se verrouille. Spotify peut jouer en même temps, les annonces passent par-dessus. Le 🔊 donne le point à tout moment.</div>
+   `<button class="btn wide" style="margin-top:10px" onclick="grStart()">▶ Démarrer sur l’iPhone</button><button class="btn ghost wide" style="margin-top:8px" onclick="sendWatch('${GR.k}')">⌚ Envoyer à l’Apple Watch${S.watchSent&&S.watchSent[GR.k]?' · envoyée':''}</button><p class="note" style="text-align:center">Avec la montre, la voix et le suivi d’allure marchent écran verrouillé et téléphone dans la poche (app Foulée ⌚ requise, voir le README de la montre).</p><div class="ins" style="margin-top:12px"><b>Avant de partir</b>Garde Foulée ouverte, écran allumé (il reste allumé tout seul) : iOS coupe le GPS et la voix d’une appli web quand l’écran se verrouille. Spotify peut jouer en même temps, les annonces passent par-dessus. Le 🔊 donne le point à tout moment.</div>
    <div class="form" style="margin-top:8px"><label>Point vocal automatique</label><select onchange="S.settings.grEvery=+this.value;save(true)">${[[0,'Seulement à chaque km et à la demande'],[5,'Toutes les 5 min'],[10,'Toutes les 10 min']].map(([v,l])=>`<option value="${v}" ${+(S.settings.grEvery||0)===v?'selected':''}>${l}</option>`).join('')}</select></div>
    <ol class="gr-plan">${GR.steps.map(x=>`<li><b>${esc(x.n)}</b> · ${x.d?(x.d>=1000?kmFr(x.d/1000)+' km':x.d+' m'):fmtClock(x.t)}${x.lo?` · ${fmtPace(x.lo)}–${fmtPace(x.hi)}/km`:''}</li>`).join('')}</ol>${GR.hf>1?`<p class="note">🌡️ Allures ralenties de ${pctFr(GR.hf-1)} pour la chaleur du jour.</p>`:''}`}`;}
 function grSave(){const t=Math.round(grElapsed()/1000);if(GR.dist<200||t<60)return;const step=Math.max(1,Math.ceil(GR.pts.length/300)),pts=GR.pts.filter((_,i)=>i%step===0).map(p=>[+p.lat.toFixed(5),+p.lon.toFixed(5),Math.round(p.d)]);
   const rec={id:Date.now(),k:GR.k,d:iso(new Date()),start:new Date(Date.now()-t*1000).toISOString(),km:+(GR.dist/1000).toFixed(2),t,splits:GR.splits.map(Math.round),steps:GR.stepRes,pts};S.gruns=[...(S.gruns||[]),rec].slice(-30);
   if(GR.k&&/^r\d+[qelr]$/.test(GR.k)){S.links=S.links||{};if(!S.links[GR.k]||S.links[GR.k].src!=='strava')S.links[GR.k]={src:'gps',gid:rec.id,km:rec.km,t,dp:null,at:Date.now()};S.done[GR.k]=true;S.doneAt=S.doneAt||{};S.doneAt[GR.k]=Date.now();}
   save();renderAll();}
+
+/* ---------- Envoi d'une séance guidée à l'Apple Watch (app compagnon iPhone) ---------- */
+function watchPlan(o){const pl=grPlan(o),r=v=>v?Math.round(v):null;return {v:1,id:o.k+'_'+iso(new Date()),name:strip(o.t).slice(0,48),date:iso(new Date()),steps:pl.steps.map(s=>({n:strip(s.n).slice(0,48),k:s.k,d:s.d?Math.round(s.d):null,t:s.t?Math.round(s.t):null,lo:r(s.lo),hi:r(s.hi),tp:r(s.tp)}))};}
+const b64url=t=>btoa(unescape(encodeURIComponent(t))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function watchUrl(o){return 'fouleewatch://plan?d='+b64url(JSON.stringify(watchPlan(o)));}
+function sendWatch(k){const o=SREG[k]||WKREG[k];if(!o){toast('Séance introuvable');return;}const u=watchUrl(o);window.__lastWatchUrl=u;S.watchSent=S.watchSent||{};S.watchSent[k]=Date.now();save(true);
+  toast('Ouverture de Foulée ⌚ sur l’iPhone…');setTimeout(()=>{location.href=u;},150);}
 
 /* ============ RATTACHEMENT DES SORTIES STRAVA AU PROGRAMME ============ */
 function planRunTarget(o){const P=getA().P,ty=(o.k.match(/([qelr])$/)||[])[1],km=parseFloat(((String(o.s||'').match(/(\d+(?:[.,]\d+)?)\s*km/)||[])[1]||'0').replace(',','.'))||null;

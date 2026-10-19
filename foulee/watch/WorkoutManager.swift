@@ -11,6 +11,8 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     @Published var heartRate: Double = 0
     @Published var activeEnergy: Double = 0
+    /// Distance parcourue en mètres (GPS de la montre, course à pied en extérieur).
+    @Published var distance: Double = 0
     @Published var isActive = false
 
     func requestAuthorization() async {
@@ -39,6 +41,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             builder = b
             heartRate = 0
             activeEnergy = 0
+            distance = 0
             let startDate = Date()
             s.startActivity(with: startDate)
             try await b.beginCollection(at: startDate)
@@ -84,6 +87,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                                     didCollectDataOf collectedTypes: Set<HKSampleType>) {
         let hrType = HKQuantityType(.heartRate)
         let energyType = HKQuantityType(.activeEnergyBurned)
+        let distType = HKQuantityType(.distanceWalkingRunning)
         let bpm = HKUnit.count().unitDivided(by: .minute())
         let hr: Double? = collectedTypes.contains(hrType)
             ? workoutBuilder.statistics(for: hrType)?.mostRecentQuantity()?.doubleValue(for: bpm)
@@ -91,9 +95,13 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         let kcal: Double? = collectedTypes.contains(energyType)
             ? workoutBuilder.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
             : nil
+        let meters: Double? = collectedTypes.contains(distType)
+            ? workoutBuilder.statistics(for: distType)?.sumQuantity()?.doubleValue(for: .meter())
+            : nil
         Task { @MainActor in
             if let hr { self.heartRate = hr }
             if let kcal { self.activeEnergy = kcal }
+            if let meters { self.distance = meters }
         }
     }
 }
