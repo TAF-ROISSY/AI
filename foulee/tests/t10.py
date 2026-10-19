@@ -14,7 +14,7 @@ async def m():
             hits.append(route.request.url)
             await route.continue_()
         await pg.route('https://raw.githubusercontent.com/**',img)
-        await pg.goto('file:///home/claude/foulee/index.html'); await pg.evaluate("loadDemo()")
+        await pg.goto('file://'+APP+'/index.html'); await pg.evaluate("loadDemo()")
         await pg.evaluate("startDefi('athena',0)"); await pg.wait_for_timeout(2500)
         await pg.screenshot(path='x_defi.png')
         ok=await pg.evaluate("[...document.querySelectorAll('#chMedia img')].map(i=>i.naturalWidth)")

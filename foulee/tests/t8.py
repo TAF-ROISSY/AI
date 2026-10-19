@@ -21,7 +21,7 @@ async def m():
         await pg.route('https://*.basemaps.cartocdn.com/**',lambda r: r.fulfill(body=TILE,content_type='image/png'))
         await pg.route('https://fonts.**',lambda r: r.abort())
         await pg.route('https://api.anthropic.com/**',claude)
-        await pg.goto('file:///home/claude/foulee/index.html'); await pg.evaluate("loadDemo()")
+        await pg.goto('file://'+APP+'/index.html'); await pg.evaluate("loadDemo()")
         await pg.evaluate("setMod('trail','histo')"); await pg.wait_for_timeout(300)
         await pg.screenshot(path='h_histo.png',full_page=True)
         await pg.click('.cal .dc.has'); await pg.wait_for_timeout(1500)

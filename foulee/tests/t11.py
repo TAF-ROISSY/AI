@@ -12,7 +12,7 @@ async def m():
         await pg.route('https://fonts.**',lambda r: r.abort())
         await pg.route('https://cdnjs.cloudflare.com/**',lambda r: r.fulfill(path=D+('leaflet.css' if r.request.url.endswith('.css') else 'leaflet.js')))
         await pg.route('https://*.tile.opentopomap.org/**',lambda r: r.fulfill(body=TILE,content_type='image/png'))
-        await pg.goto('file:///home/claude/foulee/index.html'); await pg.evaluate("loadDemo()")
+        await pg.goto('file://'+APP+'/index.html'); await pg.evaluate("loadDemo()")
         t=await pg.evaluate("(()=>{const t0=performance.now();RC=null;const c=routeClusters();return [performance.now()-t0,c.length,c.map(x=>x.runs.length+'×'+x.km.toFixed(1)).join(' ')]})()")
         print('clusters',t)
         await pg.evaluate("setMod('trail','histo')"); await pg.wait_for_timeout(400)

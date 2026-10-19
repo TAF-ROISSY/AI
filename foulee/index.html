@@ -63,6 +63,7 @@ ol.ex{padding-left:20px;margin:8px 0}ol.ex li{margin-bottom:8px}ol.ex small{colo
 .ins{border-radius:12px;padding:12px;margin-top:10px;background:var(--card2);border-left:4px solid var(--blue)}
 .ins.warn{border-left-color:var(--acc2)}.ins.ok{border-left-color:var(--ok)}
 .ins b{display:block;margin-bottom:2px}
+.ins.cdj-ai{border-left-color:var(--glacier)}.ins.cdj-ai p{margin:4px 0 0}.ins.cdj-ai p b,.ins.cdj-ai li b{display:inline;margin:0}
 .chart{width:100%;height:auto;display:block}
 .chart .cv{fill:var(--tx);font-size:9px;text-anchor:middle}
 .chart .cl{fill:var(--mut);font-size:8px;text-anchor:middle}
@@ -536,7 +537,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.5.1';
+const APP_VER='6.6';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1300,7 +1301,7 @@ async function gh(path,opt={}){const r=await fetch('https://api.github.com'+path
 async function fileText(f){if(!f)return null;if(!f.truncated)return f.content;const r=await fetch(f.raw_url);if(!r.ok)throw new Error('Lecture du coffre impossible');return r.text();}
 async function findGist(){const v=VC();if(v.gist){try{return await gh('/gists/'+v.gist);}catch(e){if(!/404/.test(e.message))throw e;}}
   for(let p=1;p<=5;p++){const l=await gh(`/gists?per_page=100&page=${p}`);const g=l.find(x=>x.description===GIST_DESC);if(g){setVC({gist:g.id});return gh('/gists/'+g.id);}if(l.length<100)break;}return null;}
-const NOSYNC=['tokens','activities','lastSync','histV','demo','heat'];
+const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail'];
 function syncPayload(){const d={};for(const k of Object.keys(S))if(!NOSYNC.includes(k))d[k]=S[k];return {mt:S.mt||0,data:JSON.parse(JSON.stringify(d)),key:getKey()||null};}
 function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'+x.d;if(x.id!=null)return 'i:'+x.id;if(x.t!=null&&x.role)return 'c:'+x.t+x.role;}return 's:'+JSON.stringify(x);}
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
@@ -2206,7 +2207,7 @@ function setDefiFb(r){if(lastDefi)lastDefi.r=r;save();closeSettings();renderDefi
 /* ============ COMPOSANTS ============ */
 function sessCard(o){const done=!!S.done[o.k];if(o.wk)WKREG[o.k]=o;SREG[o.k]=o;const lg=o.str&&o.timer&&o.timer.ex&&o.timer.ex.length;if(lg)LOGREG[o.k]={title:o.t,ex:[...new Set(o.timer.ex)],presc:o.presc||{}};const nLog=lg?(S.log||[]).filter(l=>l.k===o.k).length:0;
   return `<div class="sess ${o.str?'str':''} ${done?'done':''}"><div class="sh"><div class="si">${o.icon}</div><div class="st"><b>${o.t}${done&&S.fb[o.k]?`<span class="fbe">${S.fb[o.k].d5?D5[S.fb[o.k].d5-1][1]:FBL[S.fb[o.k].r][0]}</span>`:''}</b><small>${o.s||''}</small></div><button class="chk" onclick="toggleDone('${o.k}')" aria-label="Fait">${done?'✓':''}</button></div>${o.x?`<details><summary>Détails de la séance</summary><div class="sx">${o.x}</div></details>`:''}<div class="sacts">${o.timer?`<button class="btn sm" onclick='useTimer(${JSON.stringify(o.timer)})'>▶ Démarrer</button>`:''}<span class="sp"></span>${o.x?`<button class="ib" onclick="readSess('${o.k}')" aria-label="Écouter la séance" title="Écouter">🔊</button>`:''}${lg?`<button class="ib ${nLog?'on':''}" onclick="openLogFor('${o.k}')" aria-label="Carnet de charges" title="Charges">📝</button>`:''}${o.wk&&!done?`<button class="ib" onclick="openWkExport('${o.k}')" aria-label="Exporter vers la montre" title="Montre">⌚</button>`:''}${o.adapt&&!done?`<button class="ib" onclick="openCtx()" aria-label="Adapter la séance" title="Adapter">⚙︎</button>`:''}</div></div>`;}
-function toggleDone(k){if(S.done[k]){S.done[k]=false;delete S.fb[k];save();renderAll();return;}S.done[k]=true;save();renderAll();if(/^(s\d+[ABC]|c\d+|fig_.+|pv_.+)$/.test(k))openMuscuFb({type:'sess',k},'Comment c’était ?','<p class="muted small">Ton ressenti règle la prochaine séance du même type : répétitions, et remplacement des exercices si tu signales une douleur.</p>');else openFb(k);}
+function toggleDone(k){S.doneAt=S.doneAt||{};if(S.done[k]){S.done[k]=false;delete S.fb[k];delete S.doneAt[k];save();renderAll();return;}S.done[k]=true;S.doneAt[k]=Date.now();save();renderAll();if(/^(s\d+[ABC]|c\d+|fig_.+|pv_.+)$/.test(k))openMuscuFb({type:'sess',k},'Comment c’était ?','<p class="muted small">Ton ressenti règle la prochaine séance du même type : répétitions, et remplacement des exercices si tu signales une douleur.</p>');else openFb(k);}
 function weekChart(weeks){
   const W=340,H=150,pl=6,bw=(W-pl*2)/weeks.length,max=Math.max(10,...weeks.map(w=>w.km)),maxd=Math.max(100,...weeks.map(w=>w.dp));
   let s=`<svg viewBox="0 0 ${W} ${H}" class="chart">`;
@@ -2236,7 +2237,7 @@ function nextSess(kind){for(let i=1;i<=7;i++){const dt=new Date();dt.setDate(dt.
 function restCard(kind){const n=nextSess(kind);return `<div class="sess ${kind==='str'?'str':''}" style="border-left-color:var(--blue)"><div class="sh"><div class="si">😴</div><div class="st"><b>Pas de ${kind==='run'?'course':'muscu'} aujourd’hui</b><small>${n?'Prochaine : '+n.ss[0].t+' · '+JOURSL[dayIdx(n.dt)].toLowerCase():''}</small></div></div></div>`;}
 function weekStrip(w,kind){const d0=dayIdx();let h='<div class="wk">';for(let i=0;i<7;i++){const ss=daySessions(w,i,kind);h+=`<div class="wd ${i===d0?'today':''}"><b>${JOURS[i]}</b><i>${ss.map(s=>S.done[s.k]?'✅':(kind==='str'?'🏋️':'🏃')).join('')||'·'}</i></div>`;}return h+'</div>';}
 function renderTrailHome(){
-  const a=getA(),w=weekIdx(),d=dayIdx();let h=formePill()+(S.race&&daysTo(S.race.date)>=0?raceCard(false):'');
+  const a=getA(),w=weekIdx(),d=dayIdx();let h=formePill()+cdjCard()+(S.race&&daysTo(S.race.date)>=0?raceCard(false):'');
   if(!S.tokens&&!S.demo)h+=`<div class="card"><h2>Connecte Strava</h2><p class="muted small">Pour adapter les allures et le volume à tes vraies sorties. En attendant, le plan tourne sur des valeurs par défaut (≈ 25 km/sem).</p><div class="row"><button class="btn" onclick="openSettings()">Configurer</button><button class="btn ghost" onclick="loadDemo()">Voir une démo</button></div></div>`;
   const ps=planStateCard(w);
   if(ps)h+=ps;
@@ -2253,7 +2254,7 @@ function renderTrailHome(){
 }
 function levelCard(st,compact){const pct=Math.min(100,Math.round((st.xp-st.lo)/(st.hi-st.lo)*100));return `<div class="card"${compact?` style="cursor:pointer" onclick="showTab('suivi')"`:''}><div class="lvl-t"><b>Niv. ${st.L}</b><span>${TITLES[st.L-1]}</span><span class="muted small" style="margin-left:auto">${st.xp} XP</span></div><div class="xpbar"><i style="width:${pct}%"></i></div><div class="note">${st.L<TITLES.length?`${st.hi-st.xp} XP avant « ${TITLES[st.L]} »`:'Niveau maximum atteint'}${compact?` · ${badges(st).filter(b=>b[3]).length} badges ›`:''}</div></div>`;}
 function renderMuscuHome(){
-  const w=weekIdx(),d=dayIdx(),mp=MP();let h=formePill();const ps=planStateCard(w);
+  const w=weekIdx(),d=dayIdx(),mp=MP();let h=formePill()+cdjCard();const ps=planStateCard(w);
   if(ps)h+=ps;
   else{const ph=PH[Math.min(2,Math.floor(w/4))],today=daySessions(w,d,'str'),st=streak('str'),fg=figObj(),cc=ctxChips();
     h+=`<div class="card"><h2>Aujourd’hui</h2><p class="muted small">${JOURSL[d]} · semaine ${w+1}/12 · ${ph.n} · KB ${ph.kb}${st?` · 🔥 ${st} sem. d’affilée`:''}</p>`+(today.length?today.map(sessCard).join('')+(fg?sessCard(fg):''):restCard('str'))+weekStrip(w,'str')
@@ -2336,6 +2337,87 @@ function renderSuivi(){
   $('[data-page=suivi]').innerHTML=h;fillBody();
 }
 
+/* ============ COACH DU JOUR (conseils au fil de la journée) ============ */
+const CDJ_M={matin:['🌅','Ce matin'],jour:['☀️','Cet après-midi'],apres:['✅','Après ta séance'],soir:['🌙','Ce soir']};
+let cdjBusy=false,cdjLast='';
+const cdjHard=k=>/^r\d+[ql]$/.test(k)||/^s\d+[AC]$/.test(k);
+const cdjList=ss=>ss.map(s=>s.t).join(' + ');
+const cdjCap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+function cdjDone(now=new Date()){const t0=new Date(now.toDateString()).getTime(),out=[],tn=now.getTime();
+  for(const [k,t] of Object.entries(S.doneAt||{}))if(S.done[k]&&t>=t0&&t<=tn)out.push({k,t});
+  getA().runs.forEach(r=>{const st=localDate(r.start_date_local).getTime(),end=st+(r.elapsed_time||r.moving_time||0)*1000;if(st>=t0&&end<=tn)out.push({run:r,t:end});});
+  return out.sort((a,b)=>b.t-a.t);}
+function cdjMoment(now=new Date()){const h=now.getHours(),last=cdjDone(now)[0];
+  if(last&&now-last.t<2*36e5)return 'apres';if(h>=19||h<4)return 'soir';return h<12?'matin':'jour';}
+function cdjKey(now=new Date()){return iso(now)+'-'+cdjMoment(now);}
+function cdjTitle(k){const w=weekIdx(),d=dayIdx();const o=SREG[k]||daySessions(w,d).find(s=>s.k===k);return o?o.t:'Séance';}
+function cdjFb(k){if(/^(s\d+[ABC]|c\d+|fig_.+|pv_.+)$/.test(k))openMuscuFb({type:'sess',k},'Comment c’était ?','<p class="muted small">Ton ressenti règle la prochaine séance du même type.</p>');else openFb(k);}
+function cdjTomorrow(now,P){const dt=new Date(now);dt.setDate(dt.getDate()+1);dt.setHours(8,0,0,0);const ss=daySessions(weekIdx(dt),dayIdx(dt)),tp=taperFor(dt);
+  if(!ss.length){P.push({l:'',t:'Demain : repos',x:'Pas de séance prévue. Marche, mobilité ou rien du tout : la progression se fait pendant la récupération.'});return ss;}
+  const hard=ss.some(s=>cdjHard(s.k)),long=ss.some(s=>/^r\d+l$/.test(s.k));
+  P.push({l:hard?'tip':'',t:'Demain : '+cdjList(ss),x:long?'Sortie longue : dîner avec des glucides (riz, pâtes, pommes de terre), gourde et ravitaillement prêts ce soir, 7 h 30 de sommeil.':hard?'Séance exigeante : dîner avec des glucides et 7 h 30 de sommeil pour arriver frais.':'Séance tranquille : couche-toi à heure normale, rien de spécial à préparer.'});
+  if(tp)P.push({l:'',t:'🎯 Affûtage demain',x:`${tdCap(tp.why)} : volume muscu −${Math.round((1-tp.f)*100)} %.`});
+  if(ss.some(s=>s.str)){const cf=crossFatigue(dt);if(cf.ql||cf.gl)P.push({l:'tip',t:'Muscu de demain adaptée',x:`${cf.ql?'Quadriceps':'Mollets et fessiers'} encore chargés demain matin (${cfTxt(cf)}) : les exercices de jambes seront remplacés.`});}
+  return ss;}
+const tdCap=s=>cdjCap(strip(s));
+function coachDay(now=new Date()){
+  const m=cdjMoment(now),h=now.getHours(),w=weekIdx(now),d=dayIdx(now),today=daySessions(w,d),todo=today.filter(s=>!S.done[s.k]),R=readiness(),P=[];let x='',sub='';
+  const H=heatNow(),n=nutri(),done=cdjDone(now);
+  if(m==='matin'||m==='jour'){
+    sub=`Forme ${R.sc}/100 · ${todo.length?todo.length+' séance'+(todo.length>1?'s':'')+' à faire':today.length?'tout est fait':'repos'}`;
+    if(!today.length)x=`Pas de séance prévue aujourd’hui : ${R.c==='warn'?'profites-en pour vraiment récupérer.':'marche, mobilité ou une routine courte.'}`;
+    else if(!todo.length)x='Programme du jour bouclé. Le reste de la journée sert à récupérer.';
+    else x=R.c==='ok'?`Feu vert pour ${cdjList(todo)}.`:R.c==='tip'?`${cdjList(todo)} : fais-la en gardant 1 à 2 répétitions en réserve.`:`Forme basse : remplace ${todo[0].t.toLowerCase()} par 30 min très faciles ou de la mobilité.`;
+    P.push({l:R.c==='warn'?'warn':R.c==='tip'?'tip':'ok',t:`Forme ${R.sc}/100 · ${R.t}`,x:cdjCap(R.why.slice(0,2).join(', '))+'.'});
+    const runT=todo.find(s=>!s.str);
+    if(runT){if(H&&H.pct>=.005)P.push({l:H.pct>=.03?'warn':'tip',t:`🌡️ ${Math.round(H.T)} °C : allures ralenties de ${pctFr(H.pct)}`,x:H.best&&H.best.h>h?`Meilleur créneau vers ${H.best.h} h (${Math.round(H.best.T)} °C). Bois 500 ml par heure d’effort.`:'Allures de la séance déjà ajustées. Bois 500 ml par heure d’effort.'});
+      else if(!H)P.push({l:'',t:'Météo pas encore vérifiée',x:'Un toucher pour ajuster les allures du jour à la chaleur et à l’humidité.',b:['Météo','heatFetch()']});
+      if(/^r\d+l$/.test(runT.k))P.push({l:'',t:'Sortie longue',x:'Petit-déjeuner 2 h avant, 500 ml d’eau par heure et un apport sucré toutes les 45 min.'});}
+    if(todo.some(s=>s.str)){const cf=crossFatigue(now);if(cf.ql||cf.gl)P.push({l:cf.ql>=2?'warn':'tip',t:`🦵 ${cf.ql?'Quadriceps':'Mollets et fessiers'} ${['frais','entamés','chargés'][Math.max(cf.ql,cf.gl)]}`,x:`${cfTxt(cf)} : la séance de muscu est adaptée automatiquement.`});}
+    const tp=taperFor(now);if(tp)P.push({l:'',t:'🎯 Affûtage',x:`${tdCap(tp.why)} : volume muscu −${Math.round((1-tp.f)*100)} %.`});
+    if(!todo.length&&!today.length){const rc=prevReco(crossFatigue(now),tp);P.push({l:'',t:`Routine conseillée : ${PREV[rc.id].title}`,x:rc.why});}
+    if(m==='jour'&&!todo.length&&h>=16)cdjTomorrow(now,P);
+  }else if(m==='apres'){
+    const L=done[0],r=L.run,k=L.k;
+    if(r){const km=r.distance/1000;x=`${esc(r.name)} : ${km.toFixed(1).replace('.',',')} km, ${Math.round(r.total_elevation_gain||0)} m D+ en ${fmtDur(r.moving_time)}.`;sub=`${km.toFixed(1).replace('.',',')} km · récupération`;}
+    else{x=`${cdjTitle(k)} : c’est fait. Bien joué.`;sub=cdjTitle(k)+' · récupération';}
+    const pk=k&&!S.fb[k]?k:(done.find(o=>o.k&&!S.fb[o.k])||{}).k;
+    if(pk)P.push({l:'tip',t:'Ton ressenti',x:'10 secondes pour noter la séance : la prochaine du même type s’ajuste dessus.',b:['Noter',`cdjFb('${pk}')`]});
+    const big=r?(r.moving_time>=75*60||(r.total_elevation_gain||0)>=600):k&&/^r\d+l$/.test(k),meal=Math.round(n.prot/4/5)*5;
+    P.push({l:'',t:'Récupération',x:`Dans les 2 h : un repas avec ≈ ${meal} g de protéines${big||(k&&/^r/.test(k))?' et des glucides (riz, pâtes, pain) pour recharger':''}. ${H&&H.pct>=.03?'Chaleur : réhydrate-toi avec de l’eau salée ou une boisson d’effort.':'Bois un grand verre d’eau maintenant.'}`});
+    if(r||(k&&/^r/.test(k))){const cf=crossFatigue(now);if(cf.ql||cf.gl)P.push({l:cf.ql>=2?'warn':'tip',t:`🦵 ${cf.ql?'Quadriceps':'Mollets et fessiers'} ${['frais','entamés','chargés'][Math.max(cf.ql,cf.gl)]}`,x:'Les séances de muscu d’aujourd’hui et de demain remplacent les exercices de jambes concernés.'});}
+    const planRun=r&&todo.find(s=>!s.str);if(planRun)P.push({l:'tip',t:'C’était ta séance du plan ?',x:`Coche « ${planRun.t} » pour que la suite du plan s’ajuste sur ton ressenti.`,b:['Cocher',`toggleDone('${planRun.k}')`]});
+    const left=todo.filter(s=>s.k!==k&&!(planRun&&!s.str));if(left.length&&h<19)P.push({l:'',t:'Encore aujourd’hui',x:cdjList(left)+(left.some(s=>s.str)&&(r||(k&&/^r/.test(k)))?' : laisse au moins 4 h après la course.':'.')});
+    if(h>=17)cdjTomorrow(now,P);
+  }else{
+    const ok=today.filter(s=>S.done[s.k]),miss=today.filter(s=>!S.done[s.k]),runs=done.filter(o=>o.run);
+    sub=today.length?`${ok.length}/${today.length} séance${today.length>1?'s':''} faite${ok.length>1?'s':''}`:'jour de repos';
+    if(!today.length)x=runs.length?'Sortie en bonus aujourd’hui : pense à bien récupérer.':'Jour de repos : c’est là que le corps assimile le travail.';
+    else if(!miss.length)x=`Journée réussie : ${cdjList(ok)}. Rien d’autre à faire que récupérer.`;
+    else x=`${cdjList(miss)} : pas fait${miss.length>1?'es':'e'} aujourd’hui. Ne ${miss.length>1?'les':'la'} rattrape pas demain en doublant, le plan continue tel quel.`;
+    const pk=(done.find(o=>o.k&&!S.fb[o.k])||{}).k;if(pk)P.push({l:'tip',t:'Ressenti à noter',x:`${cdjTitle(pk)} : ton ressenti règle la prochaine séance du même type.`,b:['Noter',`cdjFb('${pk}')`]});
+    const tm=cdjTomorrow(now,P);
+    if(P.length<3&&!tm.some(s=>cdjHard(s.k)))P.push({l:'',t:'Sommeil',x:'7 à 8 h cette nuit. Écran coupé 30 min avant, chambre fraîche.'});
+  }
+  return {m,ic:CDJ_M[m][0],lab:CDJ_M[m][1],x,sub,p:P.slice(0,3)};}
+function cdjPlain(C){return strip(C.x)+' '+C.p.map(p=>strip(p.t)+' : '+strip(p.x)).join(' ');}
+function cdjCard(){const C=coachDay(),key=cdjKey(),ai=S.cdj&&S.cdj.k===key?S.cdj:null,open=S.cdjSeen!==key,k=getKey();
+  return `<details class="card fold cdj" ${open?'open':''} ontoggle="cdjToggle(this.open,'${key}')"><summary><div><h2>${C.ic} ${C.lab}</h2><div class="fsub">${C.sub}</div></div></summary>
+  <p class="small" style="margin:0">${C.x}</p>${C.p.map(p=>`<div class="ins ${p.l}"><b>${p.t}</b>${p.x}${p.b?`<div style="margin-top:8px"><button class="btn sm" style="margin:0" onclick="${p.b[1]}">${p.b[0]}</button></div>`:''}</div>`).join('')}
+  ${ai?`<div class="ins cdj-ai"><b>✨ Le coach</b>${md(ai.txt)}</div>`:''}
+  <div class="row" style="margin-top:12px">${cdjBusy?'<button class="btn ai-b sm" style="margin:0" disabled>Le coach réfléchit…</button>':k?`<button class="btn ai-b sm" style="margin:0" onclick="cdjAI()">${ai?'↻ Autre conseil':'✨ Conseil du coach'}</button>`:'<button class="btn sm ghost" style="margin:0" onclick="openSettings()">Activer le coach</button>'}<button class="btn sm ghost" style="margin:0" onclick="cdjAsk()">💬 En parler</button></div></details>`;}
+function cdjToggle(o,key){if(!o){if(S.cdjSeen!==key){S.cdjSeen=key;save(true);}}else if(S.cdjSeen===key){S.cdjSeen=null;save(true);}}
+function cdjRefresh(){renderTrailHome();renderMuscuHome();renderCross();}
+async function cdjAI(auto){if(cdjBusy||!getKey())return;const C=coachDay(),key=cdjKey();cdjBusy=true;cdjRefresh();
+  try{const j=await claude({system:COACH_SYS+ctxBlock(),max:700,messages:[{role:'user',content:`Moment de la journée : ${C.lab.toLowerCase()} (${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}). Conseil calculé par l'appli : ${cdjPlain(C)}\nRédige ton conseil pour ce moment précis de la journée : 2 à 4 phrases courtes, concrètes et chiffrées, appuyées sur mes données. Ne répète pas le conseil calculé mot pour mot, apporte ce qu'il ne dit pas. Pas de titre, pas de liste.`}]});
+    const t=textOf(j);if(!t)throw new Error('Réponse vide du coach');S.cdj={k:key,txt:t,at:Date.now()};S.cdjFail=null;save();}
+  catch(e){S.cdjFail=key;save(true);if(!auto)toast(e.message);}
+  finally{cdjBusy=false;cdjRefresh();}}
+function cdjAsk(){const C=coachDay();openCoach();$('#chatIn')&&($('#chatIn').value=`${C.lab} : ${strip(C.x)} Qu’est-ce que tu me conseilles ?`);}
+function cdjAuto(){const key=cdjKey();if(S.settings.cdjAuto&&getKey()&&navigator.onLine!==false&&!cdjBusy&&!(S.cdj&&S.cdj.k===key)&&S.cdjFail!==key)cdjAI(true);}
+function cdjTick(){const key=cdjKey();if(key!==cdjLast){const first=!cdjLast;cdjLast=key;if(!first)cdjRefresh();}cdjAuto();}
+setInterval(cdjTick,5*60e3);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')cdjTick();});
+
 /* ============ CROSS-TRAINING : le pont ============ */
 const SLOTS=[['q','⚡ Vitesse','t'],['e','🌿 Footing facile','t'],['r','🫧 Footing récup','t'],['l','⛰️ Sortie longue','t'],['A','🏋️ A · Bas du corps','m'],['B','🏋️ B · Haut du corps','m'],['C','🏋️ C · Full body','m']];
 function hasFour(){const w=Math.max(0,Math.min(11,weekIdx()));return runPlan(w).s.some(x=>/r$/.test(x.k));}
@@ -2357,7 +2439,7 @@ function setSched(k,v){S.sched={...SD(),[k]:+v};save();renderAll();toast('Planni
 function resetSched(){S.sched={...DEFSCHED};save();renderAll();toast('Organisation recommandée appliquée');}
 function renderCross(){
   const w=Math.max(0,Math.min(11,weekIdx())),d0=dayIdx(),s=SD(),four=hasFour(),C=conflicts();
-  let h=hybridCard()+xactCard()+bilanCard()+`<div class="card"><h2>Ta semaine trail + muscu</h2><p class="muted small">Les deux programmes restent séparés ; ici, on les fait cohabiter sans qu’ils se gênent.</p><div class="xg"><div></div><div class="hd">🏃 Trail</div><div class="hd">🏋️ Muscu</div>`;
+  let h=cdjCard()+hybridCard()+xactCard()+bilanCard()+`<div class="card"><h2>Ta semaine trail + muscu</h2><p class="muted small">Les deux programmes restent séparés ; ici, on les fait cohabiter sans qu’ils se gênent.</p><div class="xg"><div></div><div class="hd">🏃 Trail</div><div class="hd">🏋️ Muscu</div>`;
   for(let i=0;i<7;i++){const t=daySessions(w,i,'run'),m=daySessions(w,i,'str');
     const cell=(arr,c)=>arr.length?arr.map(x=>`<div class="xc ${c} ${S.done[x.k]?'done':''}">${S.done[x.k]?'✅ ':''}${x.t}</div>`).join(''):`<div class="xc ${c} o">—</div>`;
     h+=`<div class="xd ${i===d0?'today':''}">${JOURS[i]}</div><div>${cell(t,'t')}</div><div>${cell(m,'m')}</div>`;}
@@ -2404,6 +2486,7 @@ function openSettings(){const s=S.settings;
   <div class="card"><h2>🧑‍🏫 Coach IA (Claude)</h2>
    <p class="muted small">Ta clé API Anthropic (console.anthropic.com › API Keys). Elle est stockée <b>uniquement sur cet appareil</b> : jamais dans le code, ni sur GitHub, ni dans les exports.</p>
    <div class="form"><label>Clé API</label><input id="s_key" type="password" autocomplete="off" placeholder="${getKey()?'•••••• enregistrée':'sk-ant-…'}"><label>Modèle</label><select id="s_model">${MODELS.map(([id,l])=>`<option value="${id}" ${(CO().model||MODELS[0][0])===id?'selected':''}>${l}</option>`).join('')}</select></div>
+   <label class="tg"><input type="checkbox" id="s_cdj" ${S.settings.cdjAuto?'checked':''} onchange="S.settings.cdjAuto=this.checked;save();if(this.checked)cdjAuto()"> Conseil du coach automatique au fil de la journée (matin, après séance, soir : environ 3 appels par jour)</label>
    <p class="note">Conseil : fixe une limite de dépense mensuelle dans la console Anthropic. Une séance ou un bilan coûte quelques centimes.</p>
    <div class="row"><button class="btn" onclick="saveCoachKey()">Enregistrer</button><button class="btn ghost" onclick="testCoach()">Tester</button><button class="btn ghost" onclick="openCoachHist('chat')">🕘 Historique</button>${getKey()?'<button class="btn ghost" onclick="setKey(\'\');openSettings();toast(\'Clé supprimée\')">Supprimer la clé</button>':''}</div><p class="note" id="keyMsg"></p></div>
   <div class="card"><h2>Profil</h2><div class="form f2">
@@ -2574,7 +2657,7 @@ function showTab(t){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-initChrono();renderAll();showInstall(false);
+initChrono();renderAll();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
