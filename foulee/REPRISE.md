@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v6.9** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v7.0** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v6.9 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v7.0 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t23 | Calendrier v7 : périmètres, types, D+, distances, 30 jours, Autour de moi (rayon, tri secondaire), carte à marqueurs, événements terminés, fiche épreuve (profil, liens, objectif), météo Open-Meteo, cache IndexedDB et migration |
 | t22 | Adeorun dans le calendrier ; GPX d'une course du planning : récupéré par web_fetch, lien direct (CORS), fichier coupé, mauvaise distance, liens seuls, import manuel, recherche auto à la saisie du format |
 | t21 | Onglet Courses : planning (statut, priorité, objectif du plan, écarts), calendrier Oise (filtres, tri près de moi, carte), recherche en ligne par le coach (web search, pause_turn) |
 | t20 | Sommeil (saisie, forme, Coach du jour, suppression synchronisée), projection du ratio 7 j / 28 j, étoiles de la semaine et badges de bloc |
@@ -73,6 +74,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 7.0 | Calendrier des épreuves : 92 épreuves (Oise + Somme, Aisne, Val-d'Oise, Seine-et-Marne), filtres périmètre / distance / D+ / type / période, « Autour de moi » avec rayon 5–50 km, carte à marqueurs par type, événements terminés, fiche épreuve (profil théorique, liens site et inscription, « Définir comme objectif »), météo prévisionnelle à J-14 appliquée à la stratégie, cache IndexedDB `events` (base v3) des actualisations en ligne |
 | 6.9 | Adeorun ajouté comme source (19 liens de courses, dates confirmées) ; tracé GPX trouvé automatiquement quand le format (km) d'une course est saisi : `web_search` + `web_fetch`, GPX lu dans la réponse, contrôle ±20 % de la distance, sinon lien + import manuel |
 | 6.8 | Onglet Courses dans Trail : planning des courses (`S.races`), calendrier intégré de 46 trails de l'Oise (`OISE_TRAILS`, relevé du 19/10/2026, à rafraîchir), recherche en ligne par le coach (outil web_search de l'API) |
 | 6.7 | Sommeil noté le matin (`S.sleep` par date) qui règle la forme du jour et allège la séance dure ; « Semaine prévue » : ratio 7 j / 28 j projeté jusqu'à dimanche ; étoiles de la semaine (régularité, charge, sommeil) et badges de bloc |
@@ -96,7 +98,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 ## Données à rafraîchir
 
-- `OISE_TRAILS` / `OISE_GEO` dans `index.html` : calendrier des trails de l'Oise relevé le 19/10/2026 (Adeorun, Miles Republic, Go Trail, Ahotu ; liste Adeorun : calendrier.adeorun.com). Mettre à jour `OISE_UPD` et les dates « AAAA-MM » quand les dates 2027 sont publiées. Coordonnées des communes : geo.api.gouv.fr.
+- `OISE_TRAILS` / `OISE_GEO` et `EXTRA_TRAILS` / `EXTRA_GEO` (hors Oise, relevé Go Trail et Miles Republic) dans `index.html` : calendrier des trails de l'Oise relevé le 19/10/2026 (Adeorun, Miles Republic, Go Trail, Ahotu ; liste Adeorun : calendrier.adeorun.com). Mettre à jour `OISE_UPD` et les dates « AAAA-MM » quand les dates 2027 sont publiées. Coordonnées des communes : geo.api.gouv.fr.
 
 ## Idées en attente
 

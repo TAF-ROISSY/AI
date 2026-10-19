@@ -66,6 +66,7 @@ ol.ex{padding-left:20px;margin:8px 0}ol.ex li{margin-bottom:8px}ol.ex small{colo
 .rc-row,.tr-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.rc-row:first-of-type,.tr-row:first-of-type{border-top:0}.rc-row.past{opacity:.7}
 .rc-d{flex:0 0 46px;text-align:center;background:var(--card2);border-radius:12px;padding:6px 0}.rc-d b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:22px;line-height:1;color:var(--trail)}.rc-d small{font-size:11px;color:var(--mut);text-transform:uppercase}
 .rc-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.rc-tags .chip{padding:5px 10px;font-size:12px}.rc-j{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--trail);white-space:nowrap}
+.cs-lab{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-top:12px}.cs-lab+.chips{margin-top:6px}.cs-near{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}.cs-rad{margin-top:10px}.cs-rad input{width:100%;accent-color:var(--trail)}.cs-rt{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}.ev-pin{background:none;border:0}.tr-row{border-top:1px solid var(--line)}
 .tr-row .ib{text-decoration:none;flex:0 0 auto}.cs-map{height:300px;border-radius:14px;margin-top:10px;overflow:hidden;background:var(--card2)}
 .star-r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.star-r:first-of-type{border-top:0}.star-r .sc{font-size:26px;color:var(--mut);width:28px;text-align:center}.star-r.on .sc{color:var(--muscu)}
 .star-h{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}.star-h div{background:var(--card2);border-radius:10px;padding:6px 2px;text-align:center}.star-h div.cur{outline:1px solid var(--muscu)}.star-h b{display:block;font-size:12px;color:var(--muscu);letter-spacing:-1px}.star-h small{font-size:11px;color:var(--mut)}
@@ -545,7 +546,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.9';
+const APP_VER='7.0';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1203,7 +1204,7 @@ function bilanCard(){revHist();const r=CO().review,k=getKey();
   return h+'</div>';}
 
 /* ============ PHOTOS CORPORELLES (stockées sur l'appareil, IndexedDB) ============ */
-const IDB={db:null,open(){if(this.db)return Promise.resolve(this.db);return new Promise((ok,ko)=>{const r=indexedDB.open('foulee',2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos',{keyPath:'id'});if(!r.result.objectStoreNames.contains('clips'))r.result.createObjectStore('clips',{keyPath:'id'});};r.onsuccess=()=>{this.db=r.result;ok(this.db);};r.onerror=()=>ko(r.error);});},
+const IDB={db:null,open(){if(this.db)return Promise.resolve(this.db);return new Promise((ok,ko)=>{const r=indexedDB.open('foulee',3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('events'))r.result.createObjectStore('events',{keyPath:'k'});if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos',{keyPath:'id'});if(!r.result.objectStoreNames.contains('clips'))r.result.createObjectStore('clips',{keyPath:'id'});};r.onsuccess=()=>{this.db=r.result;ok(this.db);};r.onerror=()=>ko(r.error);});},
   async tx(mode,fn){const db=await this.open();return new Promise((ok,ko)=>{const t=db.transaction('photos',mode),st=t.objectStore('photos');let res;const q=fn(st);if(q)q.onsuccess=()=>{res=q.result;};t.oncomplete=()=>ok(res);t.onerror=()=>ko(t.error);});},
   put(o){return this.tx('readwrite',st=>st.put(o));},get(id){return this.tx('readonly',st=>st.get(id));},all(){return this.tx('readonly',st=>st.getAll());},del(id){return this.tx('readwrite',st=>st.delete(id));}};
 const VIEWS=[['front','Face','Debout, pieds largeur de hanches, bras légèrement écartés du corps, regard droit.'],['side','Profil','Profil gauche, bras le long du corps, posture naturelle : ne rentre pas le ventre.'],['back','Dos','Dos à l’appareil, même position que de face.']];
@@ -2409,21 +2410,12 @@ const kmFr=k=>String(Math.round(k*10)/10).replace('.',',');
 const rDate=d=>d&&d.length===7?`${MOISL[+d.slice(5,7)-1]} ${d.slice(0,4)} · date à confirmer`:parseISO(d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
 const rWhen=d=>d.length===7?parseISO(d+'-15'):parseISO(d);
 const RACES=()=>{S.races=S.races||[];return S.races;};
-let CS={more:12,q:'',dist:'all',per:'6m',sort:'date',me:null,map:false,web:null,busy:false,zone:'Oise (60)'};
-function oiseList(){const now=new Date(new Date().toDateString()),lim=CS.per==='3m'?90:CS.per==='6m'?183:9999,q=CS.q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  const band={all:()=>true,s:k=>k>=5&&k<12,m:k=>k>=12&&k<22,l:k=>k>=22&&k<36,xl:k=>k>=36}[CS.dist];
-  let L=OISE_TRAILS.map(([id,n,v,d,ds,note,url])=>({id,n,v,d,ds:ds.filter(k=>k>=3),note,url:url||null,geo:OISE_GEO[v],src:'oise'}));
-  if(CS.web&&CS.web.items)L=L.concat(CS.web.items.filter(w=>!L.some(o=>o.n.toLowerCase()===w.n.toLowerCase())));
-  L=L.filter(o=>{const t=rWhen(o.d),dd=(t-now)/DAY;if(o.d.length===7?t<new Date(now.getFullYear(),now.getMonth(),1):dd<0)return false;if(dd>lim)return false;
-    if(CS.dist!=='all'&&!(o.ds.length?o.ds.some(band):false))return false;if(q&&!(o.n+' '+o.v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q))return false;return true;});
-  L.forEach(o=>o.km=CS.me&&o.geo?geoKm(CS.me,o.geo):null);
-  return L.sort((a,b)=>CS.sort==='near'&&CS.me?(a.km??1e9)-(b.km??1e9):rWhen(a.d)-rWhen(b.d));}
 function inPlan(id){return RACES().find(r=>r.src===id);}
 function racesCard(){const R=RACES(),now=new Date(new Date().toDateString()),up=R.filter(r=>r.st!=='fait'&&rWhen(r.d)>=now).sort((a,b)=>rWhen(a.d)-rWhen(b.d)),past=R.filter(r=>!up.includes(r)).sort((a,b)=>rWhen(b.d)-rWhen(a.d));
   const warn=[];for(let i=1;i<up.length;i++){const a=up[i-1],b=up[i],gap=(rWhen(b.d)-rWhen(a.d))/DAY;if(gap<21&&(a.prio!=='C'||b.prio!=='C')&&(a.km>=20||b.km>=20))warn.push(`${esc(a.n)} et ${esc(b.n)} : ${Math.round(gap)} j d’écart. Prévois 1 jour de récupération par 10 km de course avant de repartir fort.`);}
   const A=up.filter(r=>r.prio==='A');if(A.length>1)warn.push(`${A.length} courses en objectif : garde un seul objectif principal par bloc de 12 semaines, les autres en préparation.`);
   const row=r=>{const j=Math.round((rWhen(r.d)-now)/DAY),obj=S.race&&S.race.name===r.n&&S.race.date===r.d;return `<div class="rc-row ${r.st==='fait'?'past':''}"><div class="rc-d"><b>${r.d.length===7?'?':parseISO(r.d).getDate()}</b><small>${MOISC[+r.d.slice(5,7)-1]}</small></div>
-    <div style="flex:1;min-width:0"><b>${esc(r.n)}</b><div class="muted small">${esc(r.v||'')}${r.km?' · '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.d.length===7?' · date à confirmer':''}</div>
+    <div style="flex:1;min-width:0"><b ${r.src&&evById(r.src)?`style="cursor:pointer" onclick="openEvent('${r.src}')"`:''}>${esc(r.n)}</b><div class="muted small">${esc(r.v||'')}${r.km?' · '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.d.length===7?' · date à confirmer':''}</div>
     <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${gpxChip(r)}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
     <div class="rc-j">${r.st==='fait'||j<0?'':j===0?'Jour J':'J-'+j}<button class="ib" onclick="openRaceEdit('${r.id}')" aria-label="Modifier">✎</button></div></div>`;};
   return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🗓️ Mon planning</h2><button class="btn sm" style="margin:0;white-space:nowrap" onclick="openRaceEdit()">＋ Course</button></div>
@@ -2431,32 +2423,161 @@ function racesCard(){const R=RACES(),now=new Date(new Date().toDateString()),up=
   ${warn.map(w=>`<div class="ins warn"><b>Calendrier chargé</b>${w}</div>`).join('')}
   ${past.length?`<details class="bmore" style="margin-top:10px"><summary>Courses passées (${past.length})</summary>${past.map(row).join('')}</details>`:''}
   <p class="note">Touche le statut ou la priorité pour les changer. « A · Objectif » cale le plan de 12 semaines, l’affûtage et la stratégie d’allure sur cette course.</p></div>`;}
-function findCard(){const L=oiseList(),ch=(k,v,l)=>`<button class="chip sm ${CS[k]===v?'on':''}" onclick="CS.${k}='${v}';CS.more=12;renderCourses()">${l}</button>`;
-  const item=o=>{const p=inPlan(o.id);return `<div class="tr-row"><div style="flex:1;min-width:0"><b>${esc(o.n)}</b><div class="muted small">${rDate(o.d)} · ${esc(o.v)}${o.km!=null?` · ${Math.round(o.km)} km de toi`:''}${o.src==='web'?' · 🔎 trouvée en ligne':''}</div>
-    <div class="rc-tags">${o.ds.length?o.ds.map(k=>`<button class="chip sm ${p&&p.km===k?'on':''}" onclick="addFound('${o.id}',${k})">${kmFr(k)} km</button>`).join(''):'<span class="muted small">Distances non publiées</span>'}${o.note?`<span class="muted small" style="align-self:center">${esc(o.note)}</span>`:''}</div></div>
-    <a class="ib" href="${o.url?esc(o.url):'https://www.google.com/search?q='+encodeURIComponent(o.n+' '+o.v+' trail '+o.d.slice(0,4))}" target="_blank" rel="noopener" aria-label="Site de la course">↗</a></div>`;};
-  return `<div class="card"><h2>🔎 Trouver un trail</h2>
-  <input id="cs_q" type="search" placeholder="Nom ou commune (ex. Senlis, Compiègne)" value="${esc(CS.q)}" oninput="CS.q=this.value;clearTimeout(window.__csT);window.__csT=setTimeout(()=>{renderCourses();const e=$('#cs_q');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},300)">
-  <div class="chips">${ch('per','3m','3 mois')}${ch('per','6m','6 mois')}${ch('per','all','Tout')}</div>
-  <div class="chips">${ch('dist','all','Toutes distances')}${ch('dist','s','5–12 km')}${ch('dist','m','12–22 km')}${ch('dist','l','22–36 km')}${ch('dist','xl','36 km et +')}</div>
-  <div class="chips">${ch('sort','date','Par date')}<button class="chip sm ${CS.sort==='near'?'on':''}" onclick="csNear()">📍 Près de moi</button><button class="chip sm ${CS.map?'on':''}" onclick="CS.map=!CS.map;renderCourses()">🗺️ Carte</button></div>
-  ${CS.map?'<div id="csMap" class="cs-map"></div>':''}
-  <div class="muted small" style="margin-top:10px">${L.length} trail${L.length>1?'s':''} dans l’Oise${CS.web&&CS.web.items.length?` + ${CS.web.items.length} trouvés en ligne (${esc(CS.web.zone)})`:''}</div>
-  ${L.slice(0,CS.more).map(item).join('')||'<p class="muted small">Aucun trail pour ces filtres.</p>'}${L.length>CS.more?`<button class="btn ghost wide sm" onclick="CS.more+=15;renderCourses()">Voir ${Math.min(15,L.length-CS.more)} trails de plus (${L.length-CS.more} restants)</button>`:''}
-  <div class="ins" style="margin-top:12px"><b>🔎 Recherche en ligne par le coach</b>Le calendrier intégré date du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}. Le coach peut chercher sur le web les dates à jour, ou des trails dans une autre zone.
-   <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="cs_zone" value="${esc(CS.zone)}" style="flex:1" placeholder="Zone (ex. Oise, Somme, Val-d’Oise)"><button class="btn ai-b sm" style="margin:0" ${CS.busy?'disabled':''} onclick="${getKey()?'raceWebSearch()':'openSettings()'}">${CS.busy?'Recherche…':getKey()?'Chercher':'Activer le coach'}</button></div></div>
-  <p class="note">Sources : Adeorun, Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire.</p></div>`;}
+/* ---------- Épreuves hors Oise (relevé du 19/10/2026 sur Go Trail et Miles Republic) ----------
+   {id, n, v, dep, d, ds, t:type (jour|nuit|urban|obst), dpk:{km:D+}, note, url} */
+const EXTRA_TRAILS=[
+ {id:'andilly',n:'La DNF (trail zombie nocturne)',v:'Andilly',dep:'95',d:'2026-10-31',ds:[7],t:'nuit'},
+ {id:'zombiequest',n:'Zombie Quest Paris',v:'Annet-sur-Marne',dep:'77',d:'2026-10-31',ds:[],t:'obst',note:'course à obstacles'},
+ {id:'tournan',n:'Tourn’en Nocturne',v:'Tournan-en-Brie',dep:'77',d:'2026-11-07',ds:[12],t:'nuit'},
+ {id:'chataignes',n:'Trail des Châtaignes',v:'Cormeilles-en-Parisis',dep:'95',d:'2026-11-15',ds:[17,22,36],t:'jour',note:'22 km de nuit le samedi 14 ; liste d’attente'},
+ {id:'briard',n:'Trail Briard by Night',v:'La Trétoire',dep:'77',d:'2026-11-14',ds:[14.3],t:'nuit',dpk:{14.3:320}},
+ {id:'stthibault',n:'Les Foulées de Saint-Thibault',v:'Saint-Thibault-des-Vignes',dep:'77',d:'2026-11-15',ds:[5,10,22],t:'jour'},
+ {id:'zombin',n:'Zomb’in The Dark Paris Nord',v:'Laigneville',dep:'60',d:'2026-11-21',ds:[],t:'urban',note:'urban trail nocturne'},
+ {id:'faremoutiers',n:'Trail Sainte Fare',v:'Faremoutiers',dep:'77',d:'2026-11-28',ds:[17,30],t:'jour'},
+ {id:'40bosses',n:'Les 40 Bosses',v:'Saint-Leu-la-Forêt',dep:'95',d:'2026-12-05',ds:[10,20,50,100,120],t:'jour',note:'certaines courses complètes'},
+ {id:'chauconin',n:'Noctambule de Chauc’',v:'Chauconin-Neufmontiers',dep:'77',d:'2026-12-05',ds:[10,18],t:'nuit'},
+ {id:'moonlight',n:'MoonLight Trail',v:'Genainville',dep:'95',d:'2026-12-19',ds:[8,16],t:'nuit'},
+ {id:'beaumont',n:'Trail de Beaumont',v:'Beaumont-sur-Oise',dep:'95',d:'2027-01-10',ds:[15,30],t:'jour',dpk:{15:300,30:800}},
+ {id:'marcassins',n:'Trail des Marcassins',v:'Saint-Brice-sous-Forêt',dep:'95',d:'2027-01-24',ds:[15,30],t:'jour'},
+ {id:'maxicross',n:'Maxicross de Bouffémont',v:'Bouffémont',dep:'95',d:'2027-01-31',ds:[11,19,25,42],t:'jour'},
+ {id:'mucotrail',n:'Muco’Trail du Pays de Nemours',v:'Bagneaux-sur-Loing',dep:'77',d:'2027-03-07',ds:[11,22],t:'jour'},
+ {id:'rev7',n:'Rev7 Trail',v:'Menucourt',dep:'95',d:'2027-03-21',ds:[8,13,20],t:'jour'},
+ {id:'2t2m',n:'Trail Tour du Massif Montmorencéen (2T2M)',v:'Montlignon',dep:'95',d:'2027-03-27',ds:[7,11,51,70],t:'jour'},
+ {id:'laboucle',n:'La Boucle Festival',v:'Soisy-sous-Montmorency',dep:'95',d:'2027-05-29',ds:[5,60],t:'jour',note:'boucles de 5 à 60 km'},
+ {id:'spartan',n:'Spartan Paris Jablines',v:'Jablines',dep:'77',d:'2027-09-18',ds:[],t:'obst',note:'course à obstacles'},
+ {id:'frappadingue',n:'Frappadingue Beauvais',v:'Beauvais',dep:'60',d:'2027-09',ds:[6,12],t:'obst',note:'course à obstacles'},
+ {id:'festieux',n:'Trail Festéolien',v:'Festieux',dep:'02',d:'2026-10-25',ds:[10,18],t:'jour'},
+ {id:'sentiersmaudits',n:'Le Trail des Sentiers Maudits',v:'Hangest-en-Santerre',dep:'80',d:'2026-10-24',ds:[12,24],t:'jour'},
+ {id:'urcel',n:'Le Noct’trail du Calvaire',v:'Urcel',dep:'02',d:'2026-10-31',ds:[6,12],t:'nuit',dpk:{12:250}},
+ {id:'circadienne',n:'La Circadienne',v:'Eppeville',dep:'80',d:'2026-11-01',ds:[6,12,18],t:'jour'},
+ {id:'marquenterre',n:'La Marquenterre',v:'Le Crotoy',dep:'80',d:'2026-11-08',ds:[12],t:'jour'},
+ {id:'vidames',n:'Trail des Vidames',v:'Picquigny',dep:'80',d:'2026-11-11',ds:[21],t:'jour'},
+ {id:'buzancy',n:'Trail de Buzancy',v:'Buzancy',dep:'02',d:'2026-11-14',ds:[5,9,11],t:'jour'},
+ {id:'citerne',n:'Trail Movember Citerne',v:'Citerne',dep:'80',d:'2026-11-15',ds:[8,15],t:'jour'},
+ {id:'lutins',n:'Trail des Lutins',v:'Bussus-lès-Yaucourt',dep:'80',d:'2026-11-21',ds:[13,19],t:'jour'},
+ {id:'capellois',n:'Urban Trail Capellois',v:'La Capelle',dep:'02',d:'2026-11-21',ds:[7,14],t:'urban',note:'frontale obligatoire'},
+ {id:'pasly',n:'Pasly Noc’Trail',v:'Pasly',dep:'02',d:'2026-11-21',ds:[7.5,15],t:'nuit'},
+ {id:'allumes',n:'Trail des Allumés',v:'Namps-Maisnil',dep:'80',d:'2026-11-28',ds:[16],t:'nuit'},
+ {id:'cheminsdames',n:'Trail du Chemin des Dames',v:'Chamouille',dep:'02',d:'2026-11-29',ds:[12,25],t:'jour',note:'édition nocturne le samedi 28'},
+ {id:'gandelu',n:'Trail de Gandelu',v:'Gandelu',dep:'02',d:'2026-12-05',ds:[5.5,10.5,14.5],t:'jour'},
+ {id:'medievale',n:'Trail Nocturne la Médiévale',v:'Estrées-lès-Crécy',dep:'80',d:'2026-12-05',ds:[11,15],t:'nuit'},
+ {id:'candas',n:'Trail Dahu’ri Candas',v:'Candas',dep:'80',d:'2026-12-12',ds:[7,9,11,17],t:'jour'},
+ {id:'perenoel',n:'Trail du Père Noël',v:'Huchenneville',dep:'80',d:'2026-12-13',ds:[9,17,30],t:'jour'},
+ {id:'tamptrolls',n:'Tamp’Trolls Trail Nocturne',v:'Nesles-la-Montagne',dep:'02',d:'2027-01-23',ds:[13.8],t:'nuit',dpk:{13.8:470}},
+ {id:'aizy',n:'Trail des Lucioles',v:'Aizy-Jouy',dep:'02',d:'2027-01-30',ds:[10],t:'nuit',dpk:{10:250}},
+ {id:'capsolid',n:'La CapSolid’Erre',v:'Doullens',dep:'80',d:'2027-01-31',ds:[8,17],t:'obst',note:'obstacle run'},
+ {id:'sellepied',n:'Ultra Selle Pied',v:'Conty',dep:'80',d:'2027-03-14',ds:[6,12,50,75],t:'jour'},
+ {id:'lunebleue',n:'Trail de la Lune Bleue',v:'Ailly-sur-Noye',dep:'80',d:'2027-03-20',ds:[10,17,25],t:'jour'},
+ {id:'infernal',n:'L’Infernal du Bois (backyard)',v:'Chierry',dep:'02',d:'2027-04-04',ds:[6],t:'jour',dpk:{6:314},note:'backyard, boucles de 6 km'},
+ {id:'zikos',n:'Le Trail des Zikos',v:'Airaines',dep:'80',d:'2027-04-11',ds:[12,20],t:'jour'},
+ {id:'muches',n:'Trail des Muches',v:'Talmas',dep:'80',d:'2027-04-25',ds:[6,19],t:'jour'},
+ {id:'liger',n:'Trail du Liger',v:'Saint-Aubin-Rivière',dep:'80',d:'2027-05-23',ds:[11,22,33],t:'jour'}];
+const EXTRA_GEO={'Andilly':[49.0098,2.302],'Annet-sur-Marne':[48.9232,2.7067],'Tournan-en-Brie':[48.741,2.7769],'Cormeilles-en-Parisis':[48.9701,2.201],'La Trétoire':[48.8777,3.2425],'Saint-Thibault-des-Vignes':[48.8628,2.6792],'Laigneville':[49.2974,2.4328],'Faremoutiers':[48.7787,3.0038],'Saint-Leu-la-Forêt':[49.0211,2.243],'Chauconin-Neufmontiers':[48.97,2.8323],'Genainville':[49.1142,1.7558],'Beaumont-sur-Oise':[49.1372,2.2953],'Saint-Brice-sous-Forêt':[49.0034,2.3453],'Bouffémont':[49.0406,2.2995],'Bagneaux-sur-Loing':[48.2206,2.708],'Menucourt':[49.0273,1.974],'Montlignon':[49.0157,2.2882],'Soisy-sous-Montmorency':[48.9888,2.3003],'Jablines':[48.9157,2.7606],'Beauvais':[49.4425,2.0877],'Festieux':[49.5255,3.7609],'Hangest-en-Santerre':[49.7523,2.6031],'Urcel':[49.4936,3.5575],'Eppeville':[49.7363,3.0486],'Le Crotoy':[50.2469,1.6219],'Picquigny':[49.9265,2.1374],'Buzancy':[49.3086,3.3487],'Citerne':[49.9788,1.8153],'Bussus-lès-Yaucourt':[50.108,1.9948],'La Capelle':[49.9705,3.9146],'Pasly':[49.4017,3.2969],'Namps-Maisnil':[49.8058,2.1211],'Chamouille':[49.4723,3.671],'Gandelu':[49.0796,3.1782],'Estrées-lès-Crécy':[50.2612,1.9308],'Candas':[50.0992,2.282],'Huchenneville':[50.0498,1.8025],'Nesles-la-Montagne':[49.0008,3.4486],'Aizy-Jouy':[49.4372,3.5128],'Doullens':[50.1515,2.3516],'Conty':[49.7489,2.1476],'Ailly-sur-Noye':[49.7493,2.3524],'Chierry':[49.0326,3.4321],'Airaines':[49.9707,1.9511],'Talmas':[50.0433,2.3449],'Saint-Aubin-Rivière':[49.8666,1.7798]};
+/* type et D+ connus des épreuves de l'Oise ; heure de départ quand elle est publiée */
+const OISE_TYPE={maudite:'nuit',gury:'nuit',paradis:'nuit',noctrail:'nuit'},OISE_DPK={sauttrail:{21:380},aigles:{15:120}},EV_HOUR={senlis:'9 h 30 (29 km) · 10 h (15 km)',maudite:'soirée',noctrail:'soirée'};
+const EVT={jour:['☀️','Trail diurne','#F47C8A'],nuit:['🌙','Trail nocturne','#7CCBEA'],urban:['🏙️','Urban trail','#E5B85C'],obst:['🧗','Course à obstacles','#6FD3A5']};
+const REG={oise:['Oise (60)',d=>d==='60'],hdf:['Hauts-de-France',d=>['60','80','02','59','62'].includes(d)],idf:['Île-de-France',d=>['75','77','78','91','92','93','94','95'].includes(d)],all:['Tout',()=>true]};
+const DEPN={'60':'Oise','80':'Somme','02':'Aisne','59':'Nord','62':'Pas-de-Calais','75':'Paris','77':'Seine-et-Marne','78':'Yvelines','91':'Essonne','92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne','95':'Val-d’Oise'};
+const GEO=Object.assign({},OISE_GEO,EXTRA_GEO);
+const RADII=[null,5,15,30,50];
+let CS={more:12,q:'',reg:'oise',dist:'all',dp:'all',type:'all',per:'6m',sort:'date',me:null,rad:3,map:false,web:[],busy:false,zone:''};
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function evBase(){const L=OISE_TRAILS.map(([id,n,v,d,ds,note,url])=>({id,n,v,dep:'60',d,ds,note:note||null,url:url||null,t:OISE_TYPE[id]||'jour',dpk:OISE_DPK[id]||{},src:'oise'}))
+  .concat(EXTRA_TRAILS.map(e=>({note:null,url:null,dpk:{},...e,src:'base'})));
+  for(const w of CS.web)for(const o of w.items||[])if(!L.some(x=>norm(x.n)===norm(o.n)&&x.d.slice(0,7)===o.d.slice(0,7)))L.push(o);
+  return L.map(o=>({...o,ds:(o.ds||[]).filter(k=>k>=3),geo:o.geo||GEO[o.v]||null,h:o.h||EV_HOUR[o.id]||null,dpMax:Object.values(o.dpk||{}).length?Math.max(...Object.values(o.dpk)):null}));}
+const evById=id=>evBase().find(o=>o.id===id);
+function evFilter(o,now,opt){const q=norm(CS.q);if(!REG[CS.reg][1](o.dep))return false;
+  if(CS.type!=='all'&&o.t!==CS.type)return false;
+  const band={all:()=>true,a:k=>k<10,b:k=>k>=10&&k<20,c:k=>k>=20&&k<35,d:k=>k>=35}[CS.dist];if(CS.dist!=='all'&&!o.ds.some(band))return false;
+  if(CS.dp!=='all'){const v=o.dpMax;if(v==null)return false;if(CS.dp==='lo'&&v>=300||CS.dp==='mid'&&(v<300||v>800)||CS.dp==='hi'&&v<=800)return false;}
+  if(q&&!norm(o.n+' '+o.v+' '+(DEPN[o.dep]||'')).includes(q))return false;
+  if(CS.me&&RADII[CS.rad]&&!opt.noRad){if(!o.geo||geoKm(CS.me,o.geo)>RADII[CS.rad])return false;}
+  return true;}
+function evPast(o,now){const t=rWhen(o.d);return o.d.length===7?t<new Date(now.getFullYear(),now.getMonth(),1):t<now;}
+function oiseList(opt={}){const now=new Date(new Date().toDateString()),lim={'30j':30,'3m':90,'6m':183,all:9999}[CS.per]||9999;
+  let L=evBase().filter(o=>evFilter(o,now,opt)).filter(o=>opt.past?evPast(o,now)&&(now-rWhen(o.d))/DAY<=365:!evPast(o,now)&&(rWhen(o.d)-now)/DAY<=lim);
+  L.forEach(o=>o.km=CS.me&&o.geo?geoKm(CS.me,o.geo):null);
+  if(opt.past)return L.sort((a,b)=>rWhen(b.d)-rWhen(a.d));
+  return L.sort((a,b)=>CS.sort==='near'&&CS.me?(a.km??1e9)-(b.km??1e9)||rWhen(a.d)-rWhen(b.d):rWhen(a.d)-rWhen(b.d)||(a.km??0)-(b.km??0));}
+const evList=oiseList;
+function evRow(o){const p=inPlan(o.id),T=EVT[o.t];return `<div class="tr-row"><div style="flex:1;min-width:0;cursor:pointer" onclick="openEvent('${o.id}')"><b>${T[0]} ${esc(o.n)}</b><div class="muted small">${rDate(o.d)} · ${esc(o.v)}${o.dep!=='60'?' ('+o.dep+')':''}${o.km!=null?` · ${Math.round(o.km)} km de toi`:''}${o.src==='web'?' · 🔎 en ligne':''}</div></div>
+    <a class="ib" href="${o.url?esc(o.url):'https://www.google.com/search?q='+encodeURIComponent(o.n+' '+o.v+' trail '+o.d.slice(0,4))}" target="_blank" rel="noopener" aria-label="Site de la course">↗</a></div>
+    <div class="rc-tags" style="margin:-4px 0 10px">${o.ds.length?o.ds.map(k=>`<button class="chip sm ${p&&p.km===k?'on':''}" onclick="addFound('${o.id}',${k})">${kmFr(k)} km${o.dpk&&o.dpk[k]?' · '+o.dpk[k]+' m D+':''}</button>`).join(''):'<span class="muted small">Distances non publiées</span>'}${o.note?`<span class="muted small" style="align-self:center">${esc(o.note)}</span>`:''}</div>`;}
+function findCard(){const L=oiseList(),P=oiseList({past:true}),ch=(k,v,l)=>`<button class="chip sm ${CS[k]===v?'on':''}" onclick="CS.${k}='${v}';CS.more=12;renderCourses()">${l}</button>`,web=CS.web.reduce((a,w)=>a+(w.items||[]).length,0),last=CS.web.reduce((a,w)=>Math.max(a,w.at||0),0);
+  return `<div class="card"><h2>🗓️ Calendrier des trails</h2>
+  <input id="cs_q" type="search" placeholder="Nom, commune ou département" value="${esc(CS.q)}" oninput="CS.q=this.value;CS.more=12;clearTimeout(window.__csT);window.__csT=setTimeout(()=>{renderCourses();const e=$('#cs_q');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},300)">
+  <div class="cs-lab">Périmètre</div><div class="chips">${Object.entries(REG).map(([k,v])=>ch('reg',k,v[0])).join('')}</div>
+  <div class="cs-lab">Période</div><div class="chips">${ch('per','30j','30 jours')}${ch('per','3m','3 mois')}${ch('per','6m','6 mois')}${ch('per','all','Tout')}</div>
+  <div class="cs-lab">Distance</div><div class="chips">${ch('dist','all','Toutes')}${ch('dist','a','< 10 km')}${ch('dist','b','10–20 km')}${ch('dist','c','20–35 km')}${ch('dist','d','> 35 km')}</div>
+  <div class="cs-lab">D+ <span class="muted">(épreuves dont le D+ est publié)</span></div><div class="chips">${ch('dp','all','Tous')}${ch('dp','lo','< 300 m')}${ch('dp','mid','300–800 m')}${ch('dp','hi','> 800 m')}</div>
+  <div class="cs-lab">Type</div><div class="chips">${ch('type','all','Tous')}${Object.entries(EVT).map(([k,v])=>ch('type',k,v[0]+' '+v[1].replace('Trail ','').replace('Course à ','').replace(/^./,c=>c.toUpperCase()))).join('')}</div>
+  <div class="cs-near"><button class="btn sm ${CS.me?'':'ghost'}" style="margin:0" onclick="csNear()">📍 Autour de moi</button>${CS.me?`<button class="chip sm ${CS.sort==='near'?'on':''}" onclick="CS.sort=CS.sort==='near'?'date':'near';renderCourses()">Trier par distance</button><button class="chip sm" onclick="CS.me=null;CS.sort='date';renderCourses()">✕</button>`:''}<button class="chip sm ${CS.map?'on':''}" onclick="CS.map=!CS.map;renderCourses()">🗺️ Carte</button></div>
+  ${CS.me?`<div class="cs-rad"><label for="cs_rad">Rayon : <b>${RADII[CS.rad]?RADII[CS.rad]+' km':'illimité'}</b></label><input id="cs_rad" type="range" min="1" max="4" step="1" value="${CS.rad||4}" oninput="CS.rad=+this.value;CS.more=12;renderCourses()"><div class="cs-rt"><span>5</span><span>15</span><span>30</span><span>50 km</span></div></div>`:''}
+  ${CS.map?'<div id="csMap" class="cs-map"></div><div class="legend" style="margin-top:6px">'+Object.values(EVT).map(v=>`<span><i style="background:${v[2]}"></i>${v[1]}</span>`).join('')+'<span><i style="background:#fff"></i>au planning</span></div>':''}
+  <div class="muted small" style="margin-top:12px">${L.length} épreuve${L.length>1?'s':''} à venir${CS.me&&RADII[CS.rad]?' à moins de '+RADII[CS.rad]+' km':''} · ${CS.sort==='near'&&CS.me?'les plus proches d’abord':'les plus proches dans le temps d’abord'}</div>
+  ${L.slice(0,CS.more).map(evRow).join('')||'<p class="muted small">Aucune épreuve pour ces filtres.</p>'}${L.length>CS.more?`<button class="btn ghost wide sm" onclick="CS.more+=15;renderCourses()">Voir ${Math.min(15,L.length-CS.more)} épreuves de plus (${L.length-CS.more} restantes)</button>`:''}
+  ${P.length?`<details class="bmore" style="margin-top:12px"><summary>Événements terminés (${P.length})</summary>${P.slice(0,30).map(evRow).join('')}</details>`:''}
+  <div class="ins" style="margin-top:12px"><b>🔄 Actualiser en ligne</b>Calendrier intégré relevé le ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}${last?`, actualisé le ${new Date(last).toLocaleDateString('fr-FR')} (${web} épreuves en cache sur cet appareil)`:''}. Le coach cherche les dates à jour sur Adeorun et les calendriers de trail, pour le périmètre choisi ou une zone saisie.
+   <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="cs_zone" value="${esc(CS.zone||REG[CS.reg][0])}" style="flex:1" placeholder="Zone (ex. Oise, Somme, Val-d’Oise)"><button class="btn ai-b sm" style="margin:0" ${CS.busy?'disabled':''} onclick="${getKey()?'raceWebSearch()':'openSettings()'}">${CS.busy?'Recherche…':getKey()?'Actualiser':'Activer le coach'}</button></div></div>
+  <p class="note">Sources : Adeorun, Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire. Distances à vol d’oiseau depuis ta position.</p></div>`;}
 function renderCourses(){const el=$('[data-page=courses]');if(!el)return;el.innerHTML=raceCard(true)+racesCard()+findCard();if(CS.map)csMapDraw();}
 let csMapObj=null;
+function evPin(c,inp){return L.divIcon({className:'ev-pin',html:`<svg viewBox="0 0 24 32" width="24" height="32"><path d="M12 1C6 1 1.5 5.5 1.5 11.3 1.5 19 12 31 12 31S22.5 19 22.5 11.3C22.5 5.5 18 1 12 1z" fill="${c}" stroke="#0D131A" stroke-width="2"/><circle cx="12" cy="11.5" r="${inp?5:3.6}" fill="${inp?'#fff':'#0D131A'}"/></svg>`,iconSize:[24,32],iconAnchor:[12,31],popupAnchor:[0,-26]});}
 function csMapDraw(){ensureLeaflet().then(()=>{const el=$('#csMap');if(!window.L||!el)return;if(csMapObj){try{csMapObj.remove();}catch(e){}}const T=TILES.relief;csMapObj=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(csMapObj);
-  const pts=[];oiseList().filter(o=>o.geo).forEach(o=>{pts.push(o.geo);L.circleMarker(o.geo,{radius:7,color:'#0D131A',weight:2,fillColor:inPlan(o.id)?'#E5B85C':'#F47C8A',fillOpacity:.95}).addTo(csMapObj).bindPopup(`<b>${esc(o.n)}</b><br>${rDate(o.d)}<br>${esc(o.v)}${o.ds.length?' · '+o.ds.map(kmFr).join(' / ')+' km':''}`);});
-  if(CS.me){pts.push(CS.me);L.circleMarker(CS.me,{radius:6,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(csMapObj).bindPopup('Toi');}
+  const pts=[];oiseList().filter(o=>o.geo).forEach(o=>{pts.push(o.geo);L.marker(o.geo,{icon:evPin(EVT[o.t][2],!!inPlan(o.id)),title:o.n}).addTo(csMapObj).bindPopup(`<b>${esc(o.n)}</b><br>${rDate(o.d)}<br>${esc(o.v)}${o.ds.length?' · '+o.ds.map(kmFr).join(' / ')+' km':''}<br><a href="#" onclick="openEvent('${o.id}');return false">Voir la fiche</a>`);});
+  if(CS.me){pts.push(CS.me);L.circleMarker(CS.me,{radius:7,color:'#fff',weight:2,fillColor:'#7CCBEA',fillOpacity:1}).addTo(csMapObj).bindPopup('Toi');if(RADII[CS.rad])L.circle(CS.me,{radius:RADII[CS.rad]*1000,color:'#7CCBEA',weight:1.5,fillOpacity:.06,dashArray:'4 6'}).addTo(csMapObj);}
   if(pts.length)csMapObj.fitBounds(pts,{padding:[24,24],maxZoom:11});else csMapObj.setView([49.41,2.42],9);});}
-function csNear(){if(CS.me){CS.sort='near';renderCourses();return;}if(!navigator.geolocation){toast('Géolocalisation indisponible');return;}toast('Localisation…');
-  navigator.geolocation.getCurrentPosition(p=>{CS.me=[p.coords.latitude,p.coords.longitude];CS.sort='near';renderCourses();},e=>toast(e&&e.code===1?'Position refusée : tri par date':'Position indisponible'),{timeout:12000,maximumAge:600e3});}
-function addFound(id,km){const o=oiseList().find(x=>x.id===id)||(CS.web&&CS.web.items.find(x=>x.id===id));if(!o)return;const ex=inPlan(id);
+function csNear(){if(CS.me){CS.sort=CS.sort==='near'?'date':'near';renderCourses();return;}if(!navigator.geolocation){toast('Géolocalisation indisponible');return;}toast('Localisation…');
+  navigator.geolocation.getCurrentPosition(p=>{CS.me=[p.coords.latitude,p.coords.longitude];if(!CS.rad)CS.rad=3;CS.more=12;renderCourses();},e=>toast(e&&e.code===1?'Position refusée : tri par date':'Position indisponible'),{timeout:12000,maximumAge:600e3});}
+/* ---------- Fiche épreuve ---------- */
+const WX={};let EVD=null;
+async function evWeather(o,force){if(!o.geo||o.d.length!==10)return null;const dd=Math.round((rWhen(o.d)-new Date(new Date().toDateString()))/DAY);if(dd<0||dd>14)return null;
+  const k=o.id+o.d;if(!force&&WX[k]&&Date.now()-WX[k].at<3*3600e3)return WX[k];
+  const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${o.geo[0].toFixed(3)}&longitude=${o.geo[1].toFixed(3)}&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m,precipitation_probability&start_date=${o.d}&end_date=${o.d}&timezone=Europe%2FParis&wind_speed_unit=kmh`);if(!r.ok)throw new Error('Météo indisponible');const j=await r.json(),H=j.hourly;
+  const hh=o.t==='nuit'?19:/^(\d{1,2}) h/.test(o.h||'')?+o.h.match(/^(\d{1,2})/)[1]:9,i=Math.max(0,H.time.findIndex(t=>+t.slice(11,13)===hh)),T=H.temperature_2m[i],RH=H.relative_humidity_2m[i],Td=H.dew_point_2m[i];
+  const tMax=Math.max(...H.temperature_2m.slice(i,i+4)),w={at:Date.now(),h:hh,T,RH,Td,wind:Math.round(H.wind_speed_10m[i]),pp:H.precipitation_probability?H.precipitation_probability[i]:null,tMax,pct:heatPct(T,Td),dd};WX[k]=w;
+  const obj=S.race&&RACES().find(x=>x.src===o.id&&S.race.name===x.n&&S.race.date===x.d);if(obj&&(S.race.temp!==Math.round(T)||S.race.hum!==Math.round(RH))){S.race.temp=Math.round(T);S.race.hum=Math.round(RH);save();}
+  return w;}
+function openEvent(id){const o=evById(id);if(!o){toast('Épreuve introuvable');return;}EVD={id,km:(inPlan(id)||{}).km||o.ds[o.ds.length>1?o.ds.length-2:0]||null};renderEvent();$('#sheet').classList.add('on');
+  const dd=Math.round((rWhen(o.d)-new Date(new Date().toDateString()))/DAY);if(o.geo&&o.d.length===10&&dd>=0&&dd<=14)evWeather(o).then(()=>{if(EVD&&EVD.id===id&&$('#sheet').classList.contains('on'))renderEvent();}).catch(e=>{WX[o.id+o.d]={err:e.message,at:Date.now()};if(EVD&&EVD.id===id)renderEvent();});}
+function renderEvent(){const o=evById(EVD.id);if(!o)return;const T=EVT[o.t],p=inPlan(o.id),now=new Date(new Date().toDateString()),dd=Math.round((rWhen(o.d)-now)/DAY),km=EVD.km,dp=km&&o.dpk[km]!=null?o.dpk[km]:p&&p.km===km?p.dp:null;
+  const prof=p&&p.km===km&&p.gpx?{pts:p.gpx.pts,aid:[],real:1}:km&&dp?{...raceStrategy({name:o.n,date:o.d.length===10?o.d:o.d+'-15',km,dp:dp||0}),aid:[]}:null,w=WX[o.id+o.d];
+  const ins=o.url&&/adeorun\.com/.test(o.url)?o.url.replace(/\/$/,'')+'/inscription':o.url,isObj=p&&S.race&&S.race.name===p.n&&S.race.date===p.d;
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:flex-start"><div><div class="muted small">${T[0]} ${T[1]}${o.src==='web'?' · trouvée en ligne':''}</div><h2 style="margin:2px 0 0">${esc(o.n)}</h2></div><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <div class="grid" style="margin-top:12px"><div class="stat"><b style="font-size:20px">${o.d.length===10?parseISO(o.d).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}):MOISL[+o.d.slice(5,7)-1]}</b><small>${o.d.length===10?(dd>0?'dans '+dd+' j':dd===0?'aujourd’hui':'terminé')+(o.h?' · '+esc(o.h):''):'jour à confirmer'}</small></div><div class="stat"><b style="font-size:20px">${esc(o.v)}</b><small>${DEPN[o.dep]||o.dep}${o.km!=null?' · '+Math.round(o.km)+' km de toi':''}</small></div></div>
+  <h3>Distances</h3><div class="chips">${o.ds.length?o.ds.map(k=>`<button class="chip ${km===k?'on':''}" onclick="EVD.km=${k};renderEvent()">${kmFr(k)} km${o.dpk[k]?' · '+o.dpk[k]+' m D+':''}</button>`).join(''):'<span class="muted small">Distances non publiées : vois le site de la course.</span>'}</div>${o.note?`<p class="note">${esc(o.note)}</p>`:''}
+  ${prof?`<h3>Profil ${prof.real?'du tracé':'théorique'}</h3>${profileSvg(prof)}<p class="note">${prof.real?`Tracé GPX : ${kmFr(p.gpxInfo.km)} km · ${p.gpxInfo.up} m D+.`:`Profil simplifié d’après la distance et le D+ (${dp} m). Le tracé GPX réel arrive quand la course est dans ton planning.`}</p>`:km?`<h3>Profil</h3><p class="note">D+ non publié pour ce format : ajoute la course à ton planning, l’appli cherche le tracé GPX et affiche le vrai profil.</p>`:''}
+  ${o.d.length===10&&dd>=0&&dd<=14?(w&&!w.err?`<h3>Météo prévue · départ vers ${w.h} h</h3><div class="grid"><div class="stat"><b>${Math.round(w.T)} °C</b><small>max ${Math.round(w.tMax)} °C</small></div><div class="stat"><b>${Math.round(w.RH)} %</b><small>humidité</small></div><div class="stat"><b>${w.wind} km/h</b><small>vent</small></div>${w.pp!=null?`<div class="stat"><b>${w.pp} %</b><small>risque de pluie</small></div>`:''}</div>
+     <div class="ins ${w.pct<.005?'ok':w.pct<.03?'':'warn'}"><b>${w.pct<.005?'Pas d’impact de la chaleur':'Allures ralenties de '+pctFr(w.pct)}</b>${w.pct<.005?'Conditions fraîches : allures normales.':'Pour le même effort, prévois '+pctFr(w.pct)+' de plus au kilomètre, bois 500 ml par heure et cours à l’effort.'}${w.wind>=30?' Vent fort : abrite-toi dans un groupe sur les sections exposées.':''}${isObj?' Appliqué à ta stratégie d’allure.':''}</div><p class="note">Prévision Open-Meteo aux coordonnées de ${esc(o.v)}, mise à jour toutes les 3 h.</p>`:w&&w.err?`<p class="note">Météo indisponible : ${esc(w.err)}</p>`:'<p class="note">Chargement de la météo…</p>'):o.d.length===10&&dd>14?`<p class="note">🌦️ Prévision météo disponible à partir de J-14.</p>`:''}
+  <div class="row" style="margin-top:14px">${o.url?`<a class="btn sm ghost" style="margin:0" href="${esc(o.url)}" target="_blank" rel="noopener">Site officiel ↗</a>`:''}${ins&&ins!==o.url?`<a class="btn sm ghost" style="margin:0" href="${esc(ins)}" target="_blank" rel="noopener">S’inscrire ↗</a>`:''}${!o.url?`<a class="btn sm ghost" style="margin:0" href="https://www.google.com/search?q=${encodeURIComponent(o.n+' '+o.v+' trail '+o.d.slice(0,4))}" target="_blank" rel="noopener">Chercher le site ↗</a>`:''}</div>
+  ${dd>=0?`<div class="row" style="margin-top:10px">${isObj&&p.km===km?'<button class="btn wide" disabled>🏁 Objectif de ton plan</button>':`<button class="btn" style="flex:1" ${!km||o.d.length!==10?'disabled':''} onclick="evSetGoal()">🏁 Définir comme objectif${km?' ('+kmFr(km)+' km)':''}</button>`}${km&&!(p&&p.km===km)?`<button class="btn ghost" onclick="addFound('${o.id}',${km});renderEvent()">＋ Planning</button>`:''}</div>${o.d.length!==10?'<p class="note">Date à confirmer : l’objectif se règle quand le jour est publié (✎ dans ton planning).</p>':!km?'<p class="note">Choisis une distance pour en faire ton objectif.</p>':''}`:''}`;}
+function evSetGoal(){const o=evById(EVD.id),km=EVD.km;if(!o||!km||o.d.length!==10)return;let r=inPlan(o.id);
+  if(!r){addFound(o.id,km);r=inPlan(o.id);}else if(r.km!==km){addFound(o.id,km);r=inPlan(o.id);}
+  if(!r)return;RACES().forEach(x=>{if(x!==r&&x.prio==='A'&&x.st!=='fait')x.prio='B';});r.prio='A';if(r.dp==null&&o.dpk[km]!=null)r.dp=o.dpk[km];raceToPlan(r,true);
+  const w=WX[o.id+o.d];if(w&&!w.err){S.race.temp=Math.round(w.T);S.race.hum=Math.round(w.RH);}
+  save();renderAll();renderEvent();toast(`🏁 ${o.n} (${kmFr(km)} km) est l’objectif de ton plan`);}
+/* ---------- Cache des épreuves (IndexedDB) ---------- */
+const EVDB={tx(mode,fn){return IDB.open().then(db=>new Promise((ok,ko)=>{if(!db.objectStoreNames.contains('events')){ok(null);return;}const t=db.transaction('events',mode),st=t.objectStore('events');let res;const q=fn(st);if(q)q.onsuccess=()=>{res=q.result;};t.oncomplete=()=>ok(res);t.onerror=()=>ko(t.error);}));},
+  put(o){return this.tx('readwrite',st=>st.put(o));},all(){return this.tx('readonly',st=>st.getAll());},del(k){return this.tx('readwrite',st=>st.delete(k));}};
+async function evCacheLoad(){try{const all=await EVDB.all()||[];if(S.raceWeb&&S.raceWeb.items){const k='web:'+norm(S.raceWeb.zone||'oise');if(!all.some(x=>x.k===k)){const rec={k,zone:S.raceWeb.zone,at:S.raceWeb.at||Date.now(),items:S.raceWeb.items};await EVDB.put(rec);all.push(rec);}delete S.raceWeb;save(true);}
+  CS.web=all.filter(x=>x&&x.items);if(CS.web.length)renderCourses();}catch(e){}}
+async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim())||REG[CS.reg][0];CS.zone=z;CS.busy=true;renderCourses();
+  try{const today=iso(new Date());let messages=[{role:'user',content:`Nous sommes le ${today}. Cherche sur le web les courses de trail, courses nature, trails nocturnes, urban trails et courses à obstacles prévues dans les 12 prochains mois dans cette zone : ${z}. Utilise des calendriers fiables, en commençant par Adeorun (calendrier.adeorun.com et les pages <nom>.adeorun.com des courses), puis les sites d'organisateurs, Miles Republic, Go Trail, Ahotu, Finishers, jogging-plus. Pour l'url, donne de préférence la page Adeorun de la course quand elle existe. Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme {"courses":[{"nom":"…","commune":"…","departement":"60","date":"AAAA-MM-JJ ou AAAA-MM si le jour n'est pas connu","heure":"9 h 30 ou null","type":"jour|nuit|urban|obstacles","distances_km":[10,21],"dplus_m":{"21":380},"lat":49.2,"lon":2.5,"url":"https://…"}]}. lat et lon = centre de la commune. Au plus 40 courses, triées par date, sans les courses enfants ni les marches.`}],j=null;
+    for(let i=0;i<4;i++){j=await claude({system:'Tu es l’assistant de recherche de l’appli Foulée. Tu réponds en JSON strict.',messages,tools:[{type:'web_search_20250305',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'FR',timezone:'Europe/Paris'}}],max:8000});
+      if(j.stop_reason!=='pause_turn')break;messages=[...messages,{role:'assistant',content:j.content}];}
+    const t=textOf(j),m=t.match(/\{[\s\S]*\}/);let o=null;try{o=m?JSON.parse(m[0]):null;}catch(e){}
+    const arr=(o&&o.courses)||[];if(!arr.length)throw new Error('Le coach n’a trouvé aucune course exploitable. Réessaie ou change la zone.');
+    const TY={jour:'jour',nuit:'nuit',nocturne:'nuit',urban:'urban',obstacles:'obst',obst:'obst'};
+    const items=arr.filter(c=>c&&c.nom&&/^\d{4}-\d{2}(-\d{2})?$/.test(c.date||'')).map((c,i)=>{const dpk={};if(c.dplus_m&&typeof c.dplus_m==='object'){for(const [k,v] of Object.entries(c.dplus_m))if(+v>0)dpk[+k]=Math.round(+v);}else if(+c.dplus_m>0&&(c.distances_km||[]).length)dpk[Math.max(...c.distances_km.map(Number))]=Math.round(+c.dplus_m);
+      const la=+c.lat,lo=+c.lon,geo=GEO[c.commune]||(la>41&&la<52&&lo>-6&&lo<10?[la,lo]:null);
+      return {id:'w'+norm(c.nom).replace(/[^a-z0-9]+/g,'').slice(0,18)+'_'+String(c.date).slice(0,7).replace('-',''),n:String(c.nom).slice(0,80),v:String(c.commune||'').slice(0,60),dep:/^\d{2}$/.test(c.departement||'')?c.departement:'60',d:c.date,h:c.heure?String(c.heure).slice(0,30):null,t:TY[norm(c.type)]||'jour',ds:(c.distances_km||[]).map(Number).filter(k=>k>=3&&k<400).slice(0,8),dpk,url:/^https?:\/\//.test(c.url||'')?c.url:null,geo,src:'web'};});
+    const rec={k:'web:'+norm(z),zone:z,at:Date.now(),items};await EVDB.put(rec).catch(()=>{});CS.web=CS.web.filter(w=>w.k!==rec.k).concat(rec);toast(`${items.length} épreuves trouvées en ligne (${z})`);}
+  catch(e){toast(e.message);}finally{CS.busy=false;renderCourses();}}
+
+function addFound(id,km){const o=evById(id);if(!o)return;const ex=inPlan(id);
   if(ex){if(ex.km===km){if(!confirm(`Retirer « ${o.n} » de ton planning ?`))return;S.races=RACES().filter(r=>r!==ex);tomb('races',ex.id);save();renderCourses();toast('Course retirée');return;}const wasObj=S.race&&S.race.name===ex.n&&S.race.date===ex.d;ex.km=km;if(ex.gpxInfo&&ex.dp===ex.gpxInfo.up)ex.dp=null;delete ex.gpx;delete ex.gpxInfo;delete ex.gpxLinks;if(wasObj)raceToPlan(ex,true);save();renderCourses();toast(`Distance changée : ${kmFr(km)} km`);if(gpxAutoOn())setTimeout(()=>findGpx(ex.id,true),400);return;}
-  const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dp||null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);if(gpxAutoOn())setTimeout(()=>findGpx(nr.id,true),1200);}
+  const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dpk&&o.dpk[km]!=null?o.dpk[km]:null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);if(gpxAutoOn())setTimeout(()=>findGpx(nr.id,true),1200);}
 function raceCycle(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.st={env:'ins',ins:'fait',fait:'env'}[r.st];save();renderCourses();if(r.st==='fait')openRaceEdit(id);}
 function racePrio(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.prio={A:'B',B:'C',C:'A'}[r.prio];if(r.prio==='A'&&r.d.length===7){r.prio='B';toast('Date à confirmer : saisis la date exacte (✎) pour en faire ton objectif');}if(r.prio==='A'){RACES().forEach(x=>{if(x!==r&&x.prio==='A'&&x.st!=='fait')x.prio='B';});raceToPlan(r);}save();renderAll();}
 function raceToPlan(r,quiet){if(r.d.length===7){if(!quiet)toast('Date à confirmer : saisis la date exacte pour caler le plan');return false;}const keep=S.race&&S.race.name===r.n?S.race:{};
@@ -2480,16 +2601,6 @@ function saveRaceEdit(quiet){reSync();const x={...RED};delete x._e;if(!x.n){toas
   if(kmCh&&x.km&&!x.gpx&&x.st!=='fait'&&gpxAutoOn()&&!quiet)setTimeout(()=>findGpx(x.id,true),400);if(i>=0)L[i]=x;else L.push(x);if(S.del&&S.del.races)S.del.races=S.del.races.filter(z=>z!==x.id);
   if(x.prio==='A'&&x.st!=='fait'){L.forEach(y=>{if(y.id!==x.id&&y.prio==='A'&&y.st!=='fait')y.prio='B';});raceToPlan(x,true);}save();closeSettings();renderAll();if(!quiet)toast(x.prio==='A'?'Course enregistrée et calée comme objectif 🏁':'Course enregistrée');}
 function delRaceEdit(){if(!confirm('Supprimer cette course du planning ?'))return;S.races=RACES().filter(r=>r.id!==RED.id);tomb('races',RED.id);save();closeSettings();renderAll();}
-async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim())||'Oise (60)';CS.zone=z;CS.busy=true;renderCourses();
-  try{const today=iso(new Date());let messages=[{role:'user',content:`Nous sommes le ${today}. Cherche sur le web les courses de trail (et courses nature) prévues dans les 12 prochains mois dans cette zone : ${z}. Utilise des calendriers fiables, en commençant par Adeorun (calendrier.adeorun.com et les pages <nom>.adeorun.com des courses), puis les sites d'organisateurs, Miles Republic, Go Trail, Ahotu, Finishers, jogging-plus. Pour l'url, donne de préférence la page Adeorun de la course quand elle existe. Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme {"courses":[{"nom":"…","commune":"…","date":"AAAA-MM-JJ ou AAAA-MM si le jour n'est pas connu","distances_km":[10,21],"dplus_m":null,"url":"https://…"}]}. Au plus 40 courses, triées par date, sans les courses enfants ni les marches.`}],j=null;
-    for(let i=0;i<4;i++){j=await claude({system:'Tu es l’assistant de recherche de l’appli Foulée. Tu réponds en JSON strict.',messages,tools:[{type:'web_search_20250305',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'FR',timezone:'Europe/Paris'}}],max:8000});
-      if(j.stop_reason!=='pause_turn')break;messages=[...messages,{role:'assistant',content:j.content}];}
-    const t=textOf(j),m=t.match(/\{[\s\S]*\}/);let o=null;try{o=m?JSON.parse(m[0]):null;}catch(e){}
-    const arr=(o&&o.courses)||[];if(!arr.length)throw new Error('Le coach n’a trouvé aucune course exploitable. Réessaie ou change la zone.');
-    const items=arr.filter(c=>c&&c.nom&&/^\d{4}-\d{2}(-\d{2})?$/.test(c.date||'')).map((c,i)=>({id:'w'+i+'_'+String(c.nom).toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,16),n:String(c.nom).slice(0,80),v:String(c.commune||'').slice(0,60),d:c.date,ds:(c.distances_km||[]).map(Number).filter(k=>k>=3&&k<400).slice(0,8),dp:c.dplus_m||null,url:/^https?:\/\//.test(c.url||'')?c.url:null,geo:OISE_GEO[c.commune]||null,src:'web'}));
-    CS.web={zone:z,at:Date.now(),items};S.raceWeb=CS.web;save(true);toast(`${items.length} courses trouvées en ligne`);}
-  catch(e){toast(e.message);}finally{CS.busy=false;renderCourses();}}
-
 /* ---------- Tracé GPX des courses du planning ---------- */
 const GPXB={};
 const okUrl=u=>typeof u==='string'&&/^https?:\/\/\S+$/.test(u)?u:null;
@@ -2920,7 +3031,7 @@ function showTab(t){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
 document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-if(S.raceWeb)CS.web=S.raceWeb;initChrono();renderAll();showInstall(false);setTimeout(cdjTick,2500);
+initChrono();renderAll();evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
