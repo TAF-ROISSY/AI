@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v7.1** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v7.2** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v7.1 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v7.2 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t25 | Séances avec matériel ou au poids du corps : programme STRBW sans KB, bascule par séance et défaut, barre ou table, adaptations (genou, silencieux), contexte du coach |
 | t24 | Calendrier famille : fichier .ics validé avec `icalendar` (fuseau Europe/Paris, rappel, UID, SEQUENCE, lignes ≤ 75 octets), journée entière, Google Agenda, envoi, tout le planning, état à mettre à jour, ouverture sur iPhone |
 | t23 | Calendrier v7 : périmètres, types, D+, distances, 30 jours, Autour de moi (rayon, tri secondaire), carte à marqueurs, événements terminés, fiche épreuve (profil, liens, objectif), météo Open-Meteo, cache IndexedDB et migration |
 | t22 | Adeorun dans le calendrier ; GPX d'une course du planning : récupéré par web_fetch, lien direct (CORS), fichier coupé, mauvaise distance, liens seuls, import manuel, recherche auto à la saisie du format |
@@ -75,6 +76,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 7.2 | Muscu : choix « Avec matériel » / « Poids du corps (callisthénie) » par défaut (carte dans Séances) et par séance (bascule sur chaque carte A/B/C) ; programme STRBW de 12 semaines sans kettlebell (11 nouveaux exercices : dips, pompes archer, pistol sur chaise, nordic curl, L-sit, front lever groupé…) |
 | 7.1 | Partage des courses du planning vers le calendrier famille : .ics (heure de départ du format, fin estimée, rappel la veille, UID stable et SEQUENCE pour les mises à jour), Google Agenda, envoi par Messages ; proposé au passage en « Inscrit » |
 | 7.0 | Calendrier des épreuves : 92 épreuves (Oise + Somme, Aisne, Val-d'Oise, Seine-et-Marne), filtres périmètre / distance / D+ / type / période, « Autour de moi » avec rayon 5–50 km, carte à marqueurs par type, événements terminés, fiche épreuve (profil théorique, liens site et inscription, « Définir comme objectif »), météo prévisionnelle à J-14 appliquée à la stratégie, cache IndexedDB `events` (base v3) des actualisations en ligne |
 | 6.9 | Adeorun ajouté comme source (19 liens de courses, dates confirmées) ; tracé GPX trouvé automatiquement quand le format (km) d'une course est saisi : `web_search` + `web_fetch`, GPX lu dans la réponse, contrôle ±20 % de la distance, sinon lien + import manuel |
