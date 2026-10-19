@@ -1,5 +1,6 @@
 // Foulée — service worker : appli disponible hors ligne, mises à jour récupérées en arrière-plan.
-const CACHE = 'foulee-v8.6';
+const CACHE = 'foulee-v8.7';
+const TILES = 'foulee-tiles'; // cartes hors ligne enregistrées par l'appli (jamais vidé à la mise à jour)
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -9,7 +10,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== TILES).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -17,6 +18,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
+  // Tuiles de carte : servies depuis les cartes hors ligne si elles y sont, sinon réseau (rien n'est ajouté automatiquement).
+  if (req.method === 'GET' && /(^|\.)tile\.opentopomap\.org$|basemaps\.cartocdn\.com$/.test(url.hostname)) {
+    e.respondWith(caches.open(TILES).then(c => c.match(req.url)).then(hit => hit || fetch(req)).catch(() => fetch(req)));
+    return;
+  }
   // Strava, API Claude et autres domaines : jamais interceptés ni mis en cache.
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   // Page : réseau d'abord (pour avoir la dernière version), cache si hors ligne.
