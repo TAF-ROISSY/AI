@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v8.6** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v8.7** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v8.6 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v8.7 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -68,6 +68,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t36 | Test VMA guidé (GPS simulé, annonces, recalcul des allures) et saisi ; coach pro (réajustement IA appliqué, annulation, plan d’origine, auto du dimanche, calage sur la course) ; description Strava (scope, PUT, file d’attente) |
 | t37 | Nutrition (calculs par durée / chaleur, prises, sac, ravitos, rappels vocaux en sortie guidée) ; chaleur (météo auto, journal, acclimatation 14 j) |
 | t38 | Check-up (FC réveil vs référence, courbatures, énergie, douleurs → forme, séances 🩹, zones muscu, journal, suppression) ; chaussures (Strava gear, paires saisies, usage, alerte, retrait) |
+| t39 | Cartes hors ligne (tuiles CORS en cache, pas de double téléchargement, suppression) ; bilan de la semaine en image ; défis entre amis (gist secret, lien #ami=, classement, retrait, lien illisible) |
 | t28 | Voix iPhone : déblocage au premier toucher, parole synchrone dans un toucher, session audio « playback », bips de secours, diagnostic « Tester la voix » (son / silencieux) |
 | t27 | Envoi d’une séance guidée à l’Apple Watch (URL `fouleewatch://plan?d=` en base64url, format compatible GuidedRun.swift, accents) + analyse syntaxique tree-sitter de tous les fichiers Swift |
 | t26 | Voix du coach (choix de la voix, débit), chrono (moitié, efforts restants, 10 s), course guidée GPS simulée (km, cible, fractions de 400 m, récup, point à la demande, enregistrement), rattachement Strava (type, ±1 jour, détacher) |
@@ -100,6 +101,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 | 8.4 | Test VMA guidé dans la course guidée (demi-Cooper 6 min ou Cooper 12 min : échauffement, test avec minutes restantes annoncées, VMA = distance ÷ 100 ou ÷ 200) ou saisi (`S.vma`) ; un test de moins de 150 jours remplace l’estimation des allures (10 km à 90 % de VMA, allure VMA = 3600 / VMA) ; carte Test VMA avec zones en % de VMA (Plan › Course). Coach pro (carte en tête de Plan › Course) : frise de périodisation des 12 semaines (Force, Vitesse, Seuil, Affûtage) avec la course, bouton « Caler le plan sur la course » (semaine 12 = semaine de course) ; réajustement IA des 7 prochains jours (`adjWeek`, outil `reajuster_semaine` : alléger / remplacer / annuler) stocké dans `S.adj` et appliqué par `adjO` dans `daySessions` (↓, 🔁, ⏸ ; annulées hors charge, calendrier et rattachement Strava), retour au plan d’origine, automatique le dimanche soir (`S.settings.coachWeekly`, `adjAuto`). Séance prévue écrite dans la description de la sortie Strava (`S.settings.stravaWrite`, scope `activity:write`, file `S.descQ`, `stravaDescFlush` après synchro), renommage optionnel des sorties au nom par défaut |
 | 8.5 | Plan nutrition & hydratation (`openFuel`, `fuelCalc`) : depuis la course objectif (durée estimée, ravitos de la stratégie, température) ou Plus ; glucides 0 / 30 / 45 / 60 / 70 g/h selon la durée, eau 400 à 900 ml/h selon chaleur et poids, sodium 300 à 700 mg/h, prises toutes les 20 min alignées sur les ravitos, contenu du sac, repas de la veille et petit-déjeuner ; rappels vocaux boire / gel toutes les 20 min dans les sorties guidées de plus d’1 h 15 (`S.settings.fuelVoice`). Mode chaleur & voyage : journal météo `S.heatLog` (60 j), acclimatation = séances de 30 min et plus par jour chaud (≥ 25 °C ou ralentissement ≥ 2 %) sur 14 jours, objectif 10 (`acclim`, `acclimBlock` dans la carte Chaleur), météo automatique à l’ouverture là où tu es (`S.settings.heatAuto`, `heatAutoRun`) |
 | 8.6 | Check-up du matin (`openCheck`, `S.check[date]` = FC réveil, courbatures 0-3, énergie 0-3, douleurs par zone 1-3) : effet sur la forme (`checkEffect` : FC +5 / +8 bpm sur la médiane des 30 derniers jours ou la FC de repos, courbatures, moral, douleur), séances de course du jour et du lendemain adaptées si douleur ≥ 2 au bas du corps (`chkO` dans `daySessions`, 🩹 ; forte = pas de course), genou / hanche / dos / épaule ajoutés aux zones de la muscu ; carte dans Aujourd’hui et Forme, journal du corps sur 28 jours (zones + courbe FC réveil). Chaussures (`openShoes`) : paires Strava (`S.gearStrava` lu sur /athlete à la synchro, NOSYNC, `gear_id` sur les sorties) + paires saisies (`S.shoes` : km de départ, paire par défaut), km, usage par type de sortie, durée de vie (700 km par défaut), alerte à 90 % dans Aujourd’hui, retrait |
+| 8.7 | Cartes hors ligne : tuiles relief d’une trace ou du GPX de la course (zoom 10 à 16, réduit pour rester ≤ 350 tuiles) téléchargées en CORS dans le cache `foulee-tiles` (les réponses opaques font exploser le quota), servies par le service worker en priorité, liste et suppression dans Plus (`localStorage.foulee_off`). Bilan de la semaine en image 1080×1350 (`shareWeek` : anneaux, km, séances, durée, D+, meilleure sortie) via le partage de l’iPhone ; bandeau le dimanche après-midi / lundi matin et bouton 📸 dans « Ta semaine ». Défis entre amis : totaux du mois (km, D+, heures, séances) et pseudo publiés dans un gist secret (`S.defiMe`, mis à jour après chaque synchro), lien `#ami=<id>` qui ajoute l’ami (`S.friends`, tombstone `friends`, aussi sur `hashchange`), classement par indicateur (`openDefis`) |
 | 7.4.1 | Voix iPhone fiabilisée : déblocage de la synthèse au premier toucher, plus de cancel() suivi d’un speak() différé pendant un toucher, énoncés gardés en mémoire, resume(), langue alignée sur la voix choisie, alerte « pas de voix ? » et diagnostic dans Réglages › Voix du coach |
 | 7.4 | Apple Watch : course guidée vocale écran verrouillé (GuidedRun.swift : AVSpeechSynthesizer fr-FR, distance HealthKit, mêmes annonces que l’iPhone, vibrations), app iPhone compagnon relais, bouton « ⌚ Envoyer à l’Apple Watch » dans Foulée |
 | 7.3 | Course guidée GPS avec voix (annonces de départ, moitié, fin, fractions restantes, km et allure cible, « Où j’en suis ? »), chrono enrichi, rattachement automatique des sorties Strava aux séances du plan (`S.links`, détacher), voix du coach réglable et lecture des conseils |
@@ -135,6 +137,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 ## Idées en attente
 
+- Vérifier que les tuiles OpenTopoMap acceptent le téléchargement en CORS (cartes hors ligne) sur un vrai iPhone.
 - Trace GPS des courses guidées de la montre dans Santé/Strava (HKWorkoutRouteBuilder + CoreLocation).
 
 - Journal alimentaire (une question restait ouverte dans le document d'analyse : chaleur ou journal alimentaire en priorité ; la chaleur a été faite en v6.2).
