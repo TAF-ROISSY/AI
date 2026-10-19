@@ -557,7 +557,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.4.1';
+const APP_VER='7.5';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1325,7 +1325,7 @@ async function gh(path,opt={}){const r=await fetch('https://api.github.com'+path
 async function fileText(f){if(!f)return null;if(!f.truncated)return f.content;const r=await fetch(f.raw_url);if(!r.ok)throw new Error('Lecture du coffre impossible');return r.text();}
 async function findGist(){const v=VC();if(v.gist){try{return await gh('/gists/'+v.gist);}catch(e){if(!/404/.test(e.message))throw e;}}
   for(let p=1;p<=5;p++){const l=await gh(`/gists?per_page=100&page=${p}`);const g=l.find(x=>x.description===GIST_DESC);if(g){setVC({gist:g.id});return gh('/gists/'+g.id);}if(l.length<100)break;}return null;}
-const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns','watchSent'];
+const NOSYNC=['tokens','activities','lastSync','histV','demo','heat','cdjSeen','cdjFail','raceWeb','gruns','watchSent','planCalAt'];
 function syncPayload(){const d={};for(const k of Object.keys(S))if(!NOSYNC.includes(k))d[k]=S[k];return {mt:S.mt||0,data:JSON.parse(JSON.stringify(d)),key:getKey()||null};}
 function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'+x.d;if(x.id!=null)return 'i:'+x.id;if(x.t!=null&&x.role)return 'c:'+x.t+x.role;}return 's:'+JSON.stringify(x);}
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
@@ -2353,6 +2353,7 @@ function renderPlan(){
   h+=`<div class="card ai"><h2>✨ Programme sur mesure</h2>${ap?`<p class="small">${esc(ap.resume)}</p><p class="note">Programme du coach actif depuis le ${parseISO(ap.created).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}${rp.ai?' · cette semaine : '+esc(rp.ai):''}.</p>`:'<p class="muted small">Le coach analyse toute ton année Strava (volumes, dénivelé, régularité, allures) et te propose un programme trail sur mesure, que tu valides avant qu’il remplace le plan.</p>'}
   ${progBusy?'<button class="btn ai-b sm" disabled>Le coach analyse ton année… (jusqu’à 1–2 min)</button>':k?`<button class="btn ai-b sm" onclick="genProgramme()">${ap?'↻ Nouveau programme':'✨ Proposer mon programme'}</button>`:'<button class="btn sm ghost" onclick="openSettings()">Activer le coach (clé API)</button>'}${progDraft&&!progBusy?' <button class="btn sm ghost" onclick="showProgDraft()">Voir la proposition</button>':''}${ap?' <button class="btn sm ghost" onclick="dropProg()">Revenir au plan standard</button>':''}</div>`;
   h+=`<div class="card"><h2>Séances de course</h2>${rp.s.map(s=>`<div class="muted small" style="margin-top:12px">${JOURSL[s.day]}</div>`+sessCard(s)).join('')}</div>`;
+  h+=`<div class="card banner"><span class="bi">📅</span><div style="flex:1;min-width:0"><b>Plan dans mon calendrier</b><div class="muted small">${S.planCalAt?'Exporté le '+new Date(S.planCalAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · réexporte après un changement':'Course et muscu, séance par séance'}</div></div><button class="btn sm" style="margin:0" onclick="openPlanCal()">Exporter</button></div>`;
   h+=hrZonesCard();
   h+=`<div class="cols"><div class="card"><h2>Tes allures cibles</h2><div class="pace"><span>Endurance facile</span><span>${fmtPace(P.easyLo)}–${fmtPace(P.easyHi)}</span><span>Sortie longue (plat)</span><span>${fmtPace(P.long)}</span><span>Seuil</span><span>${fmtPace(P.seuil)}</span><span>VMA longue (1000 m)</span><span>${fmtPace(P.vma)}</span><span>VMA courte (400 m)</span><span>${fmtPace(P.court)}</span></div><p class="note">min/km, recalculées à chaque synchro Strava. En côte, raisonne à l’effort, pas à l’allure.</p></div>`;
   h+=`<details class="card fold" ><summary><h2>Logique du plan</h2></summary><p class="small"><b>S1–4</b> côtes courtes : force et foulée. <b>S5–8</b> VMA : vitesse pure. <b>S9–12</b> seuil : tenir vite longtemps, puis test 5 km.<br>Semaines 4, 8 et 12 allégées pour assimiler.${rp.fQ!==1||rp.fV!==1?`<br><b>Ajusté à ton ressenti :</b> fractions ${rp.fQ>=1?'+':''}${Math.round((rp.fQ-1)*100)} %, volume ${rp.fV>=1?'+':''}${Math.round((rp.fV-1)*100)} %.`:'<br>Coche une séance et donne ton ressenti : la suite s’ajuste toute seule. Jours réglables dans Cross-training.'} 80 % du volume en facile, 1 séance dure par semaine : c’est ça qui rend plus rapide <i>et</i> plus confortable.</p></div></details>`;
@@ -2981,6 +2982,31 @@ function grSave(){const t=Math.round(grElapsed()/1000);if(GR.dist<200||t<60)retu
   const rec={id:Date.now(),k:GR.k,d:iso(new Date()),start:new Date(Date.now()-t*1000).toISOString(),km:+(GR.dist/1000).toFixed(2),t,splits:GR.splits.map(Math.round),steps:GR.stepRes,pts};S.gruns=[...(S.gruns||[]),rec].slice(-30);
   if(GR.k&&/^r\d+[qelr]$/.test(GR.k)){S.links=S.links||{};if(!S.links[GR.k]||S.links[GR.k].src!=='strava')S.links[GR.k]={src:'gps',gid:rec.id,km:rec.km,t,dp:null,at:Date.now()};S.done[GR.k]=true;S.doneAt=S.doneAt||{};S.doneAt[GR.k]=Date.now();}
   save();renderAll();}
+
+/* ---------- Export du plan d'entraînement dans le calendrier ---------- */
+let PCD={run:true,str:true,from:'now'};
+function planCalSessions(){const out=[],now=new Date(new Date().toDateString()),w0=PCD.from==='now'?Math.max(0,weekIdx()):0;
+  for(let w=w0;w<=11;w++)for(let d=0;d<7;d++){const dt=sessDate(w,d);if(dt<now)continue;daySessions(w,d).forEach(o=>{const run=!o.str;if(run&&!PCD.run||!run&&!PCD.str)return;out.push({o,dt,w,run});});}
+  return out;}
+function planIcs(L){const seq=Math.floor(Date.now()/60000)%2000000000,stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''),ev=[];
+  L.forEach(({o,dt,w,run})=>{const tmp=document.createElement('div');tmp.innerHTML=(o.x||'').replace(/<li>/g,'\n• ').replace(/<br\s*\/?>/g,'\n').replace(/<\/p>/g,'\n');tmp.querySelectorAll('button').forEach(b=>b.remove());
+    const e=new Date(dt);e.setDate(e.getDate()+1);const desc=`${strip(o.s||'')}\n\n${tmp.textContent.replace(/\n{3,}/g,'\n\n').trim()}\n\nSemaine ${w+1}/12 · Foulée`;
+    ev.push('BEGIN:VEVENT',`UID:foulee-plan-${o.k}@foulee.app`,`DTSTAMP:${stamp}`,`SEQUENCE:${seq}`,`DTSTART;VALUE=DATE:${icsD(iso(dt))}`,`DTEND;VALUE=DATE:${icsD(iso(e))}`,'TRANSP:TRANSPARENT',`SUMMARY:${icsEsc((run?'🏃 ':'🏋️ ')+strip(o.t)+(run&&/(\d+(?:[.,]\d+)?)\s*km/.test(o.s||'')?' · '+(o.s.match(/(\d+(?:[.,]\d+)?)\s*km/)[1])+' km':''))}`,`DESCRIPTION:${icsEsc(desc.slice(0,1800))}`,'CATEGORIES:Foulée','END:VEVENT');});
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Foulee//Plan//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Plan Foulée',...ev,'END:VCALENDAR'].map(icsFold).join('\r\n')+'\r\n';}
+function openPlanCal(){const L=planCalSessions(),nr=L.filter(x=>x.run).length,ns=L.length-nr,tg=(k,l)=>`<button class="chip ${PCD[k]?'on':''}" onclick="PCD.${k}=!PCD.${k};openPlanCal()">${l}</button>`;
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">📅 Plan dans mon calendrier</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">Toutes les séances prévues${PCD.from==='now'?' à partir d’aujourd’hui':' du cycle'}, une par jour en événement « journée » (ne bloque pas ton agenda), avec le détail de la séance, les allures et les distances dans la note.</p>
+  <div class="chips">${tg('run','🏃 Course')}${tg('str','🏋️ Muscu')}<button class="chip ${PCD.from==='all'?'on':''}" onclick="PCD.from=PCD.from==='now'?'all':'now';openPlanCal()">Tout le cycle</button></div>
+  <p class="small" style="margin-top:10px"><b>${L.length} séance${L.length>1?'s':''}</b> : ${nr} course${nr>1?'s':''}, ${ns} muscu.</p>
+  <button class="btn wide" ${L.length?'':'disabled'} onclick="planCalGo()">📅 Ajouter au calendrier de l’iPhone</button>
+  <button class="btn ghost wide" style="margin-top:8px" ${L.length?'':'disabled'} onclick="planCalSend()">✉️ Envoyer le fichier (.ics)</button>
+  <p class="note">Choisis le calendrier (par exemple un calendrier « Entraînement » créé pour l’occasion) puis « Tout ajouter ». Si le plan change (ressentis, programme du coach), réexporte : les séances déjà ajoutées sont remplacées, pas dupliquées. Pour tout retirer d’un coup, supprime le calendrier dans l’app Calendrier.</p>`;$('#sheet').classList.add('on');}
+function planCalGo(){const ics=planIcs(planCalSessions());window.__lastIcs=ics;const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(ios){const u='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);const w=window.open(u,'_blank');if(!w)location.href=u;}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'}));a.download='plan-foulee.ics';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);}
+  S.planCalAt=Date.now();save(true);toast('Plan envoyé au calendrier 📅');}
+async function planCalSend(){const ics=planIcs(planCalSessions()),file=new File([ics],'plan-foulee.ics',{type:'text/calendar'});window.__lastIcs=ics;
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Plan Foulée'});return;}}catch(e){if(e&&e.name==='AbortError')return;}planCalGo();}
 
 /* ---------- Envoi d'une séance guidée à l'Apple Watch (app compagnon iPhone) ---------- */
 function watchPlan(o){const pl=grPlan(o),r=v=>v?Math.round(v):null;return {v:1,id:o.k+'_'+iso(new Date()),name:strip(o.t).slice(0,48),date:iso(new Date()),steps:pl.steps.map(s=>({n:strip(s.n).slice(0,48),k:s.k,d:s.d?Math.round(s.d):null,t:s.t?Math.round(s.t):null,lo:r(s.lo),hi:r(s.hi),tp:r(s.tp)}))};}

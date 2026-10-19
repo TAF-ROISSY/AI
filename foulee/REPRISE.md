@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v7.4.1** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v7.5** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v7.4 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v7.5 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t29 | Export du plan complet dans le calendrier (.ics journée entière, UID par séance, filtres course / muscu / cycle) |
 | t28 | Voix iPhone : déblocage au premier toucher, parole synchrone dans un toucher, diagnostic « Tester la voix » (son / silencieux) |
 | t27 | Envoi d’une séance guidée à l’Apple Watch (URL `fouleewatch://plan?d=` en base64url, format compatible GuidedRun.swift, accents) + analyse syntaxique tree-sitter de tous les fichiers Swift |
 | t26 | Voix du coach (choix de la voix, débit), chrono (moitié, efforts restants, 10 s), course guidée GPS simulée (km, cible, fractions de 400 m, récup, point à la demande, enregistrement), rattachement Strava (type, ±1 jour, détacher) |
@@ -79,6 +80,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 7.5 | Export du plan d’entraînement (course + muscu, 12 semaines) dans le calendrier : bandeau dans Plan, .ics journée entière, détail de la séance en note, réexport sans doublon (UID par séance, SEQUENCE croissante). Strava n’a pas d’API pour les séances prévues |
 | 7.4.1 | Voix iPhone fiabilisée : déblocage de la synthèse au premier toucher, plus de cancel() suivi d’un speak() différé pendant un toucher, énoncés gardés en mémoire, resume(), langue alignée sur la voix choisie, alerte « pas de voix ? » et diagnostic dans Réglages › Voix du coach |
 | 7.4 | Apple Watch : course guidée vocale écran verrouillé (GuidedRun.swift : AVSpeechSynthesizer fr-FR, distance HealthKit, mêmes annonces que l’iPhone, vibrations), app iPhone compagnon relais, bouton « ⌚ Envoyer à l’Apple Watch » dans Foulée |
 | 7.3 | Course guidée GPS avec voix (annonces de départ, moitié, fin, fractions restantes, km et allure cible, « Où j’en suis ? »), chrono enrichi, rattachement automatique des sorties Strava aux séances du plan (`S.links`, détacher), voix du coach réglable et lecture des conseils |
