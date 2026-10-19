@@ -9,7 +9,7 @@ async def main():
         pg=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2)
         errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
-        await pg.goto('file:///home/claude/foulee/index.html')
+        await pg.goto('file://'+APP+'/index.html')
         await pg.evaluate('loadDemo()')
         await pg.click('#modSeg button[data-mod=muscu]')
         await pg.screenshot(path='n_home.png',full_page=True)

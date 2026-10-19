@@ -8,7 +8,7 @@ async def m():
         b=await p.chromium.launch()
         pg=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=2);e=[];pg.on('pageerror',lambda x:e.append(str(x)))
         await pg.route('https://fonts.**',lambda r: r.abort())
-        await pg.goto('file:///home/claude/foulee/index.html'); await pg.evaluate("loadDemo()")
+        await pg.goto('file://'+APP+'/index.html'); await pg.evaluate("loadDemo()")
         print('n défis',await pg.evaluate("DEFIS.length"), 'gods',await pg.evaluate("GODS.length"))
         print('check ids', await pg.evaluate("DEFIS.flatMap(D=>D.it.map(x=>x[0])).filter(x=>!CUE[x])"))
         for g in ['zeus','poseidon','iris','kentauros','aphrodite']:
