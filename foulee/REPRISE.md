@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v6.6** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v6.7** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v6.6 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v6.7 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t20 | Sommeil (saisie, forme, Coach du jour, suppression synchronisée), projection du ratio 7 j / 28 j, étoiles de la semaine et badges de bloc |
 | t19 | Coach du jour : moments (matin, après-midi, après séance, soir), ressenti, conseil IA manuel et automatique, carte repliée |
 
 Le fichier .FIT d'export se valide avec le SDK Garmin officiel : `pip install garmin-fit-sdk`.
@@ -70,6 +71,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 6.7 | Sommeil noté le matin (`S.sleep` par date) qui règle la forme du jour et allège la séance dure ; « Semaine prévue » : ratio 7 j / 28 j projeté jusqu'à dimanche ; étoiles de la semaine (régularité, charge, sommeil) et badges de bloc |
 | 6.6 | Coach du jour : carte en tête des accueils Trail, Muscu et Cross qui change selon le moment (matin, après-midi, après séance, soir) ; conseils calculés hors ligne + « ✨ Conseil du coach » (option automatique, ~3 appels/jour) ; heure de chaque séance cochée (`S.doneAt`) ; chemins des tests t4–t11 rendus relatifs |
 | 6.5.1 | Textes affichés en entier, niveaux de défi lisibles, tests autonomes (Leaflet inclus) |
 | 6.5 | Mise en ordre de l'interface : accueil Muscu recentré, actions de séance sur une ligne, cartes repliables, figures et défis compacts, chrono dans l'en-tête, textes d'aide repliés, icônes de titres |
