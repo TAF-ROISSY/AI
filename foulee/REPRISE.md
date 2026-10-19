@@ -1,6 +1,6 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v6.5** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v6.5.1** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 

@@ -3,7 +3,7 @@ APP=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..'
 AS=os.path.join(os.path.dirname(os.path.abspath(__file__)),'assets')
 import asyncio, json, base64, os
 from playwright.async_api import async_playwright
-D='node_modules/leaflet/dist/'
+D=AS+'/'
 # tuile : dégradé simple pour visualiser
 from PIL import Image; import io
 im=Image.new('RGB',(256,256),(210,214,200)); b=io.BytesIO(); im.save(b,'PNG'); TILE=b.getvalue()

@@ -5,7 +5,7 @@ import asyncio, io
 from playwright.async_api import async_playwright
 from PIL import Image
 im=Image.new('RGB',(256,256),(210,214,200)); b=io.BytesIO(); im.save(b,'PNG'); TILE=b.getvalue()
-D='node_modules/leaflet/dist/'
+D=AS+'/'
 async def m():
     async with async_playwright() as p:
         br=await p.chromium.launch();pg=await br.new_page(viewport={'width':390,'height':844},device_scale_factor=2);e=[];pg.on('pageerror',lambda x:e.append(str(x)))
