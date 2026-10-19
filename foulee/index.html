@@ -545,7 +545,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.8';
+const APP_VER='6.9';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2350,35 +2350,35 @@ function renderSuivi(){
 }
 
 /* ============ COURSES : planning + recherche de trails ============ */
-/* Calendrier des trails de l'Oise (60), relevé le 19/10/2026 sur Miles Republic, Go Trail et Ahotu.
-   [id, nom, commune, date (AAAA-MM-JJ, ou AAAA-MM si à confirmer), distances km, note] */
+/* Calendrier des trails de l'Oise (60), relevé le 19/10/2026 sur Adeorun, Miles Republic, Go Trail et Ahotu.
+   [id, nom, commune, date (AAAA-MM-JJ, ou AAAA-MM si à confirmer), distances km, note, page de la course (Adeorun si elle existe)] */
 const OISE_UPD='2026-10-19';
 const OISE_TRAILS=[
  ['grandparc','Tour du Grand Parc','Compiègne','2026-10-25',[8,15]],
- ['sauttrail','La Saut’trail','Verberie','2026-11-01',[4.9,9.9,21]],
- ['imperatrice','Sur les chemins de l’Impératrice','Compiègne','2026-11-07',[6,12]],
- ['maudite','Trail de la Montagne Maudite (nocturne)','Lagny','2026-11-07',[7,18]],
- ['gury','Trail nocturne de la Montagne de Gury','Gury','2026-11-14',[12]],
- ['montmacq','Montmacq’ximum','Montmacq','2026-11-15',[6,13]],
+ ['sauttrail','La Saut’trail','Verberie','2026-11-01',[5,10,21],'≈ 380 m D+ sur le 21 km','https://saut-trail.adeorun.com'],
+ ['imperatrice','Sur les chemins de l’Impératrice','Compiègne','2026-11-07',[6,12],null,'https://cheminsdelimperatrice.adeorun.com'],
+ ['maudite','Trail de la Montagne Maudite (nocturne)','Lagny','2026-11-07',[7,18],null,'https://trail-de-la-montagne-maudite-nocturne.adeorun.com'],
+ ['gury','Trail nocturne de la Montagne de Gury','Gury','2026-11-14',[12],null,'https://trail-montagne-paradis.adeorun.com'],
+ ['montmacq','Montmacq’ximum','Montmacq','2026-11-15',[6,13],null,'https://montmacqximum.adeorun.com'],
  ['novbleu','Trail Novembre Bleu','Foulangues','2026-11-15',[5,10]],
  ['siberien','Trail Sibérien','Feuquières','2026-11-21',[8.5,20]],
- ['pontoise','Trail de la Pont’Oise','Pont-Sainte-Maxence','2026-11-21',[8,16,25]],
- ['senlis','Trail de Senlis','Senlis','2026-11-29',[10,15,29],'10 km de nuit le samedi 28'],
+ ['pontoise','Trail de la Pont’Oise','Pont-Sainte-Maxence','2026-11-21',[8,16,25],null,'https://trail-de-la-pontoise.adeorun.com'],
+ ['senlis','Trail de Senlis','Senlis','2026-11-29',[10,15,29],'10 km de nuit le samedi 28','https://trail-de-senlis.adeorun.com'],
  ['tracy','La Trail’çotaine','Tracy-le-Val','2026-11',[5,6,8,10.2]],
  ['paradis','Trail nocturne de la Montagne du Paradis','Élincourt-Sainte-Marguerite','2026-11',[12]],
- ['orry','L’Orrygeoise','Orry-la-Ville','2026-12-12',[4.9,9.9,21,42.2],'version nocturne 5 et 10 km'],
- ['noctrail','La 14-18 Noctrail','Noyon','2026-12-19',[10,16,24],'nocturne'],
- ['blaincourt','Le 13 de Blaincourt','Blaincourt-lès-Précy','2027-01-09',[7,13]],
- ['pierrefonds','Trail du Château de Pierrefonds','Pierrefonds','2027-01',[13,27]],
- ['clermontrail','ClermonTrail','Saint-Aubin-sous-Erquery','2027-02',[8,16]],
+ ['orry','L’Orrygeoise','Orry-la-Ville','2026-12-12',[4.9,9.9,21,42.2],'Orrynight : nocturne 5 et 10 km','https://orrynight.adeorun.com'],
+ ['noctrail','La 14-18 Noctrail','Noyon','2026-12-19',[10,16,24],'nocturne','https://la-1418-noctrail-2026.adeorun.com'],
+ ['blaincourt','Le 13 de Blaincourt','Blaincourt-lès-Précy','2027-01-09',[7,13],null,'https://le-13-de-blaincourt.adeorun.com'],
+ ['pierrefonds','Trail du Château de Pierrefonds','Pierrefonds','2027-01-24',[13,27],null,'https://trail-pierrefonds.adeorun.com'],
+ ['clermontrail','ClermonTrail','Saint-Aubin-sous-Erquery','2027-02',[8,16],null,'https://clermontrail.adeorun.com'],
  ['rochers','Trail du Château des Rochers','Nogent-sur-Oise','2027-03',[10,15,30]],
- ['gladiateurs','Trail des Gladiateurs','Clairoix','2027-03',[10,20]],
+ ['gladiateurs','Trail des Gladiateurs','Clairoix','2027-03',[10,20],null,'https://trail-des-gladiateurs.adeorun.com'],
  ['vadrouille','La P’tite Vadrouille','Agnetz','2027-03',[12,19,38]],
- ['aigles','Trail des Aigles','Gouvieux','2027-03-21',[9,15],'≈ 120 m D+ sur le 15 km'],
+ ['aigles','Trail des Aigles','Gouvieux','2027-03-21',[9,15],'≈ 120 m D+ sur le 15 km','https://trail-des-aigles.adeorun.com'],
  ['paillardeine','La Paillardeine','Paillart','2027-03',[5,12,14.5]],
  ['jaux','La Jaux-viale','Jaux','2027-03',[5,9]],
- ['mareuil','La Mareuil’oise','Mareuil-la-Motte','2027-03',[7,12]],
- ['lucioles','Trail des P’tites Lucioles','Fleurines','2027-03',[],'distances non publiées'],
+ ['mareuil','La Mareuil’oise','Mareuil-la-Motte','2027-03',[7,12],null,'https://la-mareuiloise.adeorun.com'],
+ ['lucioles','Trail des P’tites Lucioles','Fleurines','2027-03',[],'distances non publiées','https://trail-des-lucioles.adeorun.com'],
  ['daniel','Les Chemins de Daniel','Ferrières','2027-04',[8,16]],
  ['coye','Courir pour Coye','Coye-la-Forêt','2027-04',[5,10]],
  ['solitrail','Soli’Trail Picard','Pontpoint','2027-04',[12,21]],
@@ -2387,16 +2387,16 @@ const OISE_TRAILS=[
  ['salency','Trail de la Fontaine Saint-Pierre','Salency','2027-04',[7,14,22]],
  ['fay','Trail de Fay-les-Étangs','Fay-les-Étangs','2027-04',[3.5,10,20]],
  ['cauvigny','Semi-marathon des 4 communes','Cauvigny','2027-04',[5,10,20,21]],
- ['blacourt','Course nature de Blacourt','Blacourt','2027-04',[12,22,42]],
+ ['blacourt','Course nature de Blacourt','Blacourt','2027-04-25',[12,22,42],null,'https://course-nature-blacourt.adeorun.com'],
  ['deuxmonts','Trail des 2 Monts','Fleurines','2027-04',[11,22,30]],
  ['bieres','Trail des Bières Sacrées','Larbroye','2027-04',[10,18]],
  ['bethisy','Trail de Béthisy-Saint-Martin','Béthisy-Saint-Martin','2027-04',[5,10,21]],
  ['fees','Trail de la Pierre aux Fées','Ponchon','2027-05',[10,15,27]],
- ['fresnoy','Trail des Fresnoy','Grandfresnoy','2027-05',[7.2,10,13.2]],
+ ['fresnoy','Trail des Fresnoy','Grandfresnoy','2027-05',[7.2,10,13.2],null,'https://trail-fresnoy.adeorun.com'],
  ['lignerouge','Ultra-trail de la Ligne Rouge','Thiescourt','2027-05',[10,20,43,100]],
  ['lysoise','La Lys’oise','Lamorlaye','2027-05',[5.3,10.5]],
  ['neuilly','Neuilly en Trail','Neuilly-en-Thelle','2027-05',[9,12,15,23]],
- ['verneuil','Trail du Château de Verneuil','Verneuil-en-Halatte','2027-05-30',[5,10,15,30]],
+ ['verneuil','Trail du Château de Verneuil','Verneuil-en-Halatte','2027-05-30',[5,10,15,30],null,'https://trail-du-chateau-verneuil.adeorun.com'],
  ['ardente','Foulées de l’Ardente','Vineuil-Saint-Firmin','2027-06',[5,10,11,18]],
  ['boissy','Les Foulées de Boissy-Fresnoy','Boissy-Fresnoy','2027-06',[5,7,10,15,20,85]],
  ['boisdescotes','Trail du Bois des Côtes','Bailleval','2027-06-19',[10,17,45,62]]];
@@ -2412,7 +2412,7 @@ const RACES=()=>{S.races=S.races||[];return S.races;};
 let CS={more:12,q:'',dist:'all',per:'6m',sort:'date',me:null,map:false,web:null,busy:false,zone:'Oise (60)'};
 function oiseList(){const now=new Date(new Date().toDateString()),lim=CS.per==='3m'?90:CS.per==='6m'?183:9999,q=CS.q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const band={all:()=>true,s:k=>k>=5&&k<12,m:k=>k>=12&&k<22,l:k=>k>=22&&k<36,xl:k=>k>=36}[CS.dist];
-  let L=OISE_TRAILS.map(([id,n,v,d,ds,note])=>({id,n,v,d,ds:ds.filter(k=>k>=3),note,geo:OISE_GEO[v],src:'oise'}));
+  let L=OISE_TRAILS.map(([id,n,v,d,ds,note,url])=>({id,n,v,d,ds:ds.filter(k=>k>=3),note,url:url||null,geo:OISE_GEO[v],src:'oise'}));
   if(CS.web&&CS.web.items)L=L.concat(CS.web.items.filter(w=>!L.some(o=>o.n.toLowerCase()===w.n.toLowerCase())));
   L=L.filter(o=>{const t=rWhen(o.d),dd=(t-now)/DAY;if(o.d.length===7?t<new Date(now.getFullYear(),now.getMonth(),1):dd<0)return false;if(dd>lim)return false;
     if(CS.dist!=='all'&&!(o.ds.length?o.ds.some(band):false))return false;if(q&&!(o.n+' '+o.v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q))return false;return true;});
@@ -2424,7 +2424,7 @@ function racesCard(){const R=RACES(),now=new Date(new Date().toDateString()),up=
   const A=up.filter(r=>r.prio==='A');if(A.length>1)warn.push(`${A.length} courses en objectif : garde un seul objectif principal par bloc de 12 semaines, les autres en préparation.`);
   const row=r=>{const j=Math.round((rWhen(r.d)-now)/DAY),obj=S.race&&S.race.name===r.n&&S.race.date===r.d;return `<div class="rc-row ${r.st==='fait'?'past':''}"><div class="rc-d"><b>${r.d.length===7?'?':parseISO(r.d).getDate()}</b><small>${MOISC[+r.d.slice(5,7)-1]}</small></div>
     <div style="flex:1;min-width:0"><b>${esc(r.n)}</b><div class="muted small">${esc(r.v||'')}${r.km?' · '+kmFr(r.km)+' km':''}${r.dp?' · '+r.dp+' m D+':''}${r.d.length===7?' · date à confirmer':''}</div>
-    <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
+    <div class="rc-tags"><span class="chip sm ${r.st==='ins'?'on':''}" onclick="raceCycle('${r.id}')">${RST[r.st][0]} ${RST[r.st][1]}</span><span class="chip sm ${r.prio==='A'?'on':''}" onclick="racePrio('${r.id}')">${r.prio} · ${RPRIO[r.prio]}</span>${obj?'<span class="chip sm on">🏁 Plan</span>':''}${gpxChip(r)}${r.res?`<span class="chip sm">⏱ ${fmtH(r.res)}</span>`:''}</div></div>
     <div class="rc-j">${r.st==='fait'||j<0?'':j===0?'Jour J':'J-'+j}<button class="ib" onclick="openRaceEdit('${r.id}')" aria-label="Modifier">✎</button></div></div>`;};
   return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">🗓️ Mon planning</h2><button class="btn sm" style="margin:0;white-space:nowrap" onclick="openRaceEdit()">＋ Course</button></div>
   ${up.length?up.map(row).join(''):'<p class="muted small" style="margin-top:8px">Aucune course prévue. Ajoute-en une à la main ou depuis la recherche ci-dessous.</p>'}
@@ -2445,7 +2445,7 @@ function findCard(){const L=oiseList(),ch=(k,v,l)=>`<button class="chip sm ${CS[
   ${L.slice(0,CS.more).map(item).join('')||'<p class="muted small">Aucun trail pour ces filtres.</p>'}${L.length>CS.more?`<button class="btn ghost wide sm" onclick="CS.more+=15;renderCourses()">Voir ${Math.min(15,L.length-CS.more)} trails de plus (${L.length-CS.more} restants)</button>`:''}
   <div class="ins" style="margin-top:12px"><b>🔎 Recherche en ligne par le coach</b>Le calendrier intégré date du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}. Le coach peut chercher sur le web les dates à jour, ou des trails dans une autre zone.
    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="cs_zone" value="${esc(CS.zone)}" style="flex:1" placeholder="Zone (ex. Oise, Somme, Val-d’Oise)"><button class="btn ai-b sm" style="margin:0" ${CS.busy?'disabled':''} onclick="${getKey()?'raceWebSearch()':'openSettings()'}">${CS.busy?'Recherche…':getKey()?'Chercher':'Activer le coach'}</button></div></div>
-  <p class="note">Sources : Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire.</p></div>`;}
+  <p class="note">Sources : Adeorun, Miles Republic, Go Trail, Ahotu (relevé du ${parseISO(OISE_UPD).toLocaleDateString('fr-FR')}). « Date à confirmer » = mois de la dernière édition annoncée : vérifie sur le site de l’organisateur avant de t’inscrire.</p></div>`;}
 function renderCourses(){const el=$('[data-page=courses]');if(!el)return;el.innerHTML=raceCard(true)+racesCard()+findCard();if(CS.map)csMapDraw();}
 let csMapObj=null;
 function csMapDraw(){ensureLeaflet().then(()=>{const el=$('#csMap');if(!window.L||!el)return;if(csMapObj){try{csMapObj.remove();}catch(e){}}const T=TILES.relief;csMapObj=L.map(el,{zoomControl:false});L.tileLayer(T[0],{attribution:T[1],maxZoom:T[2],subdomains:'abc'}).addTo(csMapObj);
@@ -2455,30 +2455,33 @@ function csMapDraw(){ensureLeaflet().then(()=>{const el=$('#csMap');if(!window.L
 function csNear(){if(CS.me){CS.sort='near';renderCourses();return;}if(!navigator.geolocation){toast('Géolocalisation indisponible');return;}toast('Localisation…');
   navigator.geolocation.getCurrentPosition(p=>{CS.me=[p.coords.latitude,p.coords.longitude];CS.sort='near';renderCourses();},e=>toast(e&&e.code===1?'Position refusée : tri par date':'Position indisponible'),{timeout:12000,maximumAge:600e3});}
 function addFound(id,km){const o=oiseList().find(x=>x.id===id)||(CS.web&&CS.web.items.find(x=>x.id===id));if(!o)return;const ex=inPlan(id);
-  if(ex){if(ex.km===km){if(!confirm(`Retirer « ${o.n} » de ton planning ?`))return;S.races=RACES().filter(r=>r!==ex);tomb('races',ex.id);save();renderCourses();toast('Course retirée');return;}ex.km=km;save();renderCourses();toast(`Distance changée : ${kmFr(km)} km`);return;}
-  const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dp||null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);}
+  if(ex){if(ex.km===km){if(!confirm(`Retirer « ${o.n} » de ton planning ?`))return;S.races=RACES().filter(r=>r!==ex);tomb('races',ex.id);save();renderCourses();toast('Course retirée');return;}const wasObj=S.race&&S.race.name===ex.n&&S.race.date===ex.d;ex.km=km;if(ex.gpxInfo&&ex.dp===ex.gpxInfo.up)ex.dp=null;delete ex.gpx;delete ex.gpxInfo;delete ex.gpxLinks;if(wasObj)raceToPlan(ex,true);save();renderCourses();toast(`Distance changée : ${kmFr(km)} km`);if(gpxAutoOn())setTimeout(()=>findGpx(ex.id,true),400);return;}
+  const nr={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:id,n:o.n,v:o.v,d:o.d,km,dp:o.dp||null,st:'env',prio:km>=20&&o.d.length===10&&!RACES().some(r=>r.prio==='A'&&r.st!=='fait')?'A':'C',url:o.url||null};RACES().push(nr);const obj=nr.prio==='A'&&raceToPlan(nr,true);save();renderAll();toast(`${o.n} ajoutée à ton planning${obj?' · objectif du plan 🏁':''}`);if(gpxAutoOn())setTimeout(()=>findGpx(nr.id,true),1200);}
 function raceCycle(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.st={env:'ins',ins:'fait',fait:'env'}[r.st];save();renderCourses();if(r.st==='fait')openRaceEdit(id);}
 function racePrio(id){const r=RACES().find(x=>x.id===id);if(!r)return;r.prio={A:'B',B:'C',C:'A'}[r.prio];if(r.prio==='A'&&r.d.length===7){r.prio='B';toast('Date à confirmer : saisis la date exacte (✎) pour en faire ton objectif');}if(r.prio==='A'){RACES().forEach(x=>{if(x!==r&&x.prio==='A'&&x.st!=='fait')x.prio='B';});raceToPlan(r);}save();renderAll();}
 function raceToPlan(r,quiet){if(r.d.length===7){if(!quiet)toast('Date à confirmer : saisis la date exacte pour caler le plan');return false;}const keep=S.race&&S.race.name===r.n?S.race:{};
-  S.race={...keep,name:r.n,date:r.d,km:r.km||keep.km||10,dp:r.dp!=null?r.dp:(keep.dp||0)};if(!quiet)toast('Course calée comme objectif du plan 🏁');return true;}
+  S.race={...keep,name:r.n,date:r.d,km:r.km||keep.km||10,dp:r.dp!=null?r.dp:(keep.dp||0)};if(r.gpx)S.race.gpx=r.gpx;else if(keep.km&&keep.km!==S.race.km)delete S.race.gpx;if(!quiet)toast('Course calée comme objectif du plan 🏁');return true;}
 let RED=null;
 function openRaceEdit(id){const r=id?RACES().find(x=>x.id===id):null;RED=r?{...r,_e:1}:{id:'r'+Date.now().toString(36),n:'',v:'',d:'',km:null,dp:null,st:'env',prio:'C'};renderRaceEdit();$('#sheet').classList.add('on');}
 function renderRaceEdit(){const x=RED,dd=x.d&&x.d.length===10?x.d:'',res=x.res?Math.floor(x.res/3600)+':'+pad(Math.round(x.res%3600/60)):'';
   $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${x._e?'Modifier la course':'Ajouter une course'}</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
   <div class="form"><label>Nom</label><input id="re_n" value="${esc(x.n)}" placeholder="ex. Trail de Senlis"><label>Lieu</label><input id="re_v" value="${esc(x.v||'')}" placeholder="Commune">
-  <div class="f2"><div><label>Date${x.d&&x.d.length===7?' (prévue en '+MOISL[+x.d.slice(5,7)-1]+')':''}</label><input id="re_d" type="date" value="${dd}"></div><div><label>Distance (km)</label><input id="re_km" type="number" step="0.1" inputmode="decimal" value="${x.km??''}"></div>
+  <div class="f2"><div><label>Date${x.d&&x.d.length===7?' (prévue en '+MOISL[+x.d.slice(5,7)-1]+')':''}</label><input id="re_d" type="date" value="${dd}"></div><div><label>Distance de ton format (km)</label><input id="re_km" type="number" step="0.1" inputmode="decimal" value="${x.km??''}"></div>
   <div><label>D+ (m)</label><input id="re_dp" type="number" inputmode="numeric" value="${x.dp??''}"></div><div><label>Temps réalisé (h:mm)</label><input id="re_res" placeholder="après la course" value="${res}"></div></div>
   <label>Site de la course</label><input id="re_url" type="url" value="${esc(x.url||'')}" placeholder="https://…"></div>
   <h3>Statut</h3><div class="chips">${Object.entries(RST).map(([k,v])=>`<button class="chip ${x.st===k?'on':''}" onclick="reSync();RED.st='${k}';renderRaceEdit()">${v[0]} ${v[1]}</button>`).join('')}</div>
   <h3>Priorité</h3><div class="chips">${Object.entries(RPRIO).map(([k,v])=>`<button class="chip ${x.prio===k?'on':''}" onclick="reSync();RED.prio='${k}';renderRaceEdit()">${k} · ${v}</button>`).join('')}</div>
+  ${gpxBlock(x)}
   <div class="row" style="margin-top:14px"><button class="btn" style="flex:1" onclick="saveRaceEdit()">Enregistrer</button>${x._e?`<button class="btn ghost" onclick="delRaceEdit()">Supprimer</button>`:''}</div>`;}
 function reSync(){const g=i=>$(i)?$(i).value.trim():'';RED.n=g('#re_n');RED.v=g('#re_v');const d=g('#re_d');if(d)RED.d=d;RED.km=parseFloat(g('#re_km').replace(',','.'))||null;RED.dp=parseInt(g('#re_dp'))||null;RED.url=g('#re_url')||null;const m=g('#re_res').match(/^(\d{1,2})[:h](\d{2})$/);RED.res=m?(+m[1])*3600+(+m[2])*60:null;}
-function saveRaceEdit(){reSync();const x={...RED};delete x._e;if(!x.n){toast('Donne un nom à la course');return;}if(!x.d){toast('Choisis une date');return;}
-  const L=RACES(),i=L.findIndex(r=>r.id===x.id);if(i>=0)L[i]=x;else L.push(x);if(S.del&&S.del.races)S.del.races=S.del.races.filter(z=>z!==x.id);
-  if(x.prio==='A'&&x.st!=='fait'){L.forEach(y=>{if(y.id!==x.id&&y.prio==='A'&&y.st!=='fait')y.prio='B';});raceToPlan(x,true);}save();closeSettings();renderAll();toast(x.prio==='A'?'Course enregistrée et calée comme objectif 🏁':'Course enregistrée');}
+function saveRaceEdit(quiet){reSync();const x={...RED};delete x._e;if(!x.n){toast('Donne un nom à la course');return;}if(!x.d){toast('Choisis une date');return;}
+  const L=RACES(),i=L.findIndex(r=>r.id===x.id),old=i>=0?L[i]:null,kmCh=!old||old.km!==x.km;
+  if(kmCh&&x.gpxInfo&&x.km&&Math.abs(x.gpxInfo.km-x.km)/x.km>.2&&x.gpxInfo.src!=='fichier importé'){if(x.dp===x.gpxInfo.up)x.dp=null;delete x.gpx;delete x.gpxInfo;delete x.gpxLinks;}
+  if(kmCh&&x.km&&!x.gpx&&x.st!=='fait'&&gpxAutoOn()&&!quiet)setTimeout(()=>findGpx(x.id,true),400);if(i>=0)L[i]=x;else L.push(x);if(S.del&&S.del.races)S.del.races=S.del.races.filter(z=>z!==x.id);
+  if(x.prio==='A'&&x.st!=='fait'){L.forEach(y=>{if(y.id!==x.id&&y.prio==='A'&&y.st!=='fait')y.prio='B';});raceToPlan(x,true);}save();closeSettings();renderAll();if(!quiet)toast(x.prio==='A'?'Course enregistrée et calée comme objectif 🏁':'Course enregistrée');}
 function delRaceEdit(){if(!confirm('Supprimer cette course du planning ?'))return;S.races=RACES().filter(r=>r.id!==RED.id);tomb('races',RED.id);save();closeSettings();renderAll();}
 async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim())||'Oise (60)';CS.zone=z;CS.busy=true;renderCourses();
-  try{const today=iso(new Date());let messages=[{role:'user',content:`Nous sommes le ${today}. Cherche sur le web les courses de trail (et courses nature) prévues dans les 12 prochains mois dans cette zone : ${z}. Utilise des calendriers fiables (sites d'organisateurs, Miles Republic, Go Trail, Ahotu, Finishers, jogging-plus). Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme {"courses":[{"nom":"…","commune":"…","date":"AAAA-MM-JJ ou AAAA-MM si le jour n'est pas connu","distances_km":[10,21],"dplus_m":null,"url":"https://…"}]}. Au plus 40 courses, triées par date, sans les courses enfants ni les marches.`}],j=null;
+  try{const today=iso(new Date());let messages=[{role:'user',content:`Nous sommes le ${today}. Cherche sur le web les courses de trail (et courses nature) prévues dans les 12 prochains mois dans cette zone : ${z}. Utilise des calendriers fiables, en commençant par Adeorun (calendrier.adeorun.com et les pages <nom>.adeorun.com des courses), puis les sites d'organisateurs, Miles Republic, Go Trail, Ahotu, Finishers, jogging-plus. Pour l'url, donne de préférence la page Adeorun de la course quand elle existe. Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme {"courses":[{"nom":"…","commune":"…","date":"AAAA-MM-JJ ou AAAA-MM si le jour n'est pas connu","distances_km":[10,21],"dplus_m":null,"url":"https://…"}]}. Au plus 40 courses, triées par date, sans les courses enfants ni les marches.`}],j=null;
     for(let i=0;i<4;i++){j=await claude({system:'Tu es l’assistant de recherche de l’appli Foulée. Tu réponds en JSON strict.',messages,tools:[{type:'web_search_20250305',name:'web_search',max_uses:6,user_location:{type:'approximate',country:'FR',timezone:'Europe/Paris'}}],max:8000});
       if(j.stop_reason!=='pause_turn')break;messages=[...messages,{role:'assistant',content:j.content}];}
     const t=textOf(j),m=t.match(/\{[\s\S]*\}/);let o=null;try{o=m?JSON.parse(m[0]):null;}catch(e){}
@@ -2486,6 +2489,50 @@ async function raceWebSearch(){const z=($('#cs_zone')&&$('#cs_zone').value.trim(
     const items=arr.filter(c=>c&&c.nom&&/^\d{4}-\d{2}(-\d{2})?$/.test(c.date||'')).map((c,i)=>({id:'w'+i+'_'+String(c.nom).toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,16),n:String(c.nom).slice(0,80),v:String(c.commune||'').slice(0,60),d:c.date,ds:(c.distances_km||[]).map(Number).filter(k=>k>=3&&k<400).slice(0,8),dp:c.dplus_m||null,url:/^https?:\/\//.test(c.url||'')?c.url:null,geo:OISE_GEO[c.commune]||null,src:'web'}));
     CS.web={zone:z,at:Date.now(),items};S.raceWeb=CS.web;save(true);toast(`${items.length} courses trouvées en ligne`);}
   catch(e){toast(e.message);}finally{CS.busy=false;renderCourses();}}
+
+/* ---------- Tracé GPX des courses du planning ---------- */
+const GPXB={};
+const okUrl=u=>typeof u==='string'&&/^https?:\/\/\S+$/.test(u)?u:null;
+function gpxFromText(t){try{return {g:parseGpx(t),cut:false};}catch(e){
+  const pts=[...String(t).matchAll(/<(trkpt|rtept)\b([^>]*)>([\s\S]*?)(?=<\/\1>|<(?:trkpt|rtept)\b|$)/g)].map(m=>{const la=(m[2].match(/lat=["']([-\d.]+)/)||[])[1],lo=(m[2].match(/lon=["']([-\d.]+)/)||[])[1],el=(m[3].match(/<ele>\s*([-\d.]+)/)||[])[1];return la&&lo?`<trkpt lat="${la}" lon="${lo}">${el?`<ele>${el}</ele>`:''}</trkpt>`:'';}).filter(Boolean);
+  if(pts.length<2)throw e;const nm=(String(t).match(/<name>([^<]{1,120})<\/name>/)||[])[1]||'';
+  return {g:parseGpx(`<gpx><trk><name>${nm}</name><trkseg>${pts.join('')}</trkseg></trk></gpx>`),cut:!/<\/gpx>\s*$/.test(String(t).trim())};}}
+function attachGpx(r,g,src,cut){const st=gpxStats(g.pts),ok=!r.km||Math.abs(st.km-r.km)/r.km<=.2;
+  r.gpx=g;r.gpxInfo={km:+st.km.toFixed(1),up:st.up,src:src||null,ok,cut:!!cut,at:Date.now()};if(!r.dp)r.dp=st.up;
+  if(S.race&&S.race.name===r.n&&S.race.date===r.d){S.race.gpx=g;if(!S.race.dp)S.race.dp=st.up;}
+  return {st,ok};}
+function gpxAutoOn(){return S.settings.gpxAuto!==false&&!!getKey();}
+async function findGpx(id,auto){const r=RACES().find(x=>x.id===id);if(!r||GPXB[id])return;if(!getKey()){if(!auto)openSettings();return;}
+  if(!r.km){if(!auto)toast('Indique d’abord la distance de ton format (✎)');return;}
+  GPXB[id]=1;renderCourses();toast(`Le coach cherche le tracé GPX du ${kmFr(r.km)} km…`);
+  try{let messages=[{role:'user',content:`Trouve le tracé GPX officiel du parcours de ${kmFr(r.km)} km de la course « ${r.n} »${r.v?' à '+r.v:''} (${rDate(r.d)}).${r.url?' Page de la course : '+r.url:''}
+Où chercher, dans cet ordre : la page de la course sur Adeorun (https://<nom>.adeorun.com, section Parcours), le site de l'organisateur, Tracedetrail, Openrunner, Visorando, Garmin Connect, Strava, Komoot.
+Si tu trouves un lien direct vers un fichier .gpx téléchargeable sans compte pour CE parcours (même distance, à 20 % près), récupère-le avec l'outil web_fetch, une seule fois. Ne recopie jamais de coordonnées toi-même.
+Termine par un JSON seul, sans texte autour : {"gpx_url":"lien direct du fichier GPX ou null","page_url":"page où voir ou télécharger le tracé, ou null","source":"nom du site","km":nombre ou null,"dplus_m":nombre ou null,"remarque":"une phrase"}`}],blocks=[],j=null;
+    for(let i=0;i<4;i++){j=await claude({system:'Tu es l’assistant de recherche de l’appli Foulée. Ta réponse finale est un JSON strict.',messages,max:4000,
+        tools:[{type:'web_search_20250305',name:'web_search',max_uses:5,user_location:{type:'approximate',country:'FR',timezone:'Europe/Paris'}},{type:'web_fetch_20250910',name:'web_fetch',max_uses:4,max_content_tokens:150000}]});
+      blocks=blocks.concat(j.content||[]);if(j.stop_reason!=='pause_turn')break;messages=[...messages,{role:'assistant',content:j.content}];}
+    let got=null;
+    for(const b of blocks){if(b.type!=='web_fetch_tool_result'||!b.content)continue;const doc=b.content.content,d=doc&&doc.source&&doc.source.data;if(typeof d==='string'&&/<(trkpt|rtept)\b/.test(d)){try{got={...gpxFromText(d),url:b.content.url};break;}catch(e){}}}
+    const t=textOf(j),m=t.match(/\{[\s\S]*\}/);let o={};try{o=m?JSON.parse(m[0]):{};}catch(e){}
+    if(!got&&okUrl(o.gpx_url)){try{const rr=await fetch(o.gpx_url);if(rr.ok){const tx=await rr.text();if(/<(trkpt|rtept)\b/.test(tx))got={...gpxFromText(tx),url:o.gpx_url};}}catch(e){}}
+    const x=RACES().find(y=>y.id===id);if(!x)return;
+    x.gpxLinks={page:okUrl(o.page_url),gpx:okUrl(o.gpx_url),src:o.source?String(o.source).slice(0,40):null,note:o.remarque?String(o.remarque).slice(0,200):null,km:o.km||null,dp:o.dplus_m||null,at:Date.now()};
+    if(got){const a=attachGpx(x,got.g,got.url,got.cut);toast(a.ok&&!got.cut?`Tracé GPX trouvé : ${kmFr(a.st.km)} km · ${a.st.up} m D+ 🗺️`:`Tracé récupéré (${kmFr(a.st.km)} km) mais à vérifier : ${got.cut?'fichier incomplet':'distance différente de ton format'}`);}
+    else{if(!x.dp&&o.dplus_m>0)x.dp=Math.round(o.dplus_m);toast(x.gpxLinks.page||x.gpxLinks.gpx?'Tracé trouvé mais à télécharger : ouvre le lien puis importe le GPX (✎)':'Aucun GPX trouvé en ligne pour ce format');}}
+  catch(e){if(!auto||!/clé|Clé/.test(e.message))toast(e.message);}
+  finally{delete GPXB[id];save();renderAll();}}
+function gpxImportRace(inp){const f=inp.files[0];if(!f)return;f.text().then(t=>{try{reSync();const x=gpxFromText(t);const a=attachGpx(RED,x.g,'fichier importé',x.cut);if(!RED.km)RED.km=+a.st.km.toFixed(1);RED.dp=a.st.up;renderRaceEdit();toast(a.ok?'Tracé importé':'Tracé importé : distance différente de ton format, vérifie');}catch(e){toast(e.message);}});}
+function gpxChip(r){if(GPXB[r.id])return '<span class="chip sm">⏳ Recherche du tracé…</span>';
+  if(r.gpxInfo)return `<span class="chip sm ${r.gpxInfo.ok&&!r.gpxInfo.cut?'on':''}" onclick="openRaceEdit('${r.id}')">🗺️ ${kmFr(r.gpxInfo.km)} km · ${r.gpxInfo.up} m D+${r.gpxInfo.ok&&!r.gpxInfo.cut?'':' · à vérifier'}</span>`;
+  if(r.st==='fait')return '';if(!r.km)return `<span class="chip sm" onclick="openRaceEdit('${r.id}')">＋ Format (km)</span>`;
+  if(r.gpxLinks&&(r.gpxLinks.page||r.gpxLinks.gpx))return `<span class="chip sm" onclick="openRaceEdit('${r.id}')">🗺️ Tracé à télécharger</span>`;
+  return `<span class="chip sm" onclick="findGpx('${r.id}')">🗺️ Trouver le GPX</span>`;}
+function gpxBlock(x){const L=x.gpxLinks,I=x.gpxInfo;
+  return `<h3>Tracé GPX</h3>${I?`<div class="ins ${I.ok&&!I.cut?'ok':'warn'}"><b>${kmFr(I.km)} km · ${I.up} m D+</b>${I.ok&&!I.cut?'Tracé chargé : il sert à la stratégie d’allure quand cette course est ton objectif.':I.cut?'Fichier incomplet : importe le GPX complet.':`La distance ne correspond pas à ton format (${kmFr(x.km)} km) : vérifie qu’il s’agit du bon parcours.`}${I.src?`<div class="muted small" style="margin-top:4px">Source : ${esc(String(I.src).slice(0,90))}</div>`:''}</div>`:''}
+  ${L&&(L.page||L.gpx)?`<div class="ins"><b>Trouvé en ligne${L.src?' · '+esc(L.src):''}</b>${L.note?esc(L.note)+' ':''}<div class="row" style="margin-top:8px">${L.gpx?`<a class="btn sm" style="margin:0" href="${esc(L.gpx)}" target="_blank" rel="noopener">Télécharger le GPX</a>`:''}${L.page?`<a class="btn sm ghost" style="margin:0" href="${esc(L.page)}" target="_blank" rel="noopener">Voir le tracé</a>`:''}</div></div>`:''}
+  <div class="row" style="margin-top:8px">${getKey()&&x._e?`<button class="btn sm ai-b" style="margin:0" onclick="reSync();saveRaceEdit(true);findGpx('${x.id}')">🔎 ${I?'Chercher à nouveau':'Trouver le tracé'}</button>`:''}<label class="btn sm ghost" style="margin:0;cursor:pointer">📂 Importer un GPX<input type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" style="display:none" onchange="gpxImportRace(this)"></label></div>
+  <p class="note">${getKey()?'Quand tu indiques la distance de ton format, le coach cherche le tracé officiel (Adeorun, site de l’organisateur, Tracedetrail, Openrunner…). Beaucoup de sites demandent un compte pour télécharger : l’appli te donne alors le lien, tu télécharges le GPX et tu l’importes ici.':'Active le coach (clé API) pour que l’appli cherche le tracé toute seule. Sinon, importe le GPX téléchargé sur le site de la course.'}</p>`;}
 
 /* ============ SOMMEIL ============ */
 const SLQ=[null,['😫','Très mauvaise'],['😕','Moyenne'],['🙂','Bonne'],['😴','Excellente']];
@@ -2702,6 +2749,7 @@ function openSettings(){const s=S.settings;
    <p class="muted small">Ta clé API Anthropic (console.anthropic.com › API Keys). Elle est stockée <b>uniquement sur cet appareil</b> : jamais dans le code, ni sur GitHub, ni dans les exports.</p>
    <div class="form"><label>Clé API</label><input id="s_key" type="password" autocomplete="off" placeholder="${getKey()?'•••••• enregistrée':'sk-ant-…'}"><label>Modèle</label><select id="s_model">${MODELS.map(([id,l])=>`<option value="${id}" ${(CO().model||MODELS[0][0])===id?'selected':''}>${l}</option>`).join('')}</select></div>
    <label class="tg"><input type="checkbox" id="s_cdj" ${S.settings.cdjAuto?'checked':''} onchange="S.settings.cdjAuto=this.checked;save();if(this.checked)cdjAuto()"> Conseil du coach automatique au fil de la journée (matin, après séance, soir : environ 3 appels par jour)</label>
+   <label class="tg"><input type="checkbox" id="s_gpx" ${S.settings.gpxAuto!==false?'checked':''} onchange="S.settings.gpxAuto=this.checked;save()"> Chercher automatiquement le tracé GPX des courses ajoutées au planning (≈ 5 à 30 centimes par course selon la taille du fichier)</label>
    <p class="note">Conseil : fixe une limite de dépense mensuelle dans la console Anthropic. Une séance ou un bilan coûte quelques centimes.</p>
    <div class="row"><button class="btn" onclick="saveCoachKey()">Enregistrer</button><button class="btn ghost" onclick="testCoach()">Tester</button><button class="btn ghost" onclick="openCoachHist('chat')">🕘 Historique</button>${getKey()?'<button class="btn ghost" onclick="setKey(\'\');openSettings();toast(\'Clé supprimée\')">Supprimer la clé</button>':''}</div><p class="note" id="keyMsg"></p></div>
   <div class="card"><h2>Profil</h2><div class="form f2">
