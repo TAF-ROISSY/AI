@@ -63,6 +63,9 @@ ol.ex{padding-left:20px;margin:8px 0}ol.ex li{margin-bottom:8px}ol.ex small{colo
 .ins{border-radius:12px;padding:12px;margin-top:10px;background:var(--card2);border-left:4px solid var(--blue)}
 .ins.warn{border-left-color:var(--acc2)}.ins.ok{border-left-color:var(--ok)}
 .ins b{display:block;margin-bottom:2px}
+.star-r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.star-r:first-of-type{border-top:0}.star-r .sc{font-size:26px;color:var(--mut);width:28px;text-align:center}.star-r.on .sc{color:var(--muscu)}
+.star-h{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}.star-h div{background:var(--card2);border-radius:10px;padding:6px 2px;text-align:center}.star-h div.cur{outline:1px solid var(--muscu)}.star-h b{display:block;font-size:12px;color:var(--muscu);letter-spacing:-1px}.star-h small{font-size:11px;color:var(--mut)}
+.fbb button.on{border-color:var(--glacier);background:rgba(124,203,234,.12)}
 .ins.cdj-ai{border-left-color:var(--glacier)}.ins.cdj-ai p{margin:4px 0 0}.ins.cdj-ai p b,.ins.cdj-ai li b{display:inline;margin:0}
 .chart{width:100%;height:auto;display:block}
 .chart .cv{fill:var(--tx);font-size:9px;text-anchor:middle}
@@ -537,7 +540,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.6';
+const APP_VER='6.7';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1079,7 +1082,8 @@ function coachContext(){
     trail:{source:S.demo?'données de démo':S.tokens?'Strava':'aucune donnée',km_par_semaine_4sem:+(a.km28/4).toFixed(1),dplus_par_semaine:Math.round(a.dp28/4),cadence_pas_min:a.cad,fc_moy:a.hr,estimation_10k:a.runs.length?fmtDur(a.P.t10):null,allures_min_km:{facile:fmtPace(a.P.easyLo)+'-'+fmtPace(a.P.easyHi),seuil:fmtPace(a.P.seuil),vma:fmtPace(a.P.vma)},constats:a.I.map(i=>i.t+' : '+strip(i.x)),
       sorties_recentes:a.runs.slice(0,12).map(r=>({date:r.start_date_local.slice(0,10),nom:r.name,km:+(r.distance/1000).toFixed(1),dplus:Math.round(r.total_elevation_gain),duree:fmtDur(r.moving_time),allure:fmtPace(r.moving_time/(r.distance/1000)),fc:r.average_heartrate?Math.round(r.average_heartrate):null,type:{ef:'facile',gris:'zone grise',qual:'qualité',long:'longue'}[a.cls(r)]}))},
     muscu:{phase:PH[Math.min(2,Math.floor(Math.max(0,w)/4))].n,niveau:`${st.L} (${TITLES[st.L-1]})`,seances_faites:st.done.length,contraintes_actives:ctxChips(),zones_a_menager:CTX().pains.map(z=>ZONES[z]),jambes_fatiguees:legsTired(),bilans:mp.tests.slice(-3),records:recs,ressentis_recents:fbs},
-    cross:{forme_sur_100:R.sc,statut:R.t,raisons:R.why,ratio_charge_7j_28j:R.acwr!=null?+R.acwr.toFixed(2):null},
+    cross:{forme_sur_100:R.sc,statut:R.t,raisons:R.why,ratio_charge_7j_28j:R.acwr!=null?+R.acwr.toFixed(2):null,ratio_prevu_dimanche_si_plan_fait:(()=>{const r=weekProjection(now).sun;return r!=null?+r.toFixed(2):null;})(),etoiles_semaine:w>=0&&w<=11?weekStars(w,now).st.map(x=>`${x.n} : ${x.ok?'tenu':'pas encore'} (${x.x})`):null},
+    sommeil_7_nuits:[...Array(7)].map((_,i)=>{const d=new Date(now);d.setDate(d.getDate()-i);const x=sleepOf(iso(d));return x?{date:iso(d),heures:x.h,qualite:SLQ[x.q][1]}:null;}).filter(Boolean),
     zones_fc:hrZ()?{methode:hrZ().k?'Karvonen (FC de réserve)':'% de FC max',zones:hrZ().n.map((n,i)=>`${n} : ${hrZ().b[i]}–${hrZ().b[i+1]} bpm`)}:null,
     autres_sports_28j:xactAll().filter(x=>(Date.now()-new Date(x.d))/DAY<=28).map(x=>({sport:XTYPES[x.type][1],date:String(x.d).slice(0,10),minutes:Math.round(x.min),effort:x.rpe,km:x.km||null,dplus:x.dp||null,charge:Math.round(xLoad(x))})),
     fatigue_croisee:(()=>{const cf=crossFatigue();return {quadriceps:['fraîche','modérée','forte'][cf.ql],mollets_fessiers:['fraîche','modérée','forte'][cf.gl],sorties_72h:cf.R.map(r=>({nom:r.name,km:+r.km.toFixed(1),dplus:Math.round(r.up),dmoins:Math.round(r.dn),il_y_a_h:Math.round(r.hrs)})),courbatures_jambes:SORE[cf.sl||0]};})(),
@@ -1307,7 +1311,7 @@ function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
   if(L&&R&&typeof L==='object'&&typeof R==='object'&&!Array.isArray(L)&&!Array.isArray(R)){const o={...L};for(const k of Object.keys(R))o[k]=k in L?vmerge(L[k],R[k],rN,k):R[k];return o;}
   return rN?(R===undefined?L:R):(L===undefined?R:L);}
-function applyTomb(){const D=S.del||{};if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
+function applyTomb(){const D=S.del||{};if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
 function tomb(kind,id){S.del=S.del||{};S.del[kind]=[...new Set([...(S.del[kind]||[]),id])].slice(-300);}
 let pushT=null,syncBusy=false;
 function schedulePush(){if(!VC().on)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(false),12000);}
@@ -1950,6 +1954,7 @@ function readiness(){
   if(acwr!=null){if(acwr>1.5){sc-=28;why.push(`charge trail + muscu des 7 derniers jours à ${Math.round(acwr*100)} % de ta moyenne`);}else if(acwr>1.3){sc-=14;why.push(`charge en hausse (${Math.round(acwr*100)} % de ta moyenne)`);}else if(acwr<.7){sc+=6;why.push('charge basse, tu as de la marge');}else why.push('charge globale stable');}
   else why.push('pas encore assez d’historique pour la charge');
   if(fbAvg!=null){if(fbAvg>=3.3){sc-=16;why.push('séances ressenties dures cette semaine');}else if(fbAvg<=1.7){sc+=10;why.push('séances ressenties faciles');}}
+  const se=sleepEffect(now);if(se&&se.d){sc+=se.d;why.push(se.t);}
   const y=new Date(now-DAY),hard=daySessions(weekIdx(y),dayIdx(y)).some(s=>S.done[s.k]&&(/s\d+[AC]$/.test(s.k)||/[ql]$/.test(s.k)));
   if(hard){sc-=6;why.push('séance exigeante hier');}
   sc=Math.max(10,Math.min(100,Math.round(sc)));
@@ -2337,6 +2342,67 @@ function renderSuivi(){
   $('[data-page=suivi]').innerHTML=h;fillBody();
 }
 
+/* ============ SOMMEIL ============ */
+const SLQ=[null,['😫','Très mauvaise'],['😕','Moyenne'],['🙂','Bonne'],['😴','Excellente']];
+const slH=h=>{const m=Math.round(h*60),hh=Math.floor(m/60),mm=m%60;return `${hh} h${mm?' '+pad(mm):''}`;};
+const sleepOf=d=>(S.sleep||{})[d]||null;
+function sleepAvg(t1,n=7){const L=[];for(let i=0;i<n;i++){const d=new Date(t1);d.setDate(d.getDate()-i);const s=sleepOf(iso(d));if(s)L.push(s);}return L.length?{h:L.reduce((a,s)=>a+s.h,0)/L.length,n:L.length,q:L.reduce((a,s)=>a+s.q,0)/L.length}:null;}
+function sleepEffect(now=new Date()){const s=sleepOf(iso(now));if(!s)return null;const a3=sleepAvg(new Date(now-DAY),3);
+  if(s.h<5||s.q===1)return {d:-18,lv:2,s,t:s.h<5?`nuit très courte (${slH(s.h)})`:'nuit très mauvaise'};
+  if(s.h<6||s.q===2)return {d:-10,lv:1,s,t:s.h<6?`nuit courte (${slH(s.h)})`:'nuit moyenne'};
+  if(a3&&a3.n>=2&&a3.h<6)return {d:-6,lv:1,s,t:`dette de sommeil (${slH(a3.h)} en moyenne les nuits précédentes)`};
+  if(s.h>=7&&s.q>=3)return {d:4,lv:0,s,t:`bonne nuit (${slH(s.h)})`};return {d:0,lv:0,s,t:`nuit de ${slH(s.h)}`};}
+let slDraft=null;
+function openSleep(d){d=d||iso(new Date());const s=sleepOf(d);slDraft={d,h:s?s.h:7,q:s?s.q:3};renderSleep();$('#sheet').classList.add('on');}
+function renderSleep(){const x=slDraft,ch=v=>`<button class="chip ${x.h===v?'on':''}" onclick="slDraft.h=${v};renderSleep()">${slH(v)}</button>`;
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">😴 Ta nuit</h2><button class="icbtn" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">${x.d===iso(new Date())?'Nuit dernière':'Nuit du '+parseISO(x.d).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}. La durée se lit dans l’app Santé ou Sommeil de l’iPhone. Elle règle ta forme du jour.</p>
+  <h3>Durée</h3><div class="chips">${[4.5,5,5.5,6,6.5,7,7.5,8,8.5,9].map(ch).join('')}</div>
+  <div class="form" style="margin-top:10px"><label>Ou durée exacte (heures)</label><input id="sl_h" type="number" step="0.25" min="2" max="14" inputmode="decimal" value="${x.h}" onchange="slDraft.h=Math.max(2,Math.min(14,parseFloat(this.value.replace(',','.'))||7))"></div>
+  <h3>Qualité</h3><div class="fbb">${[1,2,3,4].map(q=>`<button class="${x.q===q?'on':''}" onclick="slDraft.q=${q};renderSleep()"><span>${SLQ[q][0]}</span>${SLQ[q][1]}</button>`).join('')}</div>
+  <button class="btn wide" style="margin-top:14px" onclick="saveSleep()">Enregistrer</button>${sleepOf(x.d)?`<button class="btn ghost wide" style="margin-top:8px" onclick="delSleep()">Effacer cette nuit</button>`:''}`;}
+function saveSleep(){const i=$('#sl_h');if(i){const v=parseFloat(String(i.value).replace(',','.'));if(isFinite(v))slDraft.h=Math.max(2,Math.min(14,v));}
+  S.sleep=S.sleep||{};if(S.del&&S.del.sleep)S.del.sleep=S.del.sleep.filter(x=>x!==slDraft.d);S.sleep[slDraft.d]={h:slDraft.h,q:slDraft.q,t:Date.now()};save();closeSettings();renderAll();const e=sleepEffect();toast(e&&e.d<0?'Nuit notée : séance du jour à alléger':'Nuit notée 😴');}
+function delSleep(){if(S.sleep)delete S.sleep[slDraft.d];tomb('sleep',slDraft.d);save();closeSettings();renderAll();}
+function sleepCard(){const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return {d,s:sleepOf(iso(d))};}),a=sleepAvg(new Date(),7),W=340,H=110,bw=W/7,Y=h=>H-22-Math.min(10,h)/10*(H-34);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" class="chart"><rect x="0" y="${Y(8)}" width="${W}" height="${Y(7)-Y(8)}" fill="var(--glacier)" opacity=".10"/><line x1="0" x2="${W}" y1="${Y(7)}" y2="${Y(7)}" stroke="var(--glacier)" stroke-dasharray="3 4" opacity=".6"/>`;
+  days.forEach((o,i)=>{const x=i*bw+bw*.2,w=bw*.6;if(o.s){const c=o.s.h<6||o.s.q<=1?'#F47C8A':o.s.h<7||o.s.q===2?'#E5B85C':'#6FD3A5';svg+=`<rect x="${x}" y="${Y(o.s.h)}" width="${w}" height="${H-22-Y(o.s.h)}" rx="4" fill="${c}"/><text x="${x+w/2}" y="${Y(o.s.h)-4}" class="cv">${String(Math.round(o.s.h*10)/10).replace('.',',')}</text>`;}else svg+=`<text x="${x+w/2}" y="${H-30}" class="cl">–</text>`;svg+=`<text x="${x+w/2}" y="${H-6}" class="cl">${JOURS[dayIdx(o.d)]}</text>`;});
+  svg+='</svg>';const t=sleepOf(iso(new Date()));
+  return `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">😴 Sommeil</h2><button class="btn sm" style="margin:0" onclick="openSleep()">${t?'Modifier':'Noter ma nuit'}</button></div>
+  ${a?`<div class="grid" style="margin-top:10px"><div class="stat"><b>${slH(a.h)}</b><small>moyenne ${a.n} nuit${a.n>1?'s':''}</small></div><div class="stat"><b>${SLQ[Math.max(1,Math.min(4,Math.round(a.q)))][0]}</b><small>qualité moyenne</small></div></div>${svg}<p class="note">Zone bleue : 7 à 8 h. Une nuit courte (moins de 6 h) ou mauvaise baisse la forme du jour et le coach allège la séance dure.</p>`:'<p class="muted small" style="margin-top:8px">Note ta nuit le matin en 2 touchers (durée et qualité) : la forme du jour en tient compte, et le coach allège la séance dure après une mauvaise nuit.</p>'}</div>`;}
+
+/* ============ PROJECTION DE LA CHARGE (semaine prévue) ============ */
+function planLoad(s,P){if(s.str)return 240;const km=parseFloat(((String(s.s||'').match(/(\d+(?:[.,]\d+)?)\s*km/)||[])[1]||'8').replace(',','.')),dp=(String(s.s||'').match(/~?(\d+)\s*m D\+/)||[])[1]||0,ty=(s.k.match(/([qelr])$/)||[])[1]||'e';
+  const pace={q:P.easyLo,e:P.easyHi,r:P.easyHi*1.03,l:P.long}[ty],coef={q:7,e:3,r:3,l:4}[ty];return (km+dp/100)*pace/60*coef;}
+function acwrAt(t,extra=[]){const t7=new Date(t-7*DAY),t28=new Date(t-28*DAY),ex=(a,b)=>extra.filter(e=>e.t>a&&e.t<=b).reduce((s,e)=>s+e.l,0);
+  const real=loadsBetween(t28,t).tot;if(real/4<=200)return null;const ac=loadsBetween(t7,t).tot+ex(t7,t),ch=(real+ex(t28,t))/4;return ac/ch;}
+function weekProjection(now=new Date()){const P=getA().P,d0=dayIdx(now),ext=[],days=[];
+  for(let i=0;i<=6-d0;i++){const dt=new Date(now);dt.setDate(dt.getDate()+i);dt.setHours(12,0,0,0);const ss=daySessions(weekIdx(dt),dayIdx(dt)).filter(s=>!S.done[s.k]),l=ss.reduce((a,s)=>a+planLoad(s,P),0);
+    if(l)ext.push({t:i===0&&dt<now?new Date(now.getTime()+60e3):dt,l});const end=new Date(dt);end.setHours(23,59,0,0);days.push({dt,ss,l,end});}
+  days.forEach(o=>o.r=acwrAt(o.end,ext));const sun=days[days.length-1],rn=acwrAt(now);return {days,now:rn,sun:sun?sun.r:rn,tot:ext.reduce((a,e)=>a+e.l,0)};}
+const acwrZ=r=>r==null?{c:'',t:'pas assez d’historique'}:r>1.5?{c:'warn',t:'trop d’un coup'}:r>1.3?{c:'tip',t:'en hausse'}:r<.8?{c:'tip',t:'charge basse'}:{c:'ok',t:'zone de progression'};
+function projCard(){const W=weekProjection(),z=acwrZ(W.sun),fmt=r=>r==null?'–':r.toFixed(2).replace('.',',');
+  if(!W.days.length)return '';const vals=W.days.map(o=>o.r).filter(v=>v!=null);
+  let svg='';if(vals.length>=2){const Wd=340,Hh=90,mx=Math.max(1.7,...vals),mn=Math.min(.6,...vals),X=i=>14+(i-1)*(Wd-28)/Math.max(1,W.days.length-1),Y=v=>Hh-16-(v-mn)/(mx-mn)*(Hh-26),pts=W.days.map((o,i)=>[i+1,o.r]).filter(p=>p[1]!=null);
+    svg=`<svg viewBox="0 0 ${Wd} ${Hh}" class="chart"><rect x="0" y="${Y(1.3)}" width="${Wd}" height="${Y(.8)-Y(1.3)}" fill="#6FD3A5" opacity=".10"/><line x1="0" x2="${Wd}" y1="${Y(1.5)}" y2="${Y(1.5)}" stroke="#F47C8A" stroke-dasharray="3 4" opacity=".7"/><polyline fill="none" stroke="var(--glacier)" stroke-width="2.5" points="${pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>${pts.map(p=>`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.5" fill="var(--glacier)"/>`).join('')}${W.days.map((o,i)=>`<text x="${X(i+1)}" y="${Hh-2}" class="cl">${i?JOURS[dayIdx(o.dt)]:'auj.'}</text>`).join('')}</svg>`;}
+  const adv=W.sun==null?'Pas encore assez d’historique (4 semaines) pour projeter le ratio.':W.sun>1.5?'Si tu fais tout, la charge monte trop vite : allège la muscu jambes ou raccourcis le footing facile, garde la sortie longue.':W.sun>1.3?'Ça monte : fais les séances prévues sans rien ajouter.':W.sun<.8?'Semaine légère : normal en semaine allégée, sinon tu as de la marge pour un footing de plus.':'Si tu fais tout le plan, tu restes dans la zone de progression.';
+  return `<div class="card"><h2>📈 Semaine prévue</h2><div class="grid"><div class="stat"><b>${fmt(W.now)}</b><small>ratio aujourd’hui</small></div><div class="stat"><b class="${z.c}-c">${fmt(W.sun)}</b><small>dimanche, plan fait</small></div></div>${svg}<div class="ins ${z.c}" style="margin-top:10px"><b>${cdjCap(z.t)}</b>${adv}</div><p class="note">Ratio 7 j / 28 j projeté jour par jour avec les séances restantes de la semaine (charge prévue ≈ ${Math.round(W.tot)}, estimée d’après tes allures). Bande verte : 0,8 à 1,3 ; pointillés : 1,5.</p></div>`;}
+
+/* ============ ÉTOILES DE LA SEMAINE ============ */
+function weekStars(w,now=new Date()){const ws=sessDate(w,0),we=new Date(ws);we.setDate(we.getDate()+7);const cur=now>=ws&&now<we,past=now>=we;
+  let tot=0,ok=0;for(let d=0;d<7;d++)daySessions(w,d).forEach(s=>{tot++;if(S.done[s.k])ok++;});const need=Math.ceil(tot*.75);
+  const r=cur?weekProjection(now).sun:acwrAt(new Date(Math.min(we,now))),sl=[...Array(7)].map((_,i)=>{const d=new Date(ws);d.setDate(d.getDate()+i);return sleepOf(iso(d));}).filter(Boolean),slAvg=sl.length?sl.reduce((a,s)=>a+s.h,0)/sl.length:0;
+  const st=[{k:'reg',ic:'📅',n:'Régularité',ok:tot>0&&ok>=need,x:`${ok}/${tot} séances (objectif ${need})`},
+    {k:'load',ic:'📈',n:'Charge maîtrisée',ok:r==null||(r>=.8&&r<=1.3),x:r==null?'pas assez d’historique : étoile offerte':`ratio ${cur?'prévu dimanche ':''}${r.toFixed(2).replace('.',',')} (0,8 à 1,3)`},
+    {k:'sleep',ic:'😴',n:'Sommeil',ok:sl.length>=4&&slAvg>=7,x:sl.length?`${sl.length} nuit${sl.length>1?'s':''} notée${sl.length>1?'s':''}, ${slH(slAvg)} en moyenne (objectif 4 nuits ≥ 7 h)`:'aucune nuit notée (objectif 4 nuits ≥ 7 h)'}];
+  return {w,cur,past,st,n:st.filter(s=>s.ok).length};}
+function blockBadges(){return [0,1,2].map(b=>{const ws=[0,1,2,3].map(i=>b*4+i),now=weekIdx(),done=ws.every(w=>w<now),n=ws.filter(w=>w<=now).reduce((a,w)=>a+weekStars(w).n,0);return {b,n:PH[b].n,stars:n,done,ok:done&&n>=8};});}
+function starsCard(){const w=weekIdx();if(w<0||w>11)return '';const W=weekStars(w),B=blockBadges(),hist=[...Array(12)].map((_,i)=>i<=w?weekStars(i).n:null);
+  return `<div class="card"><h2>⭐ Étoiles de la semaine · ${W.n}/3</h2>${W.st.map(s=>`<div class="star-r ${s.ok?'on':''}"><span class="sc">${s.ok?'★':'☆'}</span><div style="flex:1;min-width:0"><b>${s.ic} ${s.n}</b><div class="muted small">${s.x}</div></div></div>`).join('')}
+  <div class="star-h">${hist.map((n,i)=>`<div class="${i===w?'cur':''}"><b>${n==null?'·':'★'.repeat(n)+'☆'.repeat(3-n)}</b><small>S${i+1}</small></div>`).join('')}</div>
+  <div class="pills" style="justify-content:flex-start;margin-top:10px">${B.map(x=>`<span class="pill ${x.ok?'ok':''}">${x.ok?'🏅':x.done?'⚪':'⏳'} ${x.n} · ${x.stars}/12</span>`).join('')}</div>
+  <p class="note">Une étoile par objectif tenu dans la semaine. Badge de bloc : 8 étoiles sur les 4 semaines d’une phase (Fondations, Force, Densité).</p></div>`;}
+
 /* ============ COACH DU JOUR (conseils au fil de la journée) ============ */
 const CDJ_M={matin:['🌅','Ce matin'],jour:['☀️','Cet après-midi'],apres:['✅','Après ta séance'],soir:['🌙','Ce soir']};
 let cdjBusy=false,cdjLast='';
@@ -2368,7 +2434,10 @@ function coachDay(now=new Date()){
     if(!today.length)x=`Pas de séance prévue aujourd’hui : ${R.c==='warn'?'profites-en pour vraiment récupérer.':'marche, mobilité ou une routine courte.'}`;
     else if(!todo.length)x='Programme du jour bouclé. Le reste de la journée sert à récupérer.';
     else x=R.c==='ok'?`Feu vert pour ${cdjList(todo)}.`:R.c==='tip'?`${cdjList(todo)} : fais-la en gardant 1 à 2 répétitions en réserve.`:`Forme basse : remplace ${todo[0].t.toLowerCase()} par 30 min très faciles ou de la mobilité.`;
+    const se=sleepEffect(now),hardT=todo.find(s=>cdjHard(s.k));
+    if(se&&se.lv>=1&&hardT)x=`${cdjCap(se.t)} : fais ${hardT.t.toLowerCase()} en version courte (moitié des répétitions ou des fractions) ou remplace-la par 40 min faciles.`;
     P.push({l:R.c==='warn'?'warn':R.c==='tip'?'tip':'ok',t:`Forme ${R.sc}/100 · ${R.t}`,x:cdjCap(R.why.slice(0,2).join(', '))+'.'});
+    if(!sleepOf(iso(now))&&h<12)P.push({l:'',t:'😴 Ta nuit ?',x:'Durée et qualité en 2 touchers : la forme du jour en tient compte.',b:['Noter',"openSleep()"]});
     const runT=todo.find(s=>!s.str);
     if(runT){if(H&&H.pct>=.005)P.push({l:H.pct>=.03?'warn':'tip',t:`🌡️ ${Math.round(H.T)} °C : allures ralenties de ${pctFr(H.pct)}`,x:H.best&&H.best.h>h?`Meilleur créneau vers ${H.best.h} h (${Math.round(H.best.T)} °C). Bois 500 ml par heure d’effort.`:'Allures de la séance déjà ajustées. Bois 500 ml par heure d’effort.'});
       else if(!H)P.push({l:'',t:'Météo pas encore vérifiée',x:'Un toucher pour ajuster les allures du jour à la chaleur et à l’humidité.',b:['Météo','heatFetch()']});
@@ -2395,6 +2464,7 @@ function coachDay(now=new Date()){
     if(!today.length)x=runs.length?'Sortie en bonus aujourd’hui : pense à bien récupérer.':'Jour de repos : c’est là que le corps assimile le travail.';
     else if(!miss.length)x=`Journée réussie : ${cdjList(ok)}. Rien d’autre à faire que récupérer.`;
     else x=`${cdjList(miss)} : pas fait${miss.length>1?'es':'e'} aujourd’hui. Ne ${miss.length>1?'les':'la'} rattrape pas demain en doublant, le plan continue tel quel.`;
+    if(d===6&&w>=0&&w<=11){const W=weekStars(w,now);P.push({l:W.n===3?'ok':'',t:`⭐ Semaine ${w+1} : ${W.n}/3 étoiles`,x:W.st.map(s=>(s.ok?'★ ':'☆ ')+s.n).join(' · ')});}
     const pk=(done.find(o=>o.k&&!S.fb[o.k])||{}).k;if(pk)P.push({l:'tip',t:'Ressenti à noter',x:`${cdjTitle(pk)} : ton ressenti règle la prochaine séance du même type.`,b:['Noter',`cdjFb('${pk}')`]});
     const tm=cdjTomorrow(now,P);
     if(P.length<3&&!tm.some(s=>cdjHard(s.k)))P.push({l:'',t:'Sommeil',x:'7 à 8 h cette nuit. Écran coupé 30 min avant, chambre fraîche.'});
@@ -2439,7 +2509,7 @@ function setSched(k,v){S.sched={...SD(),[k]:+v};save();renderAll();toast('Planni
 function resetSched(){S.sched={...DEFSCHED};save();renderAll();toast('Organisation recommandée appliquée');}
 function renderCross(){
   const w=Math.max(0,Math.min(11,weekIdx())),d0=dayIdx(),s=SD(),four=hasFour(),C=conflicts();
-  let h=cdjCard()+hybridCard()+xactCard()+bilanCard()+`<div class="card"><h2>Ta semaine trail + muscu</h2><p class="muted small">Les deux programmes restent séparés ; ici, on les fait cohabiter sans qu’ils se gênent.</p><div class="xg"><div></div><div class="hd">🏃 Trail</div><div class="hd">🏋️ Muscu</div>`;
+  let h=cdjCard()+starsCard()+hybridCard()+xactCard()+bilanCard()+`<div class="card"><h2>Ta semaine trail + muscu</h2><p class="muted small">Les deux programmes restent séparés ; ici, on les fait cohabiter sans qu’ils se gênent.</p><div class="xg"><div></div><div class="hd">🏃 Trail</div><div class="hd">🏋️ Muscu</div>`;
   for(let i=0;i<7;i++){const t=daySessions(w,i,'run'),m=daySessions(w,i,'str');
     const cell=(arr,c)=>arr.length?arr.map(x=>`<div class="xc ${c} ${S.done[x.k]?'done':''}">${S.done[x.k]?'✅ ':''}${x.t}</div>`).join(''):`<div class="xc ${c} o">—</div>`;
     h+=`<div class="xd ${i===d0?'today':''}">${JOURS[i]}</div><div>${cell(t,'t')}</div><div>${cell(m,'m')}</div>`;}
@@ -2462,7 +2532,7 @@ function renderForme(){
   const R=readiness(),m0=mondayOf(new Date()),weeks=[];
   for(let i=7;i>=0;i--){const ws=new Date(m0);ws.setDate(ws.getDate()-7*i);const we=new Date(ws);we.setDate(we.getDate()+7);weeks.push({ws,...loadsBetween(ws,we)});}
   const last4=weeks.slice(3,7),tr=last4.reduce((s,w)=>s+w.run,0),mu=last4.reduce((s,w)=>s+w.mus,0),xo=last4.reduce((s,w)=>s+(w.xt||0),0),tot=tr+mu+xo;
-  let h=`<div class="hero" style="cursor:default">${topo()}<div class="hero-in"><div class="hero-d">Forme du jour</div><div class="hero-t">${R.t}</div><div class="hero-r">${gauge(R.sc,R.c)}<div><div class="small">${R.x}</div><div class="note" style="margin-top:6px">${R.why.join(', ')}</div></div></div></div></div>`;
+  let h=`<div class="hero" style="cursor:default">${topo()}<div class="hero-in"><div class="hero-d">Forme du jour</div><div class="hero-t">${R.t}</div><div class="hero-r">${gauge(R.sc,R.c)}<div><div class="small">${R.x}</div><div class="note" style="margin-top:6px">${R.why.join(', ')}</div></div></div></div></div>`+projCard()+sleepCard();
   h+=`<div class="card"><h2>Charge globale par semaine</h2>${stackChart(weeks)}<p class="note">Charge = durée × intensité. Trail : minutes × intensité estimée de la sortie (facile 3, longue 4, zone grise 5, qualité 7). Muscu : 40 min × ton ressenti (4 à 9). Autres sports : minutes × coefficient du sport × effort ressenti (1 à 10).</p></div>`;
   h+=`<div class="card"><h2>Équilibre sur 4 semaines</h2><div class="grid"><div class="stat"><b>${tot?Math.round(tr/tot*100):0} %</b><small>trail</small></div><div class="stat"><b>${tot?Math.round(mu/tot*100):0} %</b><small>muscu</small></div>${xo?`<div class="stat"><b>${Math.round(xo/tot*100)} %</b><small>autres sports</small></div>`:''}<div class="stat"><b>${R.acwr!=null?R.acwr.toFixed(2):'–'}</b><small>ratio 7 j / 28 j</small></div><div class="stat"><b>${Math.round(R.chW)}</b><small>charge moy. / sem.</small></div></div>
    <p class="small">Ratio 7 j / 28 j : <b>0,8 à 1,3</b> = zone de progression. Au-dessus de 1,5, le risque de blessure grimpe : allège la muscu jambes en priorité, garde la sortie longue.</p></div>`;
