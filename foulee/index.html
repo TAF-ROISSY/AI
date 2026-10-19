@@ -491,6 +491,43 @@ html[data-th=clair] .btn:not(.ghost){color:#fff}
 .lk-ft{font-size:22px;width:30px;text-align:center;flex:none;font-weight:700}
 .trk{cursor:pointer;align-items:center;gap:10px}.tr-mini{flex:none;width:64px;height:30px;display:inline-flex;align-items:center;justify-content:center}
 .tr-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.tr-kpi{background:var(--card2);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}.tr-kpi b{font-family:var(--disp);font-size:20px}
+/* ===== v8 : navigation 5 sections, Aujourd’hui, Plus, mise en page iPad / Mac ===== */
+.modseg[hidden]{display:none!important}
+.seg.modseg{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap;min-width:0;max-width:100%}.modseg::-webkit-scrollbar{display:none}
+.modseg button{white-space:nowrap}
+body[data-sec] .modseg button.on{color:var(--acc)}
+nav.tabs button span{display:block}
+.wk2 .wd i{display:flex;justify-content:center;gap:3px;min-height:14px;align-items:center;margin-top:4px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:transparent;border:1.5px solid var(--trail)}.dot.m{border-color:var(--muscu)}
+.dot.ok{background:var(--trail)}.dot.m.ok{background:var(--muscu)}.dot.o{border:0;width:4px;height:4px;background:rgba(var(--ink),.2)}
+.leg2 .chip{margin:0}
+.ptiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.ptile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:92px;padding:12px;border-radius:16px;border:1px solid var(--line);background:rgba(var(--ink),.035);color:var(--tx);font:inherit;cursor:pointer}
+.ptile:active{transform:scale(.98)}.ptile .pi{font-size:22px;margin-bottom:4px}.ptile b{font-size:15px}.ptile small{color:var(--mut);font-size:12.5px;line-height:1.3}
+@media(min-width:760px){.ptiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:1024px){
+ body{padding-bottom:28px}
+ nav.tabs{top:0;bottom:0;left:0;right:auto;width:228px;max-width:none;margin:0;border-radius:0;flex-direction:column;justify-content:flex-start;gap:4px;
+  padding:calc(96px + env(safe-area-inset-top)) 12px 24px;border:0;border-right:1px solid var(--line);box-shadow:none;background:var(--card);backdrop-filter:none;-webkit-backdrop-filter:none}
+ nav.tabs button{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;font-size:15px;padding:11px 14px;border-radius:12px}
+ nav.tabs button svg{width:21px;height:21px}
+ header{position:sticky;margin-left:228px;padding-left:28px;padding-right:28px}
+ header h1{display:none}
+ nav.tabs::before{content:'FOULÉE';position:absolute;left:26px;top:calc(28px + env(safe-area-inset-top));font-family:var(--disp);font-weight:800;font-size:28px;letter-spacing:.06em;color:var(--tx)}
+ header>div:first-child{min-width:0}
+ header .sub{font-family:var(--disp);font-size:28px;font-weight:700;color:var(--tx);margin:0;letter-spacing:.01em}
+ #inst,main{margin-left:228px}
+ main{max-width:1260px;padding:20px 28px}
+ #inst{max-width:1260px;padding:0 28px}
+ [data-page=today].on,[data-page=forme].on,[data-page=suivi].on,[data-page=trail].on,[data-page=muscu].on,[data-page=analyse].on,[data-page=cross].on,[data-page=renfo].on,[data-page=figures].on,[data-page=defis].on{column-count:2;column-gap:20px}
+ .page.on>*{break-inside:avoid}
+ .page.on>.hero{column-span:all}
+ .page.on>.card,.page.on>details.card{display:inline-block;width:100%;vertical-align:top}
+ .sheet{align-items:center}
+ .sheet>div{max-width:760px;border-radius:24px;max-height:88vh}
+ #coach{left:auto;width:min(480px,40vw);border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.35)}
+}
+@media(min-width:1500px){[data-page=today].on,[data-page=forme].on,[data-page=analyse].on{column-count:3}}
 </style>
 </head>
 <body>
@@ -498,7 +535,7 @@ html[data-th=clair] .btn:not(.ghost){color:#fff}
   <div><h1>FOUL<span>É</span>E</h1><div class="sub" id="modSub">Trail</div></div>
   <div class="sp"></div>
   <button class="icbtn" id="hdChrono" onclick="showTab('chrono')" aria-label="Chrono" style="margin-right:6px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg></button><button class="icbtn" onclick="openCoach()" aria-label="Coach" style="margin-right:6px">💬</button><button class="icbtn" onclick="openSettings()" aria-label="Réglages">⚙︎</button>
-  <div class="seg modseg" id="modSeg"><button data-mod="trail">Trail</button><button data-mod="muscu">Muscu</button><button data-mod="cross">Cross-training</button></div>
+  <nav class="seg modseg" id="modSeg" aria-label="Sous-sections"></nav>
 </header>
 
 <div id="inst"><div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><h2 style="margin:0">📲 Installe Foulée sur ton iPhone</h2><button class="icbtn" style="width:32px;height:32px;font-size:14px" onclick="hideInstall()">✕</button></div>
@@ -507,7 +544,9 @@ html[data-th=clair] .btn:not(.ghost){color:#fff}
 <div class="istep"><b class="n">3</b><span>Touche <b>Ajouter</b>, puis ouvre Foulée depuis son icône</span></div>
 <p class="note" style="margin-top:12px">L’appli installée s’ouvre en plein écran et marche hors ligne. Elle a sa propre mémoire : fais tes réglages (Strava, clé du coach) <b>depuis l’icône</b>, pas dans Safari.</p></div></div>
 <main>
-  <section class="page on" data-page="trail"></section>
+  <section class="page on" data-page="today"></section>
+  <section class="page" data-page="plus"></section>
+  <section class="page" data-page="trail"></section>
   <section class="page" data-page="histo"></section>
   <section class="page" data-page="analyse"></section>
   <section class="page" data-page="plan"></section>
@@ -596,7 +635,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='7.8';
+const APP_VER='8.0';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2289,7 +2328,7 @@ function renderDefis(){
   }
   $('[data-page=defis]').innerHTML=h;
 }
-function startDefi(id,lv){const D=DEF_ID(id),its=defiPlan(D);chReset();CH.exList=[...new Set(its.map(x=>x.id))];CH.exIdx=0;CH.mode='defi';CH.defi={id,lv,D,its,sig:planSig(its),rounds:D.lv[lv],sp:[],restUntil:null};syncChronoUI();if(MOD!=='muscu')setMod('muscu','chrono');else showTab('chrono');}
+function startDefi(id,lv){const D=DEF_ID(id),its=defiPlan(D);chReset();CH.exList=[...new Set(its.map(x=>x.id))];CH.exIdx=0;CH.mode='defi';CH.defi={id,lv,D,its,sig:planSig(its),rounds:D.lv[lv],sp:[],restUntil:null};syncChronoUI();MOD='muscu';showTab('chrono');}
 function defiLap(){const df=CH.defi;if(!CH.running||!df||df.restUntil)return;df.sp.push(swElapsed());beep(990,.12);if(df.sp.length>=df.rounds){finishDefi();return;}if(df.D.rest){df.restUntil=swElapsed()+df.D.rest*1000;say('Repos deux minutes');}else say(df.D.lad?`${repsAt(df.D,df.lv,df.sp.length,0)}`:`Tour ${df.sp.length+1}`);drawChrono();}
 let lastDefi=null;
 function finishDefi(){
@@ -3270,7 +3309,28 @@ function nutri(){const s=S.settings,g=MP().goal,lf=[...S.mesures].filter(m=>m.f&
 function addMes(){const t=parseFloat($('#m_tour').value),p=parseFloat($('#m_poids').value),f=parseFloat($('#m_fat').value),mu=parseFloat($('#m_mus').value);if(!t&&!p&&!f){toast('Saisis au moins une valeur');return;}if(f&&(f<3||f>60)){toast('% de graisse invalide');return;}const d=iso(new Date());S.mesures=S.mesures.filter(m=>m.d!==d);S.mesures.push({d,t:t||null,p:p||null,f:f||null,mu:mu||null});if(p){S.settings.poids=p;}save();renderSuivi();renderMuscuHome();toast('Mesure enregistrée');}
 function delMes(d){S.mesures=S.mesures.filter(m=>m.d!==d);tomb('mesures',d);save();renderSuivi();renderMuscuHome();}
 function shiftWeek(x){viewWeek=Math.max(0,Math.min(11,viewWeek+x));renderPlan();renderRenfo();}
-function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderForme();renderCourses();}
+/* ============ v8 : AUJOURD’HUI (trail + muscu réunis) & PLUS ============ */
+function weekStrip2(w){const d0=dayIdx();let h='<div class="wk wk2">';for(let i=0;i<7;i++){const ss=daySessions(w,i);h+=`<div class="wd ${i===d0?'today':''}"><b>${JOURS[i]}</b><i>${ss.map(s=>`<span class="dot ${s.str?'m':'t'} ${S.done[s.k]?'ok':''}" title="${esc(s.t)}"></span>`).join('')||'<span class="dot o"></span>'}</i></div>`;}return h+'</div>';}
+function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill();
+  if(!S.tokens&&!S.demo)h+=`<div class="card"><h2>Connecte Strava</h2><p class="muted small">Pour adapter les allures et le volume à tes vraies sorties. En attendant, le plan tourne sur des valeurs par défaut.</p><div class="row"><button class="btn" onclick="openSettings()">Configurer</button><button class="btn ghost" onclick="loadDemo()">Voir une démo</button></div></div>`;
+  const ps=planStateCard(w);
+  if(ps)h+=ps;else{const run=daySessions(w,d,'run'),str=daySessions(w,d,'str'),fg=figObj(),rp=runPlan(w);
+    const all=[...run,...str];let n=0,f=0;for(let i=0;i<7;i++)daySessions(w,i).forEach(x=>{n++;if(S.done[x.k])f++;});
+    h+=`<div class="card today-c"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">Au programme</h2><span class="muted small">Sem. ${w+1}/12 · ${f}/${n} faites · ${rp.vol} km</span></div>
+      ${all.length?all.map(sessCard).join('')+(str.length&&fg?sessCard(fg):''):`<p class="muted small" style="margin:10px 0 4px">Repos aujourd’hui.${(()=>{const x=nextSess();return x?' Prochaine séance : '+esc(x.ss[0].t)+' · '+JOURSL[dayIdx(x.dt)].toLowerCase()+'.':'';})()}</p>`}
+      ${weekStrip2(w)}<div class="leg2" style="margin-top:6px"><span><i style="background:var(--trail)"></i>trail</span><span><i style="background:var(--muscu)"></i>muscu</span><button class="chip sm" style="margin-left:auto" onclick="showTab('cross')">Voir la semaine</button></div></div>`;}
+  h+=cdjCard();
+  if(S.race&&daysTo(S.race.date)>=0)h+=raceCard(false);else h+=banner('🏁','Pas encore de course objectif','Choisis-la dans le calendrier des trails','Courses',"showTab('courses')");
+  h+=sleepCard()+heatCard();
+  const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
+  h+=`<div class="card ai"><h2>✨ Séance sur mesure</h2>${cus.length?sessCard(customObj(cus[0])):'<p class="muted small">Le coach crée une séance de muscu unique selon ta forme du jour, tes sorties et tes contraintes.</p>'}<div class="row" style="margin-top:10px"><button class="btn ai-b sm" style="margin:0" onclick="${getKey()?'openGen()':'openSettings()'}">${getKey()?(cus.length?'✨ Nouvelle séance':'✨ Créer ma séance'):'Activer le coach'}</button></div></div>`;
+  el.innerHTML=h;}
+function renderPlus(){const el=$('[data-page=plus]');if(!el)return;const T=(ic,t,sub,fn)=>`<button class="ptile" onclick="${fn}"><span class="pi" aria-hidden="true">${ic}</span><b>${t}</b><small>${sub}</small></button>`;
+  el.innerHTML=`<div class="card"><h2>Entraînement</h2><div class="ptiles">${T('⏱️','Chrono','Intervalles, EMOM, Tabata',"showTab('chrono')")}${T('🤸','Figures','Équilibre et calisthénie',"showTab('figures')")}${T('⛰️','Défis','Records chronométrés',"showTab('defis')")}${T('🏃','Bilan trail','Volume, estimations, alertes',"showTab('trail')")}${T('🏋️','Bilan muscu','Phase, fatigue, défi',"showTab('muscu')")}${T('📋','Bilan de niveau','Tester tes répétitions',"openProfile()")}</div></div>
+  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
+  <div class="card"><h2>Réglages</h2><div class="ptiles">${T('⚙️','Réglages','Strava, profil, coach, synchro',"openSettings()")}${T('🎨','Apparence','Thème, couleurs, police',"openSettings();setTimeout(()=>{const c=$('#lookCard');if(c)c.scrollIntoView({block:'start'})},80)")}${T('⬇️','Exporter mes données','Sauvegarde .json',"exportData()")}</div>
+  <p class="note">Foulée v${APP_VER} · ${VC().on?'synchro activée':'synchro désactivée'}</p></div>`;}
+function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderToday();renderPlus();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderForme();renderCourses();}
 
 /* ============ RÉGLAGES ============ */
 /* ===== Apparence (v7.6) ===== */
@@ -3454,23 +3514,29 @@ function polish(root){root.querySelectorAll('.card h2,#sheetBody>.row h2').forEa
 let polT=0;new MutationObserver(()=>{if(polT)return;polT=requestAnimationFrame(()=>{polT=0;polish(document.body);});}).observe(document.body,{childList:true,subtree:true});
 
 /* ============ NAVIGATION & DÉMARRAGE ============ */
-const ICO={flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
-const MODS={
- trail:{sub:'Course à pied · Strava',tabs:[['trail','Accueil','home'],['histo','Historique','cal'],['analyse','Analyse','chart'],['plan','Plan','run'],['courses','Courses','flag']]},
- muscu:{sub:'Kettlebell · Poids du corps',tabs:[['muscu','Accueil','home'],['renfo','Séances','kb'],['figures','Figures','fig'],['defis','Défis','mount'],['suivi','Progrès','ruler']]},
- cross:{sub:'Le pont entre trail et muscu',tabs:[['cross','Semaine','cal'],['forme','Forme & charge','pulse']]}};
-let MOD='trail';
-function setMod(m,tab){MOD=m;try{localStorage.setItem('foulee_mod',m);}catch(e){}
-  document.body.dataset.mod=m;$('#modSub').textContent=MODS[m].sub;
-  document.querySelectorAll('#modSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mod===m));
-  $('#tabs').innerHTML=MODS[m].tabs.map(([id,l,ic])=>`<button data-tab="${id}"><svg viewBox="0 0 24 24">${ICO[ic]}</svg>${l}</button>`).join('');
-  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-  showTab(tab||MODS[m].tabs[0][0]);}
-function showTab(t){
-  if(!MODS[MOD].tabs.some(x=>x[0]===t)){const owner=Object.keys(MODS).find(m=>MODS[m].tabs.some(x=>x[0]===t));if(owner){setMod(owner,t);return;}}
-  document.body.dataset.tab=t;document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));window.scrollTo(0,0);}
-document.querySelectorAll('#modSeg button').forEach(b=>b.onclick=()=>setMod(b.dataset.mod));
+const ICO={sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',grid:'<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
+/* v8 : navigation en 5 sections (Aujourd’hui, Plan, Courses, Analyse, Plus) ; les modules Trail / Muscu / Cross deviennent des sous-sections */
+const SECT={
+ today:{l:'Aujourd’hui',ic:'sun',sub:'Ta journée trail + muscu',p:[['today','Aujourd’hui']]},
+ plan:{l:'Plan',ic:'cal',sub:'Programme de 12 semaines',p:[['plan','Course'],['renfo','Muscu'],['cross','Semaine']]},
+ courses:{l:'Courses',ic:'flag',sub:'Objectifs, calendrier et traces',p:[['courses','Courses']]},
+ analyse:{l:'Analyse',ic:'chart',sub:'Sorties, forme et progrès',p:[['histo','Sorties'],['analyse','Analyse'],['forme','Forme'],['suivi','Progrès']]},
+ plus:{l:'Plus',ic:'grid',sub:'Outils et réglages',p:[['plus','Plus'],['figures','Figures'],['defis','Défis'],['chrono','Chrono'],['trail','Bilan trail'],['muscu','Bilan muscu']]}};
+const PAGEMOD={today:'trail',plan:'trail',courses:'trail',histo:'trail',analyse:'trail',trail:'trail',renfo:'muscu',figures:'muscu',defis:'muscu',suivi:'muscu',muscu:'muscu',cross:'cross',forme:'cross',plus:'trail'};
+const MODS={trail:{home:'today'},muscu:{home:'renfo'},cross:{home:'cross'}};
+let MOD='trail',SEC='today',LASTP={};
+function sectOf(t){return Object.keys(SECT).find(k=>SECT[k].p.some(x=>x[0]===t))||'today';}
+function renderNav(){$('#tabs').innerHTML=Object.entries(SECT).map(([k,v])=>`<button data-tab="${v.p[0][0]}" data-sec="${k}" class="${k===SEC?'on':''}" aria-label="${v.l}"${k===SEC?' aria-current="page"':''}><svg viewBox="0 0 24 24">${ICO[v.ic]}</svg><span>${v.l}</span></button>`).join('');
+  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{const k=b.dataset.sec;showTab(k===SEC?SECT[k].p[0][0]:(LASTP[k]||SECT[k].p[0][0]));});}
+function setMod(m,tab){showTab(tab||(MODS[m]||MODS.trail).home);}
+function showTab(t){if(!document.querySelector(`.page[data-page="${t}"]`))t='today';
+  const k=sectOf(t),P=SECT[k].p;SEC=k;LASTP[k]=t;if(t!=='chrono')MOD=PAGEMOD[t]||MOD;try{localStorage.setItem('foulee_tab',t);}catch(e){}
+  document.body.dataset.mod=t==='chrono'?MOD:(PAGEMOD[t]||'trail');document.body.dataset.tab=t;document.body.dataset.sec=k;
+  $('#modSub').textContent=k==='plus'?(t==='plus'?'Plus':P.find(x=>x[0]===t)[1]):SECT[k].l+(P.length>1?' · '+P.find(x=>x[0]===t)[1]:'');
+  const sn=$('#modSeg'),hub=k==='plus';sn.innerHTML=hub?(t==='plus'?'':`<button data-tab="plus">‹ Plus</button><button data-tab="${t}" class="on" aria-current="page">${P.find(x=>x[0]===t)[1]}</button>`):P.length>1?P.map(([id,l])=>`<button data-tab="${id}" class="${id===t?'on':''}"${id===t?' aria-current="page"':''}>${l}</button>`).join(''):'';sn.hidden=!sn.innerHTML;
+  sn.querySelectorAll('button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));renderNav();window.scrollTo(0,0);}
+
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
 initChrono();linkPlan(true);renderAll();evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
@@ -3479,7 +3545,7 @@ if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.se
 $('#chatSend').onclick=()=>sendChat($('#chatIn').value);
 $('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!/iPhone|iPad|Android/.test(navigator.userAgent)){e.preventDefault();sendChat($('#chatIn').value);}});
 $('#chatIn').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(120,e.target.scrollHeight)+'px';});
-let _m='trail';try{_m=localStorage.getItem('foulee_mod')||'trail';}catch(e){}setMod(MODS[_m]?_m:'trail');
+let _t='today';try{_t=localStorage.getItem('foulee_tab')||'today';}catch(e){}showTab(_t==='chrono'?'today':_t);
 handleOAuth();
 if(S.tokens&&((S.histV||0)<2||Date.now()-S.lastSync>6*3600e3)&&!new URLSearchParams(location.search).has('code'))syncStrava();
 </script>

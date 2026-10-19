@@ -27,7 +27,7 @@ async def main():
         await pg.wait_for_timeout(500)
         await pg.screenshot(path='c_chat.png')
         await pg.click('button[aria-label=Fermer]')
-        await pg.click('#modSeg button[data-mod=muscu]')
+        await pg.evaluate("showTab('muscu')")
         await pg.evaluate('openGen()'); await pg.screenshot(path='c_gen.png')
         await pg.click('#genBtn'); await pg.wait_for_timeout(600)
         await pg.evaluate("document.querySelectorAll('[data-page=muscu] details').forEach(d=>d.open=true)")
@@ -35,7 +35,7 @@ async def main():
         print('custom',await pg.evaluate("CO().custom.length"), await pg.evaluate("JSON.stringify(CO().custom[0].s.timer)"))
         await pg.evaluate("toggleDone('c'+CO().custom[0].id)"); await pg.evaluate("saveMuscuFb()")
         print('stats',await pg.evaluate("muscuStats().done.length"))
-        await pg.click('#modSeg button[data-mod=cross]')
+        await pg.evaluate("showTab('cross')")
         await pg.evaluate("genBilan()"); await pg.wait_for_timeout(500)
         await pg.screenshot(path='c_bilan.png',full_page=True)
         # erreur 401
