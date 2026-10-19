@@ -119,7 +119,7 @@ code{background:var(--card2);padding:2px 6px;border-radius:6px;font-size:13px;wo
 .fbb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .fbb button{background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:14px;padding:16px 8px;font-size:15px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
 .fbb button span{font-size:30px}
-.seg.lvl{margin:12px 0 8px}.seg button:disabled{opacity:.35}
+.seg.lvl{margin:12px 0 8px;overflow:visible}.seg.lvl button{white-space:normal;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2;padding:8px 4px}.seg.lvl small{font-weight:500;font-size:11.5px;opacity:.85}.seg button:disabled{opacity:.35}
 .ready{display:flex;gap:16px;align-items:center}
 .score{font-size:46px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .score small{font-size:14px;color:var(--mut);font-weight:600}
@@ -410,8 +410,6 @@ nav.tabs button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,
 .lgset input[type=number].kgi{width:100%}
 /* --- v6.5 : mise en ordre --- */
 .card{margin-bottom:12px}
-.card>p.muted.small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
-.card>p.muted.small.open{display:block;-webkit-line-clamp:unset}
 .hi{display:inline-flex;align-items:center;justify-content:center;width:1.6em;height:1.6em;border-radius:.5em;background:color-mix(in srgb,var(--acc) 14%,transparent);font-size:.78em;margin-right:.5em;vertical-align:.12em;line-height:1;font-family:system-ui}
 details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--tx);font-weight:inherit;font-size:inherit}
 details.fold>summary::before,details.fold[open]>summary::before{content:none}
@@ -427,7 +425,7 @@ details.fold>summary .fsub{font-size:13px;color:var(--mut);margin-top:3px}
 .sess details>summary{font-size:13px}
 .banner{display:flex;align-items:center;gap:12px;padding:14px 16px}.banner .bi{font-size:22px}.banner b{display:block;font-size:15px}
 .pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);white-space:nowrap}.pill.ok{color:#6FD3A5}.pill.tip{color:#E5B85C}.pill.warn{color:#F47C8A}
-.skc>summary .skh{flex:1;align-items:center}.skc>summary .dots{margin:8px 0 0}.skc>summary .muted.small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skc>summary .skh{flex:1;align-items:center}.skc>summary .dots{margin:8px 0 0}
 .pinb{flex:0 0 auto;width:36px;height:36px;border-radius:11px;border:1px solid var(--line);background:none;font-size:15px;filter:grayscale(1);opacity:.55}.pinb.on{filter:none;opacity:1;border-color:var(--muscu);background:color-mix(in srgb,var(--muscu) 14%,transparent)}
 .dfs{flex:1;min-width:0}.dfs .muted.small{margin-top:3px}
 #fab{position:fixed;right:18px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:21;width:54px;height:54px;border-radius:18px;border:0;background:var(--acc);color:#1A1214;box-shadow:0 10px 28px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
@@ -538,7 +536,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='6.5';
+const APP_VER='6.5.1';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2163,7 +2161,8 @@ const planSig=its=>its.filter(x=>x.from).map(x=>x.from+'>'+x.id).join(',');
 function qty(D,lv,k,it){let r=repsAt(D,lv,k,it.base),u=it.u;if(it.conv){r=Math.min(100,Math.max(5,Math.round(r/2)));u='';}return r+(u?' '+u:'');}
 const SPD={jacks:1,stepjack:1.1,highknees:.6,slowknee:1,mc:.8,burpee:4,burpeefrog:5,pullup:3.2,hspush:4,push:2,sqbw:2,situp:2.4,leglever:2.6,standup:3,lunge:2.4,swing:2,goblet:2.6,jump:2,superman:2.5};
 function estMin(D,lv,its){let s=0;for(let k=0;k<D.lv[lv];k++)its.forEach(it=>{const q=parseInt(qty(D,lv,k,it));s+=it.u&&!it.conv?q*.3:q*(SPD[it.id]||2.3);});s+=(D.rest||0)*(D.lv[lv]-1);return Math.max(2,Math.round(s/60));}
-function lvLabel(D,i){if(D.god&&!D.lad)return `${LVN[i]} · ${Math.round(D.lvm[i]*100)} %`;return D.lad?`${LVN[i]} · ${D.lad.map(x=>Math.max(1,Math.round(x*D.lvm[i]))).slice(0,3).join('-')}…`:`${LVN[i]} · ${D.lv[i]} tours`;}
+function lvDetail(D,i){return D.lad||D.god?`${Math.round(D.lvm[i]*100)} % des répétitions`:`${D.lv[i]} tours`;}
+function lvLabel(D,i){return `${LVN[i]} · ${lvDetail(D,i)}`;}
 function bestOf(id,lv,sig){return (S.ch[id]||[]).filter(x=>x.lv===lv&&(sig===undefined||(x.sig||'')===sig)).reduce((b,x)=>!b||x.t<b.t?x:b,null);}
 function unlocked(D,i){return i===0||(S.ch[D.id]||[]).some(x=>x.lv===i-1&&(x.d5?x.d5<=3&&x.te!=='deg':x.r&&x.r<=2));}
 function suggestLv(D){let l=0;for(let i=0;i<D.lv.length;i++)if(unlocked(D,i))l=i;return l;}
@@ -2178,7 +2177,7 @@ function renderDefis(){
     const struct=D.lad?`Paliers <b>${D.lad.map((_,k)=>repsAt(D,lv,k,0)).join('-')}</b> de : ${its.map(x=>CUE[x.id][0].toLowerCase()).join(' · ')}`
       :`<b>${D.lv[lv]} tour${D.lv[lv]>1?'s':''}</b>${D.rest?' (2 min de repos entre les tours)':''} : ${its.map(x=>`<b>${qty(D,lv,0,x)}</b> ${CUE[x.id][0].toLowerCase()}`).join(' · ')}`;
     h+=`<details class="card fold" ${defOpen[D.id]??D.id===sug.id?'open':''} ontoggle="defOpen['${D.id}']=this.open"><summary><div class="dfs"><h2>${CATI[D.cat]} ${D.n}${D.alt?` <span class="muted small">${D.alt} m</span>`:''}</h2><div class="muted small">${D.id===sug.id?'⭐ Cette semaine · ':''}${b?'Record '+fmtDur(b.t)+' · ':''}≈ ${estMin(D,lv,its)} min${tries.length?' · '+tries.length+' essai'+(tries.length>1?'s':''):''}</div></div></summary><p class="note" style="margin:0 0 8px">${D.d}</p>
-    <div class="seg lvl">${D.lv.map((r,i)=>`<button class="${i===lv?'on':''}" ${unlocked(D,i)?'':'disabled'} onclick="defiLv['${D.id}']=${i};renderDefis()">${lvLabel(D,i)}${unlocked(D,i)?'':' 🔒'}</button>`).join('')}</div>
+    <div class="seg lvl">${D.lv.map((r,i)=>`<button class="${i===lv?'on':''}" ${unlocked(D,i)?'':'disabled'} onclick="defiLv['${D.id}']=${i};renderDefis()">${LVN[i]}${unlocked(D,i)?'':' 🔒'}<small>${lvDetail(D,i)}</small></button>`).join('')}</div>
     <p class="small" style="margin:6px 0">${struct}</p>
     ${its.some(x=>x.from)?`<p class="rpl" style="margin:0 0 6px">${its.filter(x=>x.from).map(x=>`↻ ${CUE[x.from][0].toLowerCase()} → ${CUE[x.id][0].toLowerCase()} (${x.why})`).join('<br>')}</p>`:''}
     <div class="chips" style="margin:0 0 10px"><span class="tag">≈ ${estMin(D,lv,its)} min</span> ${silent?'<span class="tag ef">🔇 silencieux</span>':'<span class="tag">sauts</span>'}</div>
@@ -2555,7 +2554,6 @@ function initChrono(){
 const EMO=/^((?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:️|‍\p{Extended_Pictographic}️?)*)\s*/u;
 function polish(root){root.querySelectorAll('.card h2,#sheetBody>.row h2').forEach(el=>{if(el.dataset.p)return;el.dataset.p='1';const n=el.firstChild;if(!n||n.nodeType!==3)return;const m=n.textContent.match(EMO);if(!m)return;n.textContent=n.textContent.slice(m[0].length);const s=document.createElement('span');s.className='hi';s.setAttribute('aria-hidden','true');s.textContent=m[1];el.insertBefore(s,n);});}
 let polT=0;new MutationObserver(()=>{if(polT)return;polT=requestAnimationFrame(()=>{polT=0;polish(document.body);});}).observe(document.body,{childList:true,subtree:true});
-document.addEventListener('click',e=>{const p=e.target.closest('.card>p.muted.small');if(p&&!e.target.closest('a,button'))p.classList.toggle('open');});
 
 /* ============ NAVIGATION & DÉMARRAGE ============ */
 const ICO={fig:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M8 21l4-8 4 8M5 10l7-2 7 2"/>',home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',chart:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',run:'<path d="M13 4a2 2 0 1 0 0 .1M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/>',kb:'<path d="M9 8a3 3 0 1 1 6 0M7 9h10l-1 11H8z"/>',mount:'<path d="M3 20l6-11 4 6 3-4 5 9z"/>',clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',ruler:'<path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM12 7v5l3 3"/>',pulse:'<path d="M3 12h4l3-8 4 16 3-8h4"/>'};
