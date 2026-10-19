@@ -1,0 +1,90 @@
+# Foulée — fiche de reprise
+
+Version en ligne : **v6.5** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+
+## Ce qu'est Foulée
+
+Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
+
+- Spécification complète, à jour en v6.4 + ajouts v6.5 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+  (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
+- Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
+
+## Fichiers (dossier `foulee/` du dépôt `TAF-ROISSY/AI`)
+
+| Fichier | Rôle |
+| --- | --- |
+| `index.html` | Toute l'app. Constante `APP_VER`. |
+| `sw.js` | Service worker. `CACHE = 'foulee-vX.Y'` à incrémenter à chaque version. |
+| `manifest.webmanifest`, `icon-*.png` | Installation PWA. |
+| `watch/*.swift` + `README.md` | App Apple Watch (5 fichiers). `Foulee-Watch.zip` = le même dossier zippé. |
+| `tests/` | Suite Playwright (voir plus bas). |
+| `REPRISE.md` | Cette fiche. |
+
+## Publier une version (important)
+
+GitHub Pages sert la branche **`codex/market-monitor`**, pas `main`, et l'utilisateur n'a pas accès aux réglages Pages. À chaque version :
+
+1. Incrémenter `APP_VER` dans `index.html` et `CACHE` dans `sw.js`.
+2. Lancer les tests (`python3 tests/run.py`), zéro erreur JavaScript attendue.
+3. Commiter `foulee/…` sur **`main` ET `codex/market-monitor`** (auteur : Christophe `<christophe.taf@gmail.com>`).
+4. Attendre que l'action GitHub Pages de `codex/market-monitor` soit `completed success`
+   (`gh api repos/TAF-ROISSY/ai/actions/runs`), puis annoncer la version.
+5. Sur l'iPhone : fermer et rouvrir l'app pour charger la nouvelle version.
+
+L'adresse publique est celle de GitHub Pages pour le dossier `foulee/` (celle déjà installée sur l'iPhone).
+
+## Tests
+
+```
+pip install playwright        # Chromium est déjà présent dans l'environnement cloud
+python3 tests/run.py          # toute la suite ; ou : python3 tests/run.py t16 t17
+```
+
+Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo et les tuiles de carte, puis vérifient chaque fonction. Captures d'écran dans `tests/out/`. `tests/shots.py <préfixe>` photographie les 11 écrans pour une revue visuelle. Ne jamais lancer `pkill` sur le serveur : les tests démarrent et arrêtent eux-mêmes `http.server` sur le port 8765.
+
+| Test | Couvre |
+| --- | --- |
+| t4 | Adaptation des séances muscu (bruit, douleurs, matériel) |
+| t5 | Coach IA (chat, séance, bilan) |
+| t8 | Historique, carte du tracé, programme d'après l'année |
+| t9 | Défis « Gods » et chrono de défi |
+| t10 | Visuels d'exercices |
+| t11 | Analyse de l'année et parcours similaires |
+| t12 | Analyse corporelle par photos |
+| t13 | Synchro chiffrée, carnet de charges, objectif course GPX, vidéo technique |
+| t14 | Figures (callisthénie) |
+| t15 | Placement, qualité, vidéo de figure, album, chaleur, récupération cardiaque, carte musculaire, partage |
+| t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
+| t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
+| t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+
+Le fichier .FIT d'export se valide avec le SDK Garmin officiel : `pip install garmin-fit-sdk`.
+
+## Méthode de modification
+
+Le fichier fait environ 410 Ko. Méthode éprouvée : un script Python de remplacements exacts (`rep(ancien, nouveau, nombre)` qui s'arrête si l'ancrage n'est pas trouvé exactement), une sauvegarde de `index.html` avant chaque patch, puis les tests. Les pages sont des `<section class="page" data-page="…">` rendues par `renderX()` ; `renderAll()` les appelle toutes ; état global `S` dans `localStorage` (`foulee_v1`).
+
+## Historique des versions récentes
+
+| Version | Contenu |
+| --- | --- |
+| 6.5 | Mise en ordre de l'interface : accueil Muscu recentré, actions de séance sur une ligne, cartes repliables, figures et défis compacts, chrono dans l'en-tête, textes d'aide repliés, icônes de titres |
+| 6.4 | Sauvegarde JSON, stockage, réinitialisation ; export de séance .FIT/.TCX ; autres sports d'endurance ; zones FC Karvonen ; KB 8–24 kg + paire ; exercices libres ; guidage vocal ; historique du coach |
+| 6.3 | Fatigue croisée D−/D+, affûtage, routines Pied & Cheville / Descente blindée / Core & Posture, import GPX/FIT + diagnostic de pente, score de polyvalence, curseurs de ressenti, zone TFL |
+| 6.2 | Placement, décharge, radar, anneaux/parallettes, vidéo des figures + album, chaleur, récupération cardiaque, carte musculaire, cartes de partage, figures sur la montre |
+| 6.1 | Onglet Figures (12 parcours de callisthénie) |
+| 6.0 | Synchro chiffrée iPhone/iPad, carnet de charges, objectif course et stratégie d'allure, analyse vidéo de la technique |
+
+## Points non vérifiés en conditions réelles
+
+- Import d'un vrai fichier FIT de montre (seuls des fichiers générés ont été testés).
+- Fichier .FIT de séance chargé sur une vraie montre Garmin ou Coros.
+- Guidage vocal sur iPhone (testé avec une voix simulée).
+- Compilation de l'app Watch dans Xcode (syntaxe Swift vérifiée seulement).
+- Météo Open-Meteo et partage natif depuis l'iPhone.
+
+## Idées en attente
+
+- Journal alimentaire (une question restait ouverte dans le document d'analyse : chaleur ou journal alimentaire en priorité ; la chaleur a été faite en v6.2).
+- Synchro des étapes de figures entre l'iPhone et la montre (impossible depuis une PWA sans app iOS native).
