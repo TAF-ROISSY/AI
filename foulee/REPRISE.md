@@ -1,6 +1,6 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v7.4** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v7.4.1** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
@@ -58,6 +58,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t16 | Fatigue croisée, affûtage, routines, import GPX/FIT, score de polyvalence |
 | t17 | Sauvegarde/restauration, stockage, réinitialisation, export .FIT/.TCX, autres sports, zones FC |
 | t18 | KB 8–24 kg et paire, exercices libres, guidage vocal, historique du coach |
+| t28 | Voix iPhone : déblocage au premier toucher, parole synchrone dans un toucher, diagnostic « Tester la voix » (son / silencieux) |
 | t27 | Envoi d’une séance guidée à l’Apple Watch (URL `fouleewatch://plan?d=` en base64url, format compatible GuidedRun.swift, accents) + analyse syntaxique tree-sitter de tous les fichiers Swift |
 | t26 | Voix du coach (choix de la voix, débit), chrono (moitié, efforts restants, 10 s), course guidée GPS simulée (km, cible, fractions de 400 m, récup, point à la demande, enregistrement), rattachement Strava (type, ±1 jour, détacher) |
 | t25 | Séances avec matériel ou au poids du corps : programme STRBW sans KB, bascule par séance et défaut, barre ou table, adaptations (genou, silencieux), contexte du coach |
@@ -78,6 +79,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 
 | Version | Contenu |
 | --- | --- |
+| 7.4.1 | Voix iPhone fiabilisée : déblocage de la synthèse au premier toucher, plus de cancel() suivi d’un speak() différé pendant un toucher, énoncés gardés en mémoire, resume(), langue alignée sur la voix choisie, alerte « pas de voix ? » et diagnostic dans Réglages › Voix du coach |
 | 7.4 | Apple Watch : course guidée vocale écran verrouillé (GuidedRun.swift : AVSpeechSynthesizer fr-FR, distance HealthKit, mêmes annonces que l’iPhone, vibrations), app iPhone compagnon relais, bouton « ⌚ Envoyer à l’Apple Watch » dans Foulée |
 | 7.3 | Course guidée GPS avec voix (annonces de départ, moitié, fin, fractions restantes, km et allure cible, « Où j’en suis ? »), chrono enrichi, rattachement automatique des sorties Strava aux séances du plan (`S.links`, détacher), voix du coach réglable et lecture des conseils |
 | 7.2 | Muscu : choix « Avec matériel » / « Poids du corps (callisthénie) » par défaut (carte dans Séances) et par séance (bascule sur chaque carte A/B/C) ; programme STRBW de 12 semaines sans kettlebell (11 nouveaux exercices : dips, pompes archer, pistol sur chaise, nordic curl, L-sit, front lever groupé…) |
