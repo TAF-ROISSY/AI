@@ -1,12 +1,12 @@
 # Foulée — fiche de reprise
 
-Version en ligne : **v8.0** (19 octobre 2026). À lire en premier dans toute nouvelle session.
+Version en ligne : **v8.1** (19 octobre 2026). À lire en premier dans toute nouvelle session.
 
 ## Ce qu'est Foulée
 
 Application personnelle de Christophe pour le trail et le renforcement (kettlebell, poids du corps, callisthénie), avec un module pont « Cross-training » et un coach IA (Claude, clé API de l'utilisateur). PWA en **un seul fichier `index.html`** (HTML/CSS/JS vanilla, sans framework ni build), installée sur iPhone et iPad, plus une app Apple Watch en SwiftUI.
 
-- Spécification complète, à jour en v8.0 : le doc « Foulée — prompt complet de l'application » sur claude.ai
+- Spécification complète, à jour en v8.1 : le doc « Foulée — prompt complet de l'application » sur claude.ai
   (https://claude.ai/code/artifact/31b0c1a1-6a0d-4757-8b4c-fa00e16f9ad2).
 - Préférences de travail : réponses en **français**, tutoiement ; **modifications directes** plutôt que des instructions ; tester puis publier sans demander à chaque étape.
 
@@ -62,6 +62,7 @@ Les tests chargent la démo, simulent Strava, Anthropic, GitHub Gist, Open-Meteo
 | t30 | Apparence : thèmes crépuscule / nuit / clair / auto, palettes, polices, persistance par appareil, appliquée dans le head |
 | t31 | Traces de trail : Overpass (relations route hiking/foot/running), chaînage des tronçons, boucle/aller simple, % nature, D+ Open-Meteo et cache, filtres, carte, fiche, GPX, favoris + tombstone, erreur serveur |
 | t32 | v8 : 5 sections + sous-sections, Aujourd’hui, Plus, mémoire de sous-section, compat setMod/showTab, iPhone / iPad 1194 / Mac 1512 (barre latérale, colonnes, coach en panneau, pas de débordement) |
+| t33 | Autres sports : choix des sports, semaine type, Aujourd’hui / Semaine / calendrier, coche = saisie, rattachement Strava, stats, tombstones, import filtré par sports choisis |
 | t28 | Voix iPhone : déblocage au premier toucher, parole synchrone dans un toucher, session audio « playback », bips de secours, diagnostic « Tester la voix » (son / silencieux) |
 | t27 | Envoi d’une séance guidée à l’Apple Watch (URL `fouleewatch://plan?d=` en base64url, format compatible GuidedRun.swift, accents) + analyse syntaxique tree-sitter de tous les fichiers Swift |
 | t26 | Voix du coach (choix de la voix, débit), chrono (moitié, efforts restants, 10 s), course guidée GPS simulée (km, cible, fractions de 400 m, récup, point à la demande, enregistrement), rattachement Strava (type, ±1 jour, détacher) |
@@ -88,6 +89,7 @@ Le fichier fait environ 430 Ko. Méthode éprouvée : un script Python de rempla
 | 7.7 | Voix en mode silencieux : `navigator.audioSession.type='playback'` (iOS 17+) et lecture d’un son muet en média (`vPrime`, boucle pendant chrono et course guidée via `vKeep`) pour que la synthèse vocale ne soit plus coupée par le bouton silencieux. Bips de secours lus en média (`tone`) si la voix ne démarre pas (réglage `voiceBeep`). « Tester la voix » joue un double bip puis la voix et explique quoi faire selon ce qu’on a entendu |
 | 7.8 | Courses › 🧭 Traces de trail : itinéraires balisés OpenStreetMap partout (Overpass, 2 serveurs), autour de moi ou d’un lieu (Nominatim), rayon 5–50 km. Filtres : texte, distance, D+, profil (m/km), boucle / aller simple, % nature (tags highway/surface des chemins), balisage GR / GRP / PR / trail. Tri : proximité, longueur, D+, pente. D+ calculé sur 100 points d’altitude Open-Meteo (cache `localStorage.foulee_trc`). Fiche avec carte, profil, temps estimé, GPX (ODbL), favoris `S.trFav` synchronisés (tombstone `trfav`) |
 | 8.0 | Refonte de la navigation : 5 sections en bas (Aujourd’hui, Plan, Courses, Analyse, Plus) au lieu de 3 modules × 5 onglets. `SECT` décrit sections et sous-sections (Plan : Course / Muscu / Semaine ; Analyse : Sorties / Analyse / Forme / Progrès ; Plus : hub + Figures, Défis, Chrono, Bilans), affichées dans `#modSeg`. Nouvelle page Aujourd’hui (`renderToday` : forme, séances trail + muscu du jour, semaine en pastilles, coach du jour, course, sommeil, chaleur, séance sur mesure) et page Plus (`renderPlus`, tuiles). `setMod(m,tab)` conservé pour compatibilité ; onglet restauré au lancement (`localStorage.foulee_tab`). iPad / Mac ≥ 1024 px : barre latérale, contenu en 2 colonnes (3 au-delà de 1500 px), réglages en fenêtre centrée, coach en panneau à droite |
+| 8.1 | Autres sports : catalogue de 18 sports (`XTYPES` : icône, nom, coefficient de charge, types Strava, unité km / m), choix « Mes sports » (`S.settings.sports`, défaut vélo, VTT, rando, natation, ski de rando) qui filtre aussi l’import Strava. Plan › Autres sports (`renderSports`) : semaine type récurrente `S.xplan` [{id,type,day,min,int e/t/i,km,note,name}] → séances `x<sem>_<id>` dans `daySessions` (kind `x`), Aujourd’hui (pastilles bleues), Semaine, charge prévue, export calendrier (`PCD.x`), contexte du coach. Cocher crée une saisie `p<clé>` à ajuster ; une activité Strava du même sport (ou de la même famille vélo / marche) le même jour coche et lie la séance (`linkX`, appelé par `linkPlan`). Stats 4 semaines (durée, distance, vitesse km/h ou /100 m). Tombstones `xplan` et `xact` |
 | 7.4.1 | Voix iPhone fiabilisée : déblocage de la synthèse au premier toucher, plus de cancel() suivi d’un speak() différé pendant un toucher, énoncés gardés en mémoire, resume(), langue alignée sur la voix choisie, alerte « pas de voix ? » et diagnostic dans Réglages › Voix du coach |
 | 7.4 | Apple Watch : course guidée vocale écran verrouillé (GuidedRun.swift : AVSpeechSynthesizer fr-FR, distance HealthKit, mêmes annonces que l’iPhone, vibrations), app iPhone compagnon relais, bouton « ⌚ Envoyer à l’Apple Watch » dans Foulée |
 | 7.3 | Course guidée GPS avec voix (annonces de départ, moitié, fin, fractions restantes, km et allure cible, « Où j’en suis ? »), chrono enrichi, rattachement automatique des sorties Strava aux séances du plan (`S.links`, détacher), voix du coach réglable et lecture des conseils |
