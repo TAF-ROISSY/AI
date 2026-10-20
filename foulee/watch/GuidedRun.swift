@@ -183,6 +183,8 @@ final class GuidedEngine: ObservableObject {
     @Published private(set) var finished = false
     @Published private(set) var splits: [Double] = []
     @Published var autoEvery = 0          // point vocal automatique (min), 0 = non
+    @Published var wantsEnd = false       // commande vocale « termine » : la vue demande confirmation
+    @Published private(set) var lastHeard = ""
 
     let speaker = Speaker()
     private weak var workout: WorkoutManager?
@@ -400,6 +402,26 @@ final class GuidedEngine: ObservableObject {
         speaker.say(msg + intro(n))
     }
 
+    // Commandes vocales (dictée de la montre) : point, pause, reprise, étape suivante, fin, douleur.
+    func command(_ raw: String) {
+        let t = " " + raw.lowercased().folding(options: .diacriticInsensitive, locale: Locale(identifier: "fr_FR")) + " "
+        lastHeard = raw
+        func has(_ words: [String]) -> Bool { words.contains { t.contains($0) } }
+        if has(["ou j'en suis", "ou j’en suis", "le point", "comment je vais", "mon allure", "combien"]) { status(); return }
+        if has(["termin", "fin de seance", "j'ai fini", "j’ai fini"]) { speaker.say("Tu veux terminer ? Confirme sur l’écran."); wantsEnd = true; return }
+        if has(["reprend", "repart", "on y va", "c'est reparti"]) { if paused { togglePause() } else { speaker.say("Tu n’es pas en pause.") }; return }
+        if has([" pause ", " stop ", "arrete"]) { if !paused { togglePause() }; return }
+        if has(["suivant", "etape", "passe"]) { next(); return }
+        let zones: [(String, [String])] = [("pied", ["pied", "voute", "plantaire"]), ("cheville", ["cheville"]), ("tendon d’Achille", ["achille", "tendon"]), ("mollet", ["mollet"]), ("tibia", ["tibia"]), ("genou", ["genou", "rotule"]), ("cuisse", ["cuisse", "ischio", "quadri"]), ("hanche", ["hanche", "fessier"]), ("dos", ["dos", "lombaire"])]
+        if has(["mal", "douleur", "gene", "tiraill", "crampe"]), let z = zones.first(where: { has($0.1) }) {
+            if has(["tres", "fort", "vive", "aigu"]) { speaker.say("Douleur forte au \(z.0) : arrête-toi et rentre en marchant. Note-la dans Foulée sur l’iPhone, le plan sera adapté.") }
+            else if has(["petit", "leger", "un peu"]) { speaker.say("Petite gêne au \(z.0) : continue en souplesse et surveille. Si ça augmente, ralentis.") }
+            else { speaker.say("Noté, \(z.0). Ralentis nettement, raccourcis la foulée et évite les descentes. Si ça augmente, arrête-toi.") }
+            WKInterfaceDevice.current().play(.notification); return
+        }
+        speaker.say("Je n’ai pas compris. Dis : où j’en suis, pause, reprends, étape suivante, termine, ou j’ai mal au genou.")
+    }
+
     func status() {
         guard let s = step else { speaker.say("\(Say.dist(distance)) en \(Say.dur(elapsed))."); return }
         var msg = s.k == "work" ? "\(s.n). " : ""
@@ -524,6 +546,11 @@ struct GuidedRunView: View {
                     } else {
                         Button { engine.status() } label: { Label("Où j’en suis ?", systemImage: "speaker.wave.2.fill") }
                             .tint(Color(red: 0.96, green: 0.49, blue: 0.54))
+                            .doubleTapPrimary()
+                        TextFieldLink(prompt: Text("Où j’en suis, pause, reprends, étape suivante, j’ai mal au…")) {
+                            Label("Parler", systemImage: "mic.fill")
+                        } onSubmit: { text in engine.command(text) }
+                        .tint(.orange)
                         HStack(spacing: 6) {
                             Button { engine.togglePause() } label: { Image(systemName: engine.paused ? "play.fill" : "pause.fill") }
                             Button { engine.next() } label: { Image(systemName: "forward.end.fill") }
@@ -543,5 +570,13 @@ struct GuidedRunView: View {
             Button("Continuer", role: .cancel) {}
         }
         .onAppear { if !started { engine.load(plan) } }
+        .onChange(of: engine.wantsEnd) { _, v in if v { confirmEnd = true; engine.wantsEnd = false } }
+    }
+}
+
+extension View {
+    /// Double tap (pincer deux fois, Apple Watch Series 9 / Ultra 2 et plus récentes, watchOS 11) = action principale.
+    @ViewBuilder func doubleTapPrimary() -> some View {
+        if #available(watchOS 11.0, *) { self.handGestureShortcut(.primaryAction) } else { self }
     }
 }

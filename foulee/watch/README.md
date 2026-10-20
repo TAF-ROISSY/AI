@@ -40,6 +40,21 @@ Avec un compte Apple gratuit, les apps expirent au bout de 7 jours : relance sim
 
 À vérifier sur ta montre au premier essai : la voix écran baissé (Apple a eu des soucis de synthèse vocale en arrière-plan sur certaines versions de watchOS ; les vibrations, elles, marchent toujours). L’app ne dessine pas encore la trace GPS dans Strava (distance et allure oui).
 
+## Piloter Foulée depuis la montre
+
+### Sans rien installer : la télécommande « À l’écoute » (v9.9)
+Quand une course guidée ou le chrono tourne dans Foulée sur l’iPhone, l’appli s’affiche comme un lecteur audio. Sur la montre, ouvre **À l’écoute** (elle s’ouvre souvent toute seule, sinon : Réglages de la montre › Général › Réveil de l’écran › Ouvrir automatiquement l’app audio) :
+- **⏯** : pause / reprise de la séance ;
+- **⏭** : étape suivante (chrono : phase suivante) ;
+- **⏮** : point vocal « où j’en suis » (chrono : annonce de la phase).
+Le titre affiché donne l’étape, la distance, le temps et l’allure. Les mêmes commandes marchent avec les **AirPods** (double toucher = étape suivante, triple = point vocal ; pression sur la tige des AirPods Pro = pause) et sur l’écran verrouillé de l’iPhone. La voix reste celle de l’iPhone.
+
+### Avec l’app montre : commandes vocales et double tap (v9.9)
+Pendant une course guidée lancée sur la montre :
+- bouton **🎙 Parler** : touche le micro et dis « où j’en suis », « pause », « reprends », « étape suivante », « termine » (confirmation à l’écran) ou « j’ai mal au genou / mollet / tibia… » (consigne de sécurité adaptée à l’intensité de la douleur) ;
+- **double tap** (pincer deux fois l’index et le pouce, Apple Watch Series 9, Ultra 2 et plus récentes, watchOS 11) : point vocal « où j’en suis », sans toucher l’écran.
+Après mise à jour des fichiers, relance *Run* dans Xcode pour réinstaller l’app.
+
 ## Utilisation
 
 - **🏃 Trail** : côtes, VMA, seuil. Ajuste la durée du 400 m à ton allure affichée dans le module Trail › Plan de l’appli.
