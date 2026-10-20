@@ -104,6 +104,11 @@ export default {
       if (u.pathname === '/unsub' && req.method === 'POST') { const b = await req.json(), id = 'sub:' + await sha(b.endpoint || ''); await env.FOULEE.delete(id); await idx(env, id, false); return json({ ok: true }); }
       if (u.pathname === '/test' && req.method === 'POST') { const b = await req.json(); const v = await env.FOULEE.get('sub:' + await sha(b.endpoint || ''), 'json'); if (!v) return json({ error: 'abonnement inconnu' }, 404);
         const st = await sendPush(env, v.sub, { title: 'Test Foulée Suivi', body: 'Les notifications marchent. Tu seras prévenue au départ, à l’arrivée et en cas d’alerte.', url: (env.SITE || '') + 'suivi.html' }); return json({ ok: st < 300, status: st }); }
+      if (u.pathname === '/cheer' && req.method === 'POST') { const b = await req.json(); if (!/^[0-9a-f]{20,40}$/i.test(b.g || '') || !String(b.text || '').trim()) return json({ error: 'message invalide' }, 400);
+        const k = 'ch:' + b.g.toLowerCase(), L = (await env.FOULEE.get(k, 'json')) || [], m = { id: Date.now(), from: String(b.from || 'Un proche').slice(0, 30), text: String(b.text).trim().slice(0, 140) };
+        L.push(m); await env.FOULEE.put(k, JSON.stringify(L.slice(-20)), { expirationTtl: 86400 }); return json({ ok: true, id: m.id }); }
+      if (u.pathname === '/cheer' && req.method === 'GET') { const g = (u.searchParams.get('g') || '').toLowerCase(), since = +u.searchParams.get('since') || 0; if (!/^[0-9a-f]{20,40}$/.test(g)) return json({ list: [] });
+        const L = (await env.FOULEE.get('ch:' + g, 'json')) || []; return json({ list: L.filter(m => m.id > since) }); }
       if (u.pathname === '/run') return json(await run(env));
       return json({ app: 'Foulée push', ok: true });
     } catch (e) { return json({ error: String(e.message || e) }, 500); }
