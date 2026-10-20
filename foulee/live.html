@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Foulée en direct</title><meta name="theme-color" content="#0A0C0F"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{--bg:#0A0C0F;--card:#15181d;--tx:#eef0f3;--mut:#8a8f98;--acc:#FF5F2E;--ok:#3ecf8e;--alert:#e5383b;--edge:rgba(255,255,255,.08)}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+#map{position:fixed;inset:0;background:#1C2633}
+.panel{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:500;background:rgba(21,24,29,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--edge);border-radius:20px;padding:14px 16px;max-width:520px;margin:0 auto;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.top{display:flex;align-items:center;gap:10px}.brand{font-weight:800;letter-spacing:.08em;font-size:14px}.brand span{color:var(--acc)}.sp{flex:1}
+.badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.08)}.badge.run{background:rgba(62,207,142,.16);color:var(--ok)}.badge.pause{background:rgba(255,191,71,.16);color:#ffbf47}.badge.alert{background:var(--alert);color:#fff;animation:p 1s infinite}.badge.fini{color:var(--mut)}
+@keyframes p{50%{opacity:.6}}
+h1{font-size:19px;margin:8px 0 2px}.sub{color:var(--mut);font-size:13px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.g div{background:rgba(255,255,255,.04);border-radius:12px;padding:8px 10px}.g b{display:block;font-size:19px;white-space:nowrap;font-variant-numeric:tabular-nums}.g small{color:var(--mut);font-size:11px}
+.alert{display:none;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--alert);color:#fff;font-weight:600}.alert.on{display:block}
+a.btn{display:inline-block;margin-top:10px;color:var(--acc);font-weight:600;text-decoration:none;font-size:14px}
+.err{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--mut)}
+.me{width:18px;height:18px;border-radius:50%;background:var(--acc);border:3px solid #fff;box-shadow:0 0 0 6px rgba(255,95,46,.3)}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(13,19,26,.7)!important;color:#aab!important}.leaflet-control-attribution a{color:#cdd!important}
+</style></head><body>
+<div id="map"></div>
+<div class="panel" id="pn"><div class="top"><div class="brand">FOUL<span>É</span>E · EN DIRECT</div><div class="sp"></div><span class="badge" id="st">…</span></div>
+<h1 id="who">Chargement…</h1><div class="sub" id="upd"></div>
+<div class="g"><div><b id="dist">–</b><small>km</small></div><div><b id="el">–</b><small>temps</small></div><div><b id="eta">–</b><small id="etal">arrivée estimée</small></div></div>
+<div class="alert" id="al">⚠ Alerte : immobile depuis plusieurs minutes et sans réponse. Essaie de l’appeler.</div>
+<a class="btn" id="nav" href="#" target="_blank" rel="noopener" style="display:none">Ouvrir la position dans Plans ›</a></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const G=(location.hash.match(/g=([0-9a-f]+)/i)||[])[1];let map,trk,rt,mk,D=null,fitted=false;
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0'),dur=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+pad(m):m+':'+pad(s%60)};
+function initMap(){if(map||!window.L)return;map=L.map('map',{zoomControl:false,attributionControl:true}).setView([45.9,6.1],12);L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap · © OpenTopoMap'}).addTo(map);}
+function draw(){if(!D)return;const live=D.st!=='fini'&&Date.now()-D.upd<15*60e3,st=D.sos?'alert':live?D.st:'fini';
+  $('#st').className='badge '+st;$('#st').textContent={run:'En course',pause:'En pause',alert:'ALERTE',fini:'Terminé'}[st]||st;
+  $('#who').textContent=(D.pseudo||'Coureur')+' · '+(D.name||'Sortie');const ago=Math.round((Date.now()-D.upd)/60000);$('#upd').textContent='Mis à jour '+(ago<1?'à l’instant':'il y a '+ago+' min')+' · départ '+new Date(D.t0).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  $('#dist').textContent=(D.dist/1000).toFixed(1).replace('.',',');$('#el').textContent=dur(D.el+(st==='run'?(Date.now()-D.upd)/1000:0));
+  if(D.eta&&st!=='fini'){$('#eta').textContent=new Date(D.eta).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});$('#etal').textContent='arrivée estimée'+(D.rest!=null?' · '+(D.rest/1000).toFixed(1).replace('.',',')+' km':'');}else{$('#eta').textContent=st==='fini'?'✓':'–';$('#etal').textContent=st==='fini'?'sortie terminée':'arrivée estimée';}
+  $('#al').classList.toggle('on',!!D.sos);
+  if(D.pos){const n=$('#nav');n.style.display='';n.href='https://maps.apple.com/?ll='+D.pos[0]+','+D.pos[1]+'&q='+encodeURIComponent(D.pseudo||'Coureur');}
+  if(!map)return;if(D.route&&D.route.length>1){if(!rt)rt=L.polyline(D.route,{color:'#ffffff',weight:4,opacity:.35,dashArray:'6 8'}).addTo(map);}
+  if(D.trk&&D.trk.length>1){if(trk)trk.setLatLngs(D.trk);else trk=L.polyline(D.trk,{color:'#FF5F2E',weight:5,opacity:.95}).addTo(map);}
+  if(D.pos){if(mk)mk.setLatLng(D.pos);else mk=L.marker(D.pos,{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);}
+  if(!fitted){const b=L.latLngBounds([...(D.route||[]),...(D.trk||[]),...(D.pos?[D.pos]:[])]);if(b.isValid()){map.fitBounds(b,{padding:[30,30],maxZoom:15});fitted=true;}}else if(D.pos&&st==='run')map.panTo(D.pos,{animate:true});}
+async function load(){if(!G){document.body.innerHTML='<div class="err">Lien de suivi incomplet.</div>';return;}
+  try{const r=await fetch('https://api.github.com/gists/'+G,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(r.status);const g=await r.json(),f=g.files&&g.files['foulee-live.json'];if(!f)throw new Error('vide');
+    D=JSON.parse(f.truncated?await (await fetch(f.raw_url)).text():f.content);draw();}catch(e){if(!D)$('#who').textContent='Suivi indisponible pour l’instant';$('#upd').textContent='Nouvel essai dans une minute…';}}
+initMap();load();setInterval(load,60000);setInterval(draw,1000);
+</script></body></html>
