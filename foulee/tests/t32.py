@@ -22,9 +22,9 @@ async def run(br,vw,vh,tag):
     await A.locator('#tabs button[data-sec=analyse]').click(); print(tag,'remember2', await A.evaluate("document.body.dataset.tab"))
     await A.screenshot(path=f'v8_{tag}_forme.png')
     await A.locator('#tabs button[data-sec=plus]').click(); await A.wait_for_timeout(100)
-    print(tag,'plus tiles', await A.evaluate("document.querySelectorAll('[data-page=plus] .ptile').length"))
+    print(tag,'plus tiles', await A.evaluate("document.querySelectorAll('[data-page=plus] .prow').length"))
     await A.screenshot(path=f'v8_{tag}_plus.png')
-    await A.locator('[data-page=plus] .ptile:has-text("Intervalles")').click(); print(tag,'chrono', await A.evaluate("document.body.dataset.tab+'/'+document.body.dataset.sec"))
+    await A.locator('[data-page=plus] .prow:has-text("Intervalles")').click(); print(tag,'chrono', await A.evaluate("document.body.dataset.tab+'/'+document.body.dataset.sec"))
     # compat
     await A.evaluate("setMod('muscu')"); print(tag,'setMod muscu', await A.evaluate("document.body.dataset.tab"))
     await A.evaluate("setMod('trail','courses')"); print(tag,'setMod courses', await A.evaluate("document.body.dataset.tab+'/'+document.body.dataset.sec"))
