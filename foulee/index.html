@@ -846,7 +846,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='10.1';
+const APP_VER='10.2';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -5109,7 +5109,7 @@ function fwRow(f,full){const d=FW.data[f.id],s=fwSt(f.id),n=fwName(f),live=['run
   ${s==='alert'?`<div class="fw-al">Ne bouge plus depuis plusieurs minutes et n’a pas répondu.</div>`:''}${full?fwWeekHtml(f.id):''}</div>${d&&d.pos&&(live||full)?`<a class="btn sm ${s==='alert'?'':'ghost'}" style="margin:0" href="https://maps.apple.com/?ll=${d.pos[0]},${d.pos[1]}&q=${encodeURIComponent(n)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍</a>`:''}${full?`<button class="ib" aria-label="Retirer" onclick="event.stopPropagation();if(confirm('Ne plus suivre ${esc(n).replace(/'/g,'')} ?'))fwDel('${f.id}')">✕</button>`:''}</div>`;}
 function followCard(){const L=S.follow||[];if(!L.length)return '';fwFetch(false);const act=L.filter(f=>['run','pause','alert'].includes(fwSt(f.id)));if(!act.length)return '';const al=act.some(f=>fwSt(f.id)==='alert');
   return `<div class="card fw-c ${al?'al':''}" onclick="openFollow()"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${al?'⚠ Alerte':'📍 En sortie maintenant'}</h2><span class="tag">${act.length}</span></div>${act.map(f=>fwRow(f,false)).join('')}<button class="btn sm ghost wide" style="margin-top:8px" onclick="event.stopPropagation();fwMap()">Voir sur la carte</button></div>`;}
-function fwLink(withMe){const L=[];if(withMe&&S.liveGist)L.push('add='+S.liveGist+'&n='+encodeURIComponent(defiPseudo()));(S.follow||[]).forEach(f=>L.push('add='+f.id+'&n='+encodeURIComponent(fwName(f))));return appBase()+'suivi.html'+(L.length?'#'+L.join('|'):'');}
+function fwLink(withMe){const L=[];if(withMe&&S.liveGist)L.push('add='+S.liveGist+'&n='+encodeURIComponent(defiPseudo()));(S.follow||[]).forEach(f=>L.push('add='+f.id+'&n='+encodeURIComponent(fwName(f))));if(pushSrv())L.push('push='+encodeURIComponent(pushSrv()));return appBase()+'suivi.html'+(L.length?'#'+L.join('|'):'');}
 function fwMap(){window.open(fwLink(false),'_blank','noopener');}
 async function fwShare(){const u=fwLink(true);const t='Installe « Foulée Suivi » pour voir nos sorties en direct (position, distance, heure d’arrivée et alertes). Ouvre ce lien dans Safari, puis Partager › Sur l’écran d’accueil.';try{if(navigator.share){await navigator.share({title:'Foulée Suivi',text:t,url:u});return;}}catch(e){if(e&&e.name==='AbortError')return;}try{await navigator.clipboard.writeText(t+' '+u);toast('Lien copié');}catch(e){prompt('Lien Foulée Suivi',u);}}
 function openFollow(noFetch){const L=S.follow||[];
@@ -5119,7 +5119,7 @@ function openFollow(noFetch){const L=S.follow||[];
   <div class="row" style="flex-wrap:nowrap;margin-top:10px"><input id="fw_in" placeholder="Coller un lien de suivi" autocomplete="off"><button class="btn ghost" onclick="(()=>{const r=fwParse($('#fw_in').value);if(!r){toast('Lien de suivi invalide');return;}if(fwAdd(r.g,r.n)){toast('Ajouté');fwFetch(true);openFollow(true);}})()">Ajouter</button></div>
   ${L.length?'<button class="btn wide" style="margin-top:10px" onclick="fwMap()">🗺️ Voir tout le monde sur la carte</button>':''}${famCard()}
   <div class="card" style="margin-top:12px"><h2>👪 Foulée Suivi pour la famille</h2><p class="small">Une appli toute simple pour ta femme (ou quelqu’un qui ne court pas) : la carte de ${S.liveGist?'toi':'tes proches'}${S.liveGist&&L.length?' et de tes proches':''} en direct, les alertes, le bouton itinéraire et appeler. Rien à configurer : elle ouvre le lien et l’ajoute à son écran d’accueil.</p>
-  <button class="btn wide" onclick="fwShare()">Envoyer Foulée Suivi</button>${!S.liveGist?'<p class="note">Pour t’y inclure toi aussi, active d’abord ton propre suivi en direct (Plus › Suivi en direct & sécurité).</p>':''}</div>`;$('#sheet').classList.add('on');if(!noFetch)fwFetch(true);}
+  <button class="btn wide" onclick="fwShare()">Envoyer Foulée Suivi</button>${pushCard()}${!S.liveGist?'<p class="note">Pour t’y inclure toi aussi, active d’abord ton propre suivi en direct (Plus › Suivi en direct & sécurité).</p>':''}</div>`;$('#sheet').classList.add('on');if(!noFetch)fwFetch(true);}
 function followFromHash(){const m=location.hash.match(/suivre=([0-9a-f]{20,40})(?:&n=([^&|]+))?/i);if(!m)return;history.replaceState(null,'',location.pathname+location.search);if(fwAdd(m[1].toLowerCase(),m[2]?decodeURIComponent(m[2]):'')){toast('Proche ajouté à ton suivi');setTimeout(()=>openFollow(),400);}}
 /* ============ v10.1 : SEMAINE PARTAGÉE (pour les parents / proches) ============ */
 const WEEK_FILE='foulee-week.json';let wkT=null,wkBusy=false;
@@ -5202,6 +5202,21 @@ function openTrip(){const t=S.trip||{};
   if(GR.on&&GR.duo){const t=duoTxt(false),h=`<div class="duo-l">👥 ${esc(t)}</div>`,a=el.querySelector('.gr-grid')||el.querySelector('.grm-g');if(a)a.insertAdjacentHTML('afterend',h);}};}
 {const _s=grStatus;grStatus=function(){_s.apply(this,arguments);if(GR.duo&&GR.on)vSay(duoTxt(true),{queue:true});};const _t=grTick;grTick=function(){_t.apply(this,arguments);if(GR.duo)duoTick(false);};
  const _ls=liveStart;liveStart=function(){_ls.apply(this,arguments);if(GR.duo&&S.settings.live){clearInterval(LV.iv);LV.iv=setInterval(()=>{if(GR.on)livePush();},30000);}};}
+/* ============ v10.2 : NOTIFICATIONS PUSH (serveur Foulée) ============ */
+function pushSrv(){return (S.settings.pushUrl||'').trim().replace(/\/+$/,'');}
+function pushB64(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
+async function pushMe(){const url=pushSrv();if(!/^https:\/\//.test(url)){toast('Renseigne d’abord l’adresse du serveur');return;}
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){toast(isIOS()&&!isStandalone()?'Ouvre Foulée depuis l’icône de l’écran d’accueil':'Notifications non prises en charge ici');return;}
+  try{const perm=await Notification.requestPermission();if(perm!=='granted'){toast('Notifications refusées : Réglages › Notifications › Foulée');return;}
+    const reg=await navigator.serviceWorker.ready,key=(await (await fetch(url+'/vapid')).json()).key;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushB64(key)});
+    const r=await fetch(url+'/sub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sub:sub.toJSON?sub.toJSON():sub,people:(S.follow||[]).map(f=>({g:f.id,n:fwName(f)})),tz:Intl.DateTimeFormat().resolvedOptions().timeZone})});if(!r.ok)throw new Error('serveur '+r.status);
+    try{localStorage.setItem('foulee_push_ep',sub.endpoint);}catch(e){}toast('Notifications activées ✓');openFollow(true);}catch(e){toast('Activation impossible : '+(e.message||e));}}
+async function pushMeTest(){let ep='';try{ep=localStorage.getItem('foulee_push_ep')||'';}catch(e){}try{const r=await (await fetch(pushSrv()+'/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:ep})})).json();toast(r.ok?'Notification de test envoyée':'Échec : réactive les notifications');}catch(e){toast('Serveur injoignable');}}
+function pushCard(){const u=pushSrv();let ep='';try{ep=localStorage.getItem('foulee_push_ep')||'';}catch(e){}
+  return `<div class="card"><h2>🔔 Notifications (même appli fermée)</h2><p class="small">Départ, arrivée, alerte, arrivée à la maison, éloignement, sortie du parcours : sur ton iPhone et sur celui de ta famille, via ton serveur gratuit (Cloudflare, 10 minutes à installer une fois).</p>
+  <div class="form"><label>Adresse du serveur</label><input placeholder="https://foulee-push….workers.dev" value="${esc(u)}" onchange="S.settings.pushUrl=this.value.trim();save();openFollow(true)"></div>
+  <p class="note">Pour l’installer : guide <a href="https://github.com/TAF-ROISSY/ai/blob/main/foulee/push/README.md" target="_blank" rel="noopener">push/README.md</a>. Variable SITE à renseigner : <code>${esc(appBase())}</code></p>
+  ${u?`<div class="row" style="gap:8px"><button class="btn sm" style="margin:0" onclick="pushMe()">${ep?'Mettre à jour mes notifications':'Recevoir les notifications sur cet iPhone'}</button>${ep?'<button class="btn sm ghost" style="margin:0" onclick="pushMeTest()">Test</button>':''}</div><p class="note">Le lien « Envoyer Foulée Suivi » transmet aussi l’adresse du serveur à ta famille.</p>`:''}</div>`;}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
 mvClean();eiStart();initChrono();linkPlan(true);renderAll();navInit();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);

@@ -1,5 +1,5 @@
 // Foulée — service worker : appli disponible hors ligne, mises à jour récupérées en arrière-plan.
-const CACHE = 'foulee-v10.1';
+const CACHE = 'foulee-v10.2';
 const TILES = 'foulee-tiles'; // cartes hors ligne enregistrées par l'appli (jamais vidé à la mise à jour)
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable.png', './live.html', './suivi.html', './suivi.webmanifest'];
 
@@ -41,4 +41,22 @@ self.addEventListener('fetch', e => {
       return hit || net;
     })
   );
+});
+
+// v10.2 : notifications push (serveur Foulée, voir push/README.md)
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: 'Foulée', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Foulée', {
+    body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined,
+    renotify: !!d.urgent, requireInteraction: !!d.urgent, data: { url: d.url || './suivi.html' }
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './suivi.html';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) if (c.url.includes('suivi.html') && 'focus' in c) return c.focus();
+    return self.clients.openWindow(url);
+  }));
 });
