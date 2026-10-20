@@ -27,7 +27,7 @@ async def m():
         print('renamed', await A.evaluate("hillName(hillsScan()[0])"), 'synced', await A.evaluate("'hillNames' in syncPayload().data")); await A.screenshot(path='h_sheet.png'); await A.evaluate("closeSettings()")
     # carnet imprimable
     await A.evaluate("window.print=()=>{window.__pp=1}")
-    await A.evaluate("printBook()"); print('print', await A.evaluate("window.__pp"), await A.evaluate("$('#printArea').innerText.includes('Plan des 4 prochaines semaines')"), 'rows', await A.evaluate("$('#printArea').querySelectorAll('tr').length"))
+    await A.evaluate("bookPrint()"); print("print", await A.evaluate("window.__pp"), await A.evaluate("$('#printArea').innerText.includes('Plan des 4 prochaines semaines')"), 'rows', await A.evaluate("$('#printArea').querySelectorAll('tr').length"))
     await A.emulate_media(media='print'); await A.wait_for_timeout(100)
     print('print css', await A.evaluate("getComputedStyle($('main')).display"), await A.evaluate("getComputedStyle($('#printArea')).display"))
     await A.pdf(path='carnet.pdf') if False else None
