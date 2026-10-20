@@ -7,7 +7,8 @@ Ce petit serveur envoie des **notifications** sur les iPhone de la famille, mêm
 - « ⚠ Alerte : Lucas » (immobile et sans réponse) ;
 - « Lucas est arrivé à la maison » ;
 - « Lucas s'éloigne » (plus loin que la distance choisie) ;
-- « Lucas a quitté son parcours ».
+- « Lucas a quitté son parcours » ;
+- pour toi, chaque soir à 19 h : « Demain : sortie longue — meilleur créneau 7 h – 9 h (12 °C, sec) », et le jeudi le meilleur jour pour la sortie longue du week-end (Foulée › Plus › Le bon créneau).
 
 Il tourne sur **Cloudflare Workers**, en offre gratuite, sans carte bancaire. Toutes les minutes, il lit les liens de suivi des proches, et il ne garde que les abonnements et le dernier état de chaque personne.
 
@@ -37,7 +38,12 @@ Les notifications web ne marchent que pour une appli **ajoutée à l'écran d'ac
 ## Vérifier
 
 - L'adresse du Worker affiche `{"app":"Foulée push","ok":true}`.
-- `…/run` lance une vérification tout de suite et affiche le nombre d'abonnements, de personnes suivies et de messages envoyés.
+- `…/run` lance une vérification tout de suite et affiche le nombre d'abonnements, de personnes suivies, de messages envoyés et de notifications de créneau.
+- Tests locaux (Node 20 ou plus) : `cp worker.js worker.mjs && node test_worker.mjs && node test_cheer.mjs && node test_slot.mjs`.
+
+## Agenda (.ics)
+
+Les agendas iCloud, Google ou Outlook ne se lisent pas directement depuis une page web. Le serveur sert de relais (`/ics?u=…`) pour Foulée › Plus › Ton agenda décide : il récupère le fichier, vérifie que c’est bien un agenda, et le renvoie sans rien garder.
 
 ## Limites
 

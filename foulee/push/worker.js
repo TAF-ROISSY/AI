@@ -1,6 +1,7 @@
 // Foulée — serveur de notifications (Cloudflare Worker, gratuit).
 // Surveille les gists « suivi en direct » des proches et envoie des notifications Web Push :
-// départ, arrivée, alerte d’immobilité, arrivée à la maison, éloignement, sortie du parcours.
+// départ, arrivée, alerte d’immobilité, arrivée à la maison, éloignement, sortie du parcours ;
+// le meilleur créneau météo pour la séance du lendemain (/slot) ; proxy d’agenda .ics (/ics).
 // Bindings : KV « FOULEE » ; secret GITHUB_TOKEN (jeton sans aucun droit, indispensable : sans lui GitHub limite à 60 lectures / h) ; variable SITE (adresse de Foulée).
 // Déclencheur Cron : « * * * * * » (toutes les minutes).
 
@@ -77,6 +78,46 @@ async function getLive(env, g) {
   const j = await r.json(), f = j.files && j.files['foulee-live.json']; if (!f) return null;
   return JSON.parse(f.truncated ? await (await fetch(f.raw_url)).text() : f.content);
 }
+
+// ---------- Le bon créneau (v12.0) : la veille à 19 h, meilleur moment pour la séance du lendemain ----------
+export function slotScore(at, pp, w, h) { return Math.max(0, at - 16) * 3 + Math.max(0, 4 - at) * 1.5 + (pp || 0) * .12 + Math.max(0, (w || 0) - 18) * .5 + (h < 7 ? 3 : 0) + (h >= 20 ? 3 : 0); }
+export function slotBest(H, date, min) {
+  if (!H || !H.time) return null; const n = Math.max(1, Math.ceil(min / 60)), C = [];
+  H.time.forEach((t, i) => { if (t.slice(0, 10) !== date) return; const h = +t.slice(11, 13); if (h < 6 || h + n > 21) return; let sc = 0, at = 0, pp = 0, w = 0;
+    for (let k = 0; k < n; k++) { const j = i + k; if (!H.time[j] || H.time[j].slice(0, 10) !== date) return; sc += slotScore(H.apparent_temperature[j], (H.precipitation_probability || [])[j], H.wind_speed_10m[j], +H.time[j].slice(11, 13)); at += H.apparent_temperature[j]; pp = Math.max(pp, (H.precipitation_probability || [])[j] || 0); w = Math.max(w, H.wind_speed_10m[j]); }
+    C.push({ h, sc: sc / n, at: Math.round(at / n), pp: Math.round(pp), w: Math.round(w) }); });
+  if (!C.length) return null; C.sort((a, b) => a.sc - b.sc); const b = C[0], z = C[C.length - 1]; return { ...b, n, worst: z.sc - b.sc >= 4 ? z : null };
+}
+const wxTxt = b => `${b.at} °C ressentis, ${b.pp >= 40 ? 'pluie ' + b.pp + ' %' : b.pp >= 15 ? 'pluie peu probable' : 'sec'}, vent ${b.w} km/h`;
+const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+function localNow(tz, now) { const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false, weekday: 'short' }).formatToParts(now).map(x => [x.type, x.value])); return { date: `${p.year}-${p.month}-${p.day}`, h: +p.hour % 24, wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday) }; }
+const addDay = (d, n) => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+export function slotMsgs(sl, H, L) {
+  const out = [], tom = addDay(L.date, 1), ss = (sl.sess || []).filter(x => x.d === tom && x.min >= 35).sort((a, b) => b.min - a.min);
+  if (ss[0]) { const b = slotBest(H, tom, ss[0].min); if (b) out.push({ title: 'Demain : ' + ss[0].t, body: `Meilleur créneau : ${b.h} h – ${b.h + b.n} h (${wxTxt(b)}).${b.worst ? ` À éviter : ${b.worst.h} h (${b.worst.at} °C${b.worst.pp >= 40 ? ', pluie' : ''}).` : ''}` }); }
+  if (L.wd === 4) { const we = [addDay(L.date, 2), addDay(L.date, 3)], lg = (sl.sess || []).filter(x => we.includes(x.d) && x.min >= 80).sort((a, b) => b.min - a.min)[0];
+    if (lg) { const R = we.map(d => ({ d, b: slotBest(H, d, lg.min) })).filter(x => x.b).sort((a, b) => a.b.sc - b.b.sc);
+      if (R.length) { const x = R[0], o = R[1], wd = d => JOURS[new Date(d + 'T12:00:00Z').getUTCDay()]; out.push({ title: 'Ta sortie longue du week-end', body: `Meilleur moment : ${wd(x.d)} ${x.b.h} h (${wxTxt(x.b)}).${o && o.b.sc - x.b.sc >= 3 ? ` ${wd(o.d)[0].toUpperCase() + wd(o.d).slice(1)} : ${o.b.pp >= 40 ? 'pluie annoncée' : o.b.at + ' °C ressentis'}.` : ''}` }); } } }
+  return out;
+}
+export async function slotRun(env, now = new Date()) {
+  const ids = (await env.FOULEE.get('slots', 'json')) || []; let sent = 0; const keep = [];
+  for (const id of ids) { const sl = await env.FOULEE.get(id, 'json'); if (!sl) continue; keep.push(id); const L = localNow(sl.tz || 'Europe/Paris', now); if (L.h !== 19 || sl.last === L.date) continue;
+    sl.last = L.date; await env.FOULEE.put(id, JSON.stringify(sl), { expirationTtl: 30 * 86400 });
+    const sub = await env.FOULEE.get('sub:' + id.slice(3), 'json'); if (!sub) continue;
+    let H = null; try { const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${sl.ll[0]}&longitude=${sl.ll[1]}&hourly=apparent_temperature,precipitation_probability,wind_speed_10m&forecast_days=5&timezone=${encodeURIComponent(sl.tz || 'Europe/Paris')}&wind_speed_unit=kmh`); H = (await r.json()).hourly; } catch (e) { }
+    if (!H) continue; for (const m of slotMsgs(sl, H, L)) { await sendPush(env, sub.sub, { ...m, url: env.SITE || '', tag: 'slot' }); sent++; } }
+  if (keep.length !== ids.length) await env.FOULEE.put('slots', JSON.stringify(keep));
+  return sent;
+}
+// ---------- Proxy agenda .ics (v12.0) : les agendas iCloud / Google n’autorisent pas la lecture directe depuis le navigateur ----------
+export async function icsProxy(u) {
+  let url; try { url = new URL(u.replace(/^webcal:/i, 'https:')); } catch (e) { return json({ error: 'adresse invalide' }, 400); }
+  if (!/^https?:$/.test(url.protocol)) return json({ error: 'adresse invalide' }, 400);
+  const r = await fetch(url.toString(), { headers: { 'User-Agent': 'foulee-agenda' } }); if (!r.ok) return json({ error: 'agenda injoignable (' + r.status + ')' }, 502);
+  const t = await r.text(); if (!/^\s*BEGIN:VCALENDAR/.test(t)) return json({ error: 'ce lien n’est pas un agenda .ics' }, 400); if (t.length > 3e6) return json({ error: 'agenda trop gros' }, 413);
+  return new Response(t, { headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...CORS } });
+}
 export async function run(env) {
   const ids = (await env.FOULEE.get('subs', 'json')) || [], subs = [];
   for (const id of ids) { const v = await env.FOULEE.get(id, 'json'); if (v) subs.push({ id, ...v }); }
@@ -90,7 +131,8 @@ export async function run(env) {
     if (JSON.stringify(now) !== JSON.stringify(prev)) await env.FOULEE.put(key, JSON.stringify(now), { expirationTtl: 30 * 86400 });
     for (const m of out) { const st = await sendPush(env, s.sub, { ...m, url: (env.SITE || '') + 'suivi.html', tag: p.g }); sent++; if (st === 404 || st === 410) { await env.FOULEE.delete(s.id); await idx(env, s.id, false); break; } }
   }
-  return { subs: subs.length, gists: gists.length, sent };
+  let slots = 0; try { slots = await slotRun(env); } catch (e) { }
+  return { subs: subs.length, gists: gists.length, sent, slots };
 }
 export default {
   async fetch(req, env) {
@@ -109,6 +151,11 @@ export default {
         L.push(m); await env.FOULEE.put(k, JSON.stringify(L.slice(-20)), { expirationTtl: 86400 }); return json({ ok: true, id: m.id }); }
       if (u.pathname === '/cheer' && req.method === 'GET') { const g = (u.searchParams.get('g') || '').toLowerCase(), since = +u.searchParams.get('since') || 0; if (!/^[0-9a-f]{20,40}$/.test(g)) return json({ list: [] });
         const L = (await env.FOULEE.get('ch:' + g, 'json')) || []; return json({ list: L.filter(m => m.id > since) }); }
+      if (u.pathname === '/slot' && req.method === 'POST') { const b = await req.json(), h = await sha(b.endpoint || ''); if (!(await env.FOULEE.get('sub:' + h))) return json({ error: 'abonnement inconnu : active d’abord les notifications' }, 404);
+        if (!Array.isArray(b.ll) || b.ll.length !== 2) return json({ error: 'position manquante' }, 400); const id = 'sl:' + h, old = (await env.FOULEE.get(id, 'json')) || {};
+        const v = { ll: [Math.round(+b.ll[0] * 100) / 100, Math.round(+b.ll[1] * 100) / 100], tz: String(b.tz || 'Europe/Paris').slice(0, 40), sess: (b.sess || []).slice(0, 30).map(x => ({ d: String(x.d).slice(0, 10), t: String(x.t || 'Séance').slice(0, 60), min: +x.min || 0 })), last: old.last || '' };
+        await env.FOULEE.put(id, JSON.stringify(v), { expirationTtl: 30 * 86400 }); const L = (await env.FOULEE.get('slots', 'json')) || []; if (!L.includes(id)) { L.push(id); await env.FOULEE.put('slots', JSON.stringify(L)); } return json({ ok: true, sess: v.sess.length }); }
+      if (u.pathname === '/ics' && req.method === 'GET') return await icsProxy(u.searchParams.get('u') || '');
       if (u.pathname === '/run') return json(await run(env));
       return json({ app: 'Foulée push', ok: true });
     } catch (e) { return json({ error: String(e.message || e) }, 500); }
