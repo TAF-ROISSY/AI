@@ -669,12 +669,12 @@ nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);colo
 #splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(700px 420px at 50% 38%,color-mix(in srgb,var(--acc) 22%,transparent),transparent 70%),var(--bg);transition:opacity .45s var(--ease),visibility .45s}
 #splash.out{opacity:0;visibility:hidden}
 #splash svg{width:min(62vw,260px);height:auto;overflow:visible}
-#splash .sp-ridge{fill:none;stroke:var(--acc);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:420;stroke-dashoffset:420;animation:spDraw 1.05s var(--ease-out) .1s forwards;filter:drop-shadow(0 0 8px var(--glow))}
-#splash .sp-fill{fill:url(#spg);opacity:0;animation:spFade .6s ease .55s forwards}
-#splash .sp-dot{fill:#fff;opacity:0;offset-path:path('M6 74 L52 40 L74 56 L110 14 L140 46 L162 34 L214 74');offset-distance:0%;animation:spRun 1.05s var(--ease-out) .1s forwards}
-#splash .sp-name{font-family:var(--disp);font-weight:800;font-size:40px;letter-spacing:.14em;color:var(--tx);opacity:0;transform:translateY(8px);animation:spUp .55s var(--ease-out) .6s forwards}
+#splash .sp-ridge{fill:none;stroke:var(--acc);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:420;stroke-dashoffset:420;animation:spDraw 1.3s var(--ease-out) .1s forwards;filter:drop-shadow(0 0 8px var(--glow))}
+#splash .sp-fill{fill:url(#spg);opacity:0;animation:spFade .7s ease .7s forwards}
+#splash .sp-dot{fill:#fff;opacity:0;offset-path:path('M6 74 L52 40 L74 56 L110 14 L140 46 L162 34 L214 74');offset-distance:0%;animation:spRun 1.3s var(--ease-out) .1s forwards}
+#splash .sp-name{font-family:var(--disp);font-weight:800;font-size:40px;letter-spacing:.14em;color:var(--tx);opacity:0;transform:translateY(8px);animation:spUp .6s var(--ease-out) .8s forwards}
 #splash .sp-name span{color:var(--acc)}
-#splash .sp-sub{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);opacity:0;animation:spUp .5s var(--ease-out) .8s forwards}
+#splash .sp-sub{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);opacity:0;animation:spUp .55s var(--ease-out) 1.05s forwards}
 @keyframes spDraw{to{stroke-dashoffset:0}}@keyframes spFade{to{opacity:.9}}@keyframes spUp{to{opacity:1;transform:none}}
 @keyframes spRun{0%{opacity:1;offset-distance:0%}92%{opacity:1}100%{opacity:1;offset-distance:100%}}
 @media(prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important}}
@@ -698,7 +698,7 @@ label.prow{cursor:pointer}.pin-ck{width:22px;height:22px;accent-color:var(--acc)
 .grm-g{display:flex;justify-content:space-around;width:100%;margin-top:10px}.grm-g span{display:flex;flex-direction:column;color:#8a8f98;font-size:13px}.grm-g b{font:700 34px/1.05 'Barlow Condensed',var(--disp),sans-serif;color:#e8eaee;font-variant-numeric:tabular-nums}
 .grm-w{margin-top:12px;color:var(--trail);font-weight:700;font-size:18px}.grm-h{color:#5c6068;font-size:12px;margin:14px 0 0}
 .grm-b .btn{background:#111;border-color:#222;color:#cfd3da}
-#splash.pre .sp-ridge{animation:none;stroke-dashoffset:0}#splash.pre .sp-fill{animation-delay:0s}#splash.pre .sp-name{animation-delay:.15s}#splash.pre .sp-sub{animation-delay:.35s}
+#splash.pre .sp-ridge{animation:none;stroke-dashoffset:0}#splash.pre .sp-fill{animation-delay:0s}#splash.pre .sp-name{animation-delay:.3s}#splash.pre .sp-sub{animation-delay:.6s}#splash.pre .sp-dot{animation-duration:1.5s}
 .grm-p.none{color:#3a3d42}
 </style>
 </head>
@@ -810,7 +810,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='9.3';
+const APP_VER='9.4';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -4246,7 +4246,7 @@ function eiNode(n){if(!n)return;if(n.nodeType===3){const t=n.nodeValue;if(!t||!E
 const eiObs=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')eiNode(m.target);else m.addedNodes.forEach(eiNode);}});
 function eiStart(){eiNode(document.body);eiObs.observe(document.body,{childList:true,subtree:true,characterData:true});}
 function picon(k,c){return `<span class="pic" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${PIC[k]}</svg></span>`;}
-function splashOff(){const el=document.getElementById('splash');if(!el)return;const red=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches,left=Math.max(0,(red?300:el.classList.contains('pre')?1150:1650)-(performance.now()));setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),600);},left);}
+function splashOff(){const el=document.getElementById('splash');if(!el)return;const red=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches,left=Math.max(0,(red?300:2000)-(performance.now()));setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),600);},left);}
 const PVMA="showTab('plan');setTimeout(()=>{const c=[...document.querySelectorAll('[data-page=plan] .card h2')].find(h=>h.textContent.includes('Test VMA'));if(c)c.scrollIntoView({block:'center'})},120)";
 const PLUSG=['Entraînement','Courses & terrain','Forme & santé','Coach','Partager','Bilans','Réglages'];
 const PLUSI=[
@@ -4535,17 +4535,33 @@ let MOD='trail',SEC='today',LASTP={};
 function sectOf(t){return Object.keys(SECT).find(k=>SECT[k].p.some(x=>x[0]===t))||'today';}
 function renderNav(){$('#tabs').innerHTML=Object.entries(SECT).map(([k,v])=>`<button data-tab="${v.p[0][0]}" data-sec="${k}" class="${k===SEC?'on':''}" aria-label="${v.l}"${k===SEC?' aria-current="page"':''}><svg viewBox="0 0 24 24">${ICO[v.ic]}</svg><span>${v.l}</span></button>`).join('');
   document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{const k=b.dataset.sec;showTab(k===SEC?SECT[k].p[0][0]:(LASTP[k]||SECT[k].p[0][0]));});}
+/* ============ v9.4 : retour en arrière (historique, glisser depuis le bord) ============ */
+let NAVI=false,NAVIGN=0;
+function tabName(t){if(!t)return '';const k=sectOf(t),P=SECT[k].p,x=P.find(y=>y[0]===t);return k==='plus'||P.length>1?(x?x[1]:SECT[k].l):SECT[k].l;}
+function navPush(t,push){if(push===false||!NAVI)return;const st=history.state||{};if(st.tab===t&&!st.sheet)return;try{history.pushState({tab:t,prev:st.tab||null,d:(st.d||0)+1},'');}catch(e){}}
+function navBack(){const st=history.state;return st&&st.d>0&&st.prev&&st.prev!==st.tab&&sectOf(st.prev)!=='plus'?tabName(st.prev):'';}
+function navInit(){try{const st=history.state;if(!st||!st.tab)history.replaceState({tab:document.body.dataset.tab||'today',prev:null,d:0},'');}catch(e){}NAVI=true;
+  window.addEventListener('popstate',e=>{if(NAVIGN>0){NAVIGN--;return;}const sh=$('#sheet');if(sh&&sh.classList.contains('on')){sh.classList.remove('on');return;}
+    const gv=$('#grv');if(gv&&gv.classList.contains('on')&&!(typeof GR!=='undefined'&&GR.on)){gv.classList.remove('on');}
+    const st=e.state;if(st&&st.tab&&st.tab!==document.body.dataset.tab)showTab(st.tab,false);});
+  const sh=$('#sheet');if(sh)new MutationObserver(()=>{const on=sh.classList.contains('on'),st=history.state||{};
+    if(on&&!st.sheet){try{history.pushState({...st,sheet:1,d:(st.d||0)+1},'');}catch(e){}}
+    else if(!on&&st.sheet)setTimeout(()=>{if(!sh.classList.contains('on')&&history.state&&history.state.sheet){NAVIGN++;history.back();}},60);}).observe(sh,{attributes:true,attributeFilter:['class']});
+  // glisser depuis le bord gauche (appli installée : Safari le fait déjà seul)
+  const sa=(()=>{try{return navigator.standalone||matchMedia('(display-mode: standalone)').matches}catch(e){return false}})();if(!sa)return;
+  let x0=null,y0=0;document.addEventListener('touchstart',e=>{const t=e.touches[0];x0=t.clientX<22?t.clientX:null;y0=t.clientY;},{passive:true});
+  document.addEventListener('touchend',e=>{if(x0==null)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=Math.abs(t.clientY-y0);x0=null;if(dx>70&&dy<60){const st=history.state;if(st&&st.d>0){hap('tap');history.back();}}},{passive:true});}
 function setMod(m,tab){showTab(tab||(MODS[m]||MODS.trail).home);}
-function showTab(t){if(!document.querySelector(`.page[data-page="${t}"]`))t='today';
+function showTab(t,push){if(!document.querySelector(`.page[data-page="${t}"]`))t='today';navPush(t,push);
   const k=sectOf(t),P=SECT[k].p;SEC=k;LASTP[k]=t;if(t!=='chrono')MOD=PAGEMOD[t]||MOD;try{localStorage.setItem('foulee_tab',t);}catch(e){}
   document.body.dataset.mod=t==='chrono'?MOD:(PAGEMOD[t]||'trail');document.body.dataset.tab=t;document.body.dataset.sec=k;
   $('#modSub').textContent=k==='plus'?(t==='plus'?'Plus':P.find(x=>x[0]===t)[1]):SECT[k].l+(P.length>1?' · '+P.find(x=>x[0]===t)[1]:'');
-  const sn=$('#modSeg'),hub=k==='plus';sn.innerHTML=hub?(t==='plus'?'':`<button data-tab="plus">‹ Plus</button><button data-tab="${t}" class="on" aria-current="page">${P.find(x=>x[0]===t)[1]}</button>`):P.length>1?P.map(([id,l])=>`<button data-tab="${id}" class="${id===t?'on':''}"${id===t?' aria-current="page"':''}>${l}</button>`).join(''):'';sn.hidden=!sn.innerHTML;
-  sn.querySelectorAll('button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+  const sn=$('#modSeg'),hub=k==='plus',bk=navBack();sn.innerHTML=hub?(t==='plus'?'':`${bk?`<button data-back="1">‹ ${bk}</button>`:'<button data-tab="plus">‹ Plus</button>'}<button data-tab="${t}" class="on" aria-current="page">${P.find(x=>x[0]===t)[1]}</button>`):P.length>1?P.map(([id,l])=>`<button data-tab="${id}" class="${id===t?'on':''}"${id===t?' aria-current="page"':''}>${l}</button>`).join(''):'';sn.hidden=!sn.innerHTML;
+  sn.querySelectorAll('button').forEach(b=>b.onclick=()=>b.dataset.back?history.back():showTab(b.dataset.tab));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));renderNav();window.scrollTo(0,0);}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-eiStart();initChrono();linkPlan(true);renderAll();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
+eiStart();initChrono();linkPlan(true);renderAll();navInit();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
