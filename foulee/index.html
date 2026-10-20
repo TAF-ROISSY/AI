@@ -635,9 +635,35 @@ nav.tabs button.on{background:color-mix(in srgb,var(--acc) 15%,transparent);colo
 @media print{body>*:not(#printArea){display:none!important}#printArea{display:block!important}body{background:#fff!important;color:#111!important;padding:0!important}
  .pb{font:11pt/1.4 'Inter',system-ui,sans-serif;color:#111;padding:12mm}.pb h1{font-size:20pt;margin:0 0 2mm}.pb-s{color:#555;margin:0 0 6mm}.pb h2{font-size:13pt;margin:7mm 0 2mm;border-bottom:1px solid #ccc;padding-bottom:1mm}
  .pb table{width:100%;border-collapse:collapse;font-size:10pt}.pb td,.pb th{border-bottom:1px solid #e3e3e3;padding:1.5mm 2mm;text-align:left;vertical-align:top}.pb th{color:#555;font-weight:600}.pb tr{break-inside:avoid}.pb-n{height:50mm;border:1px solid #ccc;border-radius:3mm}}
+.plus{column-count:1}.pgrp{margin:0 0 18px;break-inside:avoid}.pgrp h3{margin:0 4px 8px}
+.pgrp-l{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--edge);background:linear-gradient(180deg,rgba(var(--ink),.045),rgba(var(--ink),.015)),var(--card);box-shadow:inset 0 1px 0 var(--hl),var(--shadow)}
+.prow{display:flex;align-items:center;gap:14px;width:100%;min-height:62px;padding:10px 14px;border:0;background:none;color:var(--tx);font:inherit;text-align:left;cursor:pointer;transition:background var(--t) var(--ease)}
+.prow+.prow{border-top:1px solid var(--edge)}.prow:active{background:rgba(var(--ink),.06);transform:none}
+@media(hover:hover) and (pointer:fine){.prow:hover{background:rgba(var(--ink),.04)}}
+.pic{flex:none;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 24%,transparent)}
+.pic svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.prow-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}.prow-t b{font-size:15.5px;font-weight:600}.prow-t small{color:var(--mut);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow-c{flex:none;width:18px;height:18px;fill:none;stroke:var(--mut);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+@media(min-width:760px){.plus{column-count:2;column-gap:18px}}
+@media(min-width:1024px){[data-page=plus].on{column-count:1!important}}
+@media(min-width:1500px){.plus{column-count:3}}
+/* ===== animation de démarrage ===== */
+#splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(700px 420px at 50% 38%,color-mix(in srgb,var(--acc) 22%,transparent),transparent 70%),var(--bg);transition:opacity .45s var(--ease),visibility .45s}
+#splash.out{opacity:0;visibility:hidden}
+#splash svg{width:min(62vw,260px);height:auto;overflow:visible}
+#splash .sp-ridge{fill:none;stroke:var(--acc);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:420;stroke-dashoffset:420;animation:spDraw 1.05s var(--ease-out) .1s forwards;filter:drop-shadow(0 0 8px var(--glow))}
+#splash .sp-fill{fill:url(#spg);opacity:0;animation:spFade .6s ease .55s forwards}
+#splash .sp-dot{fill:#fff;opacity:0;offset-path:path('M6 74 L52 40 L74 56 L110 14 L140 46 L162 34 L214 74');offset-distance:0%;animation:spRun 1.05s var(--ease-out) .1s forwards}
+#splash .sp-name{font-family:var(--disp);font-weight:800;font-size:40px;letter-spacing:.14em;color:var(--tx);opacity:0;transform:translateY(8px);animation:spUp .55s var(--ease-out) .6s forwards}
+#splash .sp-name span{color:var(--acc)}
+#splash .sp-sub{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);opacity:0;animation:spUp .5s var(--ease-out) .8s forwards}
+@keyframes spDraw{to{stroke-dashoffset:0}}@keyframes spFade{to{opacity:.9}}@keyframes spUp{to{opacity:1;transform:none}}
+@keyframes spRun{0%{opacity:1;offset-distance:0%}92%{opacity:1}100%{opacity:1;offset-distance:100%}}
+@media(prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important}}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true" onclick="this.classList.add('out');setTimeout(()=>this.remove(),500)"><svg viewBox="0 0 220 80"><defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--acc)" stop-opacity=".35"/><stop offset="1" stop-color="var(--acc)" stop-opacity="0"/></linearGradient></defs><path class="sp-fill" d="M6 74 L52 40 L74 56 L110 14 L140 46 L162 34 L214 74 Z"/><path class="sp-ridge" d="M6 74 L52 40 L74 56 L110 14 L140 46 L162 34 L214 74"/><circle class="sp-dot" r="4.5"/></svg><div class="sp-name">FOUL<span>É</span>E</div><div class="sp-sub">Trail · Muscu</div></div>
 <header>
   <div><h1>FOUL<span>É</span>E</h1><div class="sub" id="modSub">Trail</div></div>
   <div class="sp"></div>
@@ -743,7 +769,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='9.1';
+const APP_VER='9.2';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -4063,11 +4089,48 @@ function renderToday(){const el=$('[data-page=today]');if(!el)return;const w=wee
   const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
   h+=`<div class="card ai"><h2>✨ Séance sur mesure</h2>${cus.length?sessCard(customObj(cus[0])):'<p class="muted small">Le coach crée une séance de muscu unique selon ta forme du jour, tes sorties et tes contraintes.</p>'}<div class="row" style="margin-top:10px"><button class="btn ai-b sm" style="margin:0" onclick="${getKey()?'openGen()':'openSettings()'}">${getKey()?(cus.length?'✨ Nouvelle séance':'✨ Créer ma séance'):'Activer le coach'}</button></div></div>`;
   el.innerHTML=h;}
-function renderPlus(){const el=$('[data-page=plus]');if(!el)return;const T=(ic,t,sub,fn)=>`<button class="ptile" onclick="${fn}"><span class="pi" aria-hidden="true">${ic}</span><b>${t}</b><small>${sub}</small></button>`;
-  el.innerHTML=`<div class="card"><h2>Entraînement</h2><div class="ptiles">${T('⏱️','Chrono','Intervalles, EMOM, Tabata',"showTab('chrono')")}${T('🤸','Figures','Équilibre et calisthénie',"showTab('figures')")}${T('⛰️','Défis','Records chronométrés',"showTab('defis')")}${T('🏃','Bilan trail','Volume, estimations, alertes',"showTab('trail')")}${T('🏋️','Bilan muscu','Phase, fatigue, défi',"showTab('muscu')")}${T('📋','Bilan de niveau','Tester tes répétitions',"openProfile()")}${T('🏁','Test VMA','Calibrer tes allures',"showTab('plan');setTimeout(()=>{const c=[...document.querySelectorAll('[data-page=plan] .card h2')].find(h=>h.textContent.includes('Test VMA'));if(c)c.scrollIntoView({block:'center'})},120)")}</div></div>
-  <div class="card"><h2>Coach</h2><div class="ptiles">${T('💬','Parler au coach','Questions, ajustements',"openCoach()")}${T('🕘','Historique','Conseils et bilans passés',"openCoachHist('chat')")}${T('😴','Noter ma nuit','Sommeil et forme',"openSleep()")}${T('🍌','Nutrition','Glucides, eau, sel, sac',"FU=null;openFuel()")}${T('☀️','Check-up','FC réveil, douleurs',"openCheck()")}${T('❤️','Apple Santé','VFC, FC repos, sommeil',"S.settings.healthOn=true;save();openHealthHelp()")}${T('🧘','Mobilité','Routines guidées',"openMob()")}${T('🧭','Suivre une trace','Guidage vocal GPX',"openRoutePick()")}${T('🖨️','Carnet PDF','Plan et bilan à imprimer',"printBook()")}${S.race?T('🏁','Jour J','Checklist, passages',"openRaceDay()"):''}${T('👟','Chaussures','Kilomètres par paire',"openShoes()")}${T('📸','Bilan de la semaine','Image à partager',"shareWeek()")}${T('🤝','Défis entre amis','Classement du mois',"openDefis()")}${T('📥','Cartes hors ligne','Traces sans réseau',"openOffline()")}${T('📅','Plan → calendrier','Exporter les séances',"openPlanCal()")}</div></div>
-  <div class="card"><h2>Réglages</h2><div class="ptiles">${T('⚙️','Réglages','Strava, profil, coach, synchro',"openSettings()")}${T('🎨','Apparence','Thème, couleurs, police',"openSettings();setTimeout(()=>{const c=$('#lookCard');if(c)c.scrollIntoView({block:'start'})},80)")}${T('⬇️','Exporter mes données','Sauvegarde .json',"exportData()")}</div>
-  <p class="note">Foulée v${APP_VER} · ${VC().on?'synchro activée':'synchro désactivée'}</p></div>`;}
+const PIC={
+ chrono:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M18.5 6.5l1.5-1.5"/>',
+ mob:'<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M6 9.5c2 1.5 4 2 6 2s4-.5 6-2M8.5 21l3.5-8 3.5 8"/>',
+ vma:'<path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 13l4-4.5"/><circle cx="12" cy="13.5" r="1.4"/><path d="M7 21h10"/>',
+ fig:'<circle cx="16.5" cy="4.5" r="2"/><path d="M3 12l5-2 4 3 4-6 4 2M8 10l-2 10M12 13l1.5 8"/>',
+ defi:'<path d="M3 20l6.5-11 3.5 5.5 2.5-3.5L21 20z"/><path d="M15.5 11V3.5l4 1.5-4 1.5"/>',
+ level:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10.5l1.5 1.5 3-3M8.5 16h7"/>',
+ route:'<circle cx="6" cy="18.5" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><path d="M8.2 18.5H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/>',
+ flag:'<path d="M5 21V3.5M5 4h12l-2.5 4L17 12H5"/>',
+ fuel:'<path d="M9 2.5h6M10 2.5v3l-2.5 3.5V20a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V9L14 5.5v-3"/><path d="M7.5 13h9"/>',
+ map:'<path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5v5M12.5 14l2.5 2.5 2.5-2.5"/>',
+ shoe:'<path d="M3 16.5c0-1.5.6-5.5 1.5-8 2.5 1 5 1 7-.5l2.5 4.5 5.5 1.5c1.5.4 2 1.6 2 2.5v1H3z"/><path d="M3 19.5h18M8 12l1.5-1M10.5 13.5l1.5-1"/>',
+ sun:'<path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 4v3M4.5 8.5l2 2M19.5 8.5l-2 2"/>',
+ heart:'<path d="M20.5 8.5C20.5 5.5 18.2 3.5 15.8 3.5c-1.6 0-3 .9-3.8 2.2-.8-1.3-2.2-2.2-3.8-2.2C5.8 3.5 3.5 5.5 3.5 8.5c0 5.5 8.5 11.5 8.5 11.5s8.5-6 8.5-11.5z"/><path d="M6.5 11.5h3l1.5-2.5 2 4.5 1.5-2h3"/>',
+ moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+ chat:'<path d="M20.5 12a8 8 0 0 1-11.6 7.1L3.5 20.5l1.4-4.9A8 8 0 1 1 20.5 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>',
+ hist:'<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/>',
+ cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/>',
+ photo:'<path d="M4 7.5h3.5L9 5h6l1.5 2.5H20a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+ users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6 6 0 0 1 3.5 6"/>',
+ print:'<path d="M6.5 9V3.5h11V9M6.5 17.5h-2a1.5 1.5 0 0 1-1.5-1.5v-5.5A1.5 1.5 0 0 1 4.5 9h15a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 1-1.5 1.5h-2"/><rect x="6.5" y="14" width="11" height="7" rx="1"/>',
+ run:'<circle cx="14.5" cy="4" r="2"/><path d="M8 21l3-6.5 3 2.5v4.5M11 14.5l1.5-6 3.5 3 3 .5M7 10.5l3.5-2.5 2 .5"/>',
+ kb:'<path d="M8.5 9a3.5 3.5 0 1 1 7 0"/><path d="M6.5 9.5h11l-1.2 9.5a1.5 1.5 0 0 1-1.5 1.3H9.2a1.5 1.5 0 0 1-1.5-1.3z"/>',
+ gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+ palette:'<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
+ down:'<path d="M12 3.5v12M7 10.5l5 5 5-5M4.5 20.5h15"/>'};
+function picon(k,c){return `<span class="pic" style="--c:${c}" aria-hidden="true"><svg viewBox="0 0 24 24">${PIC[k]}</svg></span>`;}
+function splashOff(){const el=document.getElementById('splash');if(!el)return;const red=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches,left=Math.max(0,(red?300:1650)-(performance.now()));setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),600);},left);}
+function renderPlus(){const el=$('[data-page=plus]');if(!el)return;
+  const T=(ic,c,t,sub,fn)=>`<button class="prow" onclick="${fn}">${picon(ic,c)}<span class="prow-t"><b>${t}</b><small>${sub}</small></span><svg class="prow-c" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`;
+  const G=(t,rows)=>`<section class="pgrp"><h3 class="eyebrow">${t}</h3><div class="pgrp-l">${rows.join('')}</div></section>`,tr='var(--trail)',mu='var(--muscu)',gl='var(--glacier)',ok='var(--ok)',mt='var(--mut)';
+  const vma="showTab('plan');setTimeout(()=>{const c=[...document.querySelectorAll('[data-page=plan] .card h2')].find(h=>h.textContent.includes('Test VMA'));if(c)c.scrollIntoView({block:'center'})},120)";
+  el.innerHTML=`<div class="plus">
+  ${G('Entraînement',[T('chrono',tr,'Chrono','Intervalles, EMOM, Tabata',"showTab('chrono')"),T('mob',tr,'Mobilité','Routines guidées à la voix',"openMob()"),T('vma',tr,'Test VMA','Calibrer tes allures',vma),T('fig',mu,'Figures','Équilibre et calisthénie',"showTab('figures')"),T('defi',mu,'Défis','Records chronométrés',"showTab('defis')"),T('level',mu,'Bilan de niveau','Tester tes répétitions',"openProfile()")])}
+  ${G('Courses & terrain',[T('route',tr,'Suivre une trace','Guidage vocal GPX',"openRoutePick()"),...(S.race?[T('flag',tr,'Jour J','Checklist, passages',"openRaceDay()")]:[]),T('fuel',tr,'Nutrition','Glucides, eau, sel, sac',"FU=null;openFuel()"),T('map',gl,'Cartes hors ligne','Traces sans réseau',"openOffline()"),T('shoe',gl,'Chaussures','Kilomètres par paire',"openShoes()")])}
+  ${G('Forme & santé',[T('sun',mu,'Check-up du matin','FC au réveil, douleurs',"openCheck()"),T('heart',tr,'Apple Santé','VFC, FC repos, sommeil',"S.settings.healthOn=true;save();openHealthHelp()"),T('moon',gl,'Noter ma nuit','Sommeil et forme',"openSleep()")])}
+  ${G('Coach',[T('chat',gl,'Parler au coach','Questions, ajustements',"openCoach()"),T('hist',gl,'Historique','Conseils et bilans passés',"openCoachHist('chat')"),T('cal',gl,'Plan dans le calendrier','Exporter les séances',"openPlanCal()")])}
+  ${G('Partager',[T('photo',ok,'Bilan de la semaine','Image à partager',"shareWeek()"),T('users',ok,'Défis entre amis','Classement du mois',"openDefis()"),T('print',ok,'Carnet PDF','Plan et bilan à imprimer',"printBook()")])}
+  ${G('Bilans',[T('run',tr,'Bilan trail','Volume, estimations, alertes',"showTab('trail')"),T('kb',mu,'Bilan muscu','Phase, fatigue, défi',"showTab('muscu')")])}
+  ${G('Réglages',[T('gear',mt,'Réglages','Strava, profil, coach, synchro',"openSettings()"),T('palette',mt,'Apparence','Thème, couleurs, police',"openSettings();setTimeout(()=>{const c=$('#lookCard');if(c)c.scrollIntoView({block:'start'})},80)"),T('down',mt,'Exporter mes données','Sauvegarde .json',"exportData()")])}
+  <p class="note" style="text-align:center">Foulée v${APP_VER} · ${VC().on?'synchro activée':'synchro désactivée'}</p></div>`;}
+
 function renderAll(){A=null;cxReg();renderFigures();renderTrailHome();renderToday();renderPlus();renderHisto();renderAnalyse();renderPlan();renderMuscuHome();renderRenfo();renderDefis();renderSuivi();renderCross();renderSports();renderForme();renderCourses();}
 
 /* ============ RÉGLAGES ============ */
@@ -4277,7 +4340,7 @@ function showTab(t){if(!document.querySelector(`.page[data-page="${t}"]`))t='tod
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.dataset.page===t));renderNav();window.scrollTo(0,0);}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
-initChrono();linkPlan(true);renderAll();setTimeout(heatAutoRun,1800);setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
+initChrono();linkPlan(true);renderAll();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
 if(VC().on)setTimeout(()=>syncNow(false),1500);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 if('serviceWorker' in navigator&&navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__reloaded){window.__reloaded=1;location.reload();}});
