@@ -726,6 +726,10 @@ label.prow{cursor:pointer}.pin-ck{width:22px;height:22px;accent-color:var(--acc)
 .wr-f{position:absolute;left:0;right:0;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:3}.wr-ban{cursor:pointer;display:flex;flex-direction:column;gap:4px;background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 30%,var(--card)),var(--card))}
 .gc-b.on{border-color:var(--acc);color:var(--acc)}
 @media(prefers-reduced-motion:reduce){.wr-s{animation:none}}
+.fw-r{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--edge)}.fw-r:first-child{border-top:0}.fw-a{flex:none;position:relative;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--muscu));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+.fw-a i{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;border:2px solid var(--card);background:var(--mut)}.fw-a i.run{background:var(--ok)}.fw-a i.pause{background:var(--muscu)}.fw-a i.alert{background:#e5383b}
+.fw-b{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(var(--ink),.08);color:var(--mut)}.fw-b.run{color:var(--ok)}.fw-b.alert{background:#e5383b;color:#fff}.fw-al{margin-top:4px;color:#e5383b;font-weight:600;font-size:13px}
+.fw-c{cursor:pointer}.fw-c.al{border-color:#e5383b;box-shadow:0 0 0 3px rgba(229,56,59,.25)}
 </style>
 </head>
 <body>
@@ -836,7 +840,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='9.9';
+const APP_VER='10.0';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -1704,7 +1708,7 @@ function mkey(x,path){if(x&&typeof x==='object'){if(path==='mesures')return 'd:'
 function vmerge(L,R,rN,path){if(Array.isArray(L)&&Array.isArray(R)){const m=new Map();(rN?[...L,...R]:[...R,...L]).forEach(x=>m.set(mkey(x,path),x));return [...m.values()];}
   if(L&&R&&typeof L==='object'&&typeof R==='object'&&!Array.isArray(L)&&!Array.isArray(R)){const o={...L};for(const k of Object.keys(R))o[k]=k in L?vmerge(L[k],R[k],rN,k):R[k];return o;}
   return rN?(R===undefined?L:R):(L===undefined?R:L);}
-function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.trfav&&S.trFav)S.trFav=S.trFav.filter(x=>!D.trfav.includes(x.id));if(D.friends&&S.friends)S.friends=S.friends.filter(f=>!D.friends.includes(f.id));if(D.check&&S.check)D.check.forEach(d=>{delete S.check[d];});if(D.mv&&S.mv)D.mv.forEach(k=>{delete S.mv[k];});if(D.xplan&&S.xplan)S.xplan=S.xplan.filter(x=>!D.xplan.includes(x.id));if(D.xact&&S.xact)S.xact=S.xact.filter(x=>!D.xact.includes(x.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
+function applyTomb(){const D=S.del||{};if(D.races&&S.races)S.races=S.races.filter(r=>!D.races.includes(r.id));if(D.trfav&&S.trFav)S.trFav=S.trFav.filter(x=>!D.trfav.includes(x.id));if(D.friends&&S.friends)S.friends=S.friends.filter(f=>!D.friends.includes(f.id));if(D.check&&S.check)D.check.forEach(d=>{delete S.check[d];});if(D.follow&&S.follow)S.follow=S.follow.filter(f=>!D.follow.includes(f.id));if(D.mv&&S.mv)D.mv.forEach(k=>{delete S.mv[k];});if(D.xplan&&S.xplan)S.xplan=S.xplan.filter(x=>!D.xplan.includes(x.id));if(D.xact&&S.xact)S.xact=S.xact.filter(x=>!D.xact.includes(x.id));if(D.sleep&&S.sleep)D.sleep.forEach(d=>{delete S.sleep[d];});if(D.mesures)S.mesures=S.mesures.filter(m=>!D.mesures.includes(m.d));if(D.log&&S.log)S.log=S.log.filter(l=>!D.log.includes(l.id));if(D.tech&&S.tech)S.tech=S.tech.filter(l=>!D.tech.includes(l.id));if(D.custom&&S.coach&&S.coach.custom)S.coach.custom=S.coach.custom.filter(c=>!D.custom.includes(c.id));}
 function tomb(kind,id){S.del=S.del||{};S.del[kind]=[...new Set([...(S.del[kind]||[]),id])].slice(-300);}
 let pushT=null,syncBusy=false;
 function schedulePush(){if(!VC().on)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(false),12000);}
@@ -4259,7 +4263,7 @@ function lastActCard(){const L=lastActs(),inp='<label class="btn ghost sm" style
   document.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const el=at(e);if(el)place(el,e.clientX,e.clientY);else T.classList.remove('on');},{passive:true});
   document.addEventListener('pointerdown',e=>{const el=at(e);if(el){place(el,e.clientX,e.clientY);hideT=setTimeout(()=>T.classList.remove('on'),2400);}else T.classList.remove('on');},{passive:true});
   ['scroll','wheel'].forEach(ev=>document.addEventListener(ev,()=>T.classList.remove('on'),{passive:true,capture:true}));})();
-function renderToday(){widSched();const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill()+wrBanner()+pinsCard()+riskCard()+missedCard()+raceWeekCard()+sundayBanner()+checkCard()+((S.health&&Object.keys(S.health).length)||S.settings.healthOn?healthCard(true):'')+weekRings()+duelCard()+xpMini();
+function renderToday(){widSched();const el=$('[data-page=today]');if(!el)return;const w=weekIdx(),d=dayIdx();let h=formePill()+followCard()+wrBanner()+pinsCard()+riskCard()+missedCard()+raceWeekCard()+sundayBanner()+checkCard()+((S.health&&Object.keys(S.health).length)||S.settings.healthOn?healthCard(true):'')+weekRings()+duelCard()+xpMini();
   {const sa=shoeAlert();if(sa)h+=banner('👟',`${esc(sa.name)} : ${Math.round(sa.km)} km`,sa.km>=sa.limit?'Durée de vie dépassée : pense à la remplacer':'Bientôt en fin de vie ('+sa.limit+' km)','Voir','openShoes()');}
   if(!S.tokens&&!S.demo)h+=`<div class="card"><h2>Connecte Strava</h2><p class="muted small">Pour adapter les allures et le volume à tes vraies sorties. En attendant, le plan tourne sur des valeurs par défaut.</p><div class="row"><button class="btn" onclick="openSettings()">Configurer</button><button class="btn ghost" onclick="loadDemo()">Voir une démo</button></div></div>`;
   const ps=planStateCard(w);
@@ -4394,6 +4398,7 @@ const PLUSI=[
  {k:'defis',g:0,ic:'defi',c:'var(--muscu)',t:'Défis',s:'Records chronométrés',fn:"showTab('defis')"},
  {k:'level',g:0,ic:'level',c:'var(--muscu)',t:'Bilan de niveau',st:'Niveau',s:'Tester tes répétitions',fn:"openProfile()"},
  {k:'live',g:1,ic:'pin',c:'var(--trail)',t:'Suivi en direct & sécurité',st:'Live',s:'Position partagée, alerte immobilité',fn:"openLive()"},
+ {k:'follow',g:1,ic:'users',c:'var(--trail)',t:'Mes proches en direct',st:'Proches',s:'Localiser ton fils pendant ses sorties',fn:"openFollow()"},
  {k:'route',g:1,ic:'route',c:'var(--trail)',t:'Suivre une trace',st:'Trace',s:'Guidage vocal GPX',fn:"openRoutePick()"},
  {k:'raceday',g:1,ic:'flag',c:'var(--trail)',t:'Jour J',s:'Checklist, passages',fn:"openRaceDay()",if:()=>!!S.race},
  {k:'fuel',g:1,ic:'fuel',c:'var(--trail)',t:'Nutrition',s:'Glucides, eau, sel, sac',fn:"FU=null;openFuel()"},
@@ -4788,7 +4793,8 @@ function showTab(t,push){if(!document.querySelector(`.page[data-page="${t}"]`))t
 
 /* ============ v9.7 : LIVETRACK & SÉCURITÉ ============ */
 const LIVE_FILE='foulee-live.json';let LV={iv:null,busy:false,ref:null,sos:null,sosT:null,last:0};
-function liveUrl(){return S.liveGist?location.origin+location.pathname.replace(/[^/]*$/,'')+'live.html#g='+S.liveGist:'';}
+function appBase(){return location.origin+location.pathname.replace(/[^/]*$/,'');}
+function liveUrl(){return S.liveGist?appBase()+'suivi.html#add='+S.liveGist+'&n='+encodeURIComponent(defiPseudo()):'';}
 function liveP(st){const P=GR.pts||[],L=P[P.length-1]||GR.fix,step=Math.max(1,Math.ceil(P.length/160)),el=grElapsed()/1000;let eta=null,rest=null;
   if(GR.route&&GR.dist>300){rest=Math.max(0,GR.route.len-GR.route.s);eta=Date.now()+rest*(el/GR.dist)*1000;}
   const rt=GR.route&&GR.route.pts?GR.route.pts.filter((_,i)=>i%Math.max(1,Math.ceil(GR.route.pts.length/200))===0).map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]):null;
@@ -4820,7 +4826,7 @@ function openLive(){const s=S.settings,tok=!!VC().token;
   <p class="muted small">Pendant une course guidée (ou une sortie libre), ta famille suit ta position, ta distance et ton heure d’arrivée sur une carte. Si tu ne bouges plus, Foulée te demande si tout va bien, puis prépare l’alerte.</p>
   <div class="card"><h2>Suivi en direct</h2><label class="tg"><input type="checkbox" ${s.live?'checked':''} onchange="S.settings.live=this.checked;save();openLive()"> Publier ma position pendant mes sorties (toutes les minutes)</label>
   ${!tok?'<p class="note">Il faut la synchro activée (jeton GitHub) : la position est publiée dans un gist secret, lisible seulement avec le lien.</p>':''}
-  ${s.live&&tok?(S.liveGist?`<button class="btn wide" onclick="liveShare()">Partager le lien de suivi</button><p class="note">Le lien reste le même à chaque sortie : envoie-le une fois à ta famille, elle n’aura plus qu’à l’ouvrir.</p>`:`<button class="btn ghost wide" onclick="livePush('fini').then(openLive)">Créer mon lien de suivi</button>`):''}</div>
+  ${s.live&&tok?(S.liveGist?`<button class="btn wide" onclick="liveShare()">Partager le lien de suivi</button><p class="note">Le lien reste le même à chaque sortie : envoie-le une fois. Il ouvre <b>Foulée Suivi</b>, l’appli simple pour la famille (à ajouter à l’écran d’accueil). Pour un lien qui suit plusieurs personnes : Plus › Mes proches en direct.</p>`:`<button class="btn ghost wide" onclick="livePush('fini').then(openLive)">Créer mon lien de suivi</button>`):''}</div>
   <div class="card"><h2>Alerte d’immobilité</h2><label class="tg"><input type="checkbox" ${s.sosOn?'checked':''} onchange="S.settings.sosOn=this.checked;save();openLive()"> Me demander si tout va bien quand je ne bouge plus</label>
   ${s.sosOn?`<div class="form"><label>Délai</label><select onchange="S.settings.sosMin=+this.value;save()">${[3,5,8,10].map(m=>`<option value="${m}" ${(s.sosMin||5)===m?'selected':''}>${m} minutes</option>`).join('')}</select><label>Proche à prévenir</label><input placeholder="Prénom" value="${esc(s.sosName||'')}" onchange="S.settings.sosName=this.value.trim();save()"><label>Son numéro</label><input inputmode="tel" placeholder="06…" value="${esc(s.sosTel||'')}" onchange="S.settings.sosTel=this.value.trim();save()"></div>
   <p class="note">Sans réponse après 60 s : alarme, alerte affichée sur ton suivi en direct, et un SMS prêt à partir avec ta position (iOS demande de toucher Envoyer). Les pauses ne déclenchent rien.</p>`:''}</div>
@@ -5061,6 +5067,33 @@ function rcSet(){if(!('mediaSession' in navigator))return;const ms=navigator.med
     H('nexttrack',()=>{if(GR.on)grNext();else if(CH.running&&!isSW(CH.mode))CH.end=performance.now();});
     H('previoustrack',()=>{if(GR.on)grStatus();else if(typeof announce==='function')announce();});}}
 setInterval(rcSet,1000);
+/* ============ v10.0 : MES PROCHES EN DIRECT (+ Foulée Suivi) ============ */
+const FW={data:{},at:0,busy:false};
+function fwParse(t){t=String(t||'');const g=(t.match(/(?:g|add|suivre)=([0-9a-f]{20,40})/i)||t.match(/^\s*([0-9a-f]{20,40})\s*$/i)||[])[1];const n=decodeURIComponent((t.match(/[?&#]n=([^&|]+)/)||[])[1]||'');return g?{g:g.toLowerCase(),n}:null;}
+function fwAdd(g,n){S.follow=S.follow||[];if(g===S.liveGist){toast('C’est ton propre suivi');return false;}const e=S.follow.find(x=>x.id===g);if(e){if(n)e.n=n;}else S.follow.push({id:g,n:n||''});if(S.del&&S.del.follow)S.del.follow=S.del.follow.filter(x=>x!==g);save();FW.at=0;return true;}
+function fwDel(g){S.follow=(S.follow||[]).filter(x=>x.id!==g);tomb('follow',g);delete FW.data[g];save();openFollow();renderAll();}
+function fwSt(g){const d=FW.data[g];if(!d)return 'none';if(d.err)return 'err';if(d.sos&&d.st!=='fini')return 'alert';if(d.st==='fini'||Date.now()-d.upd>15*60e3)return 'fini';return d.st;}
+async function fwFetch(force){const L=S.follow||[];if(!L.length||FW.busy)return;if(!force&&Date.now()-FW.at<110e3)return;FW.busy=true;FW.at=Date.now();
+  await Promise.all(L.map(async f=>{try{const r=await fetch('https://api.github.com/gists/'+f.id,{headers:{Accept:'application/vnd.github+json'}});if(r.status===404){FW.data[f.id]={err:1};return;}if(!r.ok)return;const g=await r.json(),fl=g.files&&g.files['foulee-live.json'];if(!fl){FW.data[f.id]={err:1};return;}const d=JSON.parse(fl.truncated?await (await fetch(fl.raw_url)).text():fl.content);FW.data[f.id]=d;if(!f.n&&d.pseudo){f.n=d.pseudo;save();}}catch(e){}}));
+  FW.busy=false;if(document.body.dataset.tab==='today')renderToday();if($('#sheet').classList.contains('on')&&$('#sheetBody .fw-list'))openFollow(true);}
+function fwName(f){const d=FW.data[f.id];return f.n||(d&&d.pseudo)||'Proche';}
+function fwRow(f,full){const d=FW.data[f.id],s=fwSt(f.id),n=fwName(f),live=['run','pause','alert'].includes(s),lab={run:'en course',pause:'en pause',alert:'ALERTE',fini:'pas en sortie',none:'…',err:'lien invalide'}[s];
+  return `<div class="fw-r ${s}"><span class="fw-a">${esc(n[0]||'?').toUpperCase()}<i class="${s}"></i></span><div style="flex:1;min-width:0"><b>${esc(n)}</b> <span class="fw-b ${s}">${lab}</span><div class="muted small">${live?`${kmFr((d.dist||0)/1000)} km · ${fmtDur(d.el+(s==='run'?(Date.now()-d.upd)/1000:0))}${d.eta?' · arrivée '+new Date(d.eta).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''} · maj il y a ${Math.max(0,Math.round((Date.now()-d.upd)/60000))} min`:d&&d.upd?'Dernière sortie le '+new Date(d.upd).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' à '+new Date(d.upd).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</div>
+  ${s==='alert'?`<div class="fw-al">Ne bouge plus depuis plusieurs minutes et n’a pas répondu.</div>`:''}</div>${d&&d.pos&&(live||full)?`<a class="btn sm ${s==='alert'?'':'ghost'}" style="margin:0" href="https://maps.apple.com/?ll=${d.pos[0]},${d.pos[1]}&q=${encodeURIComponent(n)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍</a>`:''}${full?`<button class="ib" aria-label="Retirer" onclick="event.stopPropagation();if(confirm('Ne plus suivre ${esc(n).replace(/'/g,'')} ?'))fwDel('${f.id}')">✕</button>`:''}</div>`;}
+function followCard(){const L=S.follow||[];if(!L.length)return '';fwFetch(false);const act=L.filter(f=>['run','pause','alert'].includes(fwSt(f.id)));if(!act.length)return '';const al=act.some(f=>fwSt(f.id)==='alert');
+  return `<div class="card fw-c ${al?'al':''}" onclick="openFollow()"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${al?'⚠ Alerte':'📍 En sortie maintenant'}</h2><span class="tag">${act.length}</span></div>${act.map(f=>fwRow(f,false)).join('')}<button class="btn sm ghost wide" style="margin-top:8px" onclick="event.stopPropagation();fwMap()">Voir sur la carte</button></div>`;}
+function fwLink(withMe){const L=[];if(withMe&&S.liveGist)L.push('add='+S.liveGist+'&n='+encodeURIComponent(defiPseudo()));(S.follow||[]).forEach(f=>L.push('add='+f.id+'&n='+encodeURIComponent(fwName(f))));return appBase()+'suivi.html'+(L.length?'#'+L.join('|'):'');}
+function fwMap(){window.open(fwLink(false),'_blank','noopener');}
+async function fwShare(){const u=fwLink(true);const t='Installe « Foulée Suivi » pour voir nos sorties en direct (position, distance, heure d’arrivée et alertes). Ouvre ce lien dans Safari, puis Partager › Sur l’écran d’accueil.';try{if(navigator.share){await navigator.share({title:'Foulée Suivi',text:t,url:u});return;}}catch(e){if(e&&e.name==='AbortError')return;}try{await navigator.clipboard.writeText(t+' '+u);toast('Lien copié');}catch(e){prompt('Lien Foulée Suivi',u);}}
+function openFollow(noFetch){const L=S.follow||[];
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">📍 Mes proches en direct</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">Vois où sont tes proches pendant leurs sorties Foulée (position, distance, arrivée estimée, alerte d’immobilité). Ils choisissent eux-mêmes de partager : la position n’est publiée que pendant leurs sorties.</p>
+  <div class="fw-list">${L.length?L.map(f=>fwRow(f,true)).join(''):'<p class="muted small" style="margin:10px 0">Personne pour l’instant. Demande à ton proche : Foulée › Plus › Suivi en direct & sécurité › « Partager le lien de suivi », puis ouvre son lien ou colle-le ci-dessous.</p>'}</div>
+  <div class="row" style="flex-wrap:nowrap;margin-top:10px"><input id="fw_in" placeholder="Coller un lien de suivi" autocomplete="off"><button class="btn ghost" onclick="(()=>{const r=fwParse($('#fw_in').value);if(!r){toast('Lien de suivi invalide');return;}if(fwAdd(r.g,r.n)){toast('Ajouté');fwFetch(true);openFollow(true);}})()">Ajouter</button></div>
+  ${L.length?'<button class="btn wide" style="margin-top:10px" onclick="fwMap()">🗺️ Voir tout le monde sur la carte</button>':''}
+  <div class="card" style="margin-top:12px"><h2>👪 Foulée Suivi pour la famille</h2><p class="small">Une appli toute simple pour ta femme (ou quelqu’un qui ne court pas) : la carte de ${S.liveGist?'toi':'tes proches'}${S.liveGist&&L.length?' et de tes proches':''} en direct, les alertes, le bouton itinéraire et appeler. Rien à configurer : elle ouvre le lien et l’ajoute à son écran d’accueil.</p>
+  <button class="btn wide" onclick="fwShare()">Envoyer Foulée Suivi</button>${!S.liveGist?'<p class="note">Pour t’y inclure toi aussi, active d’abord ton propre suivi en direct (Plus › Suivi en direct & sécurité).</p>':''}</div>`;$('#sheet').classList.add('on');if(!noFetch)fwFetch(true);}
+function followFromHash(){const m=location.hash.match(/suivre=([0-9a-f]{20,40})(?:&n=([^&|]+))?/i);if(!m)return;history.replaceState(null,'',location.pathname+location.search);if(fwAdd(m[1].toLowerCase(),m[2]?decodeURIComponent(m[2]):'')){toast('Proche ajouté à ton suivi');setTimeout(()=>openFollow(),400);}}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
 mvClean();eiStart();initChrono();linkPlan(true);renderAll();navInit();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
@@ -5071,7 +5104,7 @@ $('#chatSend').onclick=()=>sendChat($('#chatIn').value);
 $('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!/iPhone|iPad|Android/.test(navigator.userAgent)){e.preventDefault();sendChat($('#chatIn').value);}});
 $('#chatIn').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(120,e.target.scrollHeight)+'px';});
 let _t='today';try{_t=localStorage.getItem('foulee_tab')||'today';}catch(e){}showTab(_t==='chrono'?'today':_t);
-handleOAuth();defiAddFromHash();healthFromHash();inviteFromHash();window.addEventListener('hashchange',()=>{defiAddFromHash();healthFromHash();});
+handleOAuth();defiAddFromHash();healthFromHash();inviteFromHash();followFromHash();window.addEventListener('hashchange',()=>{defiAddFromHash();followFromHash();inviteFromHash();healthFromHash();});
 if(S.tokens&&((S.histV||0)<2||Date.now()-S.lastSync>6*3600e3)&&!new URLSearchParams(location.search).has('code'))syncStrava();
 </script>
 </body>
