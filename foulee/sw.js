@@ -1,7 +1,7 @@
 // Foulée — service worker : appli disponible hors ligne, mises à jour récupérées en arrière-plan.
-const CACHE = 'foulee-v9.6';
+const CACHE = 'foulee-v9.7';
 const TILES = 'foulee-tiles'; // cartes hors ligne enregistrées par l'appli (jamais vidé à la mise à jour)
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable.png'];
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable.png', './live.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
