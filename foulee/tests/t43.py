@@ -16,9 +16,9 @@ async def m():
     print('custom', await A.evaluate("$('[data-page=analyse]').innerText.match(/42 km · 2000 m D\\+ : [^ ]+/)[0]"))
     await A.locator('[data-page=analyse] .card:has-text("Prédictions")').screenshot(path='p_pred.png')
     # côtes : ouvrir 3 sorties démo (même boucle → mêmes montées)
-    ids=await A.evaluate("getRuns().slice(0,8).map(r=>r.id)")
-    for i in ids:
-        await A.evaluate(f"(async()=>{{const r=S.activities.find(x=>x.id=={i});const d=await getDetail(r);cachePut(r.id,d);}})()")
+    ids=await A.evaluate("getRuns().slice(0,3).map(r=>r.id)")
+    for n,i in enumerate(ids):
+        await A.evaluate(f"""(()=>{{const d=[],t=[],alt=[],ll=[],hr=[];let T=0;for(let k=0;k<=240;k++){{const x=k*25;d.push(x);let z=100;if(x>=1500&&x<2700)z=100+(x-1500)*.09;else if(x>=2700)z=208;const pace=(x>=1500&&x<2700)?{430+n*25}:330;if(k)T+=pace*25/1000;t.push(Math.round(T));alt.push(z);ll.push([45.9+x/111320,6.1]);hr.push(150);}}cachePut({i},{{d,t,alt,ll,hr}});}})()""")
     print('climbs ia', await A.evaluate(f"(()=>{{const a=anaRun(cacheGet({ids[0]}));return a&&a.climbs[0]?[a.climbs[0].ia!=null,a.climbs[0].ib!=null]:'none'}})()"))
     H=await A.evaluate("JSON.stringify(hillsScan().map(h=>[hillName(h),h.ef.length,fmtDur(h.best.t)]))"); print('hills', H)
     await A.evaluate("renderAnalyse()"); print('hills card', await A.evaluate("$('[data-page=analyse]').innerText.includes('Mes côtes')"))

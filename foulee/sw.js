@@ -1,5 +1,5 @@
 // Foulée — service worker : appli disponible hors ligne, mises à jour récupérées en arrière-plan.
-const CACHE = 'foulee-v8.9';
+const CACHE = 'foulee-v9.1';
 const TILES = 'foulee-tiles'; // cartes hors ligne enregistrées par l'appli (jamais vidé à la mise à jour)
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
