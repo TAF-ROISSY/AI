@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Foulée Suivi</title><meta name="theme-color" content="#0A0C0F"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Foulée Suivi">
+<link rel="manifest" href="suivi.webmanifest"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{--bg:#0A0C0F;--card:#15181d;--card2:#1b1f25;--tx:#eef0f3;--mut:#8a8f98;--acc:#FF5F2E;--ok:#3ecf8e;--warn:#ffbf47;--alert:#e5383b;--edge:rgba(255,255,255,.08)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:600;display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:rgba(10,12,15,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--edge)}
+.brand{font-weight:800;letter-spacing:.06em;font-size:17px}.brand span{color:var(--acc)}.sub{color:var(--mut);font-size:12.5px}.sp{flex:1}
+.ib{width:40px;height:40px;border-radius:12px;border:1px solid var(--edge);background:var(--card);color:var(--tx);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#map{height:46vh;min-height:260px;background:#1C2633}
+main{padding:14px 16px calc(24px + env(safe-area-inset-bottom));max-width:620px;margin:0 auto}
+.p{display:flex;gap:12px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--edge);margin-bottom:10px;cursor:pointer}
+.p.alert{border-color:var(--alert);box-shadow:0 0 0 3px rgba(229,56,59,.25);animation:al 1.2s infinite}@keyframes al{50%{box-shadow:0 0 0 7px rgba(229,56,59,.12)}}
+.av{flex:none;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;position:relative}
+.av i{position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;border-radius:50%;border:3px solid var(--card);background:var(--mut)}.av i.run{background:var(--ok)}.av i.pause{background:var(--warn)}.av i.alert{background:var(--alert)}
+.pi{flex:1;min-width:0}.pn{display:flex;align-items:center;gap:8px}.pn b{font-size:17px}.badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--mut)}
+.badge.run{background:rgba(62,207,142,.16);color:var(--ok)}.badge.pause{background:rgba(255,191,71,.16);color:var(--warn)}.badge.alert{background:var(--alert);color:#fff}
+.ps{color:var(--mut);font-size:13px;margin-top:2px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}.g div{background:var(--card2);border-radius:10px;padding:7px 9px}.g b{display:block;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}.g small{color:var(--mut);font-size:11px}
+.act{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;border:1px solid var(--edge);background:var(--card2);color:var(--tx);font:600 14px/1 inherit;text-decoration:none;cursor:pointer}.btn.pri{background:var(--acc);border-color:var(--acc);color:#1b0d07}.btn.red{background:var(--alert);border-color:var(--alert);color:#fff}
+.alertbox{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--alert);color:#fff;font-weight:600;font-size:14px}
+.empty{text-align:center;color:var(--mut);padding:26px 10px}.empty b{color:var(--tx);display:block;font-size:18px;margin-bottom:6px}
+.sheet{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.6);display:none;align-items:flex-end}.sheet.on{display:flex}.sh{width:100%;max-width:620px;margin:0 auto;background:var(--card);border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom))}
+.sh h2{margin:0 0 6px;font-size:20px}.sh p{color:var(--mut);font-size:14px;margin:6px 0 12px}input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--edge);background:var(--card2);color:var(--tx);font:16px inherit;margin-bottom:10px}label{font-size:13px;color:var(--mut)}
+.note{color:var(--mut);font-size:12.5px;text-align:center;margin-top:14px}
+.dot{width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 5px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:#fff;font:800 10px/1 sans-serif}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(13,19,26,.7)!important;color:#aab!important}.leaflet-control-attribution a{color:#cdd!important}
+</style></head><body>
+<header><div><div class="brand">FOUL<span>É</span>E SUIVI</div><div class="sub" id="hs">Tes proches en direct</div></div><div class="sp"></div><button class="ib" onclick="openAdd()" aria-label="Ajouter une personne">+</button></header>
+<div id="map"></div>
+<main><div id="list"></div><p class="note" id="nt"></p></main>
+<div class="sheet" id="sh" onclick="if(event.target===this)closeSh()"><div class="sh" id="shb"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const KEY='foulee_suivi',COLS=['#FF5F2E','#3fd0c9','#7c6cff','#ff4f7b','#ffbf47','#3ecf8e'];
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),pad=n=>String(n).padStart(2,'0');
+const dur=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+pad(m):m+':'+pad(s%60)},hm=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+let P=[];try{P=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){}
+const D={},ET={},NEXT={};let map,L1={},focus=null,fitted=false,lastAlert={};
+function saveP(){try{localStorage.setItem(KEY,JSON.stringify(P))}catch(e){}}
+function parseLink(t){t=String(t||'').trim();const g=(t.match(/(?:g|add|suivre)=([0-9a-f]{20,40})/i)||t.match(/^([0-9a-f]{20,40})$/i)||[])[1];const n=decodeURIComponent((t.match(/[?&#]n=([^&]+)/)||[])[1]||'');return g?{g:g.toLowerCase(),n}:null;}
+function addP(g,n){if(!g)return false;const e=P.find(x=>x.g===g);if(e){if(n&&!e.n)e.n=n;saveP();return true;}P.push({g,n:n||'',c:COLS[P.length%COLS.length],tel:''});saveP();NEXT[g]=0;return true;}
+function fromHash(){const h=location.hash;if(!/(add|g|suivre)=/.test(h))return;const L=h.replace(/^#/,'').split('|');L.forEach(x=>{const r=parseLink('#'+x);if(r)addP(r.g,r.n);});history.replaceState(null,'',location.pathname);}
+function st(p){const d=D[p.g];if(!d)return 'none';if(d.err)return 'err';if(d.sos&&d.st!=='fini')return 'alert';if(d.st==='fini'||Date.now()-d.upd>15*60e3)return 'fini';return d.st;}
+function nameOf(p){const d=D[p.g];return p.n||(d&&d.pseudo)||'Proche';}
+function initMap(){if(map||!window.L)return;map=L.map('map',{zoomControl:false}).setView([46.5,2.5],5);L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap · © OpenTopoMap'}).addTo(map);}
+function drawMap(){if(!map)return;const B=[];P.forEach(p=>{const d=D[p.g],l=L1[p.g]=L1[p.g]||{};if(!d||d.err||!d.pos){['trk','mk'].forEach(k=>{if(l[k]){map.removeLayer(l[k]);l[k]=null;}});return;}
+  const s=st(p),col=s==='alert'?'#e5383b':p.c;if(d.trk&&d.trk.length>1){if(l.trk)l.trk.setLatLngs(d.trk).setStyle({color:col,opacity:s==='fini'?.45:.95});else l.trk=L.polyline(d.trk,{color:col,weight:5,opacity:.95}).addTo(map);}
+  const ic=L.divIcon({className:'',html:`<div class="dot" style="background:${col}">${esc(nameOf(p)[0]||'?').toUpperCase()}</div>`,iconSize:[20,20],iconAnchor:[10,10]});if(l.mk){l.mk.setLatLng(d.pos);l.mk.setIcon(ic);}else{l.mk=L.marker(d.pos,{icon:ic}).addTo(map).on('click',()=>{focus=p.g;render();});}
+  if(s!=='fini'||!P.some(q=>['run','pause','alert'].includes(st(q))))B.push(d.pos,...(d.trk||[]));});
+  if(focus&&D[focus]&&D[focus].pos){map.setView(D[focus].pos,Math.max(map.getZoom(),14),{animate:true});}
+  else if(B.length&&(!fitted||P.some(q=>st(q)==='run'))){const b=L.latLngBounds(B);if(b.isValid()){map.fitBounds(b,{padding:[34,34],maxZoom:15,animate:fitted});fitted=true;}}}
+function card(p,i){const d=D[p.g],s=st(p),n=nameOf(p),lab={run:'En course',pause:'En pause',alert:'ALERTE',fini:'Pas en sortie',none:'Chargement…',err:'Introuvable'}[s]||s;
+  const ago=d&&d.upd?Math.round((Date.now()-d.upd)/60000):null,live=['run','pause','alert'].includes(s);
+  let sub=s==='err'?'Lien de suivi invalide ou supprimé.':!d?'…':live?`Mis à jour ${ago<1?'à l’instant':'il y a '+ago+' min'} · départ ${hm(d.t0)}`:d.upd?`Dernière sortie : ${new Date(d.upd).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'})} à ${hm(d.upd)}${d.dist?' · '+(d.dist/1000).toFixed(1).replace('.',',')+' km':''}`:'Aucune sortie partagée pour l’instant.';
+  return `<div class="p ${s==='alert'?'alert':''}" onclick="focus=focus==='${p.g}'?null:'${p.g}';render()"><div class="av" style="background:${p.c}">${esc(n[0]||'?').toUpperCase()}<i class="${s}"></i></div><div class="pi">
+  <div class="pn"><b>${esc(n)}</b><span class="badge ${s}">${lab}</span></div><div class="ps">${sub}${live&&d.name?' · '+esc(d.name):''}</div>
+  ${live?`<div class="g"><div><b>${(d.dist/1000).toFixed(1).replace('.',',')}</b><small>km</small></div><div><b>${dur(d.el+(s==='run'?(Date.now()-d.upd)/1000:0))}</b><small>temps</small></div><div><b>${d.eta?hm(d.eta):'–'}</b><small>${d.eta?'arrivée'+(d.rest!=null?' · '+(d.rest/1000).toFixed(1).replace('.',',')+' km':''):'arrivée'}</small></div></div>`:''}
+  ${s==='alert'?`<div class="alertbox">⚠ ${esc(n)} ne bouge plus depuis plusieurs minutes et n’a pas répondu. Appelle-${/a$/i.test(n)?'la':'le'} ou va voir sa position.</div>`:''}
+  ${(live||(d&&d.pos))?`<div class="act" onclick="event.stopPropagation()">${d&&d.pos?`<a class="btn ${s==='alert'?'red':live?'pri':''}" href="https://maps.apple.com/?ll=${d.pos[0]},${d.pos[1]}&q=${encodeURIComponent(n)}" target="_blank" rel="noopener">📍 ${live?'Itinéraire':'Dernière position'}</a>`:''}${p.tel?`<a class="btn" href="tel:${esc(p.tel.replace(/[^\d+]/g,''))}">📞 Appeler</a>`:''}<button class="btn" onclick="openEdit(${i})">⚙︎</button></div>`:`<div class="act" onclick="event.stopPropagation()"><button class="btn" onclick="openEdit(${i})">⚙︎ Réglages</button></div>`}
+  </div></div>`;}
+function render(){const el=$('#list');if(!P.length){el.innerHTML=`<div class="empty"><b>Personne à suivre pour l’instant</b>Demande à ton proche d’ouvrir Foulée › Plus › Suivi en direct, puis « Partager le lien de suivi », et ouvre ce lien ici. Ou touche + pour coller le lien.</div><div style="text-align:center"><button class="btn pri" onclick="openAdd()">+ Ajouter une personne</button></div>`;$('#nt').textContent='';drawMap();return;}
+  const order=x=>({alert:0,run:1,pause:2}[st(x)]??3);el.innerHTML=P.map((p,i)=>({p,i})).sort((a,b)=>order(a.p)-order(b.p)).map(({p,i})=>card(p,i)).join('');
+  const nLive=P.filter(p=>['run','pause','alert'].includes(st(p))).length;$('#hs').textContent=nLive?`${nLive} en sortie maintenant`:'Personne en sortie';
+  $('#nt').textContent='Positions publiées seulement pendant leurs sorties Foulée, mises à jour toutes les 1 à 2 minutes.';drawMap();
+  const al=P.filter(p=>st(p)==='alert');al.forEach(p=>{if(!lastAlert[p.g]){lastAlert[p.g]=1;try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400]);}catch(e){}beep();try{if(window.Notification&&Notification.permission==='granted')new Notification('Alerte Foulée',{body:nameOf(p)+' ne bouge plus et n’a pas répondu.',icon:'icon-192.png'});}catch(e){}}});P.forEach(p=>{if(st(p)!=='alert')lastAlert[p.g]=0;});}
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();[0,.5,1].forEach(t=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=990;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.25,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+.35);o.start(a.currentTime+t);o.stop(a.currentTime+t+.4);});}catch(e){}}
+async function fetchP(p){const h={Accept:'application/vnd.github+json'};if(ET[p.g])h['If-None-Match']=ET[p.g];
+  try{const r=await fetch('https://api.github.com/gists/'+p.g,{headers:h});if(r.status===304)return;if(r.status===404){D[p.g]={err:1};return;}if(!r.ok)throw new Error(r.status);ET[p.g]=r.headers.get('ETag')||'';const g=await r.json(),f=g.files&&g.files['foulee-live.json'];if(!f){D[p.g]={err:1};return;}
+    const d=JSON.parse(f.truncated?await (await fetch(f.raw_url)).text():f.content);D[p.g]=d;if(!p.n&&d.pseudo){p.n=d.pseudo;saveP();}}catch(e){if(!D[p.g])D[p.g]=null;}}
+async function tick(force){if(document.hidden&&!force)return;const now=Date.now(),due=P.filter(p=>force||!NEXT[p.g]||now>=NEXT[p.g]);for(const p of due){await fetchP(p);const s=st(p);NEXT[p.g]=now+(s==='alert'?60e3:['run','pause'].includes(s)?120e3:300e3);}render();}
+function closeSh(){$('#sh').classList.remove('on');}
+function openAdd(){$('#shb').innerHTML=`<h2>Ajouter une personne</h2><p>Sur son iPhone : Foulée › Plus › Suivi en direct & sécurité › « Partager le lien de suivi ». Ouvre ce lien, ou colle-le ici.</p><input id="al" placeholder="Lien de suivi Foulée" autocomplete="off"><label>Prénom</label><input id="an" placeholder="ex. Lucas"><button class="btn pri" style="width:100%;justify-content:center" onclick="doAdd()">Ajouter</button>`;$('#sh').classList.add('on');setTimeout(()=>$('#al').focus(),100);}
+function doAdd(){const r=parseLink($('#al').value);if(!r){$('#al').style.borderColor='#e5383b';return;}addP(r.g,$('#an').value.trim()||r.n);closeSh();tick(true);askNotif();}
+function openEdit(i){const p=P[i];$('#shb').innerHTML=`<h2>${esc(nameOf(p))}</h2><label>Prénom affiché</label><input id="en" value="${esc(p.n)}"><label>Téléphone (pour le bouton Appeler)</label><input id="et" inputmode="tel" value="${esc(p.tel||'')}" placeholder="06…"><div style="display:flex;gap:8px"><button class="btn pri" style="flex:1;justify-content:center" onclick="P[${i}].n=$('#en').value.trim();P[${i}].tel=$('#et').value.trim();saveP();closeSh();render()">Enregistrer</button><button class="btn" onclick="if(confirm('Ne plus suivre ${esc(nameOf(p)).replace(/'/g,'')} ?')){P.splice(${i},1);saveP();closeSh();render()}">Retirer</button></div><p>Le numéro reste sur cet appareil.</p>`;$('#sh').classList.add('on');}
+function askNotif(){try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission();}catch(e){}}
+fromHash();window.addEventListener('hashchange',()=>{fromHash();tick(true);});initMap();render();tick(true);setInterval(()=>tick(false),15000);setInterval(()=>{if(!document.hidden)render();},5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick(true);});
+</script></body></html>
