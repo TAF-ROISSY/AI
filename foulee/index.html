@@ -810,7 +810,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='9.4';
+const APP_VER='9.5';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -2015,7 +2015,48 @@ function openHill(i){const h=hillsScan()[i];if(!h)return;const ef=h.ef,W=340,H=1
   <table class="tbl" style="margin-top:8px"><tr><th style="text-align:left">Date</th><th>Temps</th><th>VAM</th><th>FC</th></tr>${ef.slice().reverse().map(x=>`<tr style="cursor:pointer" onclick="closeSettings();openAct(${x.id})"><td style="text-align:left">${parseISO(x.d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'})}${x.id===h.best.id?' 🏆':''}</td><td><b>${fmtDur(x.t)}</b></td><td>${Math.round(x.vam)}</td><td>${x.hr?Math.round(x.hr):'–'}</td></tr>`).join('')}</table>
   <div class="form" style="margin-top:10px"><label for="hl_n">Nom de la côte</label><input id="hl_n" value="${esc((S.hillNames||{})[h.id]||'')}" placeholder="${esc(hillName(h))}" onchange="S.hillNames=S.hillNames||{};S.hillNames['${h.id}']=this.value.trim();save();renderAnalyse()"></div>`;$('#sheet').classList.add('on');}
 /* ============ v9.1 : CARNET IMPRIMABLE (PDF) ============ */
-function printBook(){const now=new Date(),w=Math.max(0,Math.min(11,weekIdx())),P=getA().P,R=readiness(),days=[];
+/* ============ v9.5 : carnet en vrai PDF (jsPDF, chargé à la demande) ============ */
+function loadJs(urls){return new Promise((ok,ko)=>{const tryN=i=>{if(i>=urls.length){ko(new Error('réseau'));return;}const sc=document.createElement('script');sc.src=urls[i];sc.onload=()=>ok();sc.onerror=()=>{sc.remove();tryN(i+1)};document.head.appendChild(sc);};tryN(0);});}
+async function pdfLib(){if(!(window.jspdf&&window.jspdf.jsPDF))await loadJs(['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js']);
+  const D=new window.jspdf.jsPDF();if(typeof D.autoTable!=='function')await loadJs(['https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js','https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js']);return window.jspdf.jsPDF;}
+function pdfTxt(t){return String(t??'').replace(/[   ]/g,' ').replace(/[→]/g,'->').replace(/[↑]/g,'+').replace(/[↓]/g,'-').replace(/[≥]/g,'>=').replace(/[≤]/g,'<=').replace(/[×]/g,'x').replace(/[≈]/g,'~').replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ–—‘’“”…€•Œœ]/g,'').replace(/\s{2,}/g,' ').trim();}
+function bookData(){const now=new Date(),P=getA().P,R=readiness(),days=[];
+  for(let i=0;i<28;i++){const dt=new Date(now);dt.setDate(dt.getDate()+i);const ww=weekIdx(dt);if(ww<0||ww>11)continue;const ss=daySessions(ww,dayIdx(dt)).filter(o=>!o.cancel);if(ss.length)days.push({dt,ss});}
+  const past=[];for(let k=4;k>=1;k--)past.push(weekStats(weekIdx()-k));
+  const C=S.check||{},pains=Object.entries(C).filter(([d,c])=>(now-parseISO(d))/DAY<=28&&(c.pain||[]).length).map(([d,c])=>parseISO(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' : '+c.pain.map(p=>CHZ[p.z]+' '+['','légère','gênante','forte'][p.lv]).join(', '));
+  const pr=BEST_D.map(([D,l])=>{const p=prOf(D);return p?`${l} ${fmtDur(p.t)}`:null;}).filter(Boolean),V=vmaCur();return {now,P,R,days,past,pains,pr,V};}
+async function pdfBook(){toast('Préparation du PDF…');let J;try{J=await pdfLib();}catch(e){toast('Pas de réseau : le PDF a besoin d’internet la première fois');return null;}
+  const B=bookData(),{now,P,R,days,past,pains,pr,V}=B,doc=new J({unit:'mm',format:'a4'}),W=210,M=14,T=pdfTxt;
+  const cs=getComputedStyle(document.documentElement),hex=(cs.getPropertyValue('--acc').trim()||'#FF5F2E'),rgb=/^#?([0-9a-f]{6})$/i.test(hex.replace('#',''))?[0,2,4].map(k=>parseInt(hex.replace('#','').slice(k,k+2),16)):[255,95,46];
+  const dfr=(d,o)=>d.toLocaleDateString('fr-FR',o);
+  // bandeau
+  doc.setFillColor(13,16,20);doc.rect(0,0,W,34,'F');doc.setDrawColor(...rgb);doc.setLineWidth(1.1);doc.setLineJoin('round');doc.setLineCap('round');
+  const rp=[[6,74],[52,40],[74,56],[110,14],[140,46],[162,34],[214,74]].map(([x,y])=>[W-M-52+x*.24,7+y*.24]);doc.lines(rp.slice(1).map((p,k)=>[p[0]-rp[k][0],p[1]-rp[k][1]]),rp[0][0],rp[0][1]);
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('FOULÉE',M,16);doc.setFontSize(11);doc.setFont('helvetica','normal');doc.setTextColor(200,204,210);doc.text('Carnet d’entraînement',M,23);
+  doc.setFontSize(8.5);doc.text(T(`${defiPseudo()} · édité le ${dfr(now,{day:'numeric',month:'long',year:'numeric'})}${S.race&&daysTo(S.race.date)>=0?` · objectif ${S.race.name} le ${dfr(parseISO(S.race.date),{day:'numeric',month:'long'})}`:''}`),M,29);
+  let y=42;const H=t=>{if(y>262){doc.addPage();y=18;}doc.setTextColor(...rgb);doc.setFont('helvetica','bold');doc.setFontSize(12.5);doc.text(T(t),M,y);doc.setDrawColor(...rgb);doc.setLineWidth(.5);doc.line(M,y+1.6,M+16,y+1.6);y+=5;};
+  const base={margin:{left:M,right:M},styles:{font:'helvetica',fontSize:9,cellPadding:2.2,textColor:[30,33,38],lineColor:[225,228,232],lineWidth:.15},headStyles:{fillColor:rgb,textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[246,247,249]}};
+  const tbl=o=>{doc.autoTable(Object.assign({},base,o,{startY:y}));y=doc.lastAutoTable.finalY+9;};
+  H('Repères');tbl({body:[['Forme du jour',`${R.sc}/100 (${T(R.t)})`,'10 km estimé',fmtDur(P.t10)],['Allure footing',`${fmtPace(P.easyLo)}–${fmtPace(P.easyHi)} /km`,'Allure seuil',`${fmtPace(P.seuil)} /km`],['VMA',V?String(V.v).replace('.',',')+' km/h':'–','Records',T(pr.join(' · '))||'–']].map(r=>r.map(T)),columnStyles:{0:{fontStyle:'bold',textColor:[110,115,122],cellWidth:32},2:{fontStyle:'bold',textColor:[110,115,122],cellWidth:30}}});
+  H('4 dernières semaines');tbl({head:[['Semaine du','Km','D+','Durée','Séances']],body:past.map(x=>[dfr(x.ws,{day:'numeric',month:'short'}),kmFr(x.km),Math.round(x.dp)+' m',fmtH(x.sec),x.n?x.f+' / '+x.n:String(x.runs)].map(T))});
+  H('Plan des 4 prochaines semaines');const rows=[];days.forEach(d=>d.ss.forEach((o,j)=>rows.push([j?'':dfr(d.dt,{weekday:'short',day:'numeric',month:'short'}),strip(String(o.t)),strip(String(o.s||'')).slice(0,140),''].map(T))));
+  tbl({head:[['Jour','Séance','Détail','Fait']],body:rows.length?rows:[['–','Aucune séance prévue','','']],columnStyles:{0:{cellWidth:27,fontStyle:'bold'},1:{cellWidth:48},3:{cellWidth:12,halign:'center'}},
+    didDrawCell:c=>{if(c.section==='body'&&c.column.index===3&&rows.length){const sz=3.6;doc.setDrawColor(150,155,160);doc.setLineWidth(.3);doc.rect(c.cell.x+c.cell.width/2-sz/2,c.cell.y+c.cell.height/2-sz/2,sz,sz);}}});
+  if(pains.length){H('Douleurs signalées (28 jours)');tbl({body:pains.map(x=>[T(x)]),styles:Object.assign({},base.styles,{fontSize:9})});}
+  H('Notes');doc.setDrawColor(215,218,222);doc.setLineWidth(.2);for(let k=0;k<12&&y<280;k++){doc.line(M,y+5,W-M,y+5);y+=8;}
+  const n=doc.getNumberOfPages();for(let k=1;k<=n;k++){doc.setPage(k);doc.setFontSize(7.5);doc.setTextColor(140,145,150);doc.text(`Foulée v${APP_VER} · page ${k}/${n}`,W-M,290,{align:'right'});}
+  return {doc,name:`foulee-carnet-${iso(now)}.pdf`};}
+let BOOKF=null;
+async function printBook(){const r=await pdfBook();if(!r)return;const blob=r.doc.output('blob');window.__pdf={name:r.name,size:blob.size,pages:r.doc.getNumberOfPages()};
+  BOOKF=new File([blob],r.name,{type:'application/pdf'});if(window.__bookUrl)URL.revokeObjectURL(window.__bookUrl);window.__bookUrl=URL.createObjectURL(blob);
+  const canSh=!!(navigator.canShare&&navigator.canShare({files:[BOOKF]}));
+  $('#sheetBody').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">🖨 Carnet PDF prêt</h2><button class="icbtn" aria-label="Fermer" onclick="closeSettings()">✕</button></div>
+  <p class="muted small">${r.doc.getNumberOfPages()} page${r.doc.getNumberOfPages()>1?'s':''} : repères, 4 dernières semaines, plan des 4 prochaines semaines à cocher, douleurs et notes.</p>
+  ${canSh?`<button class="btn wide" onclick="bookShare()">Partager, enregistrer ou imprimer</button><p class="note">Dans la feuille de partage : « Enregistrer dans Fichiers », « Imprimer », Mail, Messages…</p>`:''}
+  <a class="btn ${canSh?'ghost ':''}wide" style="margin-top:8px;text-align:center;text-decoration:none" href="${window.__bookUrl}" download="${r.name}" target="_blank" rel="noopener">Ouvrir le PDF</a>
+  <button class="btn sm ghost wide" style="margin-top:8px" onclick="closeSettings();setTimeout(bookPrint,300)">Imprimer la version page (ordinateur)</button>`;$('#sheet').classList.add('on');}
+async function bookShare(){if(!BOOKF)return;try{await navigator.share({files:[BOOKF],title:'Carnet Foulée'});}catch(e){if(e&&e.name!=='AbortError')window.open(window.__bookUrl,'_blank');}}
+function bookPrint(){const now=new Date(),w=Math.max(0,Math.min(11,weekIdx())),P=getA().P,R=readiness(),days=[];
   for(let i=0;i<28;i++){const dt=new Date(now);dt.setDate(dt.getDate()+i);const ww=weekIdx(dt);if(ww<0||ww>11)continue;const ss=daySessions(ww,dayIdx(dt)).filter(o=>!o.cancel);if(ss.length)days.push({dt,ss});}
   const past=[];for(let k=4;k>=1;k--){const st=weekStats(weekIdx()-k);past.push(st);}
   const C=S.check||{},pains=Object.entries(C).filter(([d,c])=>(now-parseISO(d))/DAY<=28&&(c.pain||[]).length).map(([d,c])=>parseISO(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' : '+c.pain.map(p=>CHZ[p.z]+' '+['','légère','gênante','forte'][p.lv]).join(', '));
