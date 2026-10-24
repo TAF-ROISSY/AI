@@ -120,6 +120,21 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .plan p{margin:6px 0 0;font-size:14.5px;color:var(--mist);line-height:1.45}
 .plan p b{color:#fff;font-weight:650}
 .hdate.lvl b{font-size:24px;color:var(--amber)}
+/* cost */
+.costhero{display:flex;align-items:baseline;gap:10px;margin:2px 0 8px}
+.costhero b{font-size:46px;font-weight:800;letter-spacing:-.04em;font-variation-settings:"wdth" 78;color:#fff;line-height:1}
+.costhero span{font-size:14px;color:var(--dim)}
+#costChart{display:block;width:100%;height:auto;font-family:var(--font);margin:6px 0 4px}
+.costrow{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(217,220,255,.08);font-size:14.5px;color:var(--mist)}
+.costrow:last-child{border-bottom:0}
+.costrow b{color:#fff;font-weight:650;white-space:nowrap}
+.costrow.total b{color:var(--amber)}
+.hint.weekcard{border-color:rgba(255,181,71,.45);background:radial-gradient(120% 120% at 0% 0%, rgba(255,181,71,.18), transparent 60%), rgba(255,255,255,.05)}
+.hint.weekcard .yes{background:var(--amber);color:#1a1640}
+.keyrow{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.keystat{font-size:13.5px;line-height:1.4;color:var(--dim);flex:1;min-width:150px}
+.keystat.ok{color:var(--lagoon)} .keystat.bad{color:#ffb0b0}
+.keystat i{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:7px;vertical-align:1px}
 .recap{width:100%;border:1px solid rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:var(--amber);
   padding:13px;border-radius:999px;font-size:15px;font-weight:650}
 .controls{display:flex;align-items:center;gap:14px}
@@ -326,7 +341,7 @@ details.tr[open] summary::after{content:"–"}
 
   <section class="stage" aria-live="polite">
     <h1 class="headline" id="status">Let’s talk<span class="tail">on the road.</span></h1>
-    <p class="subline" id="sub">Un tap pour démarrer, puis tout se fait à la voix.</p>
+    <p class="subline" id="sub">Un tap, puis tout se fait à la voix.</p>
     <canvas id="wave" aria-hidden="true"></canvas>
     <p class="coachline" id="line"></p>
   </section>
@@ -355,6 +370,10 @@ details.tr[open] summary::after{content:"–"}
       <p><b>Vous voici en Croisière.</b> Passez au coach Sonnet pour des corrections plus fines, environ 17 $ par mois au lieu de 1 $.</p>
       <div class="row2"><button class="yes" id="hintYes">Passer à Sonnet</button><button class="no" id="hintNo">Plus tard</button></div>
     </div>
+    <div class="hint weekcard" id="weekCard" hidden>
+      <p id="weekCardText"></p>
+      <div class="row2"><button class="yes" id="weekYes">Voir le détail</button><button class="no" id="weekNo">OK</button></div>
+    </div>
     <div class="hint testcard" id="testCard" hidden>
       <p><b>Commencez par votre test de niveau.</b> Dix minutes de conversation, sans correction, pour régler le coach sur votre vrai niveau.</p>
       <div class="row2"><button class="yes" id="testYes">Passer le test</button><button class="no" id="testNo">Plus tard</button></div>
@@ -366,7 +385,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.8</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.9</span></div>
   </div>
 </div>
 
@@ -412,6 +431,14 @@ details.tr[open] summary::after{content:"–"}
 
       <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
 
+      <section class="block" id="costBlock">
+        <div class="block-head"><h3>Coût de l’IA</h3><span id="costModel"></span></div>
+        <div class="costhero"><b id="costWeek"></b><span>cette semaine</span></div>
+        <svg id="costChart" viewBox="0 0 340 112" aria-label="Coût des huit dernières semaines"></svg>
+        <div id="costRows"></div>
+        <p class="note">Calculé à partir des tokens réellement consommés et des tarifs publics de l’API. Votre facture sur console.anthropic.com fait foi.</p>
+      </section>
+
       <section class="block">
         <h3>Test de niveau</h3>
         <div id="placeBody"></div>
@@ -437,6 +464,7 @@ details.tr[open] summary::after{content:"–"}
       <div class="field">
         <label for="apiKey">Clé API Anthropic</label>
         <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        <div class="keyrow"><button class="btn" id="testKey">Tester la clé</button><span class="keystat" id="keyStatus" role="status"></span></div>
       </div>
       <div class="field">
         <label for="model">Modèle</label>
@@ -513,6 +541,7 @@ function migrate(d){
     history:  Array.isArray(d.history) ? d.history : [],
     customScenes: Array.isArray(d.customScenes) ? d.customScenes : [],
     placement: d.placement || null,
+    usage: d.usage && typeof d.usage === 'object' ? d.usage : {},
     pending:  d.pending || null
   };
   // v1.0 – v1.2 data
@@ -629,7 +658,7 @@ async function designScenes(type, request){
   const known = allScenes().map(s => s.en).join(', ');
   const n = type === 'PACK' ? 6 : 1;
   const raw = await callClaude(SCENE_DESIGNER + known + '.', [{ role:'user',
-    content: (type === 'PACK' ? 'Voyage à préparer : ' : 'Scène demandée : ') + request + '\nNiveau : ' + stats().level + '\nNombre de scènes : ' + n }], 2200);
+    content: (type === 'PACK' ? 'Voyage à préparer : ' : 'Scène demandée : ') + request + '\nNiveau : ' + stats().level + '\nNombre de scènes : ' + n }], 2200, 'scenes');
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('design');
   const j = JSON.parse(m[0]);
   const stamp = Date.now().toString(36);
@@ -839,7 +868,42 @@ function listenOnce(lang='en-US'){
 function stopListening(){ if(rec){ try{ rec.abort(); }catch(_){} rec = null; } }
 
 /* ---------- Claude API ---------- */
-async function callClaude(system, messages, maxTokens=300){
+/* ---------- usage & cost ---------- */
+// public API prices, $ per million tokens (October 2026)
+const PRICES = {
+  'claude-haiku-5-5':  { in:0.10, out:0.50,  cw:0.125, cr:0.01, name:'Haiku 5.5' },
+  'claude-sonnet-5-5': { in:2.00, out:10.00, cw:2.50,  cr:0.10, name:'Sonnet 5.5' },
+  'claude-opus-5-5':   { in:4.00, out:20.00, cw:5.00,  cr:0.20, name:'Opus 5.5' }
+};
+const KIND_FR = { conversation:'Conversation', bilan:'Bilans de séance', scenes:'Création de scènes', test:'Tests de niveau' };
+const localDay = (d = new Date()) => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
+function recordUsage(model, u, kind){
+  if(!u) return;
+  const pr = PRICES[model] || PRICES['claude-haiku-5-5'];
+  const cin = u.input_tokens||0, cout = u.output_tokens||0, cw = u.cache_creation_input_tokens||0, cr = u.cache_read_input_tokens||0;
+  const cost = (cin*pr.in + cout*pr.out + cw*pr.cw + cr*pr.cr) / 1e6;
+  const us = store.usage || (store.usage = {});
+  const d = us[localDay()] || (us[localDay()] = { cost:0, calls:0, tin:0, tout:0, kinds:{} });
+  d.cost += cost; d.calls++; d.tin += cin + cw + cr; d.tout += cout;
+  d.kinds[kind] = (d.kinds[kind]||0) + cost;
+  const keys = Object.keys(us).sort(); if(keys.length > 200) keys.slice(0, keys.length - 200).forEach(k => delete us[k]);
+}
+const fmtUSD = n => n <= 0 ? '0 $' : n < 0.01 ? '< 0,01 $' : (n < 10 ? n.toFixed(2) : n.toFixed(0)).replace('.', ',') + ' $';
+function usageBetween(from, to){
+  const out = { cost:0, calls:0, kinds:{} };
+  Object.entries(store.usage || {}).forEach(([k,d]) => {
+    const t = new Date(k + 'T12:00:00').getTime();
+    if(t >= from && t < to){ out.cost += d.cost; out.calls += d.calls; Object.entries(d.kinds||{}).forEach(([kk,v]) => out.kinds[kk] = (out.kinds[kk]||0) + v); }
+  });
+  return out;
+}
+function costWeeks(n){
+  const ws = weekStart().getTime(), W = 7*864e5, list = [];
+  for(let i = n-1; i >= 0; i--){ const from = ws - i*W; list.push({ from, ...usageBetween(from, from + W) }); }
+  return list;
+}
+
+async function callClaude(system, messages, maxTokens=300, kind='conversation'){
   const key = store.settings.apiKey.trim();
   if(!key) throw new Error('NO_KEY');
   const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 45000);
@@ -852,6 +916,7 @@ async function callClaude(system, messages, maxTokens=300){
     });
     if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
     const j = await r.json();
+    try{ recordUsage(store.settings.model, j.usage, kind); save(); }catch(_){}
     return (j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join(' ').trim();
   } finally { clearTimeout(to); }
 }
@@ -986,7 +1051,7 @@ Scores : entiers de 1 à 10. errors : 4 maximum, ses erreurs les plus représent
 async function evaluateTest(msgs){
   const goal = store.settings.weeklyGoal || 300;
   const raw = await callClaude(EVAL_SYSTEM, [{ role:'user',
-    content: 'Rythme de pratique prévu : ' + (goal/60) + ' h par semaine.\n\nTranscription du test :\n' + transcriptOf(msgs) }], 1600);
+    content: 'Rythme de pratique prévu : ' + (goal/60) + ' h par semaine.\n\nTranscription du test :\n' + transcriptOf(msgs) }], 1600, 'test');
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('eval');
   const j = JSON.parse(m[0]);
   const level = /^(A1|A2|B1|B2|C1|C2)$/.test(str(j.level)) ? str(j.level) : '';
@@ -1073,7 +1138,7 @@ async function summarizePending(){
     content: 'Vocabulaire cible actuel : ' + JSON.stringify(targetVocab()) +
       '\nScènes de voyage possibles (clé : description) : ' + allScenes().map(s => s.key + ' : ' + s.en).join(', ') +
       '\nThème de la séance : ' + (pend.theme || 'MIX') +
-      '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 2000);
+      '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 2000, 'bilan');
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('bad summary');
   const j = JSON.parse(m[0]);
   if(store.pending !== pend) return null;                 // already handled elsewhere
@@ -1168,7 +1233,7 @@ async function turn(userText){
   setState('thinking', '');
   let reply;
   try {
-    const raw = await callClaude(session.kind === 'test' ? buildTestSystem() : buildSystem(), trimmedHistory());
+    const raw = await callClaude(session.kind === 'test' ? buildTestSystem() : buildSystem(), trimmedHistory(), 300, session.kind === 'test' ? 'test' : 'conversation');
     if(/\[\[\s*TEST_DONE\s*\]\]/i.test(raw)) session.testDone = true;
     const mk = raw.match(/\[\[\s*(PACK|SCENE)\s*:\s*([^\]]+?)\s*\]\]/i);
     if(mk) session.action = { type: mk[1].toUpperCase(), arg: mk[2] };
@@ -1177,6 +1242,11 @@ async function turn(userText){
   catch(e){
     session.messages.pop();
     if(e.message === 'NO_KEY'){ stopSession(false); openSettings(); setState('idle','Ajoutez votre clé API dans les réglages.'); return false; }
+    if(/credit balance|HTTP 401|HTTP 403/i.test(e.message)){
+      stopSession(false);
+      setState('idle', /credit/i.test(e.message) ? 'Crédit API épuisé : rechargez votre compte sur console.anthropic.com.' : 'Clé API refusée : vérifiez-la dans les réglages avec « Tester la clé ».');
+      return false;
+    }
     setState('speaking', 'Connexion perdue. Répétez votre phrase.');
     await speak("Sorry, I lost the connection. Please say that again.");
     return true;
@@ -1328,8 +1398,20 @@ function renderMeta(){
     ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
     : `<i></i><span>Première séance</span>`;
   const s = store.settings;
-  $('testCard').hidden = !(!session.active && !store.placement && !s.testDismissed);
-  $('modelHint').hidden = !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
+  const showTest = !session.active && !store.placement && !s.testDismissed;
+  $('testCard').hidden = !showTest;
+  // weekly report: shown once, at the start of a new week, about the week that just ended
+  const W = 7*864e5, lastFrom = weekStart().getTime() - W, lastKey = localDay(new Date(lastFrom));
+  const lastSess = store.history.filter(r => { const t = new Date(r.date).getTime(); return t >= lastFrom && t < lastFrom + W; });
+  const lastUse = usageBetween(lastFrom, lastFrom + W);
+  const showWeek = !session.active && !showTest && s.weeklyReportSeen !== lastKey && (lastSess.length || lastUse.calls);
+  $('weekCard').hidden = !showWeek;
+  if(showWeek){
+    const mins = lastSess.reduce((a,r) => a + (r.minutes||0), 0), goal = s.weeklyGoal || 300;
+    $('weekCardText').innerHTML = `<b>Votre semaine passée.</b> ${esc(fmtMin(mins))} de conversation sur ${esc(fmtMin(goal))} prévues, en ${lastSess.length} séance${lastSess.length > 1 ? 's' : ''}. Coût de l’IA : <b>${esc(fmtUSD(lastUse.cost))}</b>.`;
+    $('weekCard').dataset.key = lastKey;
+  }
+  $('modelHint').hidden = showTest || showWeek || !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
   const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
 }
@@ -1434,6 +1516,7 @@ function renderProgress(){
     <div class="pack-head"><h4>${esc(name || 'Mes scènes')}<small>${list.length} scène${list.length > 1 ? 's' : ''}</small></h4>
       <div class="pack-actions">${name ? `<button class="linkbtn" data-packpdf="${esc(name)}">PDF</button>` : ''}<button class="linkbtn del" data-packdel="${esc(name)}">Supprimer</button></div></div>
     <div class="stamps">${list.map((s,i) => stampHTML(s, i + pi*5 + 3)).join('')}</div>`).join('');
+  renderCost();
   const pl = store.placement;
   $('placeBody').innerHTML = pl
     ? `<button class="hrow" data-place="1"><div class="hdate lvl"><b>${esc(pl.level)}</b></div>
@@ -1451,6 +1534,32 @@ function renderProgress(){
       <div class="hbody"><p class="htitle">${esc(r.title || (r.topics||[]).join(', ') || 'Séance')}</p><p class="hmeta">${esc(meta || 'Séance')}</p></div>
       ${r.fluency ? `<span class="hscore">${r.fluency}/10</span>` : ''}${CHEV}</button>`;
   }).join('') : '<p class="empty">Vos séances apparaîtront ici, chacune avec son bilan et sa fiche de révision.</p>';
+}
+function renderCost(){
+  const weeks = costWeeks(8), cur = weeks[weeks.length-1];
+  const pr = PRICES[store.settings.model] || PRICES['claude-haiku-5-5'];
+  $('costModel').textContent = 'Modèle : ' + pr.name;
+  $('costWeek').textContent = fmtUSD(cur.cost);
+  // eight-week bar chart
+  const svg = $('costChart'), W = 340, H = 112, top = 16, bot = 22, n = weeks.length, gap = 10;
+  const bw = (W - gap*(n-1)) / n, max = Math.max(0.05, ...weeks.map(w => w.cost));
+  let g = '';
+  weeks.forEach((w,i) => {
+    const x = i*(bw+gap), hgt = w.cost > 0 ? Math.max(3, (H - top - bot) * w.cost / max) : 2, y = H - bot - hgt, last = i === n-1;
+    g += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${hgt.toFixed(1)}" rx="5" fill="${last ? '#ffb547' : w.cost > 0 ? 'rgba(79,227,193,.75)' : 'rgba(217,220,255,.12)'}"/>`;
+    if(last || (w.cost > 0 && w.cost === max)) g += `<text x="${(x + bw/2).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="650" fill="${last ? '#ffb547' : '#d9dcff'}">${esc(fmtUSD(w.cost))}</text>`;
+    if(i === 0 || last) g += `<text x="${last ? W : 0}" y="${H - 6}" text-anchor="${last ? 'end' : 'start'}" font-size="10" fill="#8f94cc">${last ? 'Cette semaine' : esc(new Date(w.from).toLocaleDateString('fr-FR',{day:'numeric', month:'short'}))}</text>`;
+  });
+  svg.innerHTML = g;
+  // breakdown, projection, total
+  const rows = Object.keys(KIND_FR).filter(k => cur.kinds[k]).map(k => [KIND_FR[k], fmtUSD(cur.kinds[k])]);
+  const recent = weeks.slice(-4).filter(w => w.cost > 0);
+  const avg = recent.length ? recent.reduce((a,w) => a + w.cost, 0) / recent.length : 0;
+  const all = Object.values(store.usage || {}).reduce((a,d) => a + d.cost, 0);
+  if(!rows.length) rows.push(['Aucune dépense cette semaine', '0 $']);
+  rows.push(['Projection sur un mois', avg ? '≈ ' + fmtUSD(avg * 4.33) : 'après une semaine']);
+  rows.push(['Depuis le début', fmtUSD(all)]);
+  $('costRows').innerHTML = rows.map(([a,b],i) => `<div class="costrow${i === rows.length-1 ? ' total' : ''}"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('');
 }
 function openProgress(){
   $('progDetail').hidden = true; $('progMain').hidden = false;
@@ -1511,6 +1620,11 @@ function openDetail(id){
 }
 
 $('testYes').onclick = () => startSession('test');
+$('weekNo').onclick = () => { store.settings.weeklyReportSeen = $('weekCard').dataset.key; save(); renderMeta(); };
+$('weekYes').onclick = () => {
+  store.settings.weeklyReportSeen = $('weekCard').dataset.key; save(); renderMeta();
+  openProgress(); setTimeout(() => $('costBlock').scrollIntoView({ behavior:'smooth', block:'start' }), 420);
+};
 $('testNo').onclick = () => { store.settings.testDismissed = true; save(); renderMeta(); toast('Le test reste disponible dans Progression et dans les réglages.'); };
 $('testFromSettings').onclick = () => { closeSettings(); startSession('test'); };
 $('hintYes').onclick = () => {
@@ -1853,6 +1967,7 @@ function exportLexiconPDF(btn){ withPDF(btn, 'Lexique', buildLexiconPDF, 'lexiqu
 function openSettings(){
   const s = store.settings;
   $('apiKey').value = s.apiKey; $('model').value = s.model; $('name').value = s.name;
+  $('keyStatus').className = 'keystat'; $('keyStatus').textContent = '';
   $('level').value = s.level; $('rate').value = s.rate; $('rateVal').textContent = s.rate; $('goal').value = String(s.weeklyGoal || 300);
   loadVoices();
   $('sheet').classList.add('open');
@@ -1864,8 +1979,34 @@ function closeSettings(){
   s.weeklyGoal = parseInt($('goal').value, 10) || 300;
   if(s.model !== 'claude-haiku-5-5') s.modelHintDone = true;
   save(); closeSheet('sheet'); renderMeta();
-  if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, puis tout se fait à la voix.' : 'Ajoutez votre clé API dans les réglages.');
+  if(!session.active) setState('idle', s.apiKey ? 'Un tap, puis tout se fait à la voix.' : 'Ajoutez votre clé API dans les réglages.');
 }
+async function testKey(){
+  const key = $('apiKey').value.trim(), model = $('model').value, st = $('keyStatus'), btn = $('testKey');
+  const show = (cls, msg) => { st.className = 'keystat ' + cls; st.innerHTML = '<i></i>' + esc(msg); };
+  if(!key){ show('bad', 'Saisissez d’abord votre clé.'); return; }
+  btn.disabled = true; show('', 'Test en cours…');
+  const t0 = performance.now();
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model, max_tokens:5, messages:[{ role:'user', content:'Say OK.' }] })
+    });
+    const ms = performance.now() - t0, body = await r.text();
+    const name = (PRICES[model] || {}).name || model;
+    if(r.ok) show('ok', 'Clé valide. ' + name + ' répond en ' + (ms/1000).toFixed(1).replace('.', ',') + ' s.');
+    else if(r.status === 401) show('bad', 'Clé refusée : vérifiez qu’elle est complète et toujours active.');
+    else if(r.status === 403) show('bad', 'Cette clé n’a pas accès à l’API ou à ce modèle.');
+    else if(r.status === 404) show('bad', 'Modèle ' + name + ' introuvable pour cette clé.');
+    else if(/credit balance/i.test(body)) show('bad', 'Crédit épuisé : rechargez votre compte sur console.anthropic.com.');
+    else if(r.status === 429) show('bad', 'Limite de requêtes atteinte. Réessayez dans une minute.');
+    else if(r.status >= 500) show('bad', 'Service momentanément surchargé. Réessayez dans un instant.');
+    else show('bad', 'Erreur ' + r.status + ' : ' + body.slice(0, 120));
+  }catch(e){ show('bad', 'Impossible de joindre l’API. Vérifiez votre connexion.'); }
+  finally{ btn.disabled = false; }
+}
+$('testKey').onclick = testKey;
 $('openSettings').onclick = openSettings;
 $('closeSettings').onclick = closeSettings;
 $('sheet').addEventListener('click', e => { if(e.target.id === 'sheet') closeSettings(); });
@@ -1873,7 +2014,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.8', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement };
+  const data = { app:'english-copilot', version:'1.9', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement, usage:store.usage };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
@@ -1883,8 +2024,8 @@ $('importFile').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
     const j = JSON.parse(await f.text());
-    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes, placement:j.placement }) : migrate({ settings:store.settings, profile:j });
-    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; store.placement = m.placement; save(); renderMeta(); toast('Sauvegarde importée.');
+    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes, placement:j.placement, usage:j.usage }) : migrate({ settings:store.settings, profile:j });
+    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; store.placement = m.placement; store.usage = m.usage; save(); renderMeta(); toast('Sauvegarde importée.');
   }catch(_){ toast('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
   e.target.value = '';
 };
@@ -1916,14 +2057,14 @@ $('resetBtn').onclick = () => {
 
 /* ---------- init ---------- */
 bindChips('themeChips','theme', v => {
-  if(!session.active) setState('idle', v === 'TRAVEL' ? 'Jeux de rôle : aéroport, hôtel, restaurant, taxi… Le coach joue l’autre personnage.' : 'Un tap pour démarrer, puis tout se fait à la voix.');
+  if(!session.active) setState('idle', v === 'TRAVEL' ? 'Jeux de rôle : aéroport, hôtel, restaurant, taxi… Le coach joue l’autre personnage.' : 'Un tap, puis tout se fait à la voix.');
 });
 bindChips('modeChips','modeOverride');
 bindChips('corrChips','correction');
 renderMeta();
 if(!SR) setState('idle','Reconnaissance vocale indisponible : ouvrez cette page dans Safari sur iPhone.');
 else if(!store.settings.apiKey) setState('idle','Ajoutez votre clé API dans les réglages pour commencer.');
-else { setState('idle','Un tap pour démarrer, puis tout se fait à la voix.'); if(store.pending) summarizePending().then(renderMeta).catch(()=>{}); }
+else { setState('idle','Un tap, puis tout se fait à la voix.'); if(store.pending) summarizePending().then(renderMeta).catch(()=>{}); }
 save();
 })();
 </script>
