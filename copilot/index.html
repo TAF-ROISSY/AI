@@ -100,8 +100,26 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .hint p b{color:#fff;font-weight:700}
 .hint .row2{display:flex;gap:8px}
 .hint button{flex:1;border:0;border-radius:12px;padding:11px 8px;font-size:14.5px;font-weight:680}
-.hint #hintYes{background:#b9a6ff;color:#1a1640}
-.hint #hintNo{background:rgba(255,255,255,.08);color:var(--mist)}
+.hint .yes{background:#b9a6ff;color:#1a1640}
+.hint .no{background:rgba(255,255,255,.08);color:var(--mist)}
+.hint.testcard{border-color:rgba(79,227,193,.5);background:radial-gradient(120% 120% at 0% 0%, rgba(79,227,193,.2), transparent 60%), rgba(255,255,255,.05)}
+.hint.testcard .yes{background:var(--lagoon);color:#0d2a2a}
+/* placement */
+.level-hero{display:flex;align-items:flex-end;gap:16px;margin:8px 0 6px}
+.level-hero b{font-size:116px;line-height:.78;font-weight:800;letter-spacing:-.05em;font-variation-settings:"wdth" 75,"opsz" 96;
+  background:linear-gradient(180deg,#ffe0a8,#ffb547 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.level-hero span{font-size:16px;color:var(--mist);padding-bottom:6px;line-height:1.3;max-width:18ch}
+.sbars{margin:20px 0 18px}
+.sbar{display:grid;grid-template-columns:112px 1fr 40px;align-items:center;gap:10px;margin:11px 0;font-size:14px;color:var(--mist)}
+.sbar .bar{margin:0;height:8px}
+.sbar b{text-align:right;color:#fff;font-weight:700}
+.duo ul{margin:0;padding-left:16px}
+.duo li{font-size:14px;line-height:1.45;color:var(--mist);margin:3px 0}
+.plan{border-radius:20px;padding:16px 18px;background:rgba(255,181,71,.08);border:1px solid rgba(255,181,71,.35);margin:22px 0}
+.plan h4{margin:0 0 6px;color:var(--amber);font-size:15px;font-weight:700}
+.plan p{margin:6px 0 0;font-size:14.5px;color:var(--mist);line-height:1.45}
+.plan p b{color:#fff;font-weight:650}
+.hdate.lvl b{font-size:24px;color:var(--amber)}
 .recap{width:100%;border:1px solid rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:var(--amber);
   padding:13px;border-radius:999px;font-size:15px;font-weight:650}
 .controls{display:flex;align-items:center;gap:14px}
@@ -308,7 +326,7 @@ details.tr[open] summary::after{content:"–"}
 
   <section class="stage" aria-live="polite">
     <h1 class="headline" id="status">Let’s talk<span class="tail">on the road.</span></h1>
-    <p class="subline" id="sub">Un tap pour démarrer, ensuite tout se passe à la voix.</p>
+    <p class="subline" id="sub">Un tap pour démarrer, puis tout se fait à la voix.</p>
     <canvas id="wave" aria-hidden="true"></canvas>
     <p class="coachline" id="line"></p>
   </section>
@@ -335,7 +353,11 @@ details.tr[open] summary::after{content:"–"}
     </div>
     <div class="hint" id="modelHint" hidden>
       <p><b>Vous voici en Croisière.</b> Passez au coach Sonnet pour des corrections plus fines, environ 17 $ par mois au lieu de 1 $.</p>
-      <div class="row2"><button id="hintYes">Passer à Sonnet</button><button id="hintNo">Plus tard</button></div>
+      <div class="row2"><button class="yes" id="hintYes">Passer à Sonnet</button><button class="no" id="hintNo">Plus tard</button></div>
+    </div>
+    <div class="hint testcard" id="testCard" hidden>
+      <p><b>Commencez par votre test de niveau.</b> Dix minutes de conversation, sans correction, pour régler le coach sur votre vrai niveau.</p>
+      <div class="row2"><button class="yes" id="testYes">Passer le test</button><button class="no" id="testNo">Plus tard</button></div>
     </div>
     <button class="recap" id="recap" hidden>Voir le bilan de la séance</button>
     <div class="controls">
@@ -344,7 +366,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.7</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.8</span></div>
   </div>
 </div>
 
@@ -391,6 +413,11 @@ details.tr[open] summary::after{content:"–"}
       <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
 
       <section class="block">
+        <h3>Test de niveau</h3>
+        <div id="placeBody"></div>
+      </section>
+
+      <section class="block">
         <h3>Historique</h3>
         <div id="histList"></div>
       </section>
@@ -427,6 +454,7 @@ details.tr[open] summary::after{content:"–"}
         <select id="goal"><option value="120">2 h par semaine</option><option value="180">3 h par semaine</option><option value="300">5 h par semaine</option><option value="420">7 h par semaine</option><option value="600">10 h par semaine</option></select></div>
       <div class="field"><label for="level">Niveau de départ</label>
         <select id="level"><option>A2</option><option selected>B1</option><option>B2</option><option>C1</option></select></div>
+      <div class="field"><button class="btn" id="testFromSettings">Passer le test de niveau</button></div>
     </div>
 
     <div class="group">
@@ -484,6 +512,7 @@ function migrate(d){
     profile:  { LEXICON: Array.isArray(p.LEXICON) ? p.LEXICON : [], ERRORS: Array.isArray(p.ERRORS) ? p.ERRORS : [] },
     history:  Array.isArray(d.history) ? d.history : [],
     customScenes: Array.isArray(d.customScenes) ? d.customScenes : [],
+    placement: d.placement || null,
     pending:  d.pending || null
   };
   // v1.0 – v1.2 data
@@ -617,6 +646,10 @@ async function designScenes(type, request){
 }
 const THEME_FR = { MIX:'Mixte', WORK:'Travail', TRAVEL:'Voyage' };
 
+// a placement test that finds B2 or above starts the journey further along the flight path
+const BASE_MILES = { B2:95000, C1:145000, C2:145000 };
+const baseMiles = () => store.placement ? (BASE_MILES[store.placement.level] || 0) : 0;
+const CORR_FR = { FREE_CONVERSATION:'Libre', COACH:'Coach', INTENSIVE_LESSON:'Intense' };
 function stats(){
   const h = store.history;
   const minutes = h.reduce((a,r) => a + (r.minutes||0), 0);
@@ -624,7 +657,7 @@ function stats(){
   const lastLevel = [...h].reverse().find(r => r.level);
   return {
     sessions:h.length, minutes, mastered:m, learning:learning().length,
-    miles: minutes*10 + m*50 + h.length*20,
+    miles: minutes*10 + m*50 + h.length*20 + baseMiles(),
     fl: h.filter(r => r.fluency).slice(-12),
     level: lastLevel ? lastLevel.level : store.settings.level
   };
@@ -710,6 +743,7 @@ const COPY = {
   listening: ['I’m', 'listening.'],
   thinking:  ['Thinking', 'it over…'],
   speaking:  ['Coach', 'speaking.'],
+  testing:   ['Level', 'check.'],
   paused:    ['On', 'pause.'],
   french:    ['En français,', 'je vous écoute.']
 };
@@ -840,7 +874,7 @@ function buildSystem(){
     SCENE_QUEUE: (session.scenes || []).map(x => ({ key:x.key, scene:x.en, your_role:x.brief })),
     KNOWN_SCENES: allScenes().map(x => x.en),
     RECURRING_ERRORS: recurringErrors(), TARGET_VOCABULARY: targetVocab(),
-    LAST_SESSION_FOCUS: last && last.focus ? last.focus : '',
+    LAST_SESSION_FOCUS: last && last.focus ? last.focus : (store.placement ? store.placement.first_focus || '' : ''),
     RECENT_SESSIONS_SUMMARY: store.history.slice(-5).map(r => ({ date:String(r.date).slice(0,10), mode:r.mode, topics:r.topics, summary:r.summary }))
   };
   const now = new Date();
@@ -903,6 +937,98 @@ Message commençant par [MOT EN FRANÇAIS] : il cherche ce mot ou cette expressi
 # DÉBUT ET FIN
 Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au thème, au mode et à l'heure, en une ou deux phrases. En THEME TRAVEL, salue-le puis lance directement la première scène de SCENE_QUEUE.
 Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de clôture avec un seul point à retenir de la séance.`;
+}
+
+/* ---------- placement test ---------- */
+function buildTestSystem(){
+  const s = store.settings;
+  return `Tu es un examinateur d'anglais oral, chaleureux et bienveillant. Tu fais passer à ${s.name} un test de positionnement oral d'une dizaine de minutes, en anglais. Il conduit : aucune référence à un écran pendant le test, une seule question à la fois, 1 à 2 phrases maximum par prise de parole.
+Tes réponses sont lues par une synthèse vocale : jamais de markdown, listes, emojis ni symboles.
+
+# RÈGLES DU TEST
+- Ne corrige JAMAIS ses erreurs, n'explique rien, ne reformule pas ses phrases. Réagis brièvement et naturellement ("I see.", "That sounds busy.") puis pose la question suivante.
+- S'il bloque complètement, rassure-le en une phrase et passe à la question suivante.
+- Message [MOT EN FRANÇAIS] : donne simplement le mot anglais en deux ou trois mots et continue.
+- Ses réponses viennent d'une reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes.
+- Contexte : il dirige une petite équipe de fret aérien et de douane à Roissy Charles de Gaulle.
+
+# DÉROULÉ, DIFFICULTÉ CROISSANTE ET ADAPTATIVE
+1. Accueil : explique en une phrase simple que c'est un test de dix minutes, sans correction, pour connaître son niveau ; puis demande-lui de se présenter.
+2. A2 : son travail, une journée type.
+3. A2-B1 : un événement passé récent, week-end ou voyage (temps du passé).
+4. B1 : un problème au travail et comment il l'a résolu.
+5. B1-B2 : ses projets, puis une hypothèse ("What would you do if...").
+6. B2 : son avis argumenté sur un sujet, par exemple l'intelligence artificielle dans son métier, avantages et inconvénients.
+7. Compréhension : lis une courte annonce d'aéroport ou une anecdote de trois phrases, à vitesse naturelle, puis pose deux questions précises dessus, une à la fois.
+8. B2-C1, seulement s'il est très à l'aise : une situation délicate (calmer un client mécontent dont la marchandise est bloquée) ou une question plus abstraite.
+S'il peine nettement deux fois de suite, n'augmente plus la difficulté : pose une ou deux questions plus simples, puis termine.
+
+# FIN
+Après 10 à 12 de ses réponses, termine : remercie-le chaleureusement en une phrase, dis que ses résultats l'attendent à l'écran, et termine ta réponse par le marqueur exact [[TEST_DONE]], qui n'est jamais prononcé.
+Le message [SESSION_START] ouvre le test. Le message [SESSION_END] signifie qu'il arrête avant la fin : remercie-le en une phrase et termine aussi par [[TEST_DONE]].`;
+}
+const EVAL_SYSTEM = `Tu es examinateur certifié du CECRL. À partir de la transcription d'un test oral de positionnement, évalue le niveau d'expression et de compréhension orales d'un apprenant francophone.
+Ses phrases viennent d'une reconnaissance vocale imparfaite : ne pénalise pas les erreurs de transcription évidentes. Tu ne peux pas juger la prononciation : ne l'évalue pas. Sois rigoureux et honnête, n'arrondis jamais vers le haut.
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour :
+{
+ "level": "A1, A2, B1, B2, C1 ou C2",
+ "nuance": "position dans le niveau, en français, 2 à 5 mots, ex : B1 solide, proche du B2",
+ "scores": {"fluency": 6, "grammar": 5, "vocabulary": 6, "comprehension": 7},
+ "summary": "3 phrases en français, au vouvoiement : ce qu'il sait faire à l'oral et ce qui le limite",
+ "strengths": ["2 à 3 points forts, en français, courts"],
+ "weaknesses": ["2 à 3 axes de progrès, en français, courts"],
+ "errors": [{"said":"ce qu'il a dit","correct":"forme correcte","rule":"pourquoi, une phrase en français"}],
+ "recommended_correction": "FREE_CONVERSATION, COACH ou INTENSIVE_LESSON",
+ "first_focus": "le premier point à travailler, une phrase en français",
+ "time_to_b2": "estimation honnête en français du temps nécessaire pour être à l'aise (B2) au rythme indiqué, ex : environ 9 mois ; ou : niveau déjà atteint"
+}
+Scores : entiers de 1 à 10. errors : 4 maximum, ses erreurs les plus représentatives.`;
+async function evaluateTest(msgs){
+  const goal = store.settings.weeklyGoal || 300;
+  const raw = await callClaude(EVAL_SYSTEM, [{ role:'user',
+    content: 'Rythme de pratique prévu : ' + (goal/60) + ' h par semaine.\n\nTranscription du test :\n' + transcriptOf(msgs) }], 1600);
+  const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('eval');
+  const j = JSON.parse(m[0]);
+  const level = /^(A1|A2|B1|B2|C1|C2)$/.test(str(j.level)) ? str(j.level) : '';
+  if(!level) throw new Error('eval');
+  const sc = j.scores || {}, clamp = v => { const n = parseInt(v,10); return n >= 1 && n <= 10 ? n : null; };
+  const day = todayISO();
+  const p = {
+    date: new Date().toISOString(), level, nuance: str(j.nuance),
+    scores: { fluency:clamp(sc.fluency), grammar:clamp(sc.grammar), vocabulary:clamp(sc.vocabulary), comprehension:clamp(sc.comprehension) },
+    summary: str(j.summary), strengths:(j.strengths||[]).map(str).filter(Boolean).slice(0,3), weaknesses:(j.weaknesses||[]).map(str).filter(Boolean).slice(0,3),
+    errors:(j.errors||[]).filter(e => e && e.said).slice(0,4).map(e => ({ said:str(e.said), correct:str(e.correct), rule:str(e.rule) })),
+    recommended: CORR_FR[str(j.recommended_correction)] ? str(j.recommended_correction) : 'COACH',
+    first_focus: str(j.first_focus), time_to_b2: str(j.time_to_b2),
+    transcript: msgs.filter(x => !/^\[SESSION_/.test(x.content)).map(x => ({ r: x.role==='user' ? 'u' : 'c', t: x.content }))
+  };
+  store.placement = p;
+  store.settings.level = level === 'A1' ? 'A2' : level === 'C2' ? 'C1' : level;
+  store.settings.correction = p.recommended;
+  document.querySelectorAll('#corrChips button').forEach(b => b.classList.toggle('on', b.dataset.v === p.recommended));
+  p.errors.forEach(c => {
+    const ex = store.profile.ERRORS.find(e => (c.correct && keyOf(e.correct) === keyOf(c.correct)) || keyOf(e.said) === keyOf(c.said));
+    if(ex){ ex.count = (ex.count||1) + 1; ex.last = day; } else store.profile.ERRORS.push({ ...c, count:1, last:day });
+  });
+  save();
+  return p;
+}
+async function finishTest(){
+  const msgs = session.messages.slice();
+  const userTurns = msgs.filter(m => m.role === 'user' && !m.content.startsWith('[')).length;
+  session.active = false; session.paused = false; session.testDone = false;
+  stopListening(); stopBtn.style.display = 'none';
+  try{ if(wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(_){}
+  const done = () => { session.kind = 'lesson'; session.ending = false; renderMeta(); };
+  if(userTurns < 5){ done(); setState('idle','Test arrêté trop tôt pour évaluer votre niveau. Relancez-le quand vous voulez.'); return; }
+  setState('thinking','Analyse de votre niveau…');
+  try{
+    const p = await evaluateTest(msgs);
+    done();
+    setState('idle','Votre niveau estimé : ' + p.level + '. Le coach est réglé en conséquence.');
+    speak('Your estimated level is ' + p.level.split('').join(' ') + '.');
+    openProgress(); openPlacement();
+  }catch(e){ done(); setState('idle','L’analyse du test a échoué. Vérifiez la connexion et relancez le test.'); }
 }
 
 /* ---------- end-of-session review ---------- */
@@ -1020,12 +1146,13 @@ const RX = {
 };
 
 /* ---------- session ---------- */
-const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0, scenes:[], action:null };
+const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0, scenes:[], action:null, kind:'lesson', testDone:false };
 let wakeLock = null;
 async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(_){} }
 document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
 
 function persistSession(){
+  if(session.kind === 'test') return;
   store.pending = { date: todayISO(), start: session.startedAt, end: Date.now(), mode: sessionMode(),
                     correction: store.settings.correction, theme: store.settings.theme || 'MIX', messages: session.messages.slice(-60) };
   save();
@@ -1041,7 +1168,8 @@ async function turn(userText){
   setState('thinking', '');
   let reply;
   try {
-    const raw = await callClaude(buildSystem(), trimmedHistory());
+    const raw = await callClaude(session.kind === 'test' ? buildTestSystem() : buildSystem(), trimmedHistory());
+    if(/\[\[\s*TEST_DONE\s*\]\]/i.test(raw)) session.testDone = true;
     const mk = raw.match(/\[\[\s*(PACK|SCENE)\s*:\s*([^\]]+?)\s*\]\]/i);
     if(mk) session.action = { type: mk[1].toUpperCase(), arg: mk[2] };
     reply = cleanForSpeech(raw.replace(/\[\[[^\]]*\]\]/g, ' '));
@@ -1099,7 +1227,8 @@ async function loop(){
     if(askFr || askEn){ const ok = await frenchWord(); if(!ok) return; continue; }
     const ok = await turn(text);
     if(!ok) return;
-    if(session.action){ const a = session.action; session.action = null; if(!(await createScenes(a.type, a.arg))) return; }
+    if(session.testDone){ await finishTest(); return; }
+    if(session.action){ const a = session.action; session.action = null; if(session.kind !== 'test' && !(await createScenes(a.type, a.arg))) return; }
   }
 }
 
@@ -1136,11 +1265,14 @@ async function frenchWord(){
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-async function startSession(){
+async function startSession(kind){
   if(!store.settings.apiKey.trim()){ openSettings(); return; }
   if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
-  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(), scenes:pickScenes() });
-  if(store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
+  const isTest = kind === 'test';
+  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(),
+                           scenes: isTest ? [] : pickScenes(), kind: isTest ? 'test' : 'lesson', testDone:false, action:null });
+  $('testCard').hidden = true;
+  if(!isTest && store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
   lineEl.textContent = '';
   $('recap').hidden = true; $('modelHint').hidden = true;
   stopBtn.style.display = 'grid';
@@ -1153,6 +1285,7 @@ async function startSession(){
 async function endSession(){
   session.ending = true;
   await turn('[SESSION_END]');
+  if(session.kind === 'test') return finishTest();
   stopSession(true);
 }
 
@@ -1195,6 +1328,7 @@ function renderMeta(){
     ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
     : `<i></i><span>Première séance</span>`;
   const s = store.settings;
+  $('testCard').hidden = !(!session.active && !store.placement && !s.testDismissed);
   $('modelHint').hidden = !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
   const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
@@ -1300,6 +1434,13 @@ function renderProgress(){
     <div class="pack-head"><h4>${esc(name || 'Mes scènes')}<small>${list.length} scène${list.length > 1 ? 's' : ''}</small></h4>
       <div class="pack-actions">${name ? `<button class="linkbtn" data-packpdf="${esc(name)}">PDF</button>` : ''}<button class="linkbtn del" data-packdel="${esc(name)}">Supprimer</button></div></div>
     <div class="stamps">${list.map((s,i) => stampHTML(s, i + pi*5 + 3)).join('')}</div>`).join('');
+  const pl = store.placement;
+  $('placeBody').innerHTML = pl
+    ? `<button class="hrow" data-place="1"><div class="hdate lvl"><b>${esc(pl.level)}</b></div>
+         <div class="hbody"><p class="htitle">${esc(pl.nuance || 'Niveau ' + pl.level)}</p><p class="hmeta">Test du ${esc(new Date(pl.date).toLocaleDateString('fr-FR',{day:'numeric', month:'long'}))}</p></div>${CHEV}</button>
+       <button class="linkbtn" data-retest="1" style="padding-left:0">Refaire le test</button>`
+    : `<p class="empty">Dix minutes de conversation avec un examinateur, sans correction, pour connaître votre niveau et régler le coach.</p>
+       <div style="margin-top:12px"><button class="btn ghost" data-retest="1">Passer le test de niveau</button></div>`;
   const list = [...store.history].reverse();
   $('histList').innerHTML = list.length ? list.map(r => {
     const d = new Date(r.date);
@@ -1322,6 +1463,26 @@ function closeSheet(id){ $(id).classList.remove('open'); }
 function frWordLine(t){
   const m = t.match(/^\[MOT EN FRANÇAIS\]\s*(.*?)(\s*\(dans le contexte[\s\S]*)?$/);
   return m ? 'Mot cherché en français : ' + m[1] : t;
+}
+function openPlacement(){
+  const p = store.placement; if(!p) return;
+  const s = p.scores || {};
+  const bar = (label, v) => `<div class="sbar"><span>${label}</span><div class="bar"><i style="width:${(v||0)*10}%"></i></div><b>${v ? v + '/10' : '–'}</b></div>`;
+  let h = `<button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Progression</button>
+    <p class="dkick">Test de niveau, ${esc(dLong(p.date))}</p>
+    <div class="level-hero"><b>${esc(p.level)}</b><span>${esc(p.nuance || '')}</span></div>
+    <div class="sbars">${bar('Aisance', s.fluency)}${bar('Grammaire', s.grammar)}${bar('Vocabulaire', s.vocabulary)}${bar('Compréhension', s.comprehension)}</div>`;
+  if(p.summary) h += `<p class="dsum">${esc(p.summary)}</p>`;
+  if(p.strengths.length || p.weaknesses.length) h += `<div class="duo"><div><b>Points forts</b><ul>${p.strengths.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div><b>À travailler</b><ul>${p.weaknesses.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>`;
+  h += `<div class="plan"><h4>Votre plan de départ</h4>
+    <p>Corrections réglées sur <b>${esc(CORR_FR[p.recommended] || 'Coach')}</b>, niveau du coach réglé sur <b>${esc(store.settings.level)}</b>.</p>
+    ${p.first_focus ? `<p>Premier objectif : <b>${esc(p.first_focus)}</b></p>` : ''}
+    ${p.time_to_b2 ? `<p>Aisance B2 : <b>${esc(p.time_to_b2)}</b></p>` : ''}</div>`;
+  if(p.errors.length) h += `<section class="block"><h3 class="dsec">Erreurs relevées</h3>${p.errors.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}</section>`;
+  h += `<div style="margin:18px 0"><button class="btn primary" data-placepdf="1">Bilan de niveau (PDF)</button></div>`;
+  if((p.transcript||[]).length) h += `<details class="tr"><summary>Transcription du test</summary>${p.transcript.map(l => `<p class="trline ${l.r}"><b>${l.r === 'u' ? 'Vous' : 'Examinateur'}</b>${esc(l.t)}</p>`).join('')}</details>`;
+  const pd = $('progDetail'); pd.innerHTML = h; pd.hidden = false; $('progMain').hidden = true;
+  $('progBody').scrollTop = 0;
 }
 function openDetail(id){
   const r = store.history.find(x => x.id === id); if(!r) return;
@@ -1349,6 +1510,9 @@ function openDetail(id){
   $('progBody').scrollTop = 0;
 }
 
+$('testYes').onclick = () => startSession('test');
+$('testNo').onclick = () => { store.settings.testDismissed = true; save(); renderMeta(); toast('Le test reste disponible dans Progression et dans les réglages.'); };
+$('testFromSettings').onclick = () => { closeSettings(); startSession('test'); };
 $('hintYes').onclick = () => {
   store.settings.model = 'claude-sonnet-5-5'; store.settings.modelHintDone = true; save(); renderMeta();
   toast('Coach Sonnet activé. Retour à Haiku possible dans les réglages.');
@@ -1357,10 +1521,15 @@ $('hintNo').onclick = () => { store.settings.modelHintSnooze = Date.now() + 14*8
 $('openProgress').onclick = openProgress;
 $('progBtn').onclick = openProgress;
 $('recap').onclick = () => { openProgress(); openDetail($('recap').dataset.id); };
+$('placeBody').addEventListener('click', e => {
+  if(e.target.closest('[data-place]')) openPlacement();
+  else if(e.target.closest('[data-retest]')){ closeSheet('prog'); startSession('test'); }
+});
 $('histList').addEventListener('click', e => { const b = e.target.closest('.hrow'); if(b) openDetail(b.dataset.id); });
 $('progDetail').addEventListener('click', e => {
   if(e.target.closest('[data-back]')){ $('progDetail').hidden = true; $('progMain').hidden = false; $('progBody').scrollTop = 0; renderProgress(); return; }
   const p = e.target.closest('[data-pdf]'); if(p) exportSessionPDF(p.dataset.pdf, p);
+  const pp = e.target.closest('[data-placepdf]'); if(pp) withPDF(pp, 'Niveau', buildPlacementPDF, 'test-de-niveau-' + todayISO() + '.pdf');
 });
 $('lexPdf').onclick = e => exportLexiconPDF(e.currentTarget);
 $('travelPdf').onclick = e => exportTravelPDF(e.currentTarget);
@@ -1620,6 +1789,26 @@ function buildTravelPDF(){
   if(todo.length && done.length){ P.section('Encore à découvrir', 14); P.para(todo.map(s => s.fr).join(', ') + '.', { c:[110,114,152] }); }
   return P.finish();
 }
+function buildPlacementPDF(){
+  const p = store.placement, s = p.scores || {};
+  const P = PdfSheet('Test de niveau');
+  P.header('Test de niveau', cap(dFull(p.date)) + ', test oral de positionnement', 'Niveau estimé', p.level);
+  P.heading(p.nuance || 'Niveau ' + p.level);
+  if(p.summary) P.para(p.summary, { f:'times', s:'normal', sz:12.5, c:[44,48,100] });
+  P.space(2);
+  P.figures([[s.fluency ? s.fluency + '/10' : '-', 'Aisance'], [s.grammar ? s.grammar + '/10' : '-', 'Grammaire'],
+             [s.vocabulary ? s.vocabulary + '/10' : '-', 'Vocabulaire'], [s.comprehension ? s.comprehension + '/10' : '-', 'Compréhension']]);
+  if(p.strengths.length || p.weaknesses.length){
+    P.section('Bilan');
+    P.duo(['Points forts', p.strengths.map(x => '- ' + x).join('\n') || '-'], ['À travailler', p.weaknesses.map(x => '- ' + x).join('\n') || '-']);
+  }
+  if(p.errors.length){ P.section('Erreurs relevées'); p.errors.forEach(e => P.corrRow(e)); }
+  P.section('Votre plan de départ', 20);
+  P.para('Corrections réglées sur ' + (CORR_FR[p.recommended] || 'Coach') + ', niveau du coach réglé sur ' + store.settings.level + '.');
+  if(p.first_focus) P.para('Premier objectif : ' + p.first_focus);
+  if(p.time_to_b2) P.para('Aisance B2 : ' + p.time_to_b2);
+  return P.finish();
+}
 function buildPackPDF(name){
   const list = customScenes().filter(s => s.pack === name), counts = sceneCounts();
   const P = PdfSheet('Pack ' + name);
@@ -1675,7 +1864,7 @@ function closeSettings(){
   s.weeklyGoal = parseInt($('goal').value, 10) || 300;
   if(s.model !== 'claude-haiku-5-5') s.modelHintDone = true;
   save(); closeSheet('sheet'); renderMeta();
-  if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, ensuite tout se passe à la voix.' : 'Ajoutez votre clé API dans les réglages.');
+  if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, puis tout se fait à la voix.' : 'Ajoutez votre clé API dans les réglages.');
 }
 $('openSettings').onclick = openSettings;
 $('closeSettings').onclick = closeSettings;
@@ -1684,7 +1873,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.7', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
+  const data = { app:'english-copilot', version:'1.8', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
@@ -1694,14 +1883,14 @@ $('importFile').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
     const j = JSON.parse(await f.text());
-    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes }) : migrate({ settings:store.settings, profile:j });
-    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; save(); renderMeta(); toast('Sauvegarde importée.');
+    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes, placement:j.placement }) : migrate({ settings:store.settings, profile:j });
+    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; store.placement = m.placement; save(); renderMeta(); toast('Sauvegarde importée.');
   }catch(_){ toast('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
   e.target.value = '';
 };
 $('resetBtn').onclick = () => {
   if(confirm('Effacer toute la progression (historique, lexique, phases) ?')){
-    store.profile = structuredClone(defaults.profile); store.history = []; store.customScenes = []; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
+    store.profile = structuredClone(defaults.profile); store.history = []; store.customScenes = []; store.placement = null; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
   }
 };
 
@@ -1727,14 +1916,14 @@ $('resetBtn').onclick = () => {
 
 /* ---------- init ---------- */
 bindChips('themeChips','theme', v => {
-  if(!session.active) setState('idle', v === 'TRAVEL' ? 'Jeux de rôle : aéroport, hôtel, restaurant, taxi… Le coach joue l’autre personnage.' : 'Un tap pour démarrer, ensuite tout se passe à la voix.');
+  if(!session.active) setState('idle', v === 'TRAVEL' ? 'Jeux de rôle : aéroport, hôtel, restaurant, taxi… Le coach joue l’autre personnage.' : 'Un tap pour démarrer, puis tout se fait à la voix.');
 });
 bindChips('modeChips','modeOverride');
 bindChips('corrChips','correction');
 renderMeta();
 if(!SR) setState('idle','Reconnaissance vocale indisponible : ouvrez cette page dans Safari sur iPhone.');
 else if(!store.settings.apiKey) setState('idle','Ajoutez votre clé API dans les réglages pour commencer.');
-else { setState('idle','Un tap pour démarrer, ensuite tout se passe à la voix.'); if(store.pending) summarizePending().then(renderMeta).catch(()=>{}); }
+else { setState('idle','Un tap pour démarrer, puis tout se fait à la voix.'); if(store.pending) summarizePending().then(renderMeta).catch(()=>{}); }
 save();
 })();
 </script>
