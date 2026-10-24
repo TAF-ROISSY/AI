@@ -120,6 +120,24 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .plan p{margin:6px 0 0;font-size:14.5px;color:var(--mist);line-height:1.45}
 .plan p b{color:#fff;font-weight:650}
 .hdate.lvl b{font-size:24px;color:var(--amber)}
+/* exercises */
+.exos{display:grid;gap:12px;margin:16px 0 6px}
+.exo{position:relative;text-align:left;width:100%;border-radius:22px;padding:16px 18px 14px;border:1px solid var(--glass-line);color:var(--mist);
+  background:radial-gradient(130% 120% at 0% 0%, color-mix(in srgb, var(--c) 22%, transparent), transparent 62%), rgba(255,255,255,.04)}
+.exo-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.exo-top b{font-size:19px;font-weight:740;color:#fff;letter-spacing:-.015em;font-variation-settings:"wdth" 86}
+.exo .badge{flex:none;font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--c);color:#14163f}
+.exo p{margin:6px 0 8px;font-size:14px;line-height:1.45}
+.exo small{font-size:12.5px;color:var(--c);font-weight:600}
+.okmark{color:var(--lagoon);font-weight:700} .komark{color:#ff9ea0;font-weight:700}
+.exitem{padding:12px 0;border-bottom:1px solid rgba(217,220,255,.08)}
+.exitem:last-child{border-bottom:0}
+.exitem .t{font-size:16px;color:#fff;font-weight:620;line-height:1.4}
+.exitem .s{font-size:14px;color:var(--dim);margin-top:3px;line-height:1.4}
+.exitem .acc{float:right;font-weight:700;font-size:14px;margin-left:10px}
+.listen-card{border-radius:18px;padding:14px;background:rgba(255,255,255,.05);border:1px solid var(--glass-line);margin:12px 0}
+.listen-card h4{margin:0 0 4px;font-size:15px;color:var(--amber)}
+.listen-card .txt{font-size:14.5px;line-height:1.5;color:var(--mist);margin:8px 0}
 /* cost */
 .costhero{display:flex;align-items:baseline;gap:10px;margin:2px 0 8px}
 .costhero b{font-size:46px;font-weight:800;letter-spacing:-.04em;font-variation-settings:"wdth" 78;color:#fff;line-height:1}
@@ -131,6 +149,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .costrow.total b{color:var(--amber)}
 .hint.weekcard{border-color:rgba(255,181,71,.45);background:radial-gradient(120% 120% at 0% 0%, rgba(255,181,71,.18), transparent 60%), rgba(255,255,255,.05)}
 .hint.weekcard .yes{background:var(--amber);color:#1a1640}
+.hint.reviewcard{border-color:rgba(255,158,207,.45);background:radial-gradient(120% 120% at 0% 0%, rgba(255,158,207,.18), transparent 60%), rgba(255,255,255,.05)}
+.hint.reviewcard .yes{background:#ff9ecf;color:#2a1030}
 .keyrow{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
 .keystat{font-size:13.5px;line-height:1.4;color:var(--dim);flex:1;min-width:150px}
 .keystat.ok{color:var(--lagoon)} .keystat.bad{color:#ffb0b0}
@@ -330,6 +350,9 @@ details.tr[open] summary::after{content:"–"}
   <div class="top">
     <div class="hello" id="hello">Bonne route, <strong>Christophe</strong></div>
     <div class="top-actions">
+      <button class="gear" id="openExo" aria-label="Exercices">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.5L5 13.5h6l-1 8 8-11h-6l1-8z"/></svg>
+      </button>
       <button class="gear" id="openProgress" aria-label="Progression et historique">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19.5h18"/><path d="M4 16l5.5-5.5 4 3L20 7"/><path d="M15.5 7H20v4.5"/></svg>
       </button>
@@ -374,6 +397,10 @@ details.tr[open] summary::after{content:"–"}
       <p id="weekCardText"></p>
       <div class="row2"><button class="yes" id="weekYes">Voir le détail</button><button class="no" id="weekNo">OK</button></div>
     </div>
+    <div class="hint reviewcard" id="reviewCard" hidden>
+      <p id="reviewCardText"></p>
+      <div class="row2"><button class="yes" id="reviewYes">Réviser</button><button class="no" id="reviewNo">Plus tard</button></div>
+    </div>
     <div class="hint testcard" id="testCard" hidden>
       <p><b>Commencez par votre test de niveau.</b> Dix minutes de conversation, sans correction, pour régler le coach sur votre vrai niveau.</p>
       <div class="row2"><button class="yes" id="testYes">Passer le test</button><button class="no" id="testNo">Plus tard</button></div>
@@ -385,7 +412,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.9</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v2.0</span></div>
   </div>
 </div>
 
@@ -453,6 +480,37 @@ details.tr[open] summary::after{content:"–"}
   </div>
 </div>
 
+<!-- Exercices -->
+<div class="sheet" id="exo">
+  <div class="sheetbody" role="dialog" aria-label="Exercices">
+    <div class="grab"></div>
+    <div class="sheethead"><h2>Exercices</h2><button class="close" data-close="exo">Fermer</button></div>
+    <p class="intro">Courts et ciblés. Pendant une conversation, lancez-les aussi à la voix.</p>
+    <div class="exos">
+      <button class="exo" data-ex="review" style="--c:#ff9ecf">
+        <div class="exo-top"><b>Révision express</b><span class="badge" id="dueBadge"></span></div>
+        <p>Le coach vous donne un mot en français, vous le dites en anglais. Les mots oubliés reviennent le lendemain, les mots sûrs de plus en plus tard.</p>
+        <small>5 min, « review time »</small>
+      </button>
+      <button class="exo" data-ex="call" style="--c:#4fe3c1">
+        <div class="exo-top"><b>Préparer un appel</b></div>
+        <p>Expliquez en français l’appel ou la réunion à venir. Le coach vous donne les tournures clés, puis joue votre interlocuteur pour une répétition générale.</p>
+        <small>10 min, « prepare a call »</small>
+      </button>
+      <button class="exo" data-ex="listen" style="--c:#ffb547">
+        <div class="exo-top"><b>Écoute d’accents</b></div>
+        <p>Annonces, messages vocaux et appels d’agents avec des accents variés, puis des questions de compréhension.</p>
+        <small>8 min, « listening practice »</small>
+      </button>
+      <button class="exo" data-ex="shadow" style="--c:#b9a6ff">
+        <div class="exo-top"><b>Répétition à voix haute</b></div>
+        <p>Le coach dit une phrase, vous la répétez. L’app mesure ce qu’elle a compris pour travailler votre prononciation.</p>
+        <small>5 min, « repeat after me »</small>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Réglages -->
 <div class="sheet" id="sheet">
   <div class="sheetbody" role="dialog" aria-label="Réglages">
@@ -508,7 +566,7 @@ details.tr[open] summary::after{content:"–"}
     <p class="note">Ce que vous pouvez dire pendant la séance :</p>
     <div class="cmds">
       <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span><span>in French</span>
-      <span>explain</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>surprise me</span><span>prepare a pack for…</span><span>create a scene…</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
+      <span>explain</span><span>review time</span><span>listening practice</span><span>repeat after me</span><span>prepare a call</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>surprise me</span><span>prepare a pack for…</span><span>create a scene…</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
     </div>
     <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
   </div>
@@ -533,6 +591,13 @@ const defaults = {
   pending:  null
 };
 const todayISO = () => new Date().toISOString().slice(0,10);
+const SRS_DAYS = [1, 1, 3, 7, 21, 60];
+const addDays = (n, from) => { const d = from ? new Date(from + 'T12:00:00') : new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const todayLocal = () => addDays(0);
+function srsInit(w){
+  if(w.box == null){ w.box = w.status === 'mastered' ? 4 : 0; w.due = w.status === 'mastered' ? addDays(7) : todayLocal(); }
+  return w;
+}
 function migrate(d){
   const p = d.profile || {};
   const out = {
@@ -551,6 +616,7 @@ function migrate(d){
       return { en:(m ? m[1] : String(s)).trim(), fr: m ? m[2].trim() : '', example:'', first:todayISO(), status:'learning', seen:1 };
     });
   }
+  out.profile.LEXICON.forEach(srsInit);
   if(!p.ERRORS && Array.isArray(p.RECURRING_ERRORS)){
     out.profile.ERRORS = p.RECURRING_ERRORS.map(s => {
       const parts = String(s).split(/\s*->\s*/);
@@ -820,23 +886,40 @@ function loadVoices(){
 if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; }
 function currentVoice(){ return voices.find(v => v.voiceURI === store.settings.voiceURI) || voices[0] || null; }
 
-let speakToken = 0;
-function speak(text, rateMul=1){
+const vq = v => /(premium|enhanced|améliorée?)/i.test(v.name) ? 0 : 1;
+function voiceFor(prefix){
+  if(!synth) return null;
+  const p = prefix.toLowerCase();
+  const list = synth.getVoices().filter(v => (v.lang||'').replace('_','-').toLowerCase().startsWith(p)).sort((a,b) => vq(a) - vq(b));
+  return list[0] || null;
+}
+function utter(text, opts={}){
   return new Promise(resolve => {
-    if(!synth){ resolve(); return; }
-    const token = ++speakToken;
-    synth.cancel();
+    if(!synth || !text){ resolve(); return; }
     const u = new SpeechSynthesisUtterance(text);
-    const v = currentVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
-    u.rate = Math.max(0.5, (store.settings.rate||0.95) * rateMul);
+    const v = opts.voice || currentVoice();
+    if(v){ u.voice = v; u.lang = v.lang; } else u.lang = opts.lang || 'en-US';
+    u.rate = Math.max(0.5, (store.settings.rate||0.95) * (opts.rate||1));
     let done = false;
     const finish = () => { if(done) return; done = true; clearTimeout(t); clearInterval(pulse); resolve(); };
     u.onend = finish; u.onerror = finish;
     u.onboundary = () => wave.bump(0.28);
     const pulse = setInterval(() => wave.bump(0.12), 260);
     const t = setTimeout(finish, 2500 + text.length * 85 / u.rate);
-    if(token === speakToken) synth.speak(u);
+    synth.speak(u);
   });
+}
+let speechEpoch = 0, speechQueue = Promise.resolve();
+function interruptSpeech(){ speechEpoch++; if(synth) synth.cancel(); speechQueue = Promise.resolve(); }
+// sentences of a streamed reply are queued and spoken one after the other
+function queueSpeech(text, opts={}){
+  const ep = speechEpoch;
+  speechQueue = speechQueue.then(() => ep === speechEpoch ? utter(text, opts) : null);
+  return speechQueue;
+}
+function speak(text, rateMul=1, opts={}){
+  interruptSpeech();
+  return utter(text, { ...opts, rate: rateMul });
 }
 
 /* ---------- speech recognition ---------- */
@@ -875,7 +958,7 @@ const PRICES = {
   'claude-sonnet-5-5': { in:2.00, out:10.00, cw:2.50,  cr:0.10, name:'Sonnet 5.5' },
   'claude-opus-5-5':   { in:4.00, out:20.00, cw:5.00,  cr:0.20, name:'Opus 5.5' }
 };
-const KIND_FR = { conversation:'Conversation', bilan:'Bilans de séance', scenes:'Création de scènes', test:'Tests de niveau' };
+const KIND_FR = { conversation:'Conversation', bilan:'Bilans de séance', scenes:'Création de scènes', exercices:'Exercices', test:'Tests de niveau' };
 const localDay = (d = new Date()) => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
 function recordUsage(model, u, kind){
   if(!u) return;
@@ -901,6 +984,40 @@ function costWeeks(n){
   const ws = weekStart().getTime(), W = 7*864e5, list = [];
   for(let i = n-1; i >= 0; i--){ const from = ws - i*W; list.push({ from, ...usageBetween(from, from + W) }); }
   return list;
+}
+
+// streamed call: onText receives the text so far, so speech can start on the first sentence
+async function callClaudeStream(system, messages, maxTokens, kind, onText){
+  const key = store.settings.apiKey.trim();
+  if(!key) throw new Error('NO_KEY');
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 45000);
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', signal:ctrl.signal,
+      headers:{ 'content-type':'application/json', 'x-api-key':key,
+                'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:store.settings.model, max_tokens:maxTokens, system, messages, stream:true })
+    });
+    if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
+    let full = '', buf = '';
+    const usage = {};
+    const handle = ev => {
+      const line = ev.split('\n').find(l => l.startsWith('data:')); if(!line) return;
+      let d; try{ d = JSON.parse(line.slice(5).trim()); }catch(_){ return; }
+      if(d.type === 'message_start' && d.message && d.message.usage) Object.assign(usage, d.message.usage);
+      else if(d.type === 'content_block_delta' && d.delta && d.delta.type === 'text_delta'){ full += d.delta.text; if(onText) onText(full, false); }
+      else if(d.type === 'message_delta' && d.usage) Object.assign(usage, d.usage);
+      else if(d.type === 'error') throw new Error('HTTP 529 ' + JSON.stringify(d.error || {}).slice(0,140));
+    };
+    const pump = chunk => { buf += chunk; let i; while((i = buf.indexOf('\n\n')) >= 0){ const ev = buf.slice(0,i); buf = buf.slice(i+2); handle(ev); } };
+    if(r.body && r.body.getReader){
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      for(;;){ const { value, done } = await reader.read(); if(done) break; pump(dec.decode(value, { stream:true })); }
+    } else pump(await r.text());
+    if(buf.trim()) handle(buf);
+    try{ recordUsage(store.settings.model, usage, kind); save(); }catch(_){}
+    return full.trim();
+  } finally { clearTimeout(to); }
 }
 
 async function callClaude(system, messages, maxTokens=300, kind='conversation'){
@@ -935,7 +1052,7 @@ function buildSystem(){
   const st = stats();
   const last = store.history[store.history.length-1];
   const profile = {
-    NAME: s.name, LEVEL: st.level, THEME: s.theme || 'MIX', SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
+    NAME: s.name, LEVEL: st.level, THEME: session.kind === 'call' ? 'CALL' : (s.theme || 'MIX'), SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
     SCENE_QUEUE: (session.scenes || []).map(x => ({ key:x.key, scene:x.en, your_role:x.brief })),
     KNOWN_SCENES: allScenes().map(x => x.en),
     RECURRING_ERRORS: recurringErrors(), TARGET_VOCABULARY: targetVocab(),
@@ -999,9 +1116,245 @@ S'il dit "free talk", "coach mode" ou "intensive", change de niveau.
 Message commençant par [MOT EN FRANÇAIS] : il cherche ce mot ou cette expression en anglais. Donne la traduction la plus naturelle dans son contexte (métier du fret et de la douane si pertinent), en 1 à 4 mots, puis invite-le à reprendre sa phrase avec ce mot. Si deux traductions courantes existent, donne la plus usuelle seulement. Ex : "You can say customs clearance. Try your sentence again." Réutilise ce mot plus tard dans la séance pour l'ancrer.
 "Explain" / "Explique" / "French please" : explication en français, 2 phrases maximum, puis retour immédiat à l'anglais.
 
+# PRÉPARER UN APPEL OU UNE RÉUNION (THEME = CALL, ou s'il le demande : "prepare a call", "help me prepare a meeting")
+1. Demande-lui, en anglais simple, de t'expliquer en français l'appel à venir : avec qui, le but, les points délicats. Termine cette réponse par le marqueur [[LISTEN_FR]] : sa réponse suivante sera écoutée en français et t'arrivera précédée de [EN FRANÇAIS].
+2. Résume l'objectif en anglais en une phrase, puis donne-lui 3 à 5 tournures clés, une par prise de parole, en lui faisant répéter chacune.
+3. Propose la répétition générale : tu joues l'interlocuteur de façon réaliste (agent étranger, compagnie aérienne, client, douane), avec au moins une objection ou une difficulté.
+4. Après la répétition, un retour bref : ce qui était efficace, une tournure plus professionnelle à retenir. Propose de recommencer ou d'en rester là.
+Le marqueur [[LISTEN_FR]] n'est jamais prononcé ; utilise-le chaque fois que tu lui demandes de parler en français.
+
+# EXERCICES
+Le message [EXERCISE_DONE] signifie qu'il vient de terminer un exercice (révision, écoute ou répétition), avec son résultat : félicite-le en une phrase et reprends la conversation.
+
 # DÉBUT ET FIN
-Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au thème, au mode et à l'heure, en une ou deux phrases. En THEME TRAVEL, salue-le puis lance directement la première scène de SCENE_QUEUE.
+Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au thème, au mode et à l'heure, en une ou deux phrases. En THEME CALL, salue-le et commence directement l'étape 1 de la préparation d'appel. En THEME TRAVEL, salue-le puis lance directement la première scène de SCENE_QUEUE.
 Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de clôture avec un seul point à retenir de la séance.`;
+}
+
+/* ---------- exercises ---------- */
+const EX_KINDS = new Set(['review','listen','shadow']);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => a.map(x => [Math.random(), x]).sort((p,q) => p[0] - q[0]).map(x => x[1]);
+const alive = () => session.active && !session.endAfterExercise;
+const NUMW = { zero:0, oh:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14,
+  fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100 };
+const normW = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim()
+  .split(' ').filter(Boolean).map(w => NUMW[w] != null ? String(NUMW[w]) : w.replace(/'s$/,''));
+const STOPW = new Set(['to','a','an','the','be','is','are','of','sth','someone','something']);
+function matchScore(answer, target){
+  const tw = normW(target).filter(w => !STOPW.has(w)), aw = normW(answer);
+  if(!tw.length) return 0;
+  const has = w => aw.some(a => a === w || (w.length > 4 && a.length > 3 && (a.startsWith(w.slice(0, w.length - 2)) || w.startsWith(a.slice(0, a.length - 1)))));
+  return tw.filter(has).length / tw.length;
+}
+function keywordsMatch(answer, keywords, expected){
+  const a = ' ' + normW(answer).join(' ') + ' ';
+  if((keywords||[]).some(k => { const kk = normW(k).join(' '); return kk && a.includes(' ' + kk + ' '); })) return true;
+  return matchScore(answer, expected) >= 0.6;
+}
+function align(target, said){
+  const T = normW(target), S = normW(said), n = T.length, m = S.length;
+  const L = Array.from({ length:n+1 }, () => new Array(m+1).fill(0));
+  for(let i = n-1; i >= 0; i--) for(let j = m-1; j >= 0; j--) L[i][j] = T[i] === S[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+  const hit = new Set(); let i = 0, j = 0;
+  while(i < n && j < m){ if(T[i] === S[j]){ hit.add(i); i++; j++; } else if(L[i+1][j] >= L[i][j+1]) i++; else j++; }
+  const missed = T.filter((w,k) => !hit.has(k) && !STOPW.has(w) && w.length > 2);
+  return { acc: n ? hit.size / n : 0, missed };
+}
+const dueWords = () => { const t = todayLocal(); return store.profile.LEXICON.filter(w => w.fr && (w.due || t) <= t); };
+function srsUpdate(w, good){
+  const t = todayLocal();
+  w.box = good ? Math.min(5, (w.box||0) + 1) : 0;
+  w.due = addDays(good ? SRS_DAYS[w.box] : 1);
+  w.lastReview = t;
+  if(w.box >= 4 && w.status !== 'mastered'){ w.status = 'mastered'; w.mastered = t; }
+  if(!good && w.status === 'mastered') w.status = 'learning';
+}
+async function say(text, rate=1, opts={}){ if(!alive()) return; setState('speaking',''); await speak(text, rate, opts); }
+// one answer, with pause / resume / stop handled the same way as in conversation
+async function listenAnswer(lang='en-US', hint=''){
+  let empty = 0;
+  while(alive()){
+    if(session.paused){
+      setState('paused','Dites « resume » pour reprendre.');
+      const r = await listenOnce('en-US'); if(!alive()) break;
+      if(RX.resume.test(norm(r.text||''))){ session.paused = false; await say("Let's go on."); }
+      continue;
+    }
+    setState(lang.startsWith('fr') ? 'french' : 'listening', hint || 'À vous.');
+    const r = await listenOnce(lang);
+    if(!alive()) break;
+    if(r.error === 'denied' || r.error === 'unsupported'){ return { stop:true, end:true }; }
+    const t = (r.text||'').trim();
+    if(!t){ if(++empty >= 3) return { text:'', n:'' }; continue; }
+    const n = norm(t);
+    if(RX.end.test(n) && wc(n) <= 7) return { stop:true, end:true };
+    if(/\b(stop the exercise|end the exercise|skip the exercise|back to (the )?conversation|that'?s enough)\b/.test(n)) return { stop:true };
+    if(RX.pause.test(n) && wc(n) <= 5){ session.paused = true; await say("Okay, I'll wait."); continue; }
+    return { text:t, n };
+  }
+  return { stop:true, end: !session.active || session.endAfterExercise };
+}
+async function runExercise(kind, nested){
+  const t0 = Date.now(); let res = null;
+  if(nested) session.inExercise = true;
+  try{ res = kind === 'review' ? await runReview() : kind === 'listen' ? await runListening() : await runShadow(); }
+  catch(e){ res = { rec:null, summary:'exercise interrupted', fr:'L’exercice a été interrompu.' }; }
+  const ms = Date.now() - t0;
+  if(nested){ session.inExercise = false; session.excludedMs = (session.excludedMs||0) + ms; }
+  if(res && res.rec){
+    Object.assign(res.rec, { id:String(t0), date:new Date(t0).toISOString(), minutes:Math.max(1, Math.round(ms/60000)), mode:sessionMode() });
+    store.history.push(res.rec); save(); renderMeta();
+  }
+  const end = !!(res && res.end) || session.endAfterExercise;
+  session.endAfterExercise = false;
+  return { summary: res ? res.summary : 'exercise interrupted', fr: res && res.fr, rec: res && res.rec, end };
+}
+async function finishStandalone(r){
+  session.active = false; session.paused = false;
+  stopListening(); stopBtn.style.display = 'none';
+  try{ if(wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(_){}
+  session.kind = 'lesson';
+  if(r.rec){ $('recap').hidden = false; $('recap').dataset.id = r.rec.id; $('recap').textContent = 'Voir le détail de l’exercice'; }
+  setState('idle', r.fr || 'Exercice terminé.');
+  renderMeta();
+}
+
+async function runReview(){
+  const due = dueWords().sort((a,b) => String(a.due||'').localeCompare(String(b.due||'')) || (a.box||0) - (b.box||0)).slice(0,10);
+  if(!due.length){
+    const next = store.profile.LEXICON.filter(w => w.due).map(w => w.due).sort()[0];
+    await say(next ? 'Nothing to review today. Your next words come back on ' + new Date(next + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) + '.'
+                   : 'Your word list is still empty. The words you learn in our conversations will appear here.');
+    return { rec:null, summary:'nothing to review today', fr: next ? 'Rien à réviser aujourd’hui.' : 'Votre lexique est encore vide.' };
+  }
+  await say('Quick review: ' + due.length + ' word' + (due.length > 1 ? 's' : '') + ". I'll give you a word in French, and you say it in English, ideally in a sentence. Let's go!");
+  const frv = voiceFor('fr'), items = []; let ok = 0, end = false;
+  for(const w of due){
+    if(!alive()) break;
+    if(frv){ setState('speaking',''); await speak('Comment dit-on : ' + w.fr + ' ?', 1, { voice:frv }); }
+    else await say('How do you say, in English: ' + w.fr + '?');
+    const a = await listenAnswer('en-US', 'Dites-le en anglais.');
+    if(a.stop){ end = !!a.end; break; }
+    const good = !!a.text && matchScore(a.text, w.en) >= (normW(w.en).filter(x => !STOPW.has(x)).length > 1 ? 0.75 : 1);
+    items.push({ en:w.en, fr:w.fr, said:a.text || '', ok:good });
+    srsUpdate(w, good); save();
+    if(good){ ok++; await say(pick(['Yes!','Exactly!','Correct!','Well done!']) + ' ' + w.en + '.' + (w.example ? ' ' + w.example : '')); }
+    else {
+      await say('The answer is: ' + w.en + '. Say it with me: ' + w.en + '.');
+      const r = await listenAnswer('en-US', 'Répétez.'); if(r.stop){ end = !!r.end; break; }
+      await say('Good.');
+    }
+  }
+  if(items.length && alive()) await say('Review finished: ' + ok + ' out of ' + items.length + '. ' + (ok === items.length ? 'Perfect score!' : 'The words you missed will come back tomorrow.'));
+  return { rec: items.length ? { kind:'review', title:'Révision express', score:{ ok, total:items.length }, items } : null,
+           summary:'vocabulary review, ' + ok + ' out of ' + items.length, fr:'Révision terminée : ' + ok + ' sur ' + items.length + '.', end };
+}
+
+function shadowPool(){
+  const out = [], seen = new Set();
+  const add = s => { s = str(s); const k = keyOf(s), n = normW(s).length; if(n >= 4 && n <= 18 && !seen.has(k)){ seen.add(k); out.push(s); } };
+  [...store.history].reverse().forEach(r => { (r.key_phrases||[]).forEach(add); (r.scenes||[]).forEach(x => (x.phrases||[]).forEach(add)); });
+  store.profile.LEXICON.slice().reverse().forEach(w => add(w.example));
+  customScenes().forEach(s => (s.phrases||[]).forEach(add));
+  return out.slice(0, 40);
+}
+async function generateShadow(n){
+  const raw = await callClaude(`Tu prépares un exercice de répétition orale (shadowing) pour un francophone de niveau ${stats().level}, responsable fret aérien et douane à Roissy, qui voyage aussi.
+Réponds UNIQUEMENT en JSON : {"sentences":["..."]}
+${n} phrases anglaises naturelles, de 6 à 14 mots, moitié travail (fret, douane, clients, compagnies), moitié voyage. Inclus des sons difficiles pour un francophone : th, h aspiré, terminaisons -ed, accent tonique, voyelles longues et courtes.`, [{ role:'user', content:'Génère les phrases.' }], 800, 'exercices');
+  const m = raw.match(/\{[\s\S]*\}/); if(!m) return [];
+  return (JSON.parse(m[0]).sentences || []).map(str).filter(Boolean);
+}
+async function runShadow(){
+  let pool = shadowPool();
+  if(pool.length < 6){ setState('thinking','Préparation des phrases…'); try{ pool = pool.concat(await generateShadow(8 - pool.length)); }catch(_){} }
+  if(!pool.length){ await say("I couldn't prepare the sentences right now. Let's try again later."); return { rec:null, summary:'shadowing unavailable', fr:'Exercice indisponible pour le moment.' }; }
+  const list = shuffle(pool).slice(0, 8), items = []; let end = false;
+  await say('Repeat after me. Listen to each sentence, then say it exactly the same way, with the same rhythm.');
+  for(const s of list){
+    if(!alive()) break;
+    await say(s, 0.9);
+    let a = await listenAnswer('en-US', 'Répétez la phrase.');
+    if(a.stop){ end = !!a.end; break; }
+    let r = align(s, a.text), best = { said:a.text, acc:r.acc, missed:r.missed };
+    if(r.acc >= 0.9) await say(pick(['Perfect.','Spot on.','Excellent.','Very good.']));
+    else {
+      await say(r.acc >= 0.7 && r.missed.length ? 'Good. Watch the word: ' + r.missed[0] + '. Listen again.' : "Let's try again, a little slower.");
+      await say(s, 0.75);
+      a = await listenAnswer('en-US', 'Répétez la phrase.');
+      if(a.stop){ items.push({ target:s, said:best.said, acc:Math.round(best.acc*100), missed:best.missed }); end = !!a.end; break; }
+      const r2 = align(s, a.text);
+      if(r2.acc > best.acc) best = { said:a.text, acc:r2.acc, missed:r2.missed };
+      await say(r2.acc >= 0.9 ? 'Much better!' : r2.acc >= 0.7 ? 'Better.' : "Okay, we'll practise that one again another time.");
+    }
+    items.push({ target:s, said:best.said, acc:Math.round(best.acc*100), missed:best.missed });
+  }
+  if(!items.length) return { rec:null, summary:'shadowing stopped', fr:'Exercice arrêté.', end };
+  const avg = Math.round(items.reduce((x,i) => x + i.acc, 0) / items.length);
+  const cnt = {}; items.forEach(i => i.missed.forEach(w => cnt[w] = (cnt[w]||0) + 1));
+  const hard = Object.entries(cnt).sort((a,b) => b[1] - a[1]).slice(0,6).map(x => x[0]);
+  if(alive()) await say("That's it. Your average accuracy is " + avg + ' percent.' + (hard.length ? ' Keep practising: ' + hard.slice(0,3).join(', ') + '.' : ''));
+  return { rec:{ kind:'shadow', title:'Répétition à voix haute', score:{ avg }, items, hard }, summary:'pronunciation practice, ' + avg + ' percent accuracy',
+           fr:'Répétition terminée : ' + avg + ' % de précision.', end };
+}
+
+const ACCENTS = [
+  { label:'British', lang:'en-gb' }, { label:'American', lang:'en-us' }, { label:'Indian', lang:'en-in' }, { label:'Australian', lang:'en-au' },
+  { label:'Irish', lang:'en-ie' }, { label:'South African', lang:'en-za' }, { label:'Singaporean', lang:'en-sg' }, { label:'New Zealand', lang:'en-nz' }
+];
+const ACCENT_FR = { british:'britannique', american:'américain', indian:'indien', australian:'australien', irish:'irlandais', 'south african':'sud-africain', singaporean:'singapourien', 'new zealand':'néo-zélandais' };
+const accentFr = a => ACCENT_FR[String(a||'').toLowerCase()] || String(a||'');
+const availableAccents = () => ACCENTS.map(a => ({ ...a, voice: voiceFor(a.lang) })).filter(a => a.voice);
+async function generateListening(acc){
+  const labels = acc.length ? acc.map(a => a.label) : ['British','American'];
+  const raw = await callClaude(`Tu crées un exercice de compréhension orale d'anglais pour un francophone de niveau ${stats().level}, responsable d'une équipe de fret aérien et de douane à Roissy, qui voyage aussi.
+Réponds UNIQUEMENT en JSON :
+{"items":[{"kind":"annonce d'aéroport, message vocal, appel téléphonique...","accent":"une valeur de la liste","intro":"one short English sentence introducing the recording, e.g. Here is a voicemail from a freight agent in Mumbai.","text":"le texte enregistré, en anglais naturel et oral, 45 à 80 mots, avec des détails précis : chiffres, heures, numéros de vol ou d'AWB, noms, lieux","questions":[{"q":"short question in English","answer":"expected short answer, in English","keywords":["mots ou nombres qui, présents dans sa réponse, la rendent correcte"]}]}]}
+Exactement 3 enregistrements, 2 questions chacun. Varie : deux liés à son travail (agent étranger, compagnie aérienne, client, transitaire), un lié au voyage. Accents disponibles : ${labels.join(', ')}. L'origine du locuteur doit correspondre à l'accent choisi. Varie les accents.`,
+    [{ role:'user', content:'Crée l’exercice.' }], 2200, 'exercices');
+  const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('listen');
+  const items = (JSON.parse(m[0]).items || []).filter(i => i && i.text && Array.isArray(i.questions) && i.questions.length).slice(0,3);
+  if(!items.length) throw new Error('listen');
+  return items;
+}
+async function runListening(){
+  const acc = availableAccents();
+  await say("Listening practice. You'll hear three short recordings with different accents. Listen carefully, then answer my questions. Say again, if you want to hear a recording one more time.");
+  if(!alive()) return { rec:null, summary:'listening stopped', fr:'Exercice arrêté.' };
+  setState('thinking','Préparation des enregistrements…');
+  let data;
+  try{ data = await generateListening(acc); }
+  catch(e){ await say("Sorry, I couldn't prepare the recordings. Let's try again later."); return { rec:null, summary:'listening unavailable', fr:'Exercice indisponible pour le moment.' }; }
+  const items = []; let ok = 0, total = 0, end = false;
+  outer: for(const it of data){
+    if(!alive()) break;
+    const a0 = acc.find(a => a.label.toLowerCase() === String(it.accent||'').toLowerCase()) || acc[0] || null;
+    await say(str(it.intro) || 'Here is the next recording.');
+    const play = async () => { if(!alive()) return; setState('speaking','Écoutez…'); await speak(it.text, 1, a0 ? { voice:a0.voice } : {}); };
+    await play();
+    const qs = [];
+    for(const q of it.questions.slice(0,2)){
+      if(!alive()) break outer;
+      await say(q.q);
+      let a = await listenAnswer('en-US', 'Répondez en anglais.');
+      if(a.stop){ end = !!a.end; items.push({ kind:it.kind, accent:it.accent, intro:it.intro, text:it.text, questions:qs }); break outer; }
+      if(/\b(again|one more time|repeat|pardon|sorry)\b/.test(a.n) && wc(a.n) <= 5){
+        await play(); await say(q.q);
+        a = await listenAnswer('en-US', 'Répondez en anglais.');
+        if(a.stop){ end = !!a.end; items.push({ kind:it.kind, accent:it.accent, intro:it.intro, text:it.text, questions:qs }); break outer; }
+      }
+      const good = !!a.text && keywordsMatch(a.text, q.keywords, q.answer);
+      total++; if(good) ok++;
+      qs.push({ q:str(q.q), answer:str(q.answer), said:a.text || '', ok:good });
+      await say(good ? pick(['Right.','Correct.','Yes, exactly.','Well spotted.']) : 'Not quite. ' + q.answer);
+    }
+    items.push({ kind:it.kind, accent:it.accent, intro:it.intro, text:it.text, questions:qs });
+  }
+  if(!total) return { rec:null, summary:'listening stopped', fr:'Exercice arrêté.', end };
+  if(alive()) await say('Well done. You understood ' + ok + ' out of ' + total + ' questions.');
+  return { rec:{ kind:'listen', title:'Écoute d’accents', score:{ ok, total }, items }, summary:'listening practice, ' + ok + ' out of ' + total,
+           fr:'Écoute terminée : ' + ok + ' sur ' + total + '.', end };
 }
 
 /* ---------- placement test ---------- */
@@ -1149,7 +1502,7 @@ async function summarizePending(){
   const lex = store.profile.LEXICON, errs = store.profile.ERRORS;
 
   const used = new Set((j.vocabulary_used||[]).map(keyOf));
-  lex.forEach(w => { if(w.status !== 'mastered' && used.has(keyOf(w.en))){ w.status = 'mastered'; w.mastered = day; } });
+  lex.forEach(w => { if(w.status !== 'mastered' && used.has(keyOf(w.en))){ w.status = 'mastered'; w.mastered = day; w.box = 4; w.due = addDays(21); } });
 
   const scenes = (Array.isArray(j.scenes) ? j.scenes : []).filter(s => s && s.key !== 'surprise' && sceneByKey(s.key))
     .map(s => ({ key:s.key, phrases:(s.phrases||[]).map(str).filter(Boolean).slice(0,5) }));
@@ -1166,7 +1519,7 @@ async function summarizePending(){
   vocab.forEach(v => {
     const ex = lex.find(w => keyOf(w.en) === keyOf(v.en));
     if(ex){ ex.seen = (ex.seen||1) + 1; if(!ex.example) ex.example = v.example; if(!ex.fr) ex.fr = v.fr; }
-    else lex.push({ ...v, first:day, status:'learning', seen:1, theme: isTravel ? 'TRAVEL' : (pend.theme === 'WORK' ? 'WORK' : '') });
+    else lex.push({ ...v, first:day, status:'learning', seen:1, box:0, due:addDays(1), theme: isTravel ? 'TRAVEL' : (pend.theme === 'WORK' ? 'WORK' : '') });
   });
 
   const corr = (Array.isArray(j.corrections) ? j.corrections : []).filter(c => c && c.said).slice(0,6)
@@ -1182,7 +1535,7 @@ async function summarizePending(){
   const rec = {
     id: String(pend.start || Date.now()),
     date: startISO,
-    minutes: pend.start && pend.end ? Math.max(1, Math.round((pend.end - pend.start)/60000)) : 0,
+    minutes: pend.start && pend.end ? Math.max(1, Math.round((pend.end - pend.start - (pend.excluded||0))/60000)) : 0,
     mode: pend.mode, correction: pend.correction || '', theme: pend.theme || 'MIX', scenes,
     title: str(j.title), topics: (j.topics||[]).map(str).filter(Boolean).slice(0,5), summary: str(j.summary),
     vocabulary: vocab, corrections: corr, key_phrases: (j.key_phrases||[]).map(str).filter(Boolean).slice(0,4),
@@ -1207,7 +1560,10 @@ const RX = {
   end:    /\b(end (the )?session|on arrete|i'?ve arrived|i am arrived|i'?m arrived|that'?s all for today|stop the session)\b/,
   repeat: /\b(repeat|repete|slower|plus lentement|say (it|that) again|again please|pardon)\b/,
   ask:    /\b(how do you say|how (can|do) i say|how to say|i don'?t know how to say|i don'?t know the word|comment on dit|comment dit on)\b/,
-  askFr:  /\b(in french|en francais|french word|un mot francais)\b/
+  askFr:  /\b(in french|en francais|french word|un mot francais)\b/,
+  exReview: /\b(review time|let'?s review|quiz me|vocabulary review|word review)\b/,
+  exListen: /\b(listening practice|listening exercise|test my listening|listening test)\b/,
+  exShadow: /\b(repeat after me|shadowing|pronunciation practice|pronunciation exercise)\b/
 };
 
 /* ---------- session ---------- */
@@ -1217,9 +1573,9 @@ async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await na
 document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
 
 function persistSession(){
-  if(session.kind === 'test') return;
-  store.pending = { date: todayISO(), start: session.startedAt, end: Date.now(), mode: sessionMode(),
-                    correction: store.settings.correction, theme: store.settings.theme || 'MIX', messages: session.messages.slice(-60) };
+  if(session.kind === 'test' || EX_KINDS.has(session.kind)) return;
+  store.pending = { date: todayISO(), start: session.startedAt, end: Date.now(), excluded: session.excludedMs || 0, mode: sessionMode(),
+                    correction: store.settings.correction, theme: session.kind === 'call' ? 'CALL' : (store.settings.theme || 'MIX'), messages: session.messages.slice(-60) };
   save();
 }
 function trimmedHistory(){
@@ -1231,16 +1587,35 @@ function trimmedHistory(){
 async function turn(userText){
   session.messages.push({role:'user', content:userText});
   setState('thinking', '');
-  let reply;
+  let reply, spoken = 0, started = false;
+  // speak the reply sentence by sentence while it streams in, never inside an unfinished [[marker]]
+  const flush = (full, final) => {
+    let seg = full.slice(spoken);
+    const open = seg.indexOf('[[');
+    if(open >= 0 && seg.indexOf(']]', open) < 0) seg = seg.slice(0, open);
+    let cut = -1;
+    if(final) cut = seg.length;
+    else { const re = /[.!?…](?=\s|$)/g; let m; while((m = re.exec(seg))){ if(m.index + 1 >= 14) cut = m.index + 1; } }
+    if(cut <= 0) return;
+    const piece = cleanForSpeech(seg.slice(0, cut).replace(/\[\[[^\]]*\]\]/g, ' '));
+    spoken += cut;
+    if(!piece || (!session.active && !session.ending)) return;
+    if(!started){ started = true; setState('speaking', ''); }
+    queueSpeech(piece);
+  };
   try {
-    const raw = await callClaude(session.kind === 'test' ? buildTestSystem() : buildSystem(), trimmedHistory(), 300, session.kind === 'test' ? 'test' : 'conversation');
+    const raw = await callClaudeStream(session.kind === 'test' ? buildTestSystem() : buildSystem(), trimmedHistory(), 300,
+                                       session.kind === 'test' ? 'test' : 'conversation', full => flush(full, false));
+    flush(raw, true);
     if(/\[\[\s*TEST_DONE\s*\]\]/i.test(raw)) session.testDone = true;
+    if(/\[\[\s*LISTEN_FR\s*\]\]/i.test(raw)) session.nextFr = true;
     const mk = raw.match(/\[\[\s*(PACK|SCENE)\s*:\s*([^\]]+?)\s*\]\]/i);
     if(mk) session.action = { type: mk[1].toUpperCase(), arg: mk[2] };
     reply = cleanForSpeech(raw.replace(/\[\[[^\]]*\]\]/g, ' '));
   }
   catch(e){
     session.messages.pop();
+    if(started) await speechQueue;
     if(e.message === 'NO_KEY'){ stopSession(false); openSettings(); setState('idle','Ajoutez votre clé API dans les réglages.'); return false; }
     if(/credit balance|HTTP 401|HTTP 403/i.test(e.message)){
       stopSession(false);
@@ -1256,18 +1631,23 @@ async function turn(userText){
   session.lastReply = reply;
   persistSession();
   addLog('coach', reply);
+  if(!started && (session.active || session.ending)){ setState('speaking', ''); queueSpeech(reply); }
+  await speechQueue;
   if(!session.active && !session.ending) return false;
-  setState('speaking', '');
-  await speak(reply);
   return true;
 }
 
 async function loop(){
   let emptyStreak = 0;
   while(session.active){
-    setState(session.paused ? 'paused' : 'listening', session.paused ? 'Dites « resume » pour reprendre.' : 'À vous.');
-    const res = await listenOnce();
+    const fr = session.nextFr && !session.paused; session.nextFr = false;
+    setState(session.paused ? 'paused' : fr ? 'french' : 'listening', session.paused ? 'Dites « resume » pour reprendre.' : fr ? 'Expliquez en français.' : 'À vous.');
+    const res = await listenOnce(fr ? 'fr-FR' : 'en-US');
     if(!session.active) break;
+    if(fr){
+      if((res.text||'').trim()){ const ok = await turn('[EN FRANÇAIS] ' + res.text.trim()); if(!ok) return; continue; }
+      if(!res.error){ session.nextFr = true; continue; }
+    }
     if(res.error === 'denied'){ stopSession(false); setState('idle','Micro refusé : autorisez le micro et la reconnaissance vocale pour Safari dans les Réglages iOS.'); return; }
     if(res.error === 'unsupported'){ stopSession(false); setState('idle','Reconnaissance vocale indisponible : ouvrez l’app dans Safari sur iPhone.'); return; }
     const text = (res.text || '').trim();
@@ -1284,6 +1664,14 @@ async function loop(){
     if(RX.pause.test(n) && wc(n) <= 5){ session.paused = true; setState('speaking',''); await speak("Okay, I'll wait."); continue; }
     if(RX.repeat.test(n) && wc(n) <= 5 && session.lastReply){
       setState('speaking','Plus lentement…'); await speak(session.lastReply, 0.8); continue;
+    }
+    const ex = RX.exReview.test(n) ? 'review' : RX.exListen.test(n) ? 'listen' : RX.exShadow.test(n) ? 'shadow' : null;
+    if(ex && wc(n) <= 7 && session.kind !== 'test'){
+      const r = await runExercise(ex, true);
+      if(!session.active) return;
+      if(r.end){ await endSession(); return; }
+      const ok = await turn('[EXERCISE_DONE] ' + r.summary); if(!ok) return;
+      continue;
     }
     // a French word is coming: unless what follows is clearly an English sentence
     // ("how do you say that a flight is late"), switch the next listen to French
@@ -1338,21 +1726,26 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startSession(kind){
   if(!store.settings.apiKey.trim()){ openSettings(); return; }
   if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
-  const isTest = kind === 'test';
+  const k = ['test','review','listen','shadow','call'].includes(kind) ? kind : 'lesson';
+  const isTest = k === 'test';
   Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(),
-                           scenes: isTest ? [] : pickScenes(), kind: isTest ? 'test' : 'lesson', testDone:false, action:null });
-  $('testCard').hidden = true;
-  if(!isTest && store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
+                           scenes: (k === 'lesson' || k === 'call') ? pickScenes() : [], kind:k, testDone:false, action:null,
+                           nextFr:false, excludedMs:0, inExercise:false, endAfterExercise:false });
+  ['testCard','weekCard','reviewCard'].forEach(id => $(id).hidden = true);
+  if(k === 'lesson' && store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
   lineEl.textContent = '';
   $('recap').hidden = true; $('modelHint').hidden = true;
   stopBtn.style.display = 'grid';
   keepAwake();
   if(store.pending){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
+  if(EX_KINDS.has(k)){ const r = await runExercise(k, false); return finishStandalone(r); }
   const ok = await turn('[SESSION_START]');
   if(ok && session.active) loop();
 }
 
 async function endSession(){
+  if(EX_KINDS.has(session.kind)){ session.active = false; interruptSpeech(); stopListening(); return; }
+  if(session.inExercise){ session.endAfterExercise = true; interruptSpeech(); stopListening(); return; }
   session.ending = true;
   await turn('[SESSION_END]');
   if(session.kind === 'test') return finishTest();
@@ -1361,14 +1754,14 @@ async function endSession(){
 
 async function stopSession(summarize){
   session.active = false; session.paused = false;
-  stopListening(); if(synth) synth.cancel();
+  stopListening(); interruptSpeech();
   stopBtn.style.display = 'none';
   try{ if(wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(_){}
   if(summarize && store.pending){
     setState('thinking','Préparation du bilan de la séance…');
     try{
       const res = await summarizePending();
-      if(res && res.rec){ $('recap').hidden = false; $('recap').dataset.id = res.rec.id; }
+      if(res && res.rec){ $('recap').hidden = false; $('recap').dataset.id = res.rec.id; $('recap').textContent = 'Voir le bilan de la séance'; }
       if(res && res.phaseUp){
         setState('idle', 'Nouvelle phase atteinte : ' + res.phaseUp.name + ', ' + res.phaseUp.fr.toLowerCase() + '.');
         speak(`Congratulations! You've just reached the ${res.phaseUp.name} phase.` +
@@ -1384,7 +1777,7 @@ async function stopSession(summarize){
 
 big.addEventListener('click', () => {
   if(!session.active) { startSession(); return; }
-  if(document.body.dataset.state === 'speaking'){ if(synth) synth.cancel(); return; }
+  if(document.body.dataset.state === 'speaking'){ interruptSpeech(); return; }
   session.paused = !session.paused;
   stopListening();
 });
@@ -1411,7 +1804,11 @@ function renderMeta(){
     $('weekCardText').innerHTML = `<b>Votre semaine passée.</b> ${esc(fmtMin(mins))} de conversation sur ${esc(fmtMin(goal))} prévues, en ${lastSess.length} séance${lastSess.length > 1 ? 's' : ''}. Coût de l’IA : <b>${esc(fmtUSD(lastUse.cost))}</b>.`;
     $('weekCard').dataset.key = lastKey;
   }
-  $('modelHint').hidden = showTest || showWeek || !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
+  const dueN = dueWords().length;
+  const showReview = !session.active && !showTest && !showWeek && dueN >= 3 && s.reviewSnooze !== todayLocal();
+  $('reviewCard').hidden = !showReview;
+  if(showReview) $('reviewCardText').innerHTML = `<b>${dueN} mots à réviser aujourd’hui.</b> Cinq minutes pour les ancrer durablement.`;
+  $('modelHint').hidden = showTest || showWeek || showReview || !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
   const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
 }
@@ -1527,12 +1924,12 @@ function renderProgress(){
   const list = [...store.history].reverse();
   $('histList').innerHTML = list.length ? list.map(r => {
     const d = new Date(r.date);
-    const meta = [r.theme === 'TRAVEL' ? 'Voyage' : r.theme === 'WORK' ? 'Travail' : '', MODE_FR[r.mode] || '', r.minutes ? r.minutes + ' min' : '',
+    const meta = [r.kind ? 'Exercice' : r.theme === 'CALL' ? 'Appel' : r.theme === 'TRAVEL' ? 'Voyage' : r.theme === 'WORK' ? 'Travail' : '', MODE_FR[r.mode] || '', r.minutes ? r.minutes + ' min' : '',
       (r.vocabulary||[]).length ? (r.vocabulary.length + ' mot' + (r.vocabulary.length > 1 ? 's' : '')) : ''].filter(Boolean).join(', ');
     return `<button class="hrow" data-id="${esc(r.id)}">
       <div class="hdate"><b>${d.getDate()}</b><span>${esc(d.toLocaleDateString('fr-FR',{month:'short'}))}</span></div>
       <div class="hbody"><p class="htitle">${esc(r.title || (r.topics||[]).join(', ') || 'Séance')}</p><p class="hmeta">${esc(meta || 'Séance')}</p></div>
-      ${r.fluency ? `<span class="hscore">${r.fluency}/10</span>` : ''}${CHEV}</button>`;
+      ${r.fluency ? `<span class="hscore">${r.fluency}/10</span>` : r.score ? `<span class="hscore">${r.score.avg != null ? r.score.avg + ' %' : r.score.ok + '/' + r.score.total}</span>` : ''}${CHEV}</button>`;
   }).join('') : '<p class="empty">Vos séances apparaîtront ici, chacune avec son bilan et sa fiche de révision.</p>';
 }
 function renderCost(){
@@ -1593,8 +1990,29 @@ function openPlacement(){
   const pd = $('progDetail'); pd.innerHTML = h; pd.hidden = false; $('progMain').hidden = true;
   $('progBody').scrollTop = 0;
 }
+function openExerciseDetail(r){
+  const back = `<button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Progression</button>`;
+  let h = back + `<p class="dkick">${esc(cap(dLong(r.date)))}, exercice de ${esc(fmtMin(r.minutes))}</p><h2 class="dtitle">${esc(r.title)}</h2>`;
+  const sc = r.score || {};
+  if(r.kind === 'review'){
+    h += `<div class="scores"><div class="stat"><b>${sc.ok}/${sc.total}</b><span>mots retrouvés</span></div><div class="stat"><b>${dueWords().length}</b><span>encore à réviser aujourd’hui</span></div><div class="stat"><b>${mastered().length}</b><span>mots maîtrisés</span></div></div>`;
+    h += `<section class="block"><h3 class="dsec">Mots révisés</h3>${(r.items||[]).map(i => `<div class="exitem"><div class="t">${i.ok ? '<span class="okmark">✓</span>' : '<span class="komark">✗</span>'} ${esc(i.en)} <span class="vocab-fr">${esc(i.fr)}</span></div>${i.said ? `<div class="s">Vous avez dit : ${esc(i.said)}</div>` : ''}</div>`).join('')}</section>`;
+  } else if(r.kind === 'shadow'){
+    h += `<div class="scores"><div class="stat"><b>${sc.avg} %</b><span>précision moyenne</span></div><div class="stat"><b>${(r.items||[]).length}</b><span>phrases</span></div><div class="stat"><b>${(r.items||[]).filter(i => i.acc >= 90).length}</b><span>parfaites</span></div></div>`;
+    if((r.hard||[]).length) h += `<section class="block"><h3 class="dsec">Mots à retravailler</h3><div class="tags">${r.hard.map(w => `<span>${esc(w)}</span>`).join('')}</div></section>`;
+    h += `<section class="block"><h3 class="dsec">Phrases</h3>${(r.items||[]).map(i => `<div class="exitem"><span class="acc" style="color:${i.acc >= 90 ? 'var(--lagoon)' : i.acc >= 70 ? 'var(--amber)' : '#ff9ea0'}">${i.acc} %</span><div class="t">${esc(i.target)}</div>${i.said ? `<div class="s">Compris : ${esc(i.said)}</div>` : ''}</div>`).join('')}</section>`;
+  } else if(r.kind === 'listen'){
+    h += `<div class="scores"><div class="stat"><b>${sc.ok}/${sc.total}</b><span>bonnes réponses</span></div><div class="stat"><b>${(r.items||[]).length}</b><span>enregistrements</span></div><div class="stat"><b>${esc([...new Set((r.items||[]).map(i => i.accent).filter(Boolean))].length || '–')}</b><span>accents</span></div></div>`;
+    h += (r.items||[]).map(i => `<div class="listen-card"><h4>${esc(cap(str(i.kind)))}${i.accent ? ', accent ' + esc(accentFr(i.accent)) : ''}</h4>
+      <details><summary class="s" style="cursor:pointer;color:var(--dim);font-size:14px">Lire la transcription</summary><p class="txt">${esc(i.text)}</p></details>
+      ${(i.questions||[]).map(q => `<div class="exitem"><div class="t">${q.ok ? '<span class="okmark">✓</span>' : '<span class="komark">✗</span>'} ${esc(q.q)}</div><div class="s">Réponse attendue : ${esc(str(q.answer).replace(/[.\s]+$/,''))}${q.said ? '. Vous : ' + esc(q.said) : ''}</div></div>`).join('')}</div>`).join('');
+  }
+  const pd = $('progDetail'); pd.innerHTML = h; pd.hidden = false; $('progMain').hidden = true;
+  $('progBody').scrollTop = 0;
+}
 function openDetail(id){
   const r = store.history.find(x => x.id === id); if(!r) return;
+  if(r.kind) return openExerciseDetail(r);
   const v = r.vocabulary || [], c = r.corrections || [], k = r.key_phrases || [], tr = r.transcript || [];
   let h = `<button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Progression</button>
     <p class="dkick">${esc(cap(dLong(r.date)))}${MODE_FR[r.mode] ? ', séance du ' + (r.mode === 'MORNING' ? 'matin' : 'soir') : ''}</p>
@@ -1620,6 +2038,16 @@ function openDetail(id){
 }
 
 $('testYes').onclick = () => startSession('test');
+$('reviewYes').onclick = () => startSession('review');
+$('reviewNo').onclick = () => { store.settings.reviewSnooze = todayLocal(); save(); renderMeta(); };
+function openExo(){
+  const n = dueWords().length;
+  $('dueBadge').textContent = n ? n + ' à réviser' : 'À jour';
+  $('exo').classList.add('open');
+}
+$('openExo').onclick = openExo;
+document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { closeSheet('exo'); startSession(b.dataset.ex); });
+$('exo').addEventListener('click', e => { if(e.target.id === 'exo') closeSheet('exo'); });
 $('weekNo').onclick = () => { store.settings.weeklyReportSeen = $('weekCard').dataset.key; save(); renderMeta(); };
 $('weekYes').onclick = () => {
   store.settings.weeklyReportSeen = $('weekCard').dataset.key; save(); renderMeta();
@@ -2014,7 +2442,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.9', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement, usage:store.usage };
+  const data = { app:'english-copilot', version:'2.0', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement, usage:store.usage };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
