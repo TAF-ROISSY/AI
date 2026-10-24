@@ -1,5 +1,5 @@
 # FOULÉE — Spécification de développement (Claude Code)
-Version 2.1 — 24 octobre 2026 · Remplace la partie « développement » du Master Prompt du 21/10/2026.
+Version 2.2 — 24 octobre 2026 · Remplace la partie « développement » du Master Prompt du 21/10/2026.
 À lire avec `REPRISE.md` (fiche technique, publication, tests) et `FOULEE_SYSTEM_PROMPT_AI.md` (comportement de l'IA).
 
 ---
@@ -37,7 +37,7 @@ Claude Code construit le cerveau. Foulée AI est le cerveau.
 | **Ressenti de séance** (`S.fb`), journal vocal | difficulté, énergie, douleurs, texte | En place |
 | **Météo** Open-Meteo | température, vent, humidité, pluie | En place |
 | **Matériel** | paires Strava + saisies, km | En place |
-| **Débrief à chaud émotionnel** | texte / voix, émotion dominante | Phase 2 |
+| **Débrief à chaud** (`S.deb[clé]`) | émotion dominante (8), victoires déclarées, texte / voix | En place (v12.2) |
 
 **Signaux NON disponibles** (ne pas les simuler) : asymétrie de foulée, temps de contact au sol, oscillation verticale, puissance de course (sauf capteur), lactate.
 
@@ -129,8 +129,15 @@ Règles :
 - Niveaux : ≥ 65 « Marge », ≥ 40 « Équilibre », sinon « Tendu ». Barre « Vie / Sport » = part des points perdus de chaque côté. Une phrase de conseil selon le niveau et le côté qui pèse le plus. Libellé « estimation ».
 - Envoyée au coach (`bourse_energie`) avec le check-up du jour (`checkup_du_jour`).
 
-### PHASE 2 — Learning & Emotion
-Débrief à chaud (texte/voix, émotion dominante → mémoire `sensation`), Narrative Engine (chronique hebdo), Boussole Ego vs Body (s'appuie sur motivation vs énergie/charge), victoires invisibles.
+### PHASE 2 — Learning & Emotion — **livrée en v12.2**
+
+| Livrable | Implémentation |
+|---|---|
+| Débrief à chaud | Carte sur Aujourd'hui pendant 6 h après une séance cochée, une course guidée ou une sortie Strava non rattachée. Fiche : émotion (Libérateur, Flow, Fier, Serein, Lourd, Usant, Doute, Frustré), victoires déclarées, quelques mots (dictée), « Retenir ce moment » → mémoire `sensation` (SAVOIR). |
+| Mémoire des sensations | Les débriefs alimentent la chronique, les victoires et le contexte du coach (`debriefs_recents`). |
+| Narrative Engine | Chronique de la semaine : version locale toujours disponible + rédaction par Foulée (120–170 mots, n'invente rien, peut proposer une leçon à retenir). Carte du dimanche 15 h au mardi, archives semaine par semaine, lecture vocale. |
+| Boussole Ego vs Body | Corps (énergie, courbatures, douleur, nuit, FC au réveil, charge) face à l'envie (motivation du check-up). Ego → séance Flow proposée (sortie au feeling 30–40 min ou circuit express 15 min) ; Body → allègement proposé ; Pourquoi ? détaillé. |
+| Victoires invisibles | Détection locale : y aller malgré une envie au plus bas, facile vraiment facile, chaleur / froid, séance laissée de côté ou allégée, jour tendu respecté, 7 check-ups d'affilée, 5 nuits ≥ 7 h, victoires déclarées au débrief. Une notification au plus par jour. |
 
 ### PHASE 3 — Prediction & Adaptation
 Digital Twin (capacités estimées avec intervalle de confiance), inertie d'adaptation (fourchette, pas « jour exact »), What If, adaptation météo, Terrain Feel DNA (estimation), détecteur d'opportunités.

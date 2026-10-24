@@ -967,6 +967,25 @@ i.en-v{background:#F5A65B}i.en-s{background:var(--acc)}
 @keyframes spHalo{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
 #splash.pre .sp-ridge{animation:none;stroke-dashoffset:0}#splash.pre .sp-dot{animation-delay:.1s}#splash.pre .sp-halo{animation-delay:.5s}#splash.pre .sp-name{animation-delay:.2s}#splash.pre .sp-sub{animation-delay:.35s}
 @media(prefers-reduced-motion:reduce){#splash .sp-ridge{stroke-dashoffset:0}#splash .sp-dot{offset-distance:100%;opacity:1}#splash .sp-halo{display:none}}
+
+/* ===== v12.2 : learning & emotion (débrief, victoires, boussole, chronique) ===== */
+.chip.emo-p.on{background:color-mix(in srgb,var(--f-calm,#7FB8A4) 22%,transparent);border-color:var(--f-calm,#7FB8A4);color:var(--f-calm,#7FB8A4)}
+.chip.emo-n.on{background:color-mix(in srgb,#F5A65B 20%,transparent);border-color:#F5A65B;color:#F5A65B}
+.deb-c h2 .fic,.vic-c h2 .fic,.eb-c h2 .fic,.chr-c h2 .fic{color:var(--acc)}
+.vic-c,.chr-c{cursor:pointer}.vic-r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px;font-size:14px}.vic-r small{flex:none}
+.eb-w{display:flex;gap:14px;align-items:center;margin-top:10px}
+.eb-m{position:relative;width:64px;height:64px;flex:none;border-radius:12px;background:linear-gradient(90deg,transparent 49.5%,var(--line) 49.5%,var(--line) 50.5%,transparent 50.5%),linear-gradient(0deg,transparent 49.5%,var(--line) 49.5%,var(--line) 50.5%,transparent 50.5%),var(--f-s2,var(--card2))}
+.eb-dot{position:absolute;width:12px;height:12px;margin:0 0 -6px -6px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 25%,transparent)}
+.eb-y,.eb-x{position:absolute;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--f-tx3,#6B7280)}.eb-y{left:3px;top:2px}.eb-x{right:3px;bottom:2px}
+.eb-t{font-size:15px}
+.chr-x{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.chr-nav{justify-content:space-between;flex-wrap:nowrap;margin:10px 0}.chr-nav b{font-size:14px;text-align:center}
+.chr-st{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 10px}.chr-st div{background:var(--f-s2,var(--card2));border-radius:12px;padding:8px 4px;text-align:center}.chr-st b{display:block;font:800 22px/1 var(--f-num,'Barlow Condensed',sans-serif)}.chr-st small{font-size:11px;color:var(--f-tx3,#6B7280)}
+.chr-emo{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chr-txt{font-size:15.5px;line-height:1.55;margin:6px 2px 8px}
+.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{min-width:0;overflow-wrap:anywhere}
+@media(min-width:760px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:1024px){.f-col .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -1077,7 +1096,7 @@ const pct=x=>Math.round(x*100)+' %';
 const localDate=s=>new Date(String(s).replace('Z',''));
 
 /* ============ INSTALLATION (PWA) ============ */
-const APP_VER='12.1';
+const APP_VER='12.2';
 const isStandalone=()=>navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showInstall(force){if(isStandalone())return;let off=false;try{off=localStorage.getItem('foulee_inst_off')==='1';}catch(e){}if(force||(!off&&isIOS()))$('#inst').classList.add('on');if(force){closeSettings();window.scrollTo(0,0);}}
@@ -4533,8 +4552,8 @@ function renderToday(){widSched();weekSched();if(S.settings.briefVoice&&S.briefS
     day+=`<div class="card today-c"><h2 style="margin:0">Au programme</h2><div class="eyebrow" style="margin-top:4px">Semaine ${w+1}/12 · ${f}/${n} faites · ${rp.vol} km prévus</div>
       ${all.length?all.map(sessCard).join('')+(str.length&&fg?sessCard(fg):''):`<p class="muted small" style="margin:10px 0 4px">Repos aujourd’hui.${(()=>{const x=nextSess();return x?' Prochaine séance : '+esc(x.ss[0].t)+' · '+JOURSL[dayIdx(x.dt)].toLowerCase()+'.':'';})()}</p>`}
       ${weekStrip2(w)}<div class="leg2" style="margin-top:6px"><span><i style="background:var(--trail)"></i>trail</span><span><i style="background:var(--muscu)"></i>muscu</span>${(S.xplan||[]).length?'<span><i style="background:var(--glacier)"></i>autres</span>':''}<button class="chip sm" style="margin-left:auto" onclick="showTab('cross')">Voir la semaine</button></div></div>`;}
-  day=enCard()+day;day+=slotCard()+mobCard()+((S.health&&Object.keys(S.health).length)||S.settings.healthOn?healthCard(true):'');
-  const prog=weekRings()+vtrCard()+duelCard();
+  day=debCard()+enCard()+egoCard()+day;day+=slotCard()+mobCard()+((S.health&&Object.keys(S.health).length)||S.settings.healthOn?healthCard(true):'');
+  const prog=chronCard()+vicCard()+weekRings()+vtrCard()+duelCard();
   const race=(S.race&&daysTo(S.race.date)>=0?raceCard(false):banner('🏁','Pas encore de course objectif','Choisis-la dans le calendrier des trails','Courses',"showTab('courses')"))+cdjCard();
   const cus=CO().custom.filter(c=>!S.done['c'+c.id]||c.d===iso(new Date())).slice(0,1);
   const coach=`<div class="card ai"><h2>✨ Séance sur mesure</h2>${cus.length?sessCard(customObj(cus[0])):'<p class="muted small">Le coach crée une séance de muscu unique selon ta forme du jour, tes sorties et tes contraintes.</p>'}<div class="row" style="margin-top:10px"><button class="btn ai-b sm" style="margin:0" onclick="${getKey()?'openGen()':'openSettings()'}">${getKey()?(cus.length?'✨ Nouvelle séance':'✨ Créer ma séance'):'Activer le coach'}</button></div></div>`;
@@ -6074,6 +6093,7 @@ Intelligence Foulée (règles prioritaires) :
 - Bourse d’Énergie : bourse_energie arbitre stress de vie et stress sportif. Quand la vie pèse lourd, protège-le même si son corps semble frais.
 - Ego vs Body : distingue la flemme (motivation basse, corps frais) de la fatigue réelle (charge, sommeil, courbatures, douleur). Flemme : propose une version courte ou ludique. Fatigue : défends le repos.
 - Victoires invisibles : valorise brièvement ce qui ne se voit pas dans les stats (avoir renoncé à temps, être sorti malgré la pluie, avoir respecté une séance facile).
+- debriefs_recents (émotions qu’il a déclarées après l’effort), victoires_invisibles_7j et boussole_ego_body (corps / envie) complètent ses données : appuie-toi dessus sans les réciter.
 - Les prédictions (pic de forme, blessure) s’expriment en tendances et fourchettes, jamais en certitudes ni en date exacte.`;
 const WHY_CTX='Explique le raisonnement de ta dernière recommandation, avec les étiquettes, dans cet ordre : 1. les faits utilisés [SAVOIR] ; 2. le contexte de vie et l’état déclaré (check-up, stress, sommeil, Bourse d’Énergie) ; 3. l’hypothèse retenue [DÉDUIRE] ou [ENVISAGER] et ta confiance ; 4. les contre-exemples ou ce qui te ferait changer d’avis ; 5. le raisonnement en une ou deux phrases. Court, pas de bloc mémoire.';
 function memParse(t){let mp=[];const re=/<memoire>([\s\S]*?)<\/memoire>/i,m=String(t).match(re);if(m){try{const a=JSON.parse(m[1].trim());(Array.isArray(a)?a:[a]).slice(0,2).forEach(x=>{const n=memNorm(x,'ai');if(n&&!MEM().some(y=>y.c.toLowerCase()===n.c.toLowerCase()))mp.push(n);});}catch(e){}t=String(t).replace(re,'').trim();}
@@ -6140,6 +6160,143 @@ function openEnergy(){const E=enData(),days=[...Array(7)].map((_,i)=>{const d=ne
 PLUSI.push({k:'mem',g:3,ic:'brain',c:'var(--glacier)',t:'Ce que Foulée sait de moi',st:'Mémoire',s:'Savoir, déduire, envisager : tout est modifiable',fn:"openMem()"},
  {k:'energy',g:2,ic:'bolt',c:'var(--muscu)',t:'Bourse d’Énergie',st:'Énergie',s:'Stress de vie et stress sportif dans un seul budget',fn:"openEnergy()"});
 try{SPACE[4][2].splice(0,0,'energy','mem');}catch(e){}
+
+/* ============ v12.2 : LEARNING & EMOTION (débrief à chaud, victoires invisibles, boussole Ego vs Body, chronique de la semaine) ============ */
+PIC.feather='<path d="M20 4c-6 0-12 5-13 12l-3 4"/><path d="M7 16c5 0 9-3 11-8"/><path d="M10 12h5"/>';
+PIC.compass2='<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>';
+PIC.book='<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/>';
+/* --- outils communs --- */
+function sessByKey(k){const at=S.doneAt&&S.doneAt[k],dt=at?new Date(at):new Date();for(const off of [0,-7,7]){const w=weekIdx(new Date(dt.getTime()+off*DAY));if(w<0||w>11)continue;for(let d=0;d<7;d++){const o=daySessions(w,d).find(x=>x&&x.k===k);if(o)return {...o,w,d,dt:sessDate(w,d)};}}return null;}
+const kTitle=k=>{if(/^a\d+$/.test(k)){const r=getRuns().find(x=>'a'+x.id===k);return r?r.name:'Sortie';}if(/^g\d+$/.test(k))return 'Course guidée';if(/^m\d+$/.test(k))return 'Moment libre';const o=sessByKey(k);if(o)return strip(String(o.t)).replace(/^[↓🔁⏸🩹]\s*/u,'');const l=S.links&&S.links[k];return l&&l.name?l.name:'Séance';};
+const dayOf=t=>iso(new Date(t));
+function micFill(taId,btnId){const T=$('#'+taId),B=$('#'+btnId),SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(MIC.on){try{MIC.rec.stop();}catch(e){}MIC.on=false;if(B)B.textContent='Dicter';return;}
+  if(!SR){toast('Touche le micro du clavier pour dicter');T.focus();return;}
+  try{const r=new SR(),base=T.value?T.value.trim()+' ':'';r.lang='fr-FR';r.continuous=true;r.interimResults=true;r.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;T.value=base+t;};
+    r.onerror=()=>{MIC.on=false;if(B)B.textContent='Dicter';toast('Dictée interrompue : complète au clavier');};r.onend=()=>{MIC.on=false;if(B)B.textContent='Dicter';};r.start();MIC.rec=r;MIC.on=true;hap('tap');if(B)B.textContent='■ J’ai fini';}catch(e){toast('Dictée indisponible : utilise le micro du clavier');T.focus();}}
+let MIC={on:false,rec:null};
+
+/* --- Débrief à chaud --- */
+const EMOT={liberateur:['Libérateur',1],flow:['Flow',1],fier:['Fier',1],serein:['Serein',1],lourd:['Lourd',-1],usant:['Usant',-1],doute:['Doute',-1],frustre:['Frustré',-1]};
+const VICD={flemme:'J’y suis allé malgré la flemme',meteo:'Sorti malgré la météo',stop:'J’ai su lever le pied',easy:'J’ai respecté le facile',tech:'J’ai soigné ma technique'};
+const DEB=()=>{S.deb=S.deb||{};return S.deb;};
+function debPending(){const now=Date.now(),D=DEB(),L=[];Object.entries(S.doneAt||{}).forEach(([k,t])=>{if(now-t<6*3600e3&&S.done[k]&&!D[k])L.push({k,t});});
+  (S.gruns||[]).forEach(g=>{const t=new Date(g.start).getTime()+g.t*1000;if(now-t<6*3600e3&&!(g.k&&D[g.k])&&!D['g'+g.id]&&!(g.k&&S.done[g.k]))L.push({k:'g'+g.id,t});});
+  const lk=new Set(Object.values(S.links||{}).filter(l=>l.src==='strava').map(l=>l.id));
+  getRuns().slice(0,3).forEach(r=>{const t=localDate(r.start_date_local).getTime()+r.moving_time*1000;if(now-t<6*3600e3&&now>t&&!lk.has(r.id)&&!D['a'+r.id])L.push({k:'a'+r.id,t});});
+  return L.filter(x=>!(S.debSkip||[]).includes(x.k)).sort((a,b)=>b.t-a.t)[0]||null;}
+function debCard(){const P=debPending();if(!P)return '';const ago=Math.max(1,Math.round((Date.now()-P.t)/60000));
+  return `<div class="card deb-c"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${fic('feather')} Débrief à chaud</h2><button class="ib" aria-label="Plus tard" onclick="debSkip('${P.k}')">✕</button></div>
+   <p class="small" style="margin:6px 0 10px">${esc(kTitle(P.k))} · il y a ${ago<60?ago+' min':Math.round(ago/60)+' h'}. Comment tu te sens, là, maintenant ?</p>
+   <div class="chips">${Object.entries(EMOT).slice(0,4).map(([e,v])=>`<button class="chip sm" onclick="openDebrief('${P.k}','${e}')">${v[0]}</button>`).join('')}<button class="chip sm" onclick="openDebrief('${P.k}')">Autre…</button></div></div>`;}
+function debSkip(k){S.debSkip=[...(S.debSkip||[]),k].slice(-30);save();renderToday();}
+let DBX=null;
+function openDebrief(k,emo){const o=DEB()[k];DBX=o?JSON.parse(JSON.stringify(o)):{k,emo:emo||null,vic:[],note:'',keep:false};if(emo&&!o)DBX.emo=emo;renderDebrief();$('#sheet').classList.add('on');}
+function renderDebrief(){const x=DBX;$('#sheetBody').innerHTML=sheetHead('Débrief à chaud','feather')+`<p class="muted small" style="margin:6px 0 4px">${esc(kTitle(x.k))} · ce que tu ressens maintenant nourrit ta chronique et la mémoire de Foulée.</p>
+  <div class="qlab">L’émotion qui domine</div><div class="chips">${Object.entries(EMOT).map(([e,v])=>`<button class="chip ${x.emo===e?'on':''} ${v[1]<0?'emo-n':'emo-p'}" onclick="DBX.emo='${e}';renderDebrief()">${v[0]}</button>`).join('')}</div>
+  <div class="qlab">Une victoire qui ne se voit pas ? <span class="muted small">(facultatif)</span></div><div class="chips">${Object.entries(VICD).map(([v,l])=>`<button class="chip sm ${x.vic.includes(v)?'on':''}" onclick="DBX.vic=DBX.vic.includes('${v}')?DBX.vic.filter(y=>y!=='${v}'):[...DBX.vic,'${v}'];renderDebrief()">${l}</button>`).join('')}</div>
+  <div class="qlab">En quelques mots <span class="muted small">(facultatif)</span></div><textarea id="dbT" rows="3" class="mem-in" placeholder="Ex. : je suis parti énervé du boulot, j’ai tout lâché dans la montée et je rentre léger." oninput="DBX.note=this.value">${esc(x.note||'')}</textarea>
+  <div class="row" style="gap:8px;margin-top:6px"><button class="btn sm ghost" style="margin:0" id="dbMic" onclick="micFill('dbT','dbMic')">Dicter</button></div>
+  <label class="tg" style="margin-top:10px"><input type="checkbox" ${x.keep?'checked':''} onchange="DBX.keep=this.checked"> Retenir ce moment dans la mémoire de Foulée</label>
+  <div class="row" style="margin-top:12px"><button class="btn" style="flex:1" onclick="saveDebrief()">Enregistrer</button>${DEB()[x.k]?'<button class="btn ghost" onclick="delDebrief()">Effacer</button>':''}</div>`;}
+function saveDebrief(){const x=DBX;if(!x.emo){toast('Choisis l’émotion qui domine');return;}const T=$('#dbT');if(T)x.note=T.value;try{if(MIC.on)MIC.rec.stop();}catch(e){}
+  const prev=DEB()[x.k],o={k:x.k,emo:x.emo,vic:x.vic,note:String(x.note||'').trim().slice(0,400),keep:!!x.keep,t:kTitle(x.k),d:prev?prev.d:iso(new Date(S.doneAt&&S.doneAt[x.k]||Date.now())),at:prev?prev.at:Date.now(),up:Date.now()};
+  if(o.keep&&!(prev&&prev.keep))memAdd({type:'sensation',ep:'known',c:`${parseISO(o.d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} · ${o.t} : ${EMOT[o.emo][0].toLowerCase()}${o.note?' — '+o.note.slice(0,180):''}`},'debrief');
+  DEB()[x.k]=o;if(S.del&&S.del.deb)S.del.deb=S.del.deb.filter(z=>z!==x.k);const K=Object.keys(S.deb).sort((a,b)=>S.deb[a].at-S.deb[b].at);if(K.length>150)K.slice(0,K.length-150).forEach(z=>delete S.deb[z]);
+  save();closeSettings();renderAll();hap('ok');toast(EMOT[o.emo][1]>0?'Débrief noté : garde ce moment en tête':'Débrief noté : Foulée en tient compte');}
+function delDebrief(){delete DEB()[DBX.k];tomb('deb',DBX.k);save();closeSettings();renderAll();}
+{const _at=applyTomb;applyTomb=function(){_at();const D=S.del||{};if(D.deb&&S.deb)D.deb.forEach(k=>{delete S.deb[k];});};}
+const debIn=(t0,t1)=>Object.values(DEB()).filter(o=>{const d=parseISO(o.d);return d>=t0&&d<t1;}).sort((a,b)=>a.d<b.d?-1:1);
+
+/* --- Victoires invisibles (détection locale) --- */
+function vicList(t0,t1){t1=t1||new Date();t0=t0||new Date(t1-7*DAY);const V=[],inR=d=>d>=t0&&d<t1,add=(id,d,t,x)=>{if(!V.some(v=>v.id===id))V.push({id,d,t,x});};
+  Object.entries(S.doneAt||{}).forEach(([k,at])=>{const d=new Date(at);if(!inR(d)||!S.done[k])return;const c=chkOf(iso(d));if(c&&c.motiv!=null&&c.motiv<=1)add('flemme:'+k,iso(d),'Tu y es allé malgré une envie au plus bas',`${kTitle(k)} faite alors que tu avais noté « ${CKMOT[c.motiv].toLowerCase()} » au check-up.`);});
+  const A2=getA();Object.entries(S.links||{}).forEach(([k,l])=>{if(l.src!=='strava'||!/^r\d+[er]$/.test(k))return;const r=getRuns().find(x=>x.id===l.id);if(!r||!inR(localDate(r.start_date_local)))return;try{if(A2.cls(r)==='ef')add('easy:'+r.id,r.start_date_local.slice(0,10),'Tu as tenu une séance facile… vraiment facile',`${esc(r.name)} : allure et cardio restés en endurance, c’est là que l’aérobie se construit.`);}catch(e){}});
+  getRuns().forEach(r=>{const d=localDate(r.start_date_local);if(!inR(d)||r.average_temp==null)return;if(r.average_temp>=26)add('heat:'+r.id,iso(d),'Sortie malgré la chaleur',`${esc(r.name)} à ${Math.round(r.average_temp)} °C : chaque sortie au chaud compte pour l’acclimatation.`);else if(r.average_temp<=3)add('cold:'+r.id,iso(d),'Sortie malgré le froid',`${esc(r.name)} à ${Math.round(r.average_temp)} °C.`);});
+  Object.entries(S.mv||{}).forEach(([k,m])=>{if(!m.drop||!m.from)return;const d=parseISO(m.from);if(inR(d))add('drop:'+k,m.from,'Tu as su lever le pied','Une séance laissée de côté plutôt que forcée : la semaine continue, la fatigue ne s’empile pas.');});
+  for(let t=new Date(Math.max(t0,new Date(t1-14*DAY)));t<t1;t=new Date(t.getTime()+DAY)){const w=weekIdx(t);if(w<0||w>11)continue;daySessions(w,dayIdx(t)).forEach(o=>{if(o&&(o.adj==='alleger'||o.adj==='annuler'))add('adj:'+o.k,iso(sessDate(w,dayIdx(t))),'Tu as accepté d’alléger',`${strip(String(o.t)).replace(/^[↓⏸]\s*/u,'')} adaptée à ta forme du moment.`);});}
+  {let n=0;for(let i=0;i<14;i++){const d=new Date(t1-i*DAY-1);if(chkOf(iso(d)))n++;else break;}if(n>=7)add('chk:'+iso(mondayOf(new Date(t1-1))),iso(new Date(t1-DAY)),`${n} check-ups d’affilée`,'Tu prends le temps de t’écouter chaque matin : c’est ce qui rend la forme et la Bourse d’Énergie fiables.');}
+  {let n=0;for(let i=0;i<7;i++){const s=sleepOf(iso(new Date(t1-i*DAY-1)));if(s&&s.h>=7)n++;}if(n>=5)add('sleep:'+iso(mondayOf(new Date(t1-DAY))),iso(new Date(t1-DAY)),`${n} nuits de 7 h ou plus`,'Le sommeil est ta meilleure séance de récupération.');}
+  for(let t=new Date(t0);t<t1&&t<new Date(new Date().toDateString());t=new Date(t.getTime()+DAY)){const E=enData(iso(t));if(!E||E.lv[1]!=='Tendu')continue;const w=weekIdx(t),hardDone=w>=0&&w<=11&&daySessions(w,dayIdx(t)).some(o=>S.done[o.k]&&(/s\d+[AC]$/.test(o.k)||/[ql]$/.test(o.k)));if(!hardDone)add('tense:'+iso(t),iso(t),'Jour tendu respecté',`Ta Bourse d’Énergie était à ${E.sc}/100 et tu n’as pas forcé.`);}
+  Object.values(DEB()).forEach(o=>{if(!inR(parseISO(o.d)))return;(o.vic||[]).forEach(v=>VICD[v]&&add('deb:'+o.k+':'+v,o.d,VICD[v],esc(o.t)+(o.note?' — '+esc(o.note.slice(0,90)):'')));});
+  return V.sort((a,b)=>a.d<b.d?1:-1);}
+function vicCard(){const V=vicList();if(!V.length)return '';const seen=new Set(S.vicSeen||[]),nw=V.filter(v=>!seen.has(v.id));
+  if(nw.length&&S.vicToast!==iso(new Date())){S.vicToast=iso(new Date());S.vicSeen=[...seen,...nw.map(v=>v.id)].slice(-200);save();setTimeout(()=>{hap('ok');toast('Victoire invisible : '+nw[0].t);},900);}
+  return `<div class="card vic-c" onclick="openVic()"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${fic('star')} Victoires invisibles</h2><span class="tag">${V.length} cette semaine</span></div>${V.slice(0,3).map(v=>`<div class="vic-r"><b>${esc(v.t)}</b><small class="muted">${new Date(parseISO(v.d)).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}</small></div>`).join('')}</div>`;}
+function openVic(){const V=vicList(new Date(Date.now()-28*DAY));sheetOpen(sheetHead('Victoires invisibles','star')+`<p class="muted small" style="margin:6px 0 10px">Ce qui ne se voit pas dans les stats mais fait progresser : savoir lever le pied, tenir le facile, y aller quand la tête dit non. 4 dernières semaines.</p>${V.length?V.map(v=>`<div class="mem-r"><div class="mem-h">${epB('known')}<span class="mem-d">${new Date(parseISO(v.d)).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'})}</span></div><div class="mem-c"><b>${esc(v.t)}</b></div><p class="small muted" style="margin:2px 0 0">${v.x}</p></div>`).join(''):'<div class="f-empty"><b>Pas encore de victoire repérée</b><span class="muted small">Fais tes check-ups et tes débriefs : Foulée les repère pour toi.</span></div>'}`);}
+
+/* --- Boussole Ego vs Body --- */
+function egoBody(day){const d=day||iso(new Date()),c=chkOf(d);if(!c||c.motiv==null)return null;const F=[];let b=70;const add=(p,t)=>{b+=p;F.push({p,t});};
+  add([-20,-8,5,12][c.mood??2],'Énergie : '+CKMOOD[c.mood??2].split(' ').slice(1).join(' ').toLowerCase());if(c.sore)add([0,-3,-10,-18][c.sore],'Courbatures '+CKSORE[c.sore].toLowerCase());
+  const pm=Math.max(0,...(c.pain||[]).map(p=>p.lv));if(pm>=3)add(-25,'Douleur forte');else if(pm===2)add(-12,'Douleur gênante');
+  const sl=sleepOf(d);if(sl&&sl.h){if(sl.h<6)add(-12,'Nuit de '+slH(sl.h));else if(sl.h<7)add(-5,'Nuit de '+slH(sl.h));else if(sl.h>=8)add(5,'Nuit de '+slH(sl.h));}
+  const b0=fcBase();if(c.fc&&b0){const dv=c.fc-b0;if(dv>=8)add(-15,`FC au réveil +${dv} bpm`);else if(dv>=5)add(-8,`FC au réveil +${dv} bpm`);}
+  const t1=new Date(parseISO(d).getTime()+DAY),ac=loadsBetween(new Date(t1-7*DAY),t1),ch=loadsBetween(new Date(t1-28*DAY),t1),chW=ch.tot/4,acwr=chW>200?ac.tot/chW:null;if(acwr!=null){if(acwr>1.5)add(-18,`Charge à ${Math.round(acwr*100)} % de ta moyenne`);else if(acwr>1.3)add(-10,`Charge à ${Math.round(acwr*100)} % de ta moyenne`);}
+  b=Math.max(0,Math.min(100,Math.round(b)));const m=[10,35,65,90][c.motiv],st=c.stress!=null?c.stress:1;
+  const q=b>=60&&m<=35?'ego':b<45&&m>=65?'body':b<45&&m<=35?'rest':b>=60&&m>=65?'go':'mid';
+  const T={ego:['Ta tête freine, ton corps est prêt','Ça ressemble à de la flemme plus qu’à de la fatigue. Pas besoin de forcer la séance prévue : une séance Flow, courte et au plaisir, suffit pour garder le fil.'],
+   body:['Ton envie pousse, ton corps freine','Tu as envie d’y aller, mais les signaux du corps disent de lever le pied. Aujourd’hui, le repos ou une séance allégée te fera plus progresser.'],
+   rest:['Corps et tête demandent une pause','Repos ou mobilité douce : demain sera meilleur.'],
+   go:['Corps et tête alignés','Bon jour pour faire la séance prévue en entier.'],
+   mid:['Entre les deux','Fais la séance prévue et laisse l’échauffement décider : si c’est dur après 15 min, passe en facile.']}[q];
+  return {d,q,body:b,mind:m,motiv:c.motiv,stress:st,F,t:T[0],x:T[1]+(st>=2&&(q==='ego'||q==='mid')?' Ta journée est chargée : une séance Flow peut aussi servir de soupape.':'')};}
+const FLOW={run:['Sortie Flow','30 à 40 min au feeling, sans regarder l’allure : un chemin que tu aimes, quelques accélérations quand l’envie vient, arrêt dès que le plaisir baisse.'],str:['Séance Flow express','15 min, sans chrono : tes 3 exercices préférés en circuit, 4 à 5 tours, en musique.']};
+function flowApply(k){const o=sessByKey(k)||(SREG&&SREG[k]);const f=o&&o.str?FLOW.str:FLOW.run;S.adj=S.adj||{};S.adj[k]={action:'remplacer',titre:f[0],detail:f[1],flow:1};save();hap('ok');renderAll();toast('Séance Flow : juste pour le plaisir');}
+function bodyLight(k){S.adj=S.adj||{};S.adj[k]={action:'alleger',titre:'Version allégée',detail:'Ton corps freine : −30 % de volume, tout en facile, arrêt si les jambes restent lourdes après 15 min.'};save();hap('ok');renderAll();toast('Séance allégée : ton corps te dira merci');}
+function egoCard(){const E=egoBody();if(!E)return '';const T=todayFirst(),nx=T&&T.next&&!T.next.adj?T.next:null,hard=nx&&mvKind(nx.k)==='hard';
+  const pos=`left:${Math.round(E.body)}%;bottom:${Math.round(E.mind)}%`;
+  let act='';if(nx&&(E.q==='ego'||(E.q==='mid'&&E.motiv<=1)))act=`<button class="btn sm" style="margin:0" onclick="event.stopPropagation();flowApply('${nx.k}')">Passer en séance Flow</button>`;else if(nx&&(E.q==='body'||E.q==='rest'))act=`<button class="btn sm" style="margin:0" onclick="event.stopPropagation();bodyLight('${nx.k}')">Alléger ${hard?'la séance dure':'la séance'}</button>`;
+  return `<div class="card eb-c"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${fic('compass2')} Boussole Ego vs Body</h2><span class="tag">${E.q==='ego'?'Ego':E.q==='body'?'Body':E.q==='go'?'Aligné':E.q==='rest'?'Repos':'Entre-deux'}</span></div>
+   <div class="eb-w"><div class="eb-m" aria-hidden="true"><i class="eb-dot" style="${pos}"></i><span class="eb-y">envie</span><span class="eb-x">corps</span></div><div style="flex:1;min-width:0"><b class="eb-t">${esc(E.t)}</b><p class="small" style="margin:4px 0 0">${esc(E.x)}</p></div></div>
+   <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${act}<button class="chip sm why-b" onclick="openWhy('ego')">Pourquoi ?</button></div></div>`;}
+function egoWhy(){const E=egoBody();if(!E)return {facts:['Pas de check-up avec ta motivation aujourd’hui.'],reason:'Fais ton check-up du matin (énergie, stress, envie) pour activer la boussole.'};const f=x=>`${x.t} <b class="${x.p<0?'neg':'pos'}">${x.p>0?'+':''}${x.p}</b>`;
+  return {facts:E.F.filter(x=>/Énergie|Courbatures|Douleur|Nuit|FC/.test(x.t)).map(f),life:[`Envie de t’entraîner : ${CKMOT[E.motiv].toLowerCase()}`,`Stress de vie : ${CKSTRESS[E.stress].toLowerCase()}`],infer:[...E.F.filter(x=>/Charge/.test(x.t)).map(f),`Corps : ${E.body}/100 · envie : ${E.mind}/100 → ${esc(E.t.toLowerCase())}`],envis:E.q==='ego'?['La baisse d’envie vient probablement de la tête (journée, lassitude) plutôt que d’une fatigue physique']:E.q==='body'?['L’envie peut masquer une fatigue réelle : c’est souvent là que les blessures arrivent']:[],
+    counter:['Si tu te sens bien après 15 min d’échauffement, la séance prévue reste possible.','La motivation et l’énergie sont déclarées : un check-up rapide reste une estimation.'],reason:esc(E.x)};}
+{const _ow=openWhy;openWhy=function(k){if(k==='ego'){sheetOpen(sheetHead('Pourquoi ?','bulb')+'<p class="muted small" style="margin:6px 0 4px">Comment Foulée sépare la flemme de la fatigue.</p>'+whyHtml(egoWhy()));return;}return _ow(k);};}
+
+/* --- Chronique de la semaine (Narrative Engine) --- */
+const CHR=()=>{S.chron=S.chron||{};return S.chron;};
+function chronData(ws){ws=mondayOf(ws);const we=new Date(ws.getTime()+7*DAY),w=weekIdx(ws),st=weekStats(w),D=debIn(ws,we),V=vicList(ws,we<new Date()?we:new Date());
+  const days=[...Array(7)].map((_,i)=>iso(new Date(ws.getTime()+i*DAY))),E=days.map(d=>enData(d)).filter(Boolean),sl=days.map(d=>sleepOf(d)).filter(Boolean),C=days.map(d=>chkOf(d)).filter(Boolean);
+  const emoN={};D.forEach(o=>{emoN[o.emo]=(emoN[o.emo]||0)+1;});const dom=Object.entries(emoN).sort((a,b)=>b[1]-a[1])[0];
+  const pains=[...new Set(C.flatMap(c=>(c.pain||[]).filter(p=>p.lv>=2).map(p=>CHZ[p.z])))];
+  return {ws,we,w,key:iso(ws),st,D,V,dom:dom?dom[0]:null,pos:D.filter(o=>EMOT[o.emo][1]>0).length,neg:D.filter(o=>EMOT[o.emo][1]<0).length,enAvg:E.length?Math.round(E.reduce((a,x)=>a+x.sc,0)/E.length):null,enTense:E.filter(x=>x.lv[1]==='Tendu').length,slAvg:sl.length?sl.reduce((a,s)=>a+s.h,0)/sl.length:null,stressDays:C.filter(c=>c.stress>=2).length,pains,best:D.filter(o=>EMOT[o.emo][1]>0).pop()||null,hard:D.filter(o=>EMOT[o.emo][1]<0).pop()||null};}
+function chronLocal(X){const s=X.st,P=[],km=kmFr(s.km);
+  if(!s.runs&&!s.f&&!X.D.length)return 'Semaine calme : pas de sortie ni de séance enregistrée. Parfois, le repos fait partie de l’histoire.';
+  P.push(s.n?`Semaine ${s.f>=s.n?'bouclée':'à '+s.f+' séance'+(s.f>1?'s':'')+' sur '+s.n} : ${km} km${s.dp>=50?' et '+Math.round(s.dp)+' m de D+':''}${s.kmT?' pour '+s.kmT+' prévus':''}.`:`${s.runs} sortie${s.runs>1?'s':''}, ${km} km${s.dp>=50?' et '+Math.round(s.dp)+' m de D+':''}.`);
+  if(s.best)P.push(`La plus longue : ${esc(s.best.name)} (${kmFr(s.best.distance/1000)} km).`);
+  if(X.dom)P.push(`Côté sensations, c’est « ${EMOT[X.dom][0].toLowerCase()} » qui revient le plus${X.D.length>1?' ('+X.pos+' moments positifs, '+X.neg+' plus durs)':''}.`);
+  if(X.best&&X.best.note)P.push(`Le moment de la semaine : « ${esc(X.best.note.slice(0,120))} ».`);
+  if(X.stressDays>=2||X.enTense)P.push(`La vie a pesé : ${X.stressDays>=2?X.stressDays+' jours de stress chargé':''}${X.stressDays>=2&&X.enTense?' et ':''}${X.enTense?X.enTense+' jour'+(X.enTense>1?'s':'')+' tendu'+(X.enTense>1?'s':'')+' sur la Bourse d’Énergie':''}.`);
+  else if(X.enAvg!=null)P.push(`Bourse d’Énergie moyenne : ${X.enAvg}/100.`);
+  if(X.slAvg)P.push(`Nuits à ${slH(X.slAvg)} en moyenne.`);
+  if(X.pains.length)P.push(`À surveiller : ${X.pains.join(', ').toLowerCase()}.`);
+  if(X.V.length)P.push(`Et ${X.V.length} victoire${X.V.length>1?'s':''} invisible${X.V.length>1?'s':''}, dont : ${X.V[0].t.toLowerCase()}.`);
+  return P.join(' ');}
+async function chronAI(key){const X=chronData(parseISO(key)),s=X.st;if(!getKey()){toast('Ajoute ta clé API dans les réglages pour une chronique rédigée');return;}const b=$('#chrGo');if(b){b.disabled=true;b.textContent='Foulée écrit ta chronique…';}
+  const data={semaine_du:key,seances_faites:s.f,seances_prevues:s.n,km:+s.km.toFixed(1),km_prevus:s.kmT,dplus:Math.round(s.dp),sorties:getRuns().filter(r=>{const d=localDate(r.start_date_local);return d>=X.ws&&d<X.we;}).map(r=>({date:r.start_date_local.slice(0,10),nom:r.name,km:+(r.distance/1000).toFixed(1),dplus:Math.round(r.total_elevation_gain||0),duree:fmtDur(r.moving_time)})),
+    debriefs:X.D.map(o=>({date:o.d,seance:o.t,emotion:EMOT[o.emo][0],mots:o.note||null,victoires:(o.vic||[]).map(v=>VICD[v])})),victoires_invisibles:X.V.map(v=>v.t),bourse_energie_moyenne:X.enAvg,jours_tendus:X.enTense,jours_de_stress_charge:X.stressDays,sommeil_moyen_h:X.slAvg?+X.slAvg.toFixed(1):null,douleurs:X.pains,memoire_foulee:memCtx().slice(0,15)};
+  try{const j=await claude({system:COACH_SYS+FOULEE_SYS,messages:[{role:'user',content:`Écris la chronique de ma semaine sportive : un récit vivant de 120 à 170 mots, en français, tutoiement, au passé composé, comme un journaliste bienveillant qui me connaît. Relie les séances, les émotions, le contexte de vie et la progression. N’invente rien : appuie-toi uniquement sur ces données (si une donnée manque, n’en parle pas). Pas de titre, pas de liste, pas d’étiquettes [SAVOIR]. Termine par une phrase qui ouvre sur la semaine suivante. Tu peux ajouter le bloc <memoire> si une leçon durable ressort.\n\nDonnées : ${JSON.stringify(data)}`}],max:900});
+    const R=memParse(textOf(j));CHR()[key]={ai:epStrip(R.text),mp:R.mp,at:Date.now()};save();}catch(e){toast(e.message);}
+  openChron(key);}
+function chronCard(){const d=dayIdx(),h=new Date().getHours();if(!((d===6&&h>=15)||d===0||(d===1&&h<20)))return '';const ws=mondayOf(d===6?new Date():new Date(Date.now()-7*DAY)),key=iso(ws);if((S.chronSeen||'')===key)return '';const X=chronData(ws);if(!X.st.runs&&!X.st.f&&!X.D.length)return '';const C=CHR()[key],txt=C&&C.ai?C.ai:chronLocal(X);
+  return `<div class="card chr-c" onclick="openChron('${key}')"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 style="margin:0">${fic('book')} Ta chronique de la semaine</h2><button class="ib" aria-label="Masquer" onclick="event.stopPropagation();S.chronSeen='${key}';save();renderToday()">✕</button></div><p class="small chr-x" style="margin:8px 0 0">${esc((txt.match(/[^.!?]+[.!?]+/g)||[txt]).slice(0,2).join(' ').trim())}</p><span class="chip sm" style="margin-top:8px;display:inline-flex">Lire la chronique</span></div>`;}
+function openChron(key){const ws=key?parseISO(key):mondayOf(new Date(Date.now()-(dayIdx()<6?7:0)*DAY));key=iso(mondayOf(ws));const X=chronData(parseISO(key)),C=CHR()[key],s=X.st,txt=C&&C.ai?C.ai:chronLocal(X),prev=iso(new Date(parseISO(key).getTime()-7*DAY)),next=iso(new Date(parseISO(key).getTime()+7*DAY)),cur=iso(mondayOf(new Date()));
+  const fin=new Date(parseISO(key).getTime()+6*DAY),lab=`du ${parseISO(key).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} au ${fin.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
+  sheetOpen(sheetHead('Chronique de la semaine','book')+`<div class="row chr-nav"><button class="chip sm" onclick="openChron('${prev}')">‹</button><b>${lab}</b><button class="chip sm" ${next>cur?'disabled':''} onclick="openChron('${next}')">›</button></div>
+   <div class="chr-st"><div><b>${kmFr(s.km)}</b><small>km</small></div><div><b>${Math.round(s.dp)}</b><small>m D+</small></div><div><b>${s.n?s.f+'/'+s.n:s.runs}</b><small>${s.n?'séances':'sorties'}</small></div><div><b>${X.enAvg??'–'}</b><small>énergie</small></div></div>
+   ${X.D.length?`<div class="chr-emo">${X.D.map(o=>`<span class="chip sm ${EMOT[o.emo][1]<0?'emo-n':'emo-p'} on">${EMOT[o.emo][0]}</span>`).join('')}</div>`:''}
+   <p class="chr-txt">${esc(txt)}</p><p class="muted small" style="margin:0 2px">${C&&C.ai?'Rédigée par Foulée le '+new Date(C.at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'Version automatique, calculée sur ton téléphone.'}</p>
+   ${C&&C.mp&&C.mp.length?`<div class="memp"><div class="memp-t">${fic('brain')}Foulée propose de retenir</div>${C.mp.map((p,j)=>`<div class="memp-r"><div class="memp-c">${epB(p.ep)}${esc(p.c)}</div><div class="memp-b"><button class="chip sm" onclick="chrMem('${key}',${j},1)">Retenir</button><button class="chip sm" onclick="chrMem('${key}',${j},0)">Ignorer</button></div></div>`).join('')}</div>`:''}
+   ${X.V.length?`<h3 class="eyebrow mem-g">Victoires invisibles</h3>${X.V.map(v=>`<div class="why-r">${epB('known')}<span>${esc(v.t)}</span></div>`).join('')}`:''}
+   <div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn sm ai-b" id="chrGo" style="margin:0" onclick="chronAI('${key}')">${C&&C.ai?'Réécrire avec Foulée':'Rédiger avec Foulée'}</button><button class="btn sm ghost" style="margin:0" onclick="vPrime();vSay($('.chr-txt').textContent)">🔊 Écouter</button></div>`);}
+function chrMem(key,j,ok){const C=CHR()[key];if(!C||!C.mp||!C.mp[j])return;const p=C.mp.splice(j,1)[0];if(!C.mp.length)delete C.mp;if(ok){memAdd(p,'ai');toast('Retenu dans la mémoire de Foulée');}else save();openChron(key);}
+
+/* --- Intégration --- */
+{const _cc=coachContext;coachContext=function(){const o=_cc.apply(this,arguments);try{const t0=new Date(Date.now()-7*DAY);o.debriefs_recents=debIn(t0,new Date(Date.now()+DAY)).slice(-8).map(x=>({date:x.d,seance:x.t,emotion:EMOT[x.emo][0],mots:x.note||null}));o.victoires_invisibles_7j=vicList().slice(0,6).map(v=>v.t);const E=egoBody();o.boussole_ego_body=E?{lecture:E.t,corps_sur_100:E.body,envie_sur_100:E.mind,conseil:E.x}:null;}catch(e){console.warn('ctx v12.2',e);}return o;};}
+PLUSI.push({k:'chron',g:4,ic:'book',c:'var(--ok)',t:'Chroniques de la semaine',st:'Chronique',s:'Ta semaine racontée : séances, émotions, contexte',fn:"openChron()"},
+ {k:'vic',g:4,ic:'star',c:'var(--ok)',t:'Victoires invisibles',st:'Victoires',s:'Ce qui ne se voit pas dans les stats',fn:"openVic()"},
+ {k:'debrief',g:2,ic:'feather',c:'var(--muscu)',t:'Débrief à chaud',st:'Débrief',s:'L’émotion juste après l’effort',fn:"(()=>{const P=debPending();openDebrief(P?P.k:(Object.entries(S.doneAt||{}).sort((a,b)=>b[1]-a[1])[0]||['m'+Date.now()])[0]);})()"});
+try{SPACE[4][2].splice(2,0,'debrief');SPACE[5][2].splice(0,0,'chron','vic');}catch(e){}
 
 planStart();viewWeek=Math.max(0,Math.min(11,weekIdx()));
 mvClean();eiStart();initChrono();linkPlan(true);renderAll();navInit();setTimeout(heatAutoRun,1800);splashOff();setTimeout(seasonTick,1200);evCacheLoad();showInstall(false);setTimeout(cdjTick,2500);
