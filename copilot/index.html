@@ -112,6 +112,7 @@ body[data-state="listening"]{--state:var(--lagoon)}
 body[data-state="thinking"]{--state:#b9a6ff}
 body[data-state="speaking"]{--state:var(--amber)}
 body[data-state="paused"]{--state:var(--dim)}
+body[data-state="french"]{--state:#ff9ecf}
 body[data-state="idle"]{--state:var(--amber)}
 
 /* sheet */
@@ -193,7 +194,7 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><span id="profileInfo"></span><span class="ver">v1.1</span></div>
+    <div class="meta"><span id="profileInfo"></span><span class="ver">v1.2</span></div>
   </div>
 </div>
 
@@ -246,7 +247,7 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
 
     <p class="note">Ce que vous pouvez dire pendant la séance :</p>
     <div class="cmds">
-      <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span>
+      <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span><span>in French</span>
       <span>explain</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
     </div>
     <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
@@ -288,9 +289,10 @@ const wave = (() => {
   const palette = {
     idle:['#ffb547','#ff8f6b','#4fe3c1'], listening:['#4fe3c1','#7af0ff','#9b8cff'],
     thinking:['#b9a6ff','#7f8cff','#4fe3c1'], speaking:['#ffb547','#ffd28a','#ff8f6b'],
-    paused:['#5c6199','#474b80','#3b3f6e']
+    paused:['#5c6199','#474b80','#3b3f6e'],
+    french:['#ff9ecf','#ffffff','#7af0ff']
   };
-  const base = {idle:.18, listening:.32, thinking:.22, speaking:.42, paused:.06};
+  const base = {idle:.18, listening:.32, thinking:.22, speaking:.42, paused:.06, french:.34};
   function resize(){
     dpr = Math.min(window.devicePixelRatio||1, 2);
     const r = cv.getBoundingClientRect(); w = r.width; h = r.height;
@@ -343,7 +345,8 @@ const COPY = {
   listening: ['I’m', 'listening.'],
   thinking:  ['Thinking', 'it over…'],
   speaking:  ['Coach', 'speaking.'],
-  paused:    ['On', 'pause.']
+  paused:    ['On', 'pause.'],
+  french:    ['En français,', 'je vous écoute.']
 };
 function setState(s, _text, subtext){
   document.body.dataset.state = s;
@@ -356,7 +359,7 @@ function setState(s, _text, subtext){
   wave.set(s);
   if(!session.active){ big.textContent = 'Démarrer la séance'; big.classList.remove('live'); return; }
   big.classList.add('live');
-  big.textContent = {listening:'Mettre en pause', paused:'Reprendre', speaking:'Couper la parole', thinking:'Un instant…'}[s] || 'Pause';
+  big.textContent = {french:'Dites le mot en français', listening:'Mettre en pause', paused:'Reprendre', speaking:'Couper la parole', thinking:'Un instant…'}[s] || 'Pause';
 }
 function addLog(who, text){
   if(who === 'coach') lineEl.textContent = text;
@@ -413,12 +416,12 @@ function speak(text, rateMul=1){
 /* ---------- speech recognition ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
-function listenOnce(){
+function listenOnce(lang='en-US'){
   return new Promise(resolve => {
     if(!SR){ resolve({error:'unsupported'}); return; }
     let finalText = '', interim = '', silenceTimer = null, settled = false;
     const r = new SR(); rec = r;
-    r.lang = 'en-US'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    r.lang = lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
     const settle = (res) => { if(settled) return; settled = true; clearTimeout(silenceTimer); rec = null; resolve(res); };
     r.onresult = (e) => {
       interim = '';
@@ -513,6 +516,7 @@ S'il dit "free talk", "coach mode" ou "intensive", change de niveau.
 
 # COMMANDES
 "How do you say..." / "I don't know how to say..." / mot français : donne la formulation naturelle en 1 à 3 mots, puis invite-le à reprendre sa phrase. Ex : "dédouanement" → "You can say customs clearance. Try the sentence again."
+Message commençant par [MOT EN FRANÇAIS] : il cherche ce mot ou cette expression en anglais. Donne la traduction la plus naturelle dans son contexte (métier du fret et de la douane si pertinent), en 1 à 4 mots, puis invite-le à reprendre sa phrase avec ce mot. Si deux traductions courantes existent, donne la plus usuelle seulement. Ex : "You can say customs clearance. Try your sentence again." Réutilise ce mot plus tard dans la séance pour l'ancrer.
 "Explain" / "Explique" / "French please" : explication en français, 2 phrases maximum, puis retour immédiat à l'anglais.
 
 # DÉBUT ET FIN
@@ -524,7 +528,8 @@ Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de 
 const SUMMARY_SYSTEM = `Tu analyses la transcription d'une séance de coaching d'anglais oral (l'apprenant est francophone, ses phrases viennent d'une reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes).
 Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour :
 {"topics":["..."],"new_errors":["erreur courte -> forme correcte"],"vocabulary_used":["mots cibles réutilisés correctement"],"new_vocabulary":["mots ou expressions nouveaux appris"],"summary":"2 phrases max en anglais sur ce dont il a parlé (faits personnels et professionnels utiles pour la prochaine séance)."}
-Maximum 4 éléments par liste.`;
+Les messages [MOT EN FRANÇAIS] sont des mots qu'il ne connaissait pas : mets TOUJOURS leur traduction anglaise dans new_vocabulary, sous la forme "customs clearance (dédouanement)".
+Maximum 6 éléments par liste.`;
 
 function transcriptOf(msgs){
   return msgs.filter(m => !/^\[SESSION_/.test(m.content))
@@ -542,7 +547,7 @@ async function summarizePending(){
   const uniq = (arr) => [...new Map(arr.filter(Boolean).map(x => [String(x).toLowerCase().trim(), String(x).trim()])).values()];
   p.RECURRING_ERRORS = uniq([...(j.new_errors||[]), ...p.RECURRING_ERRORS]).slice(0, 10);
   const used = new Set((j.vocabulary_used||[]).map(x => String(x).toLowerCase().trim()));
-  p.TARGET_VOCABULARY = uniq([...p.TARGET_VOCABULARY.filter(v => !used.has(v.toLowerCase().trim())), ...(j.new_vocabulary||[])]).slice(-10);
+  p.TARGET_VOCABULARY = uniq([...p.TARGET_VOCABULARY.filter(v => !used.has(v.toLowerCase().trim())), ...(j.new_vocabulary||[])]).slice(-15);
   p.RECENT_SESSIONS.push({ date: pend.date, mode: pend.mode, topics: j.topics||[], summary: j.summary||'' });
   p.RECENT_SESSIONS = p.RECENT_SESSIONS.slice(-8);
   store.pending = null; save(); renderProfile();
@@ -555,7 +560,9 @@ const RX = {
   pause:  /\b(pause|stop|wait|hold on|attends?|je dois me concentrer)\b/,
   resume: /\b(resume|continue|go on|i'?m back|on reprend|reprends?|let'?s go|let'?s continue)\b/,
   end:    /\b(end (the )?session|on arrete|i'?ve arrived|i am arrived|i'?m arrived|that'?s all for today|stop the session)\b/,
-  repeat: /\b(repeat|repete|slower|plus lentement|say (it|that) again|again please|pardon)\b/
+  repeat: /\b(repeat|repete|slower|plus lentement|say (it|that) again|again please|pardon)\b/,
+  ask:    /\b(how do you say|how (can|do) i say|how to say|i don'?t know how to say|i don'?t know the word|comment on dit|comment dit on)\b/,
+  askFr:  /\b(in french|en francais|french word|un mot francais)\b/
 };
 
 /* ---------- session ---------- */
@@ -620,9 +627,32 @@ async function loop(){
     if(RX.repeat.test(n) && wc(n) <= 5 && session.lastReply){
       setState('speaking','Plus lentement…'); await speak(session.lastReply, 0.8); continue;
     }
+    // a French word is coming: unless what follows is clearly an English sentence
+    // ("how do you say that a flight is late"), switch the next listen to French
+    const askFr = RX.askFr.test(n) && wc(n) <= 4;
+    let askEn = false;
+    if(RX.ask.test(n)){
+      const after = n.split(RX.ask).pop().replace(/^(it|this|in english)\b/,'').trim();
+      const englishSentence = wc(after) >= 4 && /^(that|the|a|an|when|if|to|my|your|our|something|someone|we|i|he|she|they)\b/.test(after);
+      askEn = !englishSentence;
+    }
+    if(askFr || askEn){ const ok = await frenchWord(); if(!ok) return; continue; }
     const ok = await turn(text);
     if(!ok) return;
   }
+}
+
+async function frenchWord(){
+  setState('speaking','');
+  await speak("Go ahead, in French.");
+  if(!session.active) return false;
+  setState('french','Dites le mot ou l’expression en français.');
+  const res = await listenOnce('fr-FR');
+  if(!session.active) return false;
+  const fr = (res.text || '').trim();
+  if(!fr){ setState('speaking',''); await speak("I didn't catch it. Let's keep going."); return true; }
+  const prev = [...session.messages].reverse().find(m => m.role==='user' && !m.content.startsWith('['));
+  return await turn('[MOT EN FRANÇAIS] ' + fr + (prev ? ' (dans le contexte de sa phrase : "' + prev.content + '")' : ''));
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
