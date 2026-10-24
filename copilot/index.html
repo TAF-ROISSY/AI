@@ -93,6 +93,15 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .seg button.on{background:rgba(217,220,255,.16);color:#fff}
 .seg-label{font-size:12px;color:var(--dim);margin:0 0 6px 4px;font-weight:500}
 
+.hint{border-radius:20px;padding:14px 16px;border:1px solid rgba(155,140,255,.45);
+  background:radial-gradient(120% 120% at 0% 0%, rgba(155,140,255,.22), transparent 60%), rgba(255,255,255,.05);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.hint p{margin:0 0 12px;font-size:14px;line-height:1.45;color:var(--mist)}
+.hint p b{color:#fff;font-weight:700}
+.hint .row2{display:flex;gap:8px}
+.hint button{flex:1;border:0;border-radius:12px;padding:11px 8px;font-size:14.5px;font-weight:680}
+.hint #hintYes{background:#b9a6ff;color:#1a1640}
+.hint #hintNo{background:rgba(255,255,255,.08);color:var(--mist)}
 .recap{width:100%;border:1px solid rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:var(--amber);
   padding:13px;border-radius:999px;font-size:15px;font-weight:650}
 .controls{display:flex;align-items:center;gap:14px}
@@ -324,6 +333,10 @@ details.tr[open] summary::after{content:"–"}
         </div>
       </div>
     </div>
+    <div class="hint" id="modelHint" hidden>
+      <p><b>Vous voici en Croisière.</b> Passez au coach Sonnet pour des corrections plus fines, environ 17 $ par mois au lieu de 1 $.</p>
+      <div class="row2"><button id="hintYes">Passer à Sonnet</button><button id="hintNo">Plus tard</button></div>
+    </div>
     <button class="recap" id="recap" hidden>Voir le bilan de la séance</button>
     <div class="controls">
       <button id="big">Démarrer la séance</button>
@@ -331,7 +344,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.6</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.7</span></div>
   </div>
 </div>
 
@@ -1129,7 +1142,7 @@ async function startSession(){
   Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(), scenes:pickScenes() });
   if(store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
   lineEl.textContent = '';
-  $('recap').hidden = true;
+  $('recap').hidden = true; $('modelHint').hidden = true;
   stopBtn.style.display = 'grid';
   keepAwake();
   if(store.pending){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
@@ -1155,7 +1168,8 @@ async function stopSession(summarize){
       if(res && res.rec){ $('recap').hidden = false; $('recap').dataset.id = res.rec.id; }
       if(res && res.phaseUp){
         setState('idle', 'Nouvelle phase atteinte : ' + res.phaseUp.name + ', ' + res.phaseUp.fr.toLowerCase() + '.');
-        speak(`Congratulations! You've just reached the ${res.phaseUp.name} phase.`);
+        speak(`Congratulations! You've just reached the ${res.phaseUp.name} phase.` +
+          (res.phaseUp.name === 'Cruise' && store.settings.model === 'claude-haiku-5-5' ? ' Your English is now ready for a more demanding coach. Have a look at the suggestion on your screen when you stop.' : ''));
       } else setState('idle', res ? 'Séance enregistrée. Votre bilan est prêt.' : 'Séance terminée. Bonne route !');
     }
     catch(e){ setState('idle','Séance terminée. Le bilan sera préparé au prochain démarrage.'); }
@@ -1180,6 +1194,8 @@ function renderMeta(){
   b.innerHTML = st.sessions
     ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
     : `<i></i><span>Première séance</span>`;
+  const s = store.settings;
+  $('modelHint').hidden = !(!session.active && ph.index >= 3 && s.model === 'claude-haiku-5-5' && !s.modelHintDone && Date.now() > (s.modelHintSnooze || 0));
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
   const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
 }
@@ -1333,6 +1349,11 @@ function openDetail(id){
   $('progBody').scrollTop = 0;
 }
 
+$('hintYes').onclick = () => {
+  store.settings.model = 'claude-sonnet-5-5'; store.settings.modelHintDone = true; save(); renderMeta();
+  toast('Coach Sonnet activé. Retour à Haiku possible dans les réglages.');
+};
+$('hintNo').onclick = () => { store.settings.modelHintSnooze = Date.now() + 14*864e5; save(); renderMeta(); toast('Je vous le reproposerai dans deux semaines.'); };
 $('openProgress').onclick = openProgress;
 $('progBtn').onclick = openProgress;
 $('recap').onclick = () => { openProgress(); openDetail($('recap').dataset.id); };
@@ -1652,6 +1673,7 @@ function closeSettings(){
   s.apiKey = $('apiKey').value.trim(); s.model = $('model').value; s.name = $('name').value.trim() || 'Christophe';
   s.level = $('level').value; s.rate = parseFloat($('rate').value); s.voiceURI = $('voice').value || s.voiceURI;
   s.weeklyGoal = parseInt($('goal').value, 10) || 300;
+  if(s.model !== 'claude-haiku-5-5') s.modelHintDone = true;
   save(); closeSheet('sheet'); renderMeta();
   if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, ensuite tout se passe à la voix.' : 'Ajoutez votre clé API dans les réglages.');
 }
@@ -1662,7 +1684,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.6', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
+  const data = { app:'english-copilot', version:'1.7', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
