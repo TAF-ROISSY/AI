@@ -164,6 +164,14 @@ body[data-state="idle"]{--state:var(--amber)}
 .phase-foot{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--dim)}
 .phase-foot b{color:var(--amber);font-weight:750;font-size:20px;letter-spacing:-.02em;margin-right:3px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.week{margin:0 0 12px;padding:16px 18px;border-radius:22px;border:1px solid var(--glass-line);background:rgba(255,255,255,.04)}
+.week-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.week-top h3{margin:0;font-size:17px;font-weight:700;color:#fff}
+.week-top span{font-size:14px;color:var(--mist)}
+.week-top span b{color:#fff;font-weight:700}
+.bar{height:10px;border-radius:10px;background:rgba(217,220,255,.1);margin:12px 0 10px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:10px;background:linear-gradient(90deg,var(--lagoon),var(--amber));transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.week p{margin:0;font-size:13.5px;color:var(--dim);line-height:1.45}
 .stat{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:14px}
 .stat b{display:block;font-size:30px;font-weight:760;letter-spacing:-.03em;font-variation-settings:"wdth" 80;color:#fff;line-height:1}
 .stat span{display:block;margin-top:6px;font-size:13px;color:var(--dim);line-height:1.3}
@@ -323,7 +331,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.5</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.6</span></div>
   </div>
 </div>
 
@@ -340,8 +348,13 @@ details.tr[open] summary::after{content:"–"}
         <svg id="flight" viewBox="0 0 340 132" aria-hidden="true"></svg>
         <div class="phase-foot"><span id="milesNow"></span><span id="milesNext"></span></div>
       </section>
+      <section class="week">
+        <div class="week-top"><h3>Cette semaine</h3><span id="weekLabel"></span></div>
+        <div class="bar"><i id="weekBar"></i></div>
+        <p id="weekNote"></p>
+      </section>
       <div class="stats" id="stats"></div>
-      <p class="note">Les miles se gagnent en parlant : 10 par minute de conversation, 20 par séance, 50 par mot maîtrisé.</p>
+      <p class="note">Les miles se gagnent en parlant : 10 par minute de conversation, 20 par séance, 50 par mot maîtrisé. Les phases sont calées sur 5 h par semaine : Long-courrier, soit le niveau B2, en neuf mois environ.</p>
 
       <section class="block">
         <div class="block-head"><h3>Aisance à l’oral</h3><span id="flLegend"></span></div>
@@ -397,6 +410,8 @@ details.tr[open] summary::after{content:"–"}
 
     <div class="group">
       <div class="field"><label for="name">Prénom</label><input id="name" type="text"></div>
+      <div class="field"><label for="goal">Objectif hebdomadaire</label>
+        <select id="goal"><option value="120">2 h par semaine</option><option value="180">3 h par semaine</option><option value="300">5 h par semaine</option><option value="420">7 h par semaine</option><option value="600">10 h par semaine</option></select></div>
       <div class="field"><label for="level">Niveau de départ</label>
         <select id="level"><option>A2</option><option selected>B1</option><option>B2</option><option>C1</option></select></div>
     </div>
@@ -442,7 +457,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* ---------- storage ---------- */
 const defaults = {
   settings: { apiKey:'', model:'claude-haiku-5-5', name:'Christophe', level:'B1',
-              voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH', theme:'MIX', nextScene:'' },
+              voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH', theme:'MIX', nextScene:'', weeklyGoal:300 },
   profile:  { LEXICON:[], ERRORS:[] },
   history:  [],
   customScenes: [],
@@ -499,13 +514,30 @@ function recurringErrors(){
   return [...store.profile.ERRORS].sort((a,b) => (b.count - a.count) || String(b.last).localeCompare(String(a.last)))
     .slice(0,10).map(e => e.correct ? `${e.said} -> ${e.correct}` : e.said);
 }
+// calibrated on 5 h a week (about 3 700 miles a week): Long-haul ≈ 9 months ≈ B2
 const PHASES = [
-  { name:'Taxi',      fr:'Roulage',       min:0,    desc:'Vous prenez vos marques.' },
-  { name:'Take-off',  fr:'Décollage',     min:300,  desc:'Les échanges deviennent réguliers.' },
-  { name:'Climb',     fr:'Montée',        min:1000, desc:'Vous gagnez en aisance.' },
-  { name:'Cruise',    fr:'Croisière',     min:2500, desc:'La conversation coule.' },
-  { name:'Long-haul', fr:'Long-courrier', min:5000, desc:'Vous tenez la distance en anglais.' }
+  { name:'Taxi',      fr:'Roulage',       min:0,      desc:'Vous prenez vos marques.' },
+  { name:'Take-off',  fr:'Décollage',     min:15000,  desc:'Les automatismes arrivent sur les phrases courantes.' },
+  { name:'Climb',     fr:'Montée',        min:45000,  desc:'À l’aise en voyage, plus fluide sur votre métier.' },
+  { name:'Cruise',    fr:'Croisière',     min:95000,  desc:'Vous suivez une conversation rapide sans traduire.' },
+  { name:'Long-haul', fr:'Long-courrier', min:145000, desc:'À l’aise en réunion et au téléphone : niveau B2.' }
 ];
+const DEFAULT_WEEKLY_MILES = 3700;
+function weekStart(d = new Date()){ const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function weekly(){
+  const ws = weekStart(), goal = store.settings.weeklyGoal || 300;
+  const mins = store.history.filter(r => new Date(r.date) >= ws).reduce((a,r) => a + (r.minutes||0), 0);
+  // pace: miles earned over the last 4 weeks (or since the first session, if more recent)
+  const h = store.history; let rate = 0;
+  if(h.length){
+    const from = Math.max(new Date(h[0].date).getTime(), Date.now() - 28*864e5);
+    const recent = h.filter(r => new Date(r.date).getTime() >= from);
+    const miles = recent.reduce((a,r) => a + (r.minutes||0)*10 + 20 + (r.vocabulary||[]).length*25, 0);
+    const weeks = Math.max(1, (Date.now() - from) / (7*864e5));
+    rate = miles / weeks;
+  }
+  return { mins, goal, rate: rate || (goal/300) * DEFAULT_WEEKLY_MILES, measured: rate > 0 };
+}
 const SCENES = [
   { key:'airport_checkin', en:'Check‑in',        fr:'Enregistrement',       brief:'airline check-in desk agent: passport, luggage, seat preference, excess baggage, boarding time' },
   { key:'immigration',     en:'Passport control', fr:'Contrôle des passeports', brief:'immigration officer: purpose of the visit, length of stay, accommodation, return ticket' },
@@ -1146,7 +1178,7 @@ function renderMeta(){
   const st = stats(), ph = phaseOf(st.miles);
   const b = $('progBtn');
   b.innerHTML = st.sessions
-    ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${fmtN(st.miles)} miles</span>`
+    ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
     : `<i></i><span>Première séance</span>`;
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
   const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
@@ -1217,7 +1249,17 @@ function renderProgress(){
   $('phaseName').textContent = ph.name;
   $('phaseDesc').textContent = ph.fr + '. ' + ph.desc;
   $('milesNow').innerHTML = `<b>${fmtN(st.miles)}</b>miles`;
-  $('milesNext').textContent = ph.next ? fmtN(ph.next.min - st.miles) + ' miles avant ' + ph.next.name : 'Phase maximale atteinte';
+  $('weekBar').style.width = '0%';
+  const wk = weekly();
+  const eta = m => { const w = Math.max(0, m) / wk.rate; return w < 1.5 ? 'd’ici une semaine' : w < 9 ? 'dans ' + Math.round(w) + ' semaines' : 'vers ' + new Date(Date.now() + w*7*864e5).toLocaleDateString('fr-FR', {month:'long', year:'numeric'}); };
+  $('milesNext').textContent = ph.next ? fmtN(ph.next.min - st.miles) + ' avant ' + ph.next.name : 'Phase maximale atteinte';
+  const pct = Math.min(1, wk.mins / wk.goal), left = Math.max(0, wk.goal - wk.mins);
+  $('weekLabel').innerHTML = `<b>${esc(fmtMin(wk.mins))}</b> sur ${esc(fmtMin(wk.goal))}`;
+  requestAnimationFrame(() => { $('weekBar').style.width = (pct*100).toFixed(1) + '%'; });
+  const last = PHASES[PHASES.length-1];
+  $('weekNote').textContent = (left > 0 ? 'Encore ' + fmtMin(left) + ' pour tenir votre objectif. ' : 'Objectif de la semaine atteint. ')
+    + (ph.next ? (wk.measured ? 'À votre rythme actuel, ' : 'Avec cet objectif, ') + ph.next.name + ' ' + eta(ph.next.min - st.miles)
+      + (ph.index < PHASES.length - 2 ? ', ' + last.name + ' (B2) ' + eta(last.min - st.miles) : '') + '.' : 'Vous avez atteint la dernière phase.');
   drawFlight(ph);
   $('stats').innerHTML = [
     [st.sessions, st.sessions > 1 ? 'séances' : 'séance'],
@@ -1601,7 +1643,7 @@ function exportLexiconPDF(btn){ withPDF(btn, 'Lexique', buildLexiconPDF, 'lexiqu
 function openSettings(){
   const s = store.settings;
   $('apiKey').value = s.apiKey; $('model').value = s.model; $('name').value = s.name;
-  $('level').value = s.level; $('rate').value = s.rate; $('rateVal').textContent = s.rate;
+  $('level').value = s.level; $('rate').value = s.rate; $('rateVal').textContent = s.rate; $('goal').value = String(s.weeklyGoal || 300);
   loadVoices();
   $('sheet').classList.add('open');
 }
@@ -1609,6 +1651,7 @@ function closeSettings(){
   const s = store.settings;
   s.apiKey = $('apiKey').value.trim(); s.model = $('model').value; s.name = $('name').value.trim() || 'Christophe';
   s.level = $('level').value; s.rate = parseFloat($('rate').value); s.voiceURI = $('voice').value || s.voiceURI;
+  s.weeklyGoal = parseInt($('goal').value, 10) || 300;
   save(); closeSheet('sheet'); renderMeta();
   if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, ensuite tout se passe à la voix.' : 'Ajoutez votre clé API dans les réglages.');
 }
@@ -1619,7 +1662,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.5', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
+  const data = { app:'english-copilot', version:'1.6', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
