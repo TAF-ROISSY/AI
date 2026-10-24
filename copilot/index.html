@@ -59,7 +59,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 }
 
 /* top bar */
-.top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}
+.top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:5}
 .hello{font-size:17px;font-weight:500;font-variation-settings:"wdth" 90;color:var(--dim)}
 .hello strong{color:var(--mist);font-weight:650}
 .top-actions{display:flex;gap:10px}
@@ -68,14 +68,14 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .gear svg{width:22px;height:22px}
 
 /* stage */
-.stage{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.stage{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden;padding-top:8px}
 .headline{position:relative;z-index:2;margin:0 0 4px;
   font-size:clamp(46px,14vw,92px);line-height:.92;font-weight:780;letter-spacing:-.035em;
   font-variation-settings:"wdth" 78,"opsz" 96;color:#fff;transition:color .5s}
 .headline .tail{display:block;color:var(--state);transition:color .5s}
 .subline{position:relative;z-index:2;font-size:15px;color:var(--dim);min-height:22px;max-width:34ch;margin:10px 0 0;
   overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-#wave{position:relative;width:calc(100% + 40px);margin:18px -20px 0;height:min(34vh,260px);display:block;
+#wave{position:relative;width:calc(100% + 40px);margin:12px -20px 0;flex:0 1 min(28vh,240px);min-height:56px;height:min(28vh,240px);display:block;
   -webkit-mask-image:radial-gradient(ellipse 70% 50% at 50% 55%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 70% 50% at 50% 55%,#000 45%,transparent 100%)}
 .coachline{position:relative;z-index:2;font-size:clamp(19px,5.2vw,24px);line-height:1.32;font-weight:420;
   font-variation-settings:"wdth" 92,"opsz" 24;color:var(--mist);margin:6px 0 0;max-width:30ch;min-height:2.6em;
@@ -85,6 +85,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 /* dock */
 .dock{position:relative;z-index:2;display:grid;gap:14px}
 .switches{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.theme-row{grid-column:1/-1}
 .seg{display:flex;background:var(--glass);border:1px solid var(--glass-line);border-radius:14px;padding:3px;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .seg button{flex:1;border:0;background:transparent;padding:10px 4px;border-radius:11px;font-size:13.5px;font-weight:560;color:var(--dim);
@@ -182,6 +183,19 @@ body[data-state="idle"]{--state:var(--amber)}
 .hrow > svg{width:18px;height:18px;color:var(--dim);flex:none}
 .hscore{flex:none;font-size:13px;color:var(--lagoon);font-weight:650}
 
+/* travel stamps */
+.stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px;margin-top:4px}
+.stamp{position:relative;min-height:98px;padding:12px 6px 10px;border-radius:16px;border:1.5px dashed rgba(217,220,255,.2);
+  background:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  transition:transform .25s}
+.stamp b{font-size:15px;font-weight:740;line-height:1.05;letter-spacing:-.01em;font-variation-settings:"wdth" 80}
+.stamp span{font-size:11.5px;line-height:1.2;margin-top:5px;opacity:.85}
+.stamp em{position:absolute;top:6px;right:9px;font-style:normal;font-size:11px;font-weight:700}
+.stamp.done{color:var(--c);border:2px solid currentColor;outline:1px solid currentColor;outline-offset:3px;
+  background:color-mix(in srgb, var(--c) 7%, transparent);transform:rotate(var(--r))}
+.stamp.next{color:var(--amber);border:1.5px solid var(--amber);border-style:solid;outline:0;transform:none}
+.stamp.next span{opacity:1}
+
 /* session detail */
 .back{background:none;border:0;color:var(--amber);font-size:15px;font-weight:620;padding:6px 0;display:flex;align-items:center;gap:2px}
 .back svg{width:18px;height:18px}
@@ -200,6 +214,7 @@ body[data-state="idle"]{--state:var(--amber)}
 .corr-said{font-size:14.5px;color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(255,138,138,.75)}
 .corr-ok{display:block;font-size:17px;font-weight:660;color:var(--lagoon);margin-top:3px}
 .corr-rule{margin:5px 0 0;font-size:14px;color:var(--mist);line-height:1.45}
+.scene-name{font-size:14px;color:var(--amber);font-weight:650;margin:16px 0 0}
 .phrase{font-size:16.5px;line-height:1.45;color:#fff;padding:4px 0 4px 14px;border-left:2px solid var(--amber);margin:12px 0}
 .duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
 .duo div{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:14px}
@@ -232,6 +247,14 @@ details.tr[open] summary::after{content:"–"}
   .coachline{font-size:18px;min-height:0}
   .dock{align-self:end}
 }
+@media (max-height:700px) and (orientation:portrait){
+  .headline{font-size:clamp(40px,11.5vw,60px)}
+  .coachline{font-size:18px;min-height:0;-webkit-line-clamp:2}
+  .seg-label{display:none}
+  #big{height:62px}
+  #stopBtn{width:62px;height:62px}
+  .dock{gap:10px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -259,6 +282,11 @@ details.tr[open] summary::after{content:"–"}
 
   <div class="dock">
     <div class="switches">
+      <div class="theme-row">
+        <div class="seg" id="themeChips" aria-label="Thème">
+          <button data-v="MIX">Mixte</button><button data-v="WORK">Travail</button><button data-v="TRAVEL">Voyage</button>
+        </div>
+      </div>
       <div>
         <p class="seg-label">Moment</p>
         <div class="seg" id="modeChips">
@@ -279,7 +307,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.3</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.4</span></div>
   </div>
 </div>
 
@@ -303,6 +331,13 @@ details.tr[open] summary::after{content:"–"}
         <div class="block-head"><h3>Aisance à l’oral</h3><span id="flLegend"></span></div>
         <svg id="flChart" viewBox="0 0 340 120" aria-label="Évolution de l’aisance à l’oral"></svg>
         <p class="empty" id="flEmpty">La courbe apparaîtra après votre première séance.</p>
+      </section>
+
+      <section class="block">
+        <div class="block-head"><h3>Carnet de voyage</h3><span id="stampCount"></span></div>
+        <div class="stamps" id="stamps"></div>
+        <p class="note">Touchez une scène pour la jouer à la prochaine séance.</p>
+        <button class="btn ghost" id="travelPdf">Mes phrases de voyage (PDF)</button>
       </section>
 
       <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
@@ -367,7 +402,7 @@ details.tr[open] summary::after{content:"–"}
     <p class="note">Ce que vous pouvez dire pendant la séance :</p>
     <div class="cmds">
       <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span><span>in French</span>
-      <span>explain</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
+      <span>explain</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
     </div>
     <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
   </div>
@@ -385,7 +420,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* ---------- storage ---------- */
 const defaults = {
   settings: { apiKey:'', model:'claude-haiku-5-5', name:'Christophe', level:'B1',
-              voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH' },
+              voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH', theme:'MIX', nextScene:'' },
   profile:  { LEXICON:[], ERRORS:[] },
   history:  [],
   pending:  null
@@ -447,6 +482,35 @@ const PHASES = [
   { name:'Cruise',    fr:'Croisière',     min:2500, desc:'La conversation coule.' },
   { name:'Long-haul', fr:'Long-courrier', min:5000, desc:'Vous tenez la distance en anglais.' }
 ];
+const SCENES = [
+  { key:'airport_checkin', en:'Check‑in',        fr:'Enregistrement',       brief:'airline check-in desk agent: passport, luggage, seat preference, excess baggage, boarding time' },
+  { key:'immigration',     en:'Passport control', fr:'Contrôle des passeports', brief:'immigration officer: purpose of the visit, length of stay, accommodation, return ticket' },
+  { key:'lost_luggage',    en:'Lost luggage',    fr:'Bagage perdu',         brief:'lost-and-found desk agent: describing the bag, flight number, delivery address, compensation' },
+  { key:'taxi',            en:'Taxi',            fr:'Taxi et VTC',          brief:'taxi driver: destination, price, the meter, traffic, paying, tipping' },
+  { key:'hotel_checkin',   en:'Hotel check‑in',  fr:'Arrivée à l’hôtel',    brief:'hotel receptionist: reservation name, breakfast, wifi, check-out time, room key' },
+  { key:'hotel_problem',   en:'Room problem',    fr:'Souci à l’hôtel',      brief:'hotel receptionist handling a complaint: broken air conditioning, noise, asking for another room' },
+  { key:'restaurant',      en:'Restaurant',      fr:'Au restaurant',        brief:'waiter: table for two, the menu, allergies, how spicy, recommendations, the bill' },
+  { key:'directions',      en:'Directions',      fr:'Demander son chemin',  brief:'friendly local: how to get somewhere, left and right, how far it is, public transport' },
+  { key:'shopping',        en:'Shopping',        fr:'Shopping et marchandage', brief:'market seller: prices, sizes, colours, bargaining politely, paying by card' },
+  { key:'pharmacy',        en:'Pharmacy',        fr:'Pharmacie',            brief:'pharmacist: describing symptoms, choosing a medicine, how often to take it' },
+  { key:'delayed_flight',  en:'Delayed flight',  fr:'Vol retardé',          brief:'airline agent at the gate: delay or cancellation, rebooking, connecting flight, meal vouchers, compensation' },
+  { key:'excursion',       en:'Day trip',        fr:'Excursion',            brief:'tour agency: booking a day trip, price, pick-up time, what is included, cancellation' }
+];
+const sceneByKey = k => SCENES.find(s => s.key === k);
+function sceneCounts(){
+  const c = {}; SCENES.forEach(s => c[s.key] = 0);
+  store.history.forEach(r => (r.scenes||[]).forEach(s => { if(s && c[s.key] != null) c[s.key]++; }));
+  return c;
+}
+function pickScenes(){
+  const c = sceneCounts();
+  const order = SCENES.map(s => ({ s, n:c[s.key], r:Math.random() })).sort((a,b) => (a.n - b.n) || (a.r - b.r)).map(x => x.s);
+  const forced = sceneByKey(store.settings.nextScene);
+  const q = forced ? [forced, ...order.filter(s => s !== forced)] : order;
+  return q.slice(0,4);
+}
+const THEME_FR = { MIX:'Mixte', WORK:'Travail', TRAVEL:'Voyage' };
+
 function stats(){
   const h = store.history;
   const minutes = h.reduce((a,r) => a + (r.minutes||0), 0);
@@ -545,7 +609,9 @@ const COPY = {
 };
 function setState(s, _text, subtext){
   document.body.dataset.state = s;
-  const c = COPY[s] || COPY.idle;
+  const c = s === 'idle'
+    ? ({ WORK:['Let’s talk','business.'], TRAVEL:['Let’s talk','travel.'] }[store.settings.theme] || COPY.idle)
+    : (COPY[s] || COPY.idle);
   statusEl.innerHTML = '';
   statusEl.append(c[0]);
   const tail = document.createElement('span'); tail.className = 'tail'; tail.textContent = c[1];
@@ -559,12 +625,12 @@ function setState(s, _text, subtext){
 function addLog(who, text){ if(who === 'coach') lineEl.textContent = text; }
 
 /* ---------- segmented controls ---------- */
-function bindChips(containerId, key){
+function bindChips(containerId, key, onChange){
   const c = $(containerId);
   const refresh = () => c.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === store.settings[key]));
   c.addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
-    store.settings[key] = b.dataset.v; save(); refresh();
+    store.settings[key] = b.dataset.v; save(); refresh(); if(onChange) onChange(b.dataset.v);
   });
   refresh();
 }
@@ -664,7 +730,8 @@ function buildSystem(){
   const st = stats();
   const last = store.history[store.history.length-1];
   const profile = {
-    NAME: s.name, LEVEL: st.level, SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
+    NAME: s.name, LEVEL: st.level, THEME: s.theme || 'MIX', SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
+    SCENE_QUEUE: (session.scenes || []).map(x => ({ key:x.key, scene:x.en, your_role:x.brief })),
     RECURRING_ERRORS: recurringErrors(), TARGET_VOCABULARY: targetVocab(),
     LAST_SESSION_FOCUS: last && last.focus ? last.focus : '',
     RECENT_SESSIONS_SUMMARY: store.history.slice(-5).map(r => ({ date:String(r.date).slice(0,10), mode:r.mode, topics:r.topics, summary:r.summary }))
@@ -697,6 +764,12 @@ Utilise RECENT_SESSIONS_SUMMARY pour créer une vraie continuité, comme quelqu'
 ${JSON.stringify(profile, null, 1)}
 </profil_utilisateur>
 
+# THÈME (THEME)
+MIX : sujets variés, travail, voyages, vie perso.
+WORK : uniquement son métier : fret aérien, douane, clients, équipe, compagnies aériennes, réunions, appels, e-mails.
+TRAVEL : anglais de voyage par jeux de rôle, basés sur SCENE_QUEUE. Annonce la scène en une phrase simple, par exemple "Let's role-play. You've just arrived at your hotel, and I'm the receptionist.", puis joue ton rôle (your_role) de façon réaliste : pose les questions qu'un vrai interlocuteur poserait, avec un peu d'imprévu (chambre pas prête, vol complet, prix trop élevé). Après 5 à 8 échanges, sors du rôle : un retour très bref, une chose réussie et une tournure à retenir, puis propose la scène suivante de SCENE_QUEUE. S'il dit "next scene" ou "another situation", passe à la suivante ; s'il nomme une situation (hotel, airport, restaurant, taxi...), joue celle-là. Dans le rôle, corrige de préférence par l'écho, sans casser la scène. En mode TRAVEL, ignore les consignes de sujet de MORNING et EVENING mais garde leur niveau de correction.
+S'il dit "travel mode", "work mode" ou "mix mode", change de thème.
+
 # MODES
 MORNING : apprentissage. Introduis un ou deux mots de TARGET_VOCABULARY (ou nouveaux mots utiles à son métier si la liste est vide) et incite-le à les réutiliser. Surveille RECURRING_ERRORS. Si LAST_SESSION_FOCUS est renseigné, crée une occasion naturelle de le travailler.
 EVENING : aisance. Prends des nouvelles de sa journée. Ne corrige que ce qui gêne vraiment la compréhension, quel que soit CORRECTION_MODE.
@@ -714,7 +787,7 @@ Message commençant par [MOT EN FRANÇAIS] : il cherche ce mot ou cette expressi
 "Explain" / "Explique" / "French please" : explication en français, 2 phrases maximum, puis retour immédiat à l'anglais.
 
 # DÉBUT ET FIN
-Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au mode et à l'heure, en une ou deux phrases.
+Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au thème, au mode et à l'heure, en une ou deux phrases. En THEME TRAVEL, salue-le puis lance directement la première scène de SCENE_QUEUE.
 Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de clôture avec un seul point à retenir de la séance.`;
 }
 
@@ -729,6 +802,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de cette forme
  "corrections": [{"said":"ce qu'il a dit, court","correct":"la forme correcte","rule":"pourquoi, en une phrase courte en français"}],
  "key_phrases": ["phrases anglaises correctes, utiles et réutilisables, tirées de la séance"],
  "vocabulary_used": ["entrées EXACTES de la liste de vocabulaire cible qu'il a lui-même employées correctement"],
+ "scenes": [{"key":"clé EXACTE de la liste des scènes de voyage","phrases":["phrases anglaises correctes et naturelles qu'un voyageur dirait dans cette situation"]}],
  "fluency": 6,
  "level_estimate": "B1",
  "strength": "son point fort pendant cette séance, une phrase en français, au vouvoiement",
@@ -738,6 +812,7 @@ Règles :
 - vocabulary : les mots nouveaux qu'il a demandés ou appris (TOUJOURS ceux des messages [MOT EN FRANÇAIS]) et les mots utiles introduits par le coach. 8 maximum.
 - corrections : ses vraies erreurs de langue, les plus importantes, 6 maximum.
 - key_phrases : 2 à 4.
+- scenes : uniquement les jeux de rôle de voyage réellement joués pendant la séance, avec 3 à 5 phrases utiles chacun ; sinon [].
 - fluency : entier de 1 (très hésitant) à 10 (parfaitement fluide), selon l'aisance observée.
 - level_estimate : A2, B1, B2 ou C1.
 - Si une liste n'a pas de contenu, renvoie [].`;
@@ -753,7 +828,10 @@ async function summarizePending(){
   const userTurns = pend.messages.filter(m => m.role==='user' && !/^\[SESSION_/.test(m.content)).length;
   if(userTurns < 2){ store.pending = null; save(); return null; }
   const raw = await callClaude(SUMMARY_SYSTEM, [{ role:'user',
-    content: 'Vocabulaire cible actuel : ' + JSON.stringify(targetVocab()) + '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 1600);
+    content: 'Vocabulaire cible actuel : ' + JSON.stringify(targetVocab()) +
+      '\nScènes de voyage possibles (clé : description) : ' + SCENES.map(s => s.key + ' : ' + s.en).join(', ') +
+      '\nThème de la séance : ' + (pend.theme || 'MIX') +
+      '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 2000);
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('bad summary');
   const j = JSON.parse(m[0]);
   if(store.pending !== pend) return null;                 // already handled elsewhere
@@ -766,12 +844,15 @@ async function summarizePending(){
   const used = new Set((j.vocabulary_used||[]).map(keyOf));
   lex.forEach(w => { if(w.status !== 'mastered' && used.has(keyOf(w.en))){ w.status = 'mastered'; w.mastered = day; } });
 
+  const scenes = (Array.isArray(j.scenes) ? j.scenes : []).filter(s => s && sceneByKey(s.key))
+    .map(s => ({ key:s.key, phrases:(s.phrases||[]).map(str).filter(Boolean).slice(0,5) }));
+  const isTravel = pend.theme === 'TRAVEL' || scenes.length > 0;
   const vocab = (Array.isArray(j.vocabulary) ? j.vocabulary : []).filter(v => v && v.en).slice(0,8)
     .map(v => ({ en:str(v.en), fr:str(v.fr), example:str(v.example) }));
   vocab.forEach(v => {
     const ex = lex.find(w => keyOf(w.en) === keyOf(v.en));
     if(ex){ ex.seen = (ex.seen||1) + 1; if(!ex.example) ex.example = v.example; if(!ex.fr) ex.fr = v.fr; }
-    else lex.push({ ...v, first:day, status:'learning', seen:1 });
+    else lex.push({ ...v, first:day, status:'learning', seen:1, theme: isTravel ? 'TRAVEL' : (pend.theme === 'WORK' ? 'WORK' : '') });
   });
 
   const corr = (Array.isArray(j.corrections) ? j.corrections : []).filter(c => c && c.said).slice(0,6)
@@ -788,7 +869,7 @@ async function summarizePending(){
     id: String(pend.start || Date.now()),
     date: startISO,
     minutes: pend.start && pend.end ? Math.max(1, Math.round((pend.end - pend.start)/60000)) : 0,
-    mode: pend.mode, correction: pend.correction || '',
+    mode: pend.mode, correction: pend.correction || '', theme: pend.theme || 'MIX', scenes,
     title: str(j.title), topics: (j.topics||[]).map(str).filter(Boolean).slice(0,5), summary: str(j.summary),
     vocabulary: vocab, corrections: corr, key_phrases: (j.key_phrases||[]).map(str).filter(Boolean).slice(0,4),
     fluency: fl >= 1 && fl <= 10 ? fl : null,
@@ -816,14 +897,14 @@ const RX = {
 };
 
 /* ---------- session ---------- */
-const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0 };
+const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0, scenes:[] };
 let wakeLock = null;
 async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(_){} }
 document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
 
 function persistSession(){
   store.pending = { date: todayISO(), start: session.startedAt, end: Date.now(), mode: sessionMode(),
-                    correction: store.settings.correction, messages: session.messages.slice(-60) };
+                    correction: store.settings.correction, theme: store.settings.theme || 'MIX', messages: session.messages.slice(-60) };
   save();
 }
 function trimmedHistory(){
@@ -910,7 +991,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startSession(){
   if(!store.settings.apiKey.trim()){ openSettings(); return; }
   if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
-  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now() });
+  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(), scenes:pickScenes() });
+  if(store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
   lineEl.textContent = '';
   $('recap').hidden = true;
   stopBtn.style.display = 'grid';
@@ -1041,10 +1123,19 @@ function renderProgress(){
     [st.level, 'niveau estimé']
   ].map(([b,t]) => `<div class="stat"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
   drawFluency(st.fl);
+  const counts = sceneCounts(), tilt = [-6,4,-3,7,-5,3,-7,5,-2,6,-4,2], cols = ['#ffb547','#4fe3c1','#ff9ecf','#b9a6ff'];
+  const doneN = SCENES.filter(s => counts[s.key] > 0).length;
+  $('stampCount').textContent = doneN + ' / ' + SCENES.length + ' scènes';
+  $('stamps').innerHTML = SCENES.map((s,i) => {
+    const n = counts[s.key], next = store.settings.nextScene === s.key;
+    const cls = next ? 'stamp next' : n ? 'stamp done' : 'stamp';
+    return `<button class="${cls}" data-scene="${s.key}" style="--r:${tilt[i]}deg;--c:${cols[i%4]}" aria-label="${esc(s.fr)}${n ? ', pratiquée ' + n + ' fois' : ''}">
+      ${n && !next ? `<em>${n > 1 ? '×' + n : ''}</em>` : ''}<b>${esc(s.en)}</b><span>${next ? 'Prochaine séance' : esc(s.fr)}</span></button>`;
+  }).join('');
   const list = [...store.history].reverse();
   $('histList').innerHTML = list.length ? list.map(r => {
     const d = new Date(r.date);
-    const meta = [MODE_FR[r.mode] || '', r.minutes ? r.minutes + ' min' : '',
+    const meta = [r.theme === 'TRAVEL' ? 'Voyage' : r.theme === 'WORK' ? 'Travail' : '', MODE_FR[r.mode] || '', r.minutes ? r.minutes + ' min' : '',
       (r.vocabulary||[]).length ? (r.vocabulary.length + ' mot' + (r.vocabulary.length > 1 ? 's' : '')) : ''].filter(Boolean).join(', ');
     return `<button class="hrow" data-id="${esc(r.id)}">
       <div class="hdate"><b>${d.getDate()}</b><span>${esc(d.toLocaleDateString('fr-FR',{month:'short'}))}</span></div>
@@ -1079,6 +1170,8 @@ function openDetail(id){
   h += `<div style="margin:18px 0"><button class="btn primary" data-pdf="${esc(r.id)}">Fiche de révision (PDF)</button></div>`;
   if(v.length) h += `<section class="block"><h3 class="dsec">Vocabulaire</h3>${v.map(w => `<div class="vocab-item"><span class="vocab-en">${esc(w.en)}</span><span class="vocab-fr">${esc(w.fr)}</span>${w.example ? `<p class="vocab-ex">${esc(w.example)}</p>` : ''}</div>`).join('')}</section>`;
   if(c.length) h += `<section class="block"><h3 class="dsec">Corrections</h3>${c.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}</section>`;
+  const sc = (r.scenes||[]).filter(s => sceneByKey(s.key));
+  if(sc.length) h += `<section class="block"><h3 class="dsec">Jeux de rôle</h3>${sc.map(s => `<p class="scene-name">${esc(sceneByKey(s.key).fr)}</p>${(s.phrases||[]).map(p => `<p class="phrase">${esc(p)}</p>`).join('')}`).join('')}</section>`;
   if(k.length) h += `<section class="block"><h3 class="dsec">Phrases à retenir</h3>${k.map(p => `<p class="phrase">${esc(p)}</p>`).join('')}</section>`;
   if(r.strength || r.focus) h += `<div class="duo"><div><b>Votre point fort</b><p>${esc(r.strength || '–')}</p></div><div><b>À travailler</b><p>${esc(r.focus || '–')}</p></div></div>`;
   if(tr.length) h += `<details class="tr"><summary>Transcription de la séance</summary>${tr.map(l => {
@@ -1097,6 +1190,13 @@ $('progDetail').addEventListener('click', e => {
   const p = e.target.closest('[data-pdf]'); if(p) exportSessionPDF(p.dataset.pdf, p);
 });
 $('lexPdf').onclick = e => exportLexiconPDF(e.currentTarget);
+$('travelPdf').onclick = e => exportTravelPDF(e.currentTarget);
+$('stamps').addEventListener('click', e => {
+  const b = e.target.closest('[data-scene]'); if(!b) return;
+  const k = b.dataset.scene;
+  store.settings.nextScene = store.settings.nextScene === k ? '' : k; save(); renderProgress();
+  if(store.settings.nextScene) toast('Prochaine séance : ' + sceneByKey(k).fr);
+});
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeSheet(b.dataset.close));
 $('prog').addEventListener('click', e => { if(e.target.id === 'prog') closeSheet('prog'); });
 
@@ -1167,9 +1267,10 @@ function PdfSheet(docTitle){
     y = 28;
   }
   function ensure(h){ if(y + h > H - 20){ doc.addPage(); contHeader(); } }
-  function section(t, keep=34){
+  function section(t, keep=34, right=''){
     ensure(22 + keep); y += 5;
     font('helvetica','bold',14); color(C.ink); doc.text(pdfClean(t), M, y + asc(14));
+    if(right){ font('helvetica','normal',9.5); color(C.dim); doc.text(pdfClean(right), W-M, y + asc(14), {align:'right'}); }
     fill(C.amber); doc.rect(M, y + lh(14) + 0.6, 9, 1, 'F');
     y += lh(14) + 6;
   }
@@ -1262,7 +1363,8 @@ function PdfSheet(docTitle){
     }
     return doc;
   }
-  return { doc, header, section, heading, para, tags, figures, vocabRow, corrRow, phrase, duo, finish, space:(d)=>{ y += d; } };
+  function subhead(t){ ensure(lh(10.5) + 14); y += 1; y += block(t, M, y, CW, 'helvetica','bold', 10.5, C.amberInk) + 2; }
+  return { doc, subhead, header, section, heading, para, tags, figures, vocabRow, corrRow, phrase, duo, finish, space:(d)=>{ y += d; } };
 }
 
 function buildSessionPDF(r){
@@ -1276,6 +1378,8 @@ function buildSessionPDF(r){
   P.figures([[r.fluency ? r.fluency + '/10' : '-', 'Aisance à l’oral'], [String((r.vocabulary||[]).length), 'Mots nouveaux'], [String((r.corrections||[]).length), 'Points corrigés']]);
   if((r.vocabulary||[]).length){ P.section('Vocabulaire de la séance'); r.vocabulary.forEach(v => P.vocabRow(v)); }
   if((r.corrections||[]).length){ P.section('Corrections'); r.corrections.forEach(c => P.corrRow(c)); }
+  const sc = (r.scenes||[]).filter(s => sceneByKey(s.key) && (s.phrases||[]).length);
+  if(sc.length){ P.section('Jeux de rôle'); sc.forEach(s => { P.subhead(sceneByKey(s.key).fr + '  |  ' + sceneByKey(s.key).en); s.phrases.forEach(p => P.phrase(p)); }); }
   if((r.key_phrases||[]).length){ P.section('Phrases à retenir'); r.key_phrases.forEach(p => P.phrase(p)); }
   if(r.strength || r.focus){ P.section('Bilan'); P.duo(['Votre point fort', r.strength || '-'], ['À travailler', r.focus || '-']); }
   return P.finish();
@@ -1290,12 +1394,35 @@ function buildLexiconPDF(){
   const fmtD = d => d ? new Date(d).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}) : '';
   const learn = learning().slice().reverse(), done = mastered().slice().reverse();
   if(!lex.length) P.para('Votre lexique se remplira au fil des séances : chaque mot demandé ou appris avec le coach viendra s’ajouter ici.', { c:[110,114,152] });
-  if(learn.length){ P.section('À revoir'); learn.forEach(w => P.vocabRow(w, 'Appris le ' + fmtD(w.first))); }
-  if(done.length){ P.section('Maîtrisés'); done.forEach(w => P.vocabRow(w, 'Maîtrisé le ' + fmtD(w.mastered))); }
+  const tag = w => w.theme === 'TRAVEL' ? 'Voyage, ' : '';
+  if(learn.length){ P.section('À revoir'); learn.forEach(w => P.vocabRow(w, tag(w) + (tag(w) ? 'appris' : 'Appris') + ' le ' + fmtD(w.first))); }
+  if(done.length){ P.section('Maîtrisés'); done.forEach(w => P.vocabRow(w, tag(w) + (tag(w) ? 'maîtrisé' : 'Maîtrisé') + ' le ' + fmtD(w.mastered))); }
   const errs = [...store.profile.ERRORS].sort((a,b) => (b.count - a.count) || String(b.last).localeCompare(String(a.last))).slice(0,30);
   if(errs.length){ P.section('Pièges à éviter'); errs.forEach(e => P.corrRow(e, e.count > 1 ? 'Relevé ' + e.count + ' fois' : '')); }
   return P.finish();
 }
+function buildTravelPDF(){
+  const counts = sceneCounts(), done = SCENES.filter(s => counts[s.key] > 0);
+  const P = PdfSheet('Phrases de voyage');
+  P.header('Phrases de voyage', done.length + ' scène' + (done.length > 1 ? 's' : '') + ' jouée' + (done.length > 1 ? 's' : '') + ' sur ' + SCENES.length + '. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+           'Carnet de voyage', done.length + '/' + SCENES.length);
+  if(!done.length) P.para('Aucune scène jouée pour l’instant. Choisissez le thème Voyage sur l’écran principal : le coach vous fera vivre l’aéroport, l’hôtel, le restaurant ou le taxi, et vos meilleures phrases viendront s’ajouter ici.', { c:[110,114,152] });
+  done.forEach(s => {
+    const seen = new Set(), phrases = [];
+    [...store.history].reverse().forEach(r => (r.scenes||[]).filter(x => x.key === s.key).forEach(x => (x.phrases||[]).forEach(p => {
+      const k = keyOf(p); if(!seen.has(k) && phrases.length < 8){ seen.add(k); phrases.push(p); }
+    })));
+    P.section(s.fr, 30, s.en + (counts[s.key] > 1 ? ', jouée ' + counts[s.key] + ' fois' : ''));
+    phrases.forEach(p => P.phrase(p));
+  });
+  const words = store.profile.LEXICON.filter(w => w.theme === 'TRAVEL').slice().reverse();
+  if(words.length){ P.section('Vocabulaire de voyage'); words.forEach(w => P.vocabRow(w, w.status === 'mastered' ? 'Maîtrisé' : '')); }
+  const todo = SCENES.filter(s => !counts[s.key]);
+  if(todo.length && done.length){ P.section('Encore à découvrir', 14); P.para(todo.map(s => s.fr).join(', ') + '.', { c:[110,114,152] }); }
+  return P.finish();
+}
+function exportTravelPDF(btn){ withPDF(btn, 'Voyage', buildTravelPDF, 'phrases-de-voyage-' + todayISO() + '.pdf'); }
+
 async function deliverPDF(doc, filename){
   const blob = doc.output('blob');
   try{
@@ -1341,7 +1468,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.3', exported:new Date().toISOString(), profile:store.profile, history:store.history };
+  const data = { app:'english-copilot', version:'1.4', exported:new Date().toISOString(), profile:store.profile, history:store.history };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
@@ -1383,6 +1510,9 @@ $('resetBtn').onclick = () => {
 })();
 
 /* ---------- init ---------- */
+bindChips('themeChips','theme', v => {
+  if(!session.active) setState('idle', v === 'TRAVEL' ? 'Jeux de rôle : aéroport, hôtel, restaurant, taxi… Le coach joue l’autre personnage.' : 'Un tap pour démarrer, ensuite tout se passe à la voix.');
+});
 bindChips('modeChips','modeOverride');
 bindChips('corrChips','correction');
 renderMeta();
