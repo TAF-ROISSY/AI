@@ -195,6 +195,22 @@ body[data-state="idle"]{--state:var(--amber)}
   background:color-mix(in srgb, var(--c) 7%, transparent);transform:rotate(var(--r))}
 .stamp.next{color:var(--amber);border:1.5px solid var(--amber);border-style:solid;outline:0;transform:none}
 .stamp.next span{opacity:1}
+.stamp.surprise{color:var(--amber);border:1.5px dashed rgba(255,181,71,.6);background:radial-gradient(80% 80% at 50% 0%, rgba(255,181,71,.12), transparent)}
+.stamp.surprise b{font-size:26px;line-height:1}
+.pack-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:26px 0 10px}
+.pack-head h4{margin:0;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pack-head h4 small{font-size:13px;font-weight:500;color:var(--dim);margin-left:6px}
+.pack-actions{display:flex;flex:none}
+.linkbtn{background:none;border:0;color:var(--amber);font-size:13.5px;font-weight:620;padding:8px 0 8px 14px}
+.linkbtn.del{color:var(--dim)}
+.packform{margin:22px 0 4px;padding:16px;border-radius:20px;border:1px solid var(--glass-line);
+  background:radial-gradient(120% 100% at 0% 0%, rgba(79,227,193,.12), transparent 60%), rgba(255,255,255,.04)}
+.packform h4{margin:0 0 4px;font-size:17px;font-weight:700;color:#fff}
+.packform p{margin:0 0 12px;font-size:13.5px;color:var(--dim);line-height:1.45}
+.packform .row2{display:flex;gap:8px}
+.packform input{flex:1;min-width:0;background:rgba(10,12,40,.5);border:1px solid rgba(217,220,255,.14);color:#fff;border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
+.packform button{flex:none;background:var(--lagoon);border:0;color:#0d2a2a;font-weight:700;font-size:15px;border-radius:12px;padding:0 16px}
+.packform button[disabled]{opacity:.6}
 
 /* session detail */
 .back{background:none;border:0;color:var(--amber);font-size:15px;font-weight:620;padding:6px 0;display:flex;align-items:center;gap:2px}
@@ -307,7 +323,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.4</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.5</span></div>
   </div>
 </div>
 
@@ -336,8 +352,14 @@ details.tr[open] summary::after{content:"–"}
       <section class="block">
         <div class="block-head"><h3>Carnet de voyage</h3><span id="stampCount"></span></div>
         <div class="stamps" id="stamps"></div>
-        <p class="note">Touchez une scène pour la jouer à la prochaine séance.</p>
-        <button class="btn ghost" id="travelPdf">Mes phrases de voyage (PDF)</button>
+        <div id="packs"></div>
+        <p class="note">Touchez une scène pour la jouer à la prochaine séance. En voiture, demandez simplement au coach : « prepare a pack for Japan » ou « create a scene: renting a car ».</p>
+        <div class="packform">
+          <h4>Préparer un voyage</h4>
+          <p>L’IA crée six scènes sur mesure pour votre destination. Elles s’ajoutent à votre carnet.</p>
+          <div class="row2"><input id="packDest" type="text" placeholder="Japon en mars, Tokyo et Kyoto" autocomplete="off"><button id="packBtn">Créer</button></div>
+        </div>
+        <button class="btn ghost" id="travelPdf" style="margin-top:14px">Mes phrases de voyage (PDF)</button>
       </section>
 
       <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
@@ -402,7 +424,7 @@ details.tr[open] summary::after{content:"–"}
     <p class="note">Ce que vous pouvez dire pendant la séance :</p>
     <div class="cmds">
       <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span><span>in French</span>
-      <span>explain</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
+      <span>explain</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>surprise me</span><span>prepare a pack for…</span><span>create a scene…</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
     </div>
     <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
   </div>
@@ -423,6 +445,7 @@ const defaults = {
               voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH', theme:'MIX', nextScene:'' },
   profile:  { LEXICON:[], ERRORS:[] },
   history:  [],
+  customScenes: [],
   pending:  null
 };
 const todayISO = () => new Date().toISOString().slice(0,10);
@@ -432,6 +455,7 @@ function migrate(d){
     settings: {...defaults.settings, ...(d.settings||{})},
     profile:  { LEXICON: Array.isArray(p.LEXICON) ? p.LEXICON : [], ERRORS: Array.isArray(p.ERRORS) ? p.ERRORS : [] },
     history:  Array.isArray(d.history) ? d.history : [],
+    customScenes: Array.isArray(d.customScenes) ? d.customScenes : [],
     pending:  d.pending || null
   };
   // v1.0 – v1.2 data
@@ -496,18 +520,55 @@ const SCENES = [
   { key:'delayed_flight',  en:'Delayed flight',  fr:'Vol retardé',          brief:'airline agent at the gate: delay or cancellation, rebooking, connecting flight, meal vouchers, compensation' },
   { key:'excursion',       en:'Day trip',        fr:'Excursion',            brief:'tour agency: booking a day trip, price, pick-up time, what is included, cancellation' }
 ];
-const sceneByKey = k => SCENES.find(s => s.key === k);
+const SURPRISE = { key:'surprise', en:'Surprise', fr:'Scène surprise',
+  brief:'INVENT a brand-new, realistic travel situation that is NOT in KNOWN_SCENES, play the local person in it, and add one unexpected complication' };
+const customScenes = () => store.customScenes || (store.customScenes = []);
+const allScenes = () => [...SCENES, ...customScenes()];
+const sceneByKey = k => k === 'surprise' ? SURPRISE : allScenes().find(s => s.key === k);
 function sceneCounts(){
-  const c = {}; SCENES.forEach(s => c[s.key] = 0);
+  const c = {}; allScenes().forEach(s => c[s.key] = 0);
   store.history.forEach(r => (r.scenes||[]).forEach(s => { if(s && c[s.key] != null) c[s.key]++; }));
   return c;
 }
 function pickScenes(){
   const c = sceneCounts();
-  const order = SCENES.map(s => ({ s, n:c[s.key], r:Math.random() })).sort((a,b) => (a.n - b.n) || (a.r - b.r)).map(x => x.s);
+  // custom scenes not yet played come first (a fresh trip pack), then the least practised
+  const order = allScenes().map(s => ({ s, n:c[s.key], fresh: s.custom && !c[s.key] ? 0 : 1, r:Math.random() }))
+    .sort((a,b) => (a.fresh - b.fresh) || (a.n - b.n) || (a.r - b.r)).map(x => x.s);
   const forced = sceneByKey(store.settings.nextScene);
-  const q = forced ? [forced, ...order.filter(s => s !== forced)] : order;
-  return q.slice(0,4);
+  const rest = order.filter(s => s !== forced);
+  const q = forced ? [forced, ...rest.slice(0,3)] : [rest[0], rest[1], SURPRISE, rest[2]];
+  return q.filter(Boolean);
+}
+function packs(){
+  const m = new Map();
+  customScenes().forEach(s => { const k = s.pack || ''; if(!m.has(k)) m.set(k, []); m.get(k).push(s); });
+  return [...m.entries()].sort((a,b) => (a[0] === '') - (b[0] === ''));   // trip packs first, own scenes last
+}
+
+/* AI scene designer */
+const SCENE_DESIGNER = `Tu conçois des jeux de rôle d'anglais de voyage pour un apprenant francophone (niveau indiqué). Le coach joue l'interlocuteur local, à l'oral, en voiture.
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour :
+{"pack":"nom court du voyage en français, ex. Japon","scenes":[{"en":"titre anglais court, 1 à 3 mots","fr":"titre français court","brief":"in English, 15 to 35 words: who the coach plays, where, what the learner needs to do, and one realistic complication typical of this destination","situation":"une phrase en français qui décrit la scène pour l'apprenant","phrases":["3 phrases anglaises utiles, naturelles et correctes pour cette scène"]}]}
+Les scènes doivent être concrètes, réalistes et propres à la destination ou à la demande (transports locaux, coutumes, imprévus typiques). Varie les interlocuteurs et les lieux. Évite de recréer ces scènes déjà connues : `;
+async function designScenes(type, request){
+  const known = allScenes().map(s => s.en).join(', ');
+  const n = type === 'PACK' ? 6 : 1;
+  const raw = await callClaude(SCENE_DESIGNER + known + '.', [{ role:'user',
+    content: (type === 'PACK' ? 'Voyage à préparer : ' : 'Scène demandée : ') + request + '\nNiveau : ' + stats().level + '\nNombre de scènes : ' + n }], 2200);
+  const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('design');
+  const j = JSON.parse(m[0]);
+  const stamp = Date.now().toString(36);
+  const made = (j.scenes || []).filter(s => s && s.en && s.brief).slice(0, n).map((s,i) => ({
+    key: 'c' + stamp + i, custom:true, en: str(s.en).slice(0,28), fr: str(s.fr || s.en).slice(0,36), brief: str(s.brief),
+    situation: str(s.situation), phrases: (s.phrases||[]).map(str).filter(Boolean).slice(0,4),
+    pack: type === 'PACK' ? str(j.pack || request).slice(0,30) : '', created: todayISO()
+  }));
+  if(!made.length) throw new Error('design');
+  customScenes().push(...made);
+  if(customScenes().length > 80) store.customScenes = customScenes().slice(-80);
+  save();
+  return made;
 }
 const THEME_FR = { MIX:'Mixte', WORK:'Travail', TRAVEL:'Voyage' };
 
@@ -732,6 +793,7 @@ function buildSystem(){
   const profile = {
     NAME: s.name, LEVEL: st.level, THEME: s.theme || 'MIX', SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
     SCENE_QUEUE: (session.scenes || []).map(x => ({ key:x.key, scene:x.en, your_role:x.brief })),
+    KNOWN_SCENES: allScenes().map(x => x.en),
     RECURRING_ERRORS: recurringErrors(), TARGET_VOCABULARY: targetVocab(),
     LAST_SESSION_FOCUS: last && last.focus ? last.focus : '',
     RECENT_SESSIONS_SUMMARY: store.history.slice(-5).map(r => ({ date:String(r.date).slice(0,10), mode:r.mode, topics:r.topics, summary:r.summary }))
@@ -768,7 +830,14 @@ ${JSON.stringify(profile, null, 1)}
 MIX : sujets variés, travail, voyages, vie perso.
 WORK : uniquement son métier : fret aérien, douane, clients, équipe, compagnies aériennes, réunions, appels, e-mails.
 TRAVEL : anglais de voyage par jeux de rôle, basés sur SCENE_QUEUE. Annonce la scène en une phrase simple, par exemple "Let's role-play. You've just arrived at your hotel, and I'm the receptionist.", puis joue ton rôle (your_role) de façon réaliste : pose les questions qu'un vrai interlocuteur poserait, avec un peu d'imprévu (chambre pas prête, vol complet, prix trop élevé). Après 5 à 8 échanges, sors du rôle : un retour très bref, une chose réussie et une tournure à retenir, puis propose la scène suivante de SCENE_QUEUE. S'il dit "next scene" ou "another situation", passe à la suivante ; s'il nomme une situation (hotel, airport, restaurant, taxi...), joue celle-là. Dans le rôle, corrige de préférence par l'écho, sans casser la scène. En mode TRAVEL, ignore les consignes de sujet de MORNING et EVENING mais garde leur niveau de correction.
+Une scène de clé "surprise" : invente une situation de voyage nouvelle et réaliste, absente de KNOWN_SCENES (correspondance ratée, location de scooter, consigne à bagages, visa à l'arrivée...), annonce-la et joue-la. S'il dit "surprise me", fais de même.
 S'il dit "travel mode", "work mode" ou "mix mode", change de thème.
+
+# CRÉATION DE SCÈNES (seulement sur demande explicite)
+S'il te demande de préparer un voyage précis ("I'm going to Japan in March, can you prepare me?", "prepare a pack for Japan") : réponds en une phrase courte que tu prépares ses scènes, puis termine ta réponse par le marqueur exact [[PACK: destination et précisions données]].
+S'il te demande de créer une scène précise ("create a scene: renting a car", "can we practise booking a ferry?") : réponds en une phrase courte, puis termine par [[SCENE: description de la scène]].
+Ces marqueurs sont lus par l'application et jamais prononcés ; ne les utilise dans aucun autre cas.
+Le message [PACK_READY] ou [SCENE_READY] signifie que les nouvelles scènes sont en tête de SCENE_QUEUE : annonce-le en une phrase enthousiaste et lance immédiatement la première.
 
 # MODES
 MORNING : apprentissage. Introduis un ou deux mots de TARGET_VOCABULARY (ou nouveaux mots utiles à son métier si la liste est vide) et incite-le à les réutiliser. Surveille RECURRING_ERRORS. Si LAST_SESSION_FOCUS est renseigné, crée une occasion naturelle de le travailler.
@@ -803,6 +872,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de cette forme
  "key_phrases": ["phrases anglaises correctes, utiles et réutilisables, tirées de la séance"],
  "vocabulary_used": ["entrées EXACTES de la liste de vocabulaire cible qu'il a lui-même employées correctement"],
  "scenes": [{"key":"clé EXACTE de la liste des scènes de voyage","phrases":["phrases anglaises correctes et naturelles qu'un voyageur dirait dans cette situation"]}],
+ "new_scenes": [{"en":"titre anglais court","fr":"titre français court","brief":"in English: who the coach played and what happened, 15 to 35 words","phrases":["phrases utiles de cette scène"]}],
  "fluency": 6,
  "level_estimate": "B1",
  "strength": "son point fort pendant cette séance, une phrase en français, au vouvoiement",
@@ -812,7 +882,8 @@ Règles :
 - vocabulary : les mots nouveaux qu'il a demandés ou appris (TOUJOURS ceux des messages [MOT EN FRANÇAIS]) et les mots utiles introduits par le coach. 8 maximum.
 - corrections : ses vraies erreurs de langue, les plus importantes, 6 maximum.
 - key_phrases : 2 à 4.
-- scenes : uniquement les jeux de rôle de voyage réellement joués pendant la séance, avec 3 à 5 phrases utiles chacun ; sinon [].
+- scenes : uniquement les jeux de rôle de voyage réellement joués pendant la séance et présents dans la liste, avec 3 à 5 phrases utiles chacun ; sinon [].
+- new_scenes : les jeux de rôle joués qui ne figurent PAS dans la liste (scènes surprises inventées par le coach), avec 3 à 5 phrases ; sinon [].
 - fluency : entier de 1 (très hésitant) à 10 (parfaitement fluide), selon l'aisance observée.
 - level_estimate : A2, B1, B2 ou C1.
 - Si une liste n'a pas de contenu, renvoie [].`;
@@ -829,7 +900,7 @@ async function summarizePending(){
   if(userTurns < 2){ store.pending = null; save(); return null; }
   const raw = await callClaude(SUMMARY_SYSTEM, [{ role:'user',
     content: 'Vocabulaire cible actuel : ' + JSON.stringify(targetVocab()) +
-      '\nScènes de voyage possibles (clé : description) : ' + SCENES.map(s => s.key + ' : ' + s.en).join(', ') +
+      '\nScènes de voyage possibles (clé : description) : ' + allScenes().map(s => s.key + ' : ' + s.en).join(', ') +
       '\nThème de la séance : ' + (pend.theme || 'MIX') +
       '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 2000);
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('bad summary');
@@ -844,8 +915,15 @@ async function summarizePending(){
   const used = new Set((j.vocabulary_used||[]).map(keyOf));
   lex.forEach(w => { if(w.status !== 'mastered' && used.has(keyOf(w.en))){ w.status = 'mastered'; w.mastered = day; } });
 
-  const scenes = (Array.isArray(j.scenes) ? j.scenes : []).filter(s => s && sceneByKey(s.key))
+  const scenes = (Array.isArray(j.scenes) ? j.scenes : []).filter(s => s && s.key !== 'surprise' && sceneByKey(s.key))
     .map(s => ({ key:s.key, phrases:(s.phrases||[]).map(str).filter(Boolean).slice(0,5) }));
+  // surprise scenes invented during the session become stamps of their own
+  (Array.isArray(j.new_scenes) ? j.new_scenes : []).filter(s => s && s.en && s.brief).slice(0,3).forEach((s,i) => {
+    const sc = { key:'c' + Date.now().toString(36) + 's' + i, custom:true, en:str(s.en).slice(0,28), fr:str(s.fr || s.en).slice(0,36),
+                 brief:str(s.brief), situation:'', phrases:[], pack:'', created:day, surprise:true };
+    customScenes().push(sc);
+    scenes.push({ key:sc.key, phrases:(s.phrases||[]).map(str).filter(Boolean).slice(0,5) });
+  });
   const isTravel = pend.theme === 'TRAVEL' || scenes.length > 0;
   const vocab = (Array.isArray(j.vocabulary) ? j.vocabulary : []).filter(v => v && v.en).slice(0,8)
     .map(v => ({ en:str(v.en), fr:str(v.fr), example:str(v.example) }));
@@ -897,7 +975,7 @@ const RX = {
 };
 
 /* ---------- session ---------- */
-const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0, scenes:[] };
+const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0, scenes:[], action:null };
 let wakeLock = null;
 async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(_){} }
 document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
@@ -917,7 +995,12 @@ async function turn(userText){
   session.messages.push({role:'user', content:userText});
   setState('thinking', '');
   let reply;
-  try { reply = cleanForSpeech(await callClaude(buildSystem(), trimmedHistory())); }
+  try {
+    const raw = await callClaude(buildSystem(), trimmedHistory());
+    const mk = raw.match(/\[\[\s*(PACK|SCENE)\s*:\s*([^\]]+?)\s*\]\]/i);
+    if(mk) session.action = { type: mk[1].toUpperCase(), arg: mk[2] };
+    reply = cleanForSpeech(raw.replace(/\[\[[^\]]*\]\]/g, ' '));
+  }
   catch(e){
     session.messages.pop();
     if(e.message === 'NO_KEY'){ stopSession(false); openSettings(); setState('idle','Ajoutez votre clé API dans les réglages.'); return false; }
@@ -971,7 +1054,27 @@ async function loop(){
     if(askFr || askEn){ const ok = await frenchWord(); if(!ok) return; continue; }
     const ok = await turn(text);
     if(!ok) return;
+    if(session.action){ const a = session.action; session.action = null; if(!(await createScenes(a.type, a.arg))) return; }
   }
+}
+
+async function createScenes(type, arg){
+  setState('thinking', type === 'PACK' ? 'Création de votre pack voyage…' : 'Création de la scène…');
+  let made;
+  try{ made = await designScenes(type, arg); }
+  catch(e){
+    if(!session.active) return false;
+    setState('speaking',''); await speak("Sorry, I couldn't prepare that this time. Let's keep going.");
+    return true;
+  }
+  if(!session.active) return false;
+  session.scenes = [...made.slice(0,4), ...session.scenes.filter(s => !made.includes(s))].slice(0,6);
+  if(store.settings.theme !== 'TRAVEL'){
+    store.settings.theme = 'TRAVEL'; save();
+    document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL'));
+  }
+  toast(type === 'PACK' ? 'Pack ' + made[0].pack + ' : ' + made.length + ' scènes ajoutées' : 'Nouvelle scène : ' + made[0].fr);
+  return await turn('[' + type + '_READY] ' + made.map(s => s.en).join(', '));
 }
 
 async function frenchWord(){
@@ -1124,14 +1227,21 @@ function renderProgress(){
   ].map(([b,t]) => `<div class="stat"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
   drawFluency(st.fl);
   const counts = sceneCounts(), tilt = [-6,4,-3,7,-5,3,-7,5,-2,6,-4,2], cols = ['#ffb547','#4fe3c1','#ff9ecf','#b9a6ff'];
-  const doneN = SCENES.filter(s => counts[s.key] > 0).length;
-  $('stampCount').textContent = doneN + ' / ' + SCENES.length + ' scènes';
-  $('stamps').innerHTML = SCENES.map((s,i) => {
+  const all = allScenes(), doneN = all.filter(s => counts[s.key] > 0).length;
+  $('stampCount').textContent = doneN + ' / ' + all.length + ' scènes';
+  const stampHTML = (s,i) => {
     const n = counts[s.key], next = store.settings.nextScene === s.key;
     const cls = next ? 'stamp next' : n ? 'stamp done' : 'stamp';
-    return `<button class="${cls}" data-scene="${s.key}" style="--r:${tilt[i]}deg;--c:${cols[i%4]}" aria-label="${esc(s.fr)}${n ? ', pratiquée ' + n + ' fois' : ''}">
+    return `<button class="${cls}" data-scene="${s.key}" style="--r:${tilt[i%12]}deg;--c:${cols[i%4]}" aria-label="${esc(s.fr)}${n ? ', pratiquée ' + n + ' fois' : ''}">
       ${n && !next ? `<em>${n > 1 ? '×' + n : ''}</em>` : ''}<b>${esc(s.en)}</b><span>${next ? 'Prochaine séance' : esc(s.fr)}</span></button>`;
-  }).join('');
+  };
+  const surpriseNext = store.settings.nextScene === 'surprise';
+  $('stamps').innerHTML = SCENES.map(stampHTML).join('') +
+    `<button class="stamp ${surpriseNext ? 'next' : 'surprise'}" data-scene="surprise" aria-label="Scène surprise inventée par l’IA"><b>?</b><span>${surpriseNext ? 'Prochaine séance' : 'Surprise'}</span></button>`;
+  $('packs').innerHTML = packs().map(([name, list], pi) => `
+    <div class="pack-head"><h4>${esc(name || 'Mes scènes')}<small>${list.length} scène${list.length > 1 ? 's' : ''}</small></h4>
+      <div class="pack-actions">${name ? `<button class="linkbtn" data-packpdf="${esc(name)}">PDF</button>` : ''}<button class="linkbtn del" data-packdel="${esc(name)}">Supprimer</button></div></div>
+    <div class="stamps">${list.map((s,i) => stampHTML(s, i + pi*5 + 3)).join('')}</div>`).join('');
   const list = [...store.history].reverse();
   $('histList').innerHTML = list.length ? list.map(r => {
     const d = new Date(r.date);
@@ -1191,6 +1301,32 @@ $('progDetail').addEventListener('click', e => {
 });
 $('lexPdf').onclick = e => exportLexiconPDF(e.currentTarget);
 $('travelPdf').onclick = e => exportTravelPDF(e.currentTarget);
+$('packs').addEventListener('click', e => {
+  const pdf = e.target.closest('[data-packpdf]');
+  if(pdf){ const name = pdf.dataset.packpdf; withPDF(pdf, 'Pack', () => buildPackPDF(name), 'pack-' + keyOf(name).replace(/\s+/g,'-') + '.pdf'); return; }
+  const del = e.target.closest('[data-packdel]');
+  if(del){
+    const name = del.dataset.packdel;
+    if(!confirm(name ? 'Supprimer le pack « ' + name + ' » ?' : 'Supprimer vos scènes personnelles ?')) return;
+    store.customScenes = customScenes().filter(s => (s.pack || '') !== name);
+    if(!sceneByKey(store.settings.nextScene)) store.settings.nextScene = '';
+    save(); renderProgress(); return;
+  }
+  const b = e.target.closest('[data-scene]'); if(!b) return;
+  const k = b.dataset.scene;
+  store.settings.nextScene = store.settings.nextScene === k ? '' : k; save(); renderProgress();
+  if(store.settings.nextScene) toast('Prochaine séance : ' + sceneByKey(k).fr);
+});
+$('packBtn').onclick = async () => {
+  const dest = $('packDest').value.trim(), btn = $('packBtn');
+  if(!dest){ $('packDest').focus(); return; }
+  if(!store.settings.apiKey.trim()){ toast('Ajoutez d’abord votre clé API dans les réglages.'); return; }
+  btn.disabled = true; btn.textContent = 'Création…';
+  try{ const made = await designScenes('PACK', dest); $('packDest').value = ''; renderProgress(); toast('Pack ' + made[0].pack + ' prêt : ' + made.length + ' scènes ajoutées'); }
+  catch(e){ toast('Le pack n’a pas pu être créé. Vérifiez la connexion.'); }
+  finally{ btn.disabled = false; btn.textContent = 'Créer'; }
+};
+$('packDest').addEventListener('keydown', e => { if(e.key === 'Enter') $('packBtn').click(); });
 $('stamps').addEventListener('click', e => {
   const b = e.target.closest('[data-scene]'); if(!b) return;
   const k = b.dataset.scene;
@@ -1402,10 +1538,10 @@ function buildLexiconPDF(){
   return P.finish();
 }
 function buildTravelPDF(){
-  const counts = sceneCounts(), done = SCENES.filter(s => counts[s.key] > 0);
+  const counts = sceneCounts(), all = allScenes(), done = all.filter(s => counts[s.key] > 0);
   const P = PdfSheet('Phrases de voyage');
-  P.header('Phrases de voyage', done.length + ' scène' + (done.length > 1 ? 's' : '') + ' jouée' + (done.length > 1 ? 's' : '') + ' sur ' + SCENES.length + '. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
-           'Carnet de voyage', done.length + '/' + SCENES.length);
+  P.header('Phrases de voyage', done.length + ' scène' + (done.length > 1 ? 's' : '') + ' jouée' + (done.length > 1 ? 's' : '') + ' sur ' + all.length + '. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+           'Carnet de voyage', done.length + '/' + all.length);
   if(!done.length) P.para('Aucune scène jouée pour l’instant. Choisissez le thème Voyage sur l’écran principal : le coach vous fera vivre l’aéroport, l’hôtel, le restaurant ou le taxi, et vos meilleures phrases viendront s’ajouter ici.', { c:[110,114,152] });
   done.forEach(s => {
     const seen = new Set(), phrases = [];
@@ -1417,8 +1553,23 @@ function buildTravelPDF(){
   });
   const words = store.profile.LEXICON.filter(w => w.theme === 'TRAVEL').slice().reverse();
   if(words.length){ P.section('Vocabulaire de voyage'); words.forEach(w => P.vocabRow(w, w.status === 'mastered' ? 'Maîtrisé' : '')); }
-  const todo = SCENES.filter(s => !counts[s.key]);
+  const todo = all.filter(s => !counts[s.key]);
   if(todo.length && done.length){ P.section('Encore à découvrir', 14); P.para(todo.map(s => s.fr).join(', ') + '.', { c:[110,114,152] }); }
+  return P.finish();
+}
+function buildPackPDF(name){
+  const list = customScenes().filter(s => s.pack === name), counts = sceneCounts();
+  const P = PdfSheet('Pack ' + name);
+  P.header(name, list.length + ' scènes préparées pour votre voyage. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+           'Pack voyage', list.filter(s => counts[s.key]).length + '/' + list.length);
+  list.forEach(s => {
+    P.section(s.fr, 40, s.en + (counts[s.key] ? (counts[s.key] > 1 ? ', jouée ' + counts[s.key] + ' fois' : ', jouée') : ''));
+    if(s.situation) P.para(s.situation, { c:[110,114,152] });
+    const seen = new Set(), phrases = [];
+    [...(s.phrases||[])].concat(...store.history.map(r => (r.scenes||[]).filter(x => x.key === s.key).map(x => x.phrases||[])).flat())
+      .forEach(p => { const k = keyOf(p); if(p && !seen.has(k) && phrases.length < 7){ seen.add(k); phrases.push(p); } });
+    phrases.forEach(p => P.phrase(p));
+  });
   return P.finish();
 }
 function exportTravelPDF(btn){ withPDF(btn, 'Voyage', buildTravelPDF, 'phrases-de-voyage-' + todayISO() + '.pdf'); }
@@ -1468,7 +1619,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'1.4', exported:new Date().toISOString(), profile:store.profile, history:store.history };
+  const data = { app:'english-copilot', version:'1.5', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
@@ -1478,14 +1629,14 @@ $('importFile').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
     const j = JSON.parse(await f.text());
-    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history }) : migrate({ settings:store.settings, profile:j });
-    store.profile = m.profile; store.history = m.history; save(); renderMeta(); toast('Sauvegarde importée.');
+    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes }) : migrate({ settings:store.settings, profile:j });
+    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; save(); renderMeta(); toast('Sauvegarde importée.');
   }catch(_){ toast('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
   e.target.value = '';
 };
 $('resetBtn').onclick = () => {
   if(confirm('Effacer toute la progression (historique, lexique, phases) ?')){
-    store.profile = structuredClone(defaults.profile); store.history = []; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
+    store.profile = structuredClone(defaults.profile); store.history = []; store.customScenes = []; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
   }
 };
 
