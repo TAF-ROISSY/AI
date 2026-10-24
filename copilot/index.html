@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Co-Pilot">
 <meta name="theme-color" content="#12153a">
 <title>English Co-Pilot</title>
-<link rel="apple-touch-icon" id="touchIcon" href="">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
@@ -138,6 +140,34 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 .listen-card{border-radius:18px;padding:14px;background:rgba(255,255,255,.05);border:1px solid var(--glass-line);margin:12px 0}
 .listen-card h4{margin:0 0 4px;font-size:15px;color:var(--amber)}
 .listen-card .txt{font-size:14.5px;line-height:1.5;color:var(--mist);margin:8px 0}
+/* streak, challenges */
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:14px 0 4px}
+.day{text-align:center;font-size:11.5px;color:var(--dim)}
+.day i{display:block;width:100%;aspect-ratio:1;max-width:34px;margin:0 auto 5px;border-radius:50%;border:1.5px dashed rgba(217,220,255,.22)}
+.day.on i{border:0;background:radial-gradient(circle at 35% 30%, #ffe0a8, #ffb547 60%, #e48a1a);box-shadow:0 0 14px rgba(255,181,71,.45)}
+.day.today{color:#fff;font-weight:700}
+.day.today i{border-color:rgba(255,181,71,.7)}
+.streak{display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:14px;color:var(--mist)}
+.streak b{font-size:22px;font-weight:780;color:var(--amber);letter-spacing:-.02em}
+.chal{padding:12px 0;border-bottom:1px solid rgba(217,220,255,.08)}
+.chal:last-of-type{border-bottom:0}
+.chal-top{display:flex;justify-content:space-between;gap:10px;font-size:15px;color:#fff;font-weight:600}
+.chal-top span{font-size:13.5px;color:var(--dim);font-weight:600;white-space:nowrap}
+.chal .bar{height:7px;margin:9px 0 0}
+.chal.done .chal-top span{color:var(--lagoon)}
+.chal.done .bar i{background:var(--lagoon)}
+.offpill{display:none;margin-left:10px;font-size:12px;font-weight:700;color:#14163f;background:#ff9ecf;padding:4px 9px;border-radius:999px;vertical-align:2px}
+body.offline .offpill{display:inline-block}
+.exo .tagoff{flex:none;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;border:1px solid var(--c);color:var(--c)}
+/* mail */
+.mailbox textarea{width:100%;min-height:170px;resize:vertical;background:rgba(10,12,40,.45);border:1px solid rgba(217,220,255,.14);color:#fff;border-radius:14px;padding:12px;font:15px/1.5 var(--font)}
+.mailout{margin-top:16px}
+.mailtext{white-space:pre-wrap;background:#fff;color:#1a1d40;border-radius:16px;padding:16px;font:15px/1.55 -apple-system,system-ui,sans-serif}
+.mailtools{display:flex;gap:8px;margin:10px 0 4px}
+.journal-raw{font-size:14.5px;color:var(--dim);line-height:1.5;margin:6px 0 0}
+.journal-ok{font-size:16.5px;color:#fff;line-height:1.6;margin:8px 0 0;font-weight:400}
+.story-text{font-size:16px;line-height:1.65;color:var(--mist);white-space:pre-wrap}
+.story-text mark{background:rgba(255,181,71,.18);color:#fff;border-radius:4px;padding:0 3px}
 /* cost */
 .costhero{display:flex;align-items:baseline;gap:10px;margin:2px 0 8px}
 .costhero b{font-size:46px;font-weight:800;letter-spacing:-.04em;font-variation-settings:"wdth" 78;color:#fff;line-height:1}
@@ -348,7 +378,7 @@ details.tr[open] summary::after{content:"–"}
 <div class="stars" aria-hidden="true"></div>
 <div class="app">
   <div class="top">
-    <div class="hello" id="hello">Bonne route, <strong>Christophe</strong></div>
+    <div><span class="hello" id="hello">Bonne route, <strong>Christophe</strong></span><span class="offpill" id="offPill">Hors ligne</span></div>
     <div class="top-actions">
       <button class="gear" id="openExo" aria-label="Exercices">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.5L5 13.5h6l-1 8 8-11h-6l1-8z"/></svg>
@@ -412,7 +442,7 @@ details.tr[open] summary::after{content:"–"}
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v2.0</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v2.1</span></div>
   </div>
 </div>
 
@@ -433,6 +463,12 @@ details.tr[open] summary::after{content:"–"}
         <div class="week-top"><h3>Cette semaine</h3><span id="weekLabel"></span></div>
         <div class="bar"><i id="weekBar"></i></div>
         <p id="weekNote"></p>
+        <div class="days" id="weekDays"></div>
+        <div class="streak" id="streakLine"></div>
+      </section>
+      <section class="week">
+        <div class="week-top"><h3>Défis de la semaine</h3><span id="chalCount"></span></div>
+        <div id="chalList"></div>
       </section>
       <div class="stats" id="stats"></div>
       <p class="note">Les miles se gagnent en parlant : 10 par minute de conversation, 20 par séance, 50 par mot maîtrisé. Les phases sont calées sur 5 h par semaine : Long-courrier, soit le niveau B2, en neuf mois environ.</p>
@@ -457,6 +493,7 @@ details.tr[open] summary::after{content:"–"}
       </section>
 
       <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
+      <button class="btn ghost" id="journalPdf" style="margin-top:10px">Mon journal en anglais (PDF)</button>
 
       <section class="block" id="costBlock">
         <div class="block-head"><h3>Coût de l’IA</h3><span id="costModel"></span></div>
@@ -490,7 +527,7 @@ details.tr[open] summary::after{content:"–"}
       <button class="exo" data-ex="review" style="--c:#ff9ecf">
         <div class="exo-top"><b>Révision express</b><span class="badge" id="dueBadge"></span></div>
         <p>Le coach vous donne un mot en français, vous le dites en anglais. Les mots oubliés reviennent le lendemain, les mots sûrs de plus en plus tard.</p>
-        <small>5 min, « review time »</small>
+        <small>5 min, « review time », fonctionne aussi hors ligne</small>
       </button>
       <button class="exo" data-ex="call" style="--c:#4fe3c1">
         <div class="exo-top"><b>Préparer un appel</b></div>
@@ -507,7 +544,38 @@ details.tr[open] summary::after{content:"–"}
         <p>Le coach dit une phrase, vous la répétez. L’app mesure ce qu’elle a compris pour travailler votre prononciation.</p>
         <small>5 min, « repeat after me »</small>
       </button>
+      <button class="exo" data-ex="story" style="--c:#7af0ff">
+        <div class="exo-top"><b>Histoire du jour</b></div>
+        <p>Une histoire de quelques minutes, à votre niveau, qui réutilise vos mots en cours. Vous écoutez, puis trois questions. Idéal les jours de fatigue.</p>
+        <small>5 min, « story time »</small>
+      </button>
+      <button class="exo" data-ex="journal" style="--c:#ffd28a">
+        <div class="exo-top"><b>Journal du soir</b></div>
+        <p>Racontez votre journée en anglais, sans être interrompu. Le coach vous relit ensuite la version corrigée de votre récit.</p>
+        <small>3 min, « journal time »</small>
+      </button>
+      <button class="exo" data-ex="mail" style="--c:#9fb4ff">
+        <div class="exo-top"><b>Corriger un e-mail</b><span class="tagoff">Au bureau</span></div>
+        <p>Collez un e-mail en anglais pour le corriger, ou écrivez-le en français pour obtenir une version anglaise professionnelle.</p>
+        <small>À l’écrit</small>
+      </button>
     </div>
+  </div>
+</div>
+
+<!-- E-mail -->
+<div class="sheet" id="mail">
+  <div class="sheetbody tall mailbox" role="dialog" aria-label="Corriger un e-mail">
+    <div class="grab"></div>
+    <div class="sheethead"><h2>E-mail</h2><button class="close" data-close="mail">Fermer</button></div>
+    <div class="seg" id="mailMode" style="margin:12px 0">
+      <button data-v="fix" class="on">Corriger mon anglais</button><button data-v="write">Rédiger depuis le français</button>
+    </div>
+    <textarea id="mailIn" placeholder="Collez ici votre e-mail en anglais…"></textarea>
+    <div class="field" style="border:0;padding:10px 0 4px"><label for="mailTone">Ton</label>
+      <select id="mailTone"><option value="neutral">Professionnel neutre</option><option value="warm">Cordial</option><option value="firm">Ferme, pour une réclamation</option></select></div>
+    <button class="btn primary" id="mailGo">Corriger</button>
+    <div class="mailout" id="mailOut"></div>
   </div>
 </div>
 
@@ -566,7 +634,7 @@ details.tr[open] summary::after{content:"–"}
     <p class="note">Ce que vous pouvez dire pendant la séance :</p>
     <div class="cmds">
       <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span><span>in French</span>
-      <span>explain</span><span>review time</span><span>listening practice</span><span>repeat after me</span><span>prepare a call</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>surprise me</span><span>prepare a pack for…</span><span>create a scene…</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
+      <span>explain</span><span>story time</span><span>journal time</span><span>review time</span><span>listening practice</span><span>repeat after me</span><span>prepare a call</span><span>travel mode</span><span>work mode</span><span>next scene</span><span>surprise me</span><span>prepare a pack for…</span><span>create a scene…</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
     </div>
     <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
   </div>
@@ -607,6 +675,7 @@ function migrate(d){
     customScenes: Array.isArray(d.customScenes) ? d.customScenes : [],
     placement: d.placement || null,
     usage: d.usage && typeof d.usage === 'object' ? d.usage : {},
+    badges: Array.isArray(d.badges) ? d.badges : [],
     pending:  d.pending || null
   };
   // v1.0 – v1.2 data
@@ -943,7 +1012,10 @@ function listenOnce(lang='en-US'){
       clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => { try{ r.stop(); }catch(_){} }, 2000);
     };
-    r.onerror = (e) => { if(e.error === 'not-allowed' || e.error === 'service-not-allowed') settle({error:'denied'}); };
+    r.onerror = (e) => {
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed') settle({error:'denied'});
+      else if(e.error === 'network') settle({error:'network'});
+    };
     r.onend = () => settle({text:(finalText + ' ' + interim).trim()});
     try { r.start(); } catch(e){ settle({error:'start'}); }
   });
@@ -1132,7 +1204,7 @@ Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de 
 }
 
 /* ---------- exercises ---------- */
-const EX_KINDS = new Set(['review','listen','shadow']);
+const EX_KINDS = new Set(['review','listen','shadow','story','journal']);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const shuffle = a => a.map(x => [Math.random(), x]).sort((p,q) => p[0] - q[0]).map(x => x[1]);
 const alive = () => session.active && !session.endAfterExercise;
@@ -1185,6 +1257,7 @@ async function listenAnswer(lang='en-US', hint=''){
     const r = await listenOnce(lang);
     if(!alive()) break;
     if(r.error === 'denied' || r.error === 'unsupported'){ return { stop:true, end:true }; }
+    if(r.error === 'network'){ await say("Speech recognition needs the network on this phone. Let's stop here for now."); return { stop:true, end:true, net:true }; }
     const t = (r.text||'').trim();
     if(!t){ if(++empty >= 3) return { text:'', n:'' }; continue; }
     const n = norm(t);
@@ -1198,7 +1271,7 @@ async function listenAnswer(lang='en-US', hint=''){
 async function runExercise(kind, nested){
   const t0 = Date.now(); let res = null;
   if(nested) session.inExercise = true;
-  try{ res = kind === 'review' ? await runReview() : kind === 'listen' ? await runListening() : await runShadow(); }
+  try{ res = kind === 'review' ? await runReview() : kind === 'listen' ? await runListening() : kind === 'story' ? await runStory() : kind === 'journal' ? await runJournal() : await runShadow(); }
   catch(e){ res = { rec:null, summary:'exercise interrupted', fr:'L’exercice a été interrompu.' }; }
   const ms = Date.now() - t0;
   if(nested){ session.inExercise = false; session.excludedMs = (session.excludedMs||0) + ms; }
@@ -1355,6 +1428,93 @@ async function runListening(){
   if(alive()) await say('Well done. You understood ' + ok + ' out of ' + total + ' questions.');
   return { rec:{ kind:'listen', title:'Écoute d’accents', score:{ ok, total }, items }, summary:'listening practice, ' + ok + ' out of ' + total,
            fr:'Écoute terminée : ' + ok + ' sur ' + total + '.', end };
+}
+
+async function runStory(){
+  const words = shuffle(learning().filter(w => w.en)).slice(0, 6).map(w => w.en);
+  await say("Story time. Sit back and listen. I'll ask you three questions at the end.");
+  if(!alive()) return { rec:null, summary:'story stopped', fr:'Exercice arrêté.' };
+  setState('thinking', 'Écriture de l’histoire…');
+  let s;
+  try{
+    const raw = await callClaude(`Tu écris une courte histoire en anglais à écouter en voiture, pour un francophone de niveau ${stats().level}, responsable d'une équipe de fret aérien et de douane à Roissy, qui aime voyager.
+Réponds UNIQUEMENT en JSON : {"title":"titre anglais court","title_fr":"titre français","text":"l'histoire, 260 à 380 mots, en 4 à 6 paragraphes séparés par une ligne vide, phrases claires et naturelles, avec des dialogues","words_used":["mots de la liste réellement utilisés"],"questions":[{"q":"short question in English","answer":"short expected answer","keywords":["mots qui rendent la réponse correcte"]}]}
+Varie les univers d'une fois sur l'autre : enquête à l'aéroport, cargaison mystérieuse, voyage en Asie, négociation tendue, imprévu en vacances. Utilise naturellement le plus possible de ces mots qu'il apprend : ${words.join(', ') || 'aucun'}. Exactement 3 questions de compréhension.`,
+      [{ role:'user', content:'Écris l’histoire.' }], 1800, 'exercices');
+    const m = raw.match(/\{[\s\S]*\}/); s = m && JSON.parse(m[0]);
+    if(!s || !s.text) throw new Error('story');
+  }catch(e){ await say("Sorry, I couldn't write the story right now. Let's try again later."); return { rec:null, summary:'story unavailable', fr:'Histoire indisponible pour le moment.' }; }
+  await say(s.title ? 'This story is called: ' + s.title + '.' : 'Here we go.');
+  for(const para of String(s.text).split(/\n\s*\n/).map(x => x.trim()).filter(Boolean)){
+    if(!alive()) break;
+    setState('speaking', 'Écoutez l’histoire…');
+    await speak(para, 0.95);
+  }
+  const qs = []; let ok = 0, end = false;
+  if(alive()) await say("Now, three questions.");
+  for(const q of (s.questions || []).slice(0,3)){
+    if(!alive()) break;
+    await say(q.q);
+    const a = await listenAnswer('en-US', 'Répondez en anglais.');
+    if(a.stop){ end = !!a.end; break; }
+    const good = !!a.text && keywordsMatch(a.text, q.keywords, q.answer);
+    if(good) ok++;
+    qs.push({ q:str(q.q), answer:str(q.answer), said:a.text || '', ok:good });
+    await say(good ? pick(['Right.','Correct.','Exactly.']) : 'Not quite. ' + q.answer);
+  }
+  if(qs.length && alive()) await say('You got ' + ok + ' out of ' + qs.length + '. See you for the next story!');
+  return { rec:{ kind:'story', title:'Histoire du jour', story:{ title:str(s.title), title_fr:str(s.title_fr), text:str(s.text), words:(s.words_used||[]).map(str) },
+                 score:{ ok, total:qs.length }, items:qs },
+           summary:'story of the day, ' + ok + ' out of ' + qs.length, fr:'Histoire terminée : ' + ok + ' sur ' + qs.length + '.', end };
+}
+
+async function runJournal(){
+  await say("Journal time. Tell me about your day: what happened, how you felt, anything you like. I won't interrupt. Say I'm done when you've finished.");
+  const parts = []; let quiet = 0, end = false; const t0 = Date.now();
+  while(alive() && Date.now() - t0 < 6*60000){
+    setState('listening', parts.length ? 'Continuez… Dites « I’m done » pour terminer.' : 'Racontez votre journée.');
+    const r = await listenOnce('en-US');
+    if(!alive()) break;
+    if(r.error === 'network'){ await say("Speech recognition needs the network. Let's stop here."); end = false; break; }
+    const t = (r.text||'').trim(), n = norm(t);
+    if(!t){ if(parts.length && ++quiet >= 3) break; continue; }
+    quiet = 0;
+    if(RX.end.test(n) && wc(n) <= 7){ end = true; break; }
+    const doneM = n.match(/\b(i'?m done|i am done|that'?s all|that'?s it|i'?ve finished|finished)\s*$/);
+    if(doneM){ const rest = t.replace(/(i'?m done|i am done|that'?s all|that'?s it|i'?ve finished|finished)[.!\s]*$/i, '').trim(); if(rest) parts.push(rest); break; }
+    parts.push(t);
+    lineEl.textContent = parts.join(' ').slice(-220);
+  }
+  const raw = parts.join(' ').trim();
+  if(normW(raw).length < 8){ if(alive()) await say("That was a bit short to work with. Let's try again tomorrow evening!"); return { rec:null, summary:'journal too short', fr:'Récit trop court pour être corrigé.', end }; }
+  if(!session.active && !session.endAfterExercise){}
+  setState('thinking', 'Correction de votre récit…');
+  let j;
+  try{
+    const out = await callClaude(`Tu corriges le récit oral qu'un francophone de niveau ${stats().level} a fait de sa journée (reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes).
+Réponds UNIQUEMENT en JSON : {"title":"titre français court de la journée","corrected":"son récit réécrit en anglais correct et naturel, à la première personne, même contenu et même longueur, sans rien inventer","improvements":[{"said":"ce qu'il a dit","correct":"forme correcte","rule":"pourquoi, une phrase en français"}],"vocabulary":[{"en":"mot ou expression utile pour ce qu'il voulait dire","fr":"traduction","example":"exemple tiré de son récit"}],"tip":"one short encouraging tip in English"}
+improvements : 5 au maximum, les plus utiles. vocabulary : 4 au maximum.`,
+      [{ role:'user', content: raw }], 1600, 'exercices');
+    const m = out.match(/\{[\s\S]*\}/); j = m && JSON.parse(m[0]);
+    if(!j || !j.corrected) throw new Error('journal');
+  }catch(e){
+    if(session.active) await say("I couldn't correct your story right now, but I've saved it.");
+    return { rec:{ kind:'journal', title:'Journal du soir', journal:{ raw, corrected:'', title:'' }, improvements:[], vocabulary:[] }, summary:'evening journal saved', fr:'Récit enregistré, correction impossible pour le moment.', end };
+  }
+  const day = todayISO(), lex = store.profile.LEXICON, errs = store.profile.ERRORS;
+  const imp = (j.improvements||[]).filter(x => x && x.said).slice(0,5).map(x => ({ said:str(x.said), correct:str(x.correct), rule:str(x.rule) }));
+  imp.forEach(c => { const ex = errs.find(e => (c.correct && keyOf(e.correct) === keyOf(c.correct)) || keyOf(e.said) === keyOf(c.said)); if(ex){ ex.count = (ex.count||1) + 1; ex.last = day; } else errs.push({ ...c, count:1, last:day }); });
+  const voc = (j.vocabulary||[]).filter(v => v && v.en).slice(0,4).map(v => ({ en:str(v.en), fr:str(v.fr), example:str(v.example) }));
+  voc.forEach(v => { if(!lex.find(w => keyOf(w.en) === keyOf(v.en))) lex.push({ ...v, first:day, status:'learning', seen:1, box:0, due:addDays(1) }); });
+  save();
+  if(session.active && !session.endAfterExercise){
+    await say("Thank you. Here is your day, in polished English.");
+    setState('speaking', 'Votre récit corrigé');
+    await speak(str(j.corrected), 0.95);
+    if(j.tip) await say(str(j.tip));
+  }
+  return { rec:{ kind:'journal', title:'Journal du soir', journal:{ raw, corrected:str(j.corrected), title:str(j.title) }, improvements:imp, vocabulary:voc },
+           summary:'evening journal', fr:'Journal enregistré et corrigé.', end };
 }
 
 /* ---------- placement test ---------- */
@@ -1563,7 +1723,9 @@ const RX = {
   askFr:  /\b(in french|en francais|french word|un mot francais)\b/,
   exReview: /\b(review time|let'?s review|quiz me|vocabulary review|word review)\b/,
   exListen: /\b(listening practice|listening exercise|test my listening|listening test)\b/,
-  exShadow: /\b(repeat after me|shadowing|pronunciation practice|pronunciation exercise)\b/
+  exShadow: /\b(repeat after me|shadowing|pronunciation practice|pronunciation exercise)\b/,
+  exStory: /\b(story time|tell me a story|story of the day)\b/,
+  exJournal: /\b(journal time|diary time|my journal|evening journal)\b/
 };
 
 /* ---------- session ---------- */
@@ -1600,7 +1762,10 @@ async function turn(userText){
     const piece = cleanForSpeech(seg.slice(0, cut).replace(/\[\[[^\]]*\]\]/g, ' '));
     spoken += cut;
     if(!piece || (!session.active && !session.ending)) return;
-    if(!started){ started = true; setState('speaking', ''); }
+    if(!started){
+      started = true; setState('speaking', '');
+      if(session.offline){ session.offline = false; session.retryText = ''; queueSpeech('Good, we are back online.'); }
+    }
     queueSpeech(piece);
   };
   try {
@@ -1622,6 +1787,17 @@ async function turn(userText){
       setState('idle', /credit/i.test(e.message) ? 'Crédit API épuisé : rechargez votre compte sur console.anthropic.com.' : 'Clé API refusée : vérifiez-la dans les réglages avec « Tester la clé ».');
       return false;
     }
+    if(isNetErr(e)){
+      session.retryText = userText;
+      if(!session.offline){
+        session.offline = true; session.lastRetry = Date.now();
+        setState('speaking', 'Hors connexion.');
+        await speak(session.messages.some(m => m.role === 'assistant')
+          ? "We've lost the network. I'll wait and pick up as soon as it's back. Say review time to practise your words in the meantime."
+          : "There's no network right now. I'll start as soon as it's back. Say review time to practise your words in the meantime.");
+      }
+      return true;
+    }
     setState('speaking', 'Connexion perdue. Répétez votre phrase.');
     await speak("Sorry, I lost the connection. Please say that again.");
     return true;
@@ -1631,15 +1807,37 @@ async function turn(userText){
   session.lastReply = reply;
   persistSession();
   addLog('coach', reply);
+  if(session.offline){ session.offline = false; session.retryText = ''; }
   if(!started && (session.active || session.ending)){ setState('speaking', ''); queueSpeech(reply); }
   await speechQueue;
   if(!session.active && !session.ending) return false;
   return true;
 }
 
+async function offlineWait(){
+  // try the failed message again as soon as the network looks back (or every 10 s)
+  if(navigator.onLine && Date.now() - (session.lastRetry||0) > 10000 && session.retryText){
+    session.lastRetry = Date.now();
+    const t = session.retryText;
+    const ok = await turn(t);
+    if(!ok) return false;
+    if(!session.offline) return true;
+  }
+  setState('paused', 'Hors connexion : reprise automatique dès le retour du réseau. Dites « review time » pour réviser en attendant.');
+  const res = await listenOnce('en-US');
+  if(!session.active) return false;
+  if(res.error === 'network' || res.error){ await wait(4000); return true; }
+  const n = norm(res.text || '');
+  if(!n) return true;
+  if(RX.end.test(n) && wc(n) <= 7){ await endSession(); return false; }
+  if(RX.exReview.test(n)){ const r = await runExercise('review', true); if(!session.active) return false; if(r.end){ await endSession(); return false; } return true; }
+  await speak("We're still offline. I'll pick up as soon as the network is back.");
+  return true;
+}
 async function loop(){
   let emptyStreak = 0;
   while(session.active){
+    if(session.offline){ if(!(await offlineWait())) return; continue; }
     const fr = session.nextFr && !session.paused; session.nextFr = false;
     setState(session.paused ? 'paused' : fr ? 'french' : 'listening', session.paused ? 'Dites « resume » pour reprendre.' : fr ? 'Expliquez en français.' : 'À vous.');
     const res = await listenOnce(fr ? 'fr-FR' : 'en-US');
@@ -1650,6 +1848,7 @@ async function loop(){
     }
     if(res.error === 'denied'){ stopSession(false); setState('idle','Micro refusé : autorisez le micro et la reconnaissance vocale pour Safari dans les Réglages iOS.'); return; }
     if(res.error === 'unsupported'){ stopSession(false); setState('idle','Reconnaissance vocale indisponible : ouvrez l’app dans Safari sur iPhone.'); return; }
+    if(res.error === 'network'){ session.offline = true; session.retryText = session.retryText || ''; await speak("Speech recognition needs the network. I'll wait until it's back."); await wait(4000); continue; }
     const text = (res.text || '').trim();
     if(!text){ emptyStreak++; await wait(emptyStreak > 3 ? 600 : 150); continue; }
     emptyStreak = 0;
@@ -1665,7 +1864,7 @@ async function loop(){
     if(RX.repeat.test(n) && wc(n) <= 5 && session.lastReply){
       setState('speaking','Plus lentement…'); await speak(session.lastReply, 0.8); continue;
     }
-    const ex = RX.exReview.test(n) ? 'review' : RX.exListen.test(n) ? 'listen' : RX.exShadow.test(n) ? 'shadow' : null;
+    const ex = RX.exReview.test(n) ? 'review' : RX.exListen.test(n) ? 'listen' : RX.exShadow.test(n) ? 'shadow' : RX.exStory.test(n) ? 'story' : RX.exJournal.test(n) ? 'journal' : null;
     if(ex && wc(n) <= 7 && session.kind !== 'test'){
       const r = await runExercise(ex, true);
       if(!session.active) return;
@@ -1726,18 +1925,22 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startSession(kind){
   if(!store.settings.apiKey.trim()){ openSettings(); return; }
   if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
-  const k = ['test','review','listen','shadow','call'].includes(kind) ? kind : 'lesson';
+  const k = ['test','review','listen','shadow','call','story','journal'].includes(kind) ? kind : 'lesson';
+  if(!navigator.onLine && ['test','listen','story','journal','call'].includes(k)){
+    toast(k === 'test' ? 'Le test de niveau a besoin du réseau.' : 'Cet exercice a besoin du réseau. La révision express fonctionne hors ligne.');
+    return;
+  }
   const isTest = k === 'test';
   Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now(),
                            scenes: (k === 'lesson' || k === 'call') ? pickScenes() : [], kind:k, testDone:false, action:null,
-                           nextFr:false, excludedMs:0, inExercise:false, endAfterExercise:false });
+                           nextFr:false, excludedMs:0, inExercise:false, endAfterExercise:false, offline:false, retryText:'', lastRetry:0 });
   ['testCard','weekCard','reviewCard'].forEach(id => $(id).hidden = true);
   if(k === 'lesson' && store.settings.nextScene){ store.settings.theme = 'TRAVEL'; store.settings.nextScene = ''; save(); document.querySelectorAll('#themeChips button').forEach(b => b.classList.toggle('on', b.dataset.v === 'TRAVEL')); }
   lineEl.textContent = '';
   $('recap').hidden = true; $('modelHint').hidden = true;
   stopBtn.style.display = 'grid';
   keepAwake();
-  if(store.pending){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
+  if(store.pending && navigator.onLine){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
   if(EX_KINDS.has(k)){ const r = await runExercise(k, false); return finishStandalone(r); }
   const ok = await turn('[SESSION_START]');
   if(ok && session.active) loop();
@@ -1783,12 +1986,61 @@ big.addEventListener('click', () => {
 });
 stopBtn.addEventListener('click', () => { if(session.active) endSession(); });
 
+/* ---------- streak & weekly challenges ---------- */
+const recDay = r => localDay(new Date(r.date));
+function streak(){
+  const days = new Set(store.history.map(recDay));
+  let d = new Date(), n = 0;
+  if(!days.has(localDay(d))) d.setDate(d.getDate() - 1);           // today is still open
+  while(days.has(localDay(d))){ n++; d.setDate(d.getDate() - 1); }
+  // best ever
+  const sorted = [...days].sort(); let best = 0, run = 0, prev = null;
+  sorted.forEach(k => { const t = new Date(k + 'T12:00:00'); run = prev && (t - prev) < 1.5*864e5 ? run + 1 : 1; best = Math.max(best, run); prev = t; });
+  return { now:n, best:Math.max(best, n), today:days.has(localDay()) };
+}
+const CHALLENGES = [
+  { id:'days5',   label:'Pratiquer 5 jours cette semaine', target:5,  of: w => new Set(w.map(recDay)).size, unit:'jours' },
+  { id:'goal',    label:'Atteindre votre objectif de la semaine', target:0, of: (w,goal) => w.reduce((a,r) => a + (r.minutes||0), 0), unit:'min', goalBased:true },
+  { id:'review20',label:'Réviser 20 mots', target:20, of: w => w.filter(r => r.kind === 'review').reduce((a,r) => a + (r.items||[]).length, 0), unit:'mots' },
+  { id:'calls2',  label:'Préparer 2 appels', target:2, of: w => w.filter(r => r.theme === 'CALL').length, unit:'appels' },
+  { id:'scenes3', label:'Jouer 3 scènes de voyage', target:3, of: w => w.reduce((a,r) => a + (r.scenes||[]).length, 0), unit:'scènes' },
+  { id:'listen2', label:'Faire 2 exercices d’écoute', target:2, of: w => w.filter(r => r.kind === 'listen').length, unit:'exercices' },
+  { id:'shadow90',label:'Atteindre 90 % en répétition', target:90, of: w => Math.max(0, ...w.filter(r => r.kind === 'shadow').map(r => (r.score||{}).avg || 0)), unit:'%' },
+  { id:'journal3',label:'Raconter 3 journées', target:3, of: w => w.filter(r => r.kind === 'journal').length, unit:'récits' },
+  { id:'story2',  label:'Écouter 2 histoires du jour', target:2, of: w => w.filter(r => r.kind === 'story').length, unit:'histoires' },
+  { id:'mail2',   label:'Faire corriger 2 e-mails', target:2, of: w => w.filter(r => r.kind === 'mail').length, unit:'e-mails' }
+];
+function weekChallenges(){
+  const key = localDay(weekStart());
+  let seed = [...key].reduce((a,c) => (a*31 + c.charCodeAt(0)) >>> 0, 7);
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const first = rnd() < 0.5 ? 'days5' : 'goal';
+  const rest = CHALLENGES.filter(c => c.id !== 'days5' && c.id !== 'goal').map(c => [rnd(), c]).sort((a,b) => a[0] - b[0]).map(x => x[1]).slice(0,2);
+  const ws = weekStart().getTime(), wk = store.history.filter(r => new Date(r.date).getTime() >= ws), goal = store.settings.weeklyGoal || 300;
+  return [CHALLENGES.find(c => c.id === first), ...rest].map(c => {
+    const target = c.goalBased ? goal : c.target, val = c.of(wk, goal);
+    return { id:c.id, key:key + ':' + c.id, label:c.label, unit:c.unit, target, val, done: val >= target };
+  });
+}
+function checkChallenges(announce){
+  const list = weekChallenges(), got = store.badges || (store.badges = []);
+  list.filter(c => c.done && !got.some(b => b.key === c.key)).forEach(c => {
+    got.push({ key:c.key, label:c.label, date:todayISO() }); save();
+    if(announce) toast('Défi réussi : ' + c.label.charAt(0).toLowerCase() + c.label.slice(1));
+  });
+  return list;
+}
+
 /* ---------- main screen meta ---------- */
 function renderMeta(){
   const st = stats(), ph = phaseOf(st.miles);
   const b = $('progBtn');
+  const sk = streak();
+  checkChallenges(true);
   b.innerHTML = st.sessions
-    ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
+    ? (sk.now >= 2
+        ? `<i></i><span><b>${sk.now} jours</b> d’affilée, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`
+        : `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${esc(fmtMin(weekly().mins))} sur ${esc(fmtMin(store.settings.weeklyGoal || 300))} cette semaine</span>`)
     : `<i></i><span>Première séance</span>`;
   const s = store.settings;
   const showTest = !session.active && !store.placement && !s.testDismissed;
@@ -1914,6 +2166,18 @@ function renderProgress(){
       <div class="pack-actions">${name ? `<button class="linkbtn" data-packpdf="${esc(name)}">PDF</button>` : ''}<button class="linkbtn del" data-packdel="${esc(name)}">Supprimer</button></div></div>
     <div class="stamps">${list.map((s,i) => stampHTML(s, i + pi*5 + 3)).join('')}</div>`).join('');
   renderCost();
+  // week dots and streak
+  const ws = weekStart(), practiced = new Set(store.history.map(recDay)), todayK = localDay();
+  $('weekDays').innerHTML = ['L','M','M','J','V','S','D'].map((l,i) => { const d = new Date(ws); d.setDate(d.getDate() + i); const k = localDay(d);
+    return `<div class="day${practiced.has(k) ? ' on' : ''}${k === todayK ? ' today' : ''}"><i></i>${l}</div>`; }).join('');
+  const sk = streak();
+  $('streakLine').innerHTML = sk.now ? `<b>${sk.now}</b> jour${sk.now > 1 ? 's' : ''} d’affilée${sk.best > sk.now ? `, record ${sk.best}` : sk.now > 1 ? ', votre record' : ''}${sk.today ? '' : '. Pratiquez aujourd’hui pour continuer la série.'}`
+                                     : `Pratiquez aujourd’hui pour démarrer une série.`;
+  const ch = checkChallenges(false), total = (store.badges||[]).length;
+  $('chalCount').textContent = total ? total + ' réussi' + (total > 1 ? 's' : '') + ' au total' : '';
+  $('chalList').innerHTML = ch.map(c => { const pct = Math.min(100, c.target ? c.val / c.target * 100 : 0);
+    const shown = c.unit === 'min' ? fmtMin(c.val) + ' / ' + fmtMin(c.target) : c.unit === '%' ? Math.round(c.val) + ' / ' + c.target + ' %' : Math.min(c.val, c.target) + ' / ' + c.target;
+    return `<div class="chal${c.done ? ' done' : ''}"><div class="chal-top">${esc(c.label)}<span>${c.done ? 'Réussi' : esc(shown)}</span></div><div class="bar"><i style="width:${pct.toFixed(0)}%"></i></div></div>`; }).join('');
   const pl = store.placement;
   $('placeBody').innerHTML = pl
     ? `<button class="hrow" data-place="1"><div class="hdate lvl"><b>${esc(pl.level)}</b></div>
@@ -1992,7 +2256,7 @@ function openPlacement(){
 }
 function openExerciseDetail(r){
   const back = `<button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Progression</button>`;
-  let h = back + `<p class="dkick">${esc(cap(dLong(r.date)))}, exercice de ${esc(fmtMin(r.minutes))}</p><h2 class="dtitle">${esc(r.title)}</h2>`;
+  let h = back + `<p class="dkick">${esc(cap(dLong(r.date)))}${r.minutes ? ', exercice de ' + esc(fmtMin(r.minutes)) : ''}</p><h2 class="dtitle">${esc(r.title)}</h2>`;
   const sc = r.score || {};
   if(r.kind === 'review'){
     h += `<div class="scores"><div class="stat"><b>${sc.ok}/${sc.total}</b><span>mots retrouvés</span></div><div class="stat"><b>${dueWords().length}</b><span>encore à réviser aujourd’hui</span></div><div class="stat"><b>${mastered().length}</b><span>mots maîtrisés</span></div></div>`;
@@ -2006,6 +2270,26 @@ function openExerciseDetail(r){
     h += (r.items||[]).map(i => `<div class="listen-card"><h4>${esc(cap(str(i.kind)))}${i.accent ? ', accent ' + esc(accentFr(i.accent)) : ''}</h4>
       <details><summary class="s" style="cursor:pointer;color:var(--dim);font-size:14px">Lire la transcription</summary><p class="txt">${esc(i.text)}</p></details>
       ${(i.questions||[]).map(q => `<div class="exitem"><div class="t">${q.ok ? '<span class="okmark">✓</span>' : '<span class="komark">✗</span>'} ${esc(q.q)}</div><div class="s">Réponse attendue : ${esc(str(q.answer).replace(/[.\s]+$/,''))}${q.said ? '. Vous : ' + esc(q.said) : ''}</div></div>`).join('')}</div>`).join('');
+  } else if(r.kind === 'story'){
+    const s = r.story || {}, words = (s.words||[]).map(w => w.toLowerCase());
+    let txt = esc(s.text || '');
+    words.filter(Boolean).forEach(w => { const re = new RegExp('\\b(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\b', 'gi'); txt = txt.replace(re, '<mark>$1</mark>'); });
+    h += `<div class="scores"><div class="stat"><b>${sc.ok}/${sc.total}</b><span>bonnes réponses</span></div><div class="stat"><b>${words.length}</b><span>de vos mots réutilisés</span></div><div class="stat"><b>${esc(fmtMin(r.minutes))}</b><span>d’écoute</span></div></div>`;
+    h += `<section class="block"><h3 class="dsec">${esc(s.title || 'L’histoire')}</h3>${s.title_fr ? `<p class="dkick" style="margin-top:-4px">${esc(s.title_fr)}</p>` : ''}<p class="story-text">${txt}</p></section>`;
+    if((r.items||[]).length) h += `<section class="block"><h3 class="dsec">Questions</h3>${r.items.map(q => `<div class="exitem"><div class="t">${q.ok ? '<span class="okmark">✓</span>' : '<span class="komark">✗</span>'} ${esc(q.q)}</div><div class="s">Réponse attendue : ${esc(str(q.answer).replace(/[.\s]+$/,''))}${q.said ? '. Vous : ' + esc(q.said) : ''}</div></div>`).join('')}</section>`;
+  } else if(r.kind === 'journal'){
+    const j = r.journal || {};
+    if(j.title) h += `<p class="dkick" style="margin-top:-2px">${esc(j.title)}</p>`;
+    if(j.corrected) h += `<section class="block"><h3 class="dsec">Votre journée, corrigée</h3><p class="journal-ok">${esc(j.corrected)}</p></section>`;
+    h += `<details class="tr"><summary>Ce que vous avez dit</summary><p class="journal-raw">${esc(j.raw || '')}</p></details>`;
+    if((r.improvements||[]).length) h += `<section class="block"><h3 class="dsec">Corrections</h3>${r.improvements.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}</section>`;
+    if((r.vocabulary||[]).length) h += `<section class="block"><h3 class="dsec">Mots utiles</h3>${r.vocabulary.map(w => `<div class="vocab-item"><span class="vocab-en">${esc(w.en)}</span><span class="vocab-fr">${esc(w.fr)}</span>${w.example ? `<p class="vocab-ex">${esc(w.example)}</p>` : ''}</div>`).join('')}</section>`;
+  } else if(r.kind === 'mail'){
+    const m = r.mail || {};
+    h += `<section class="block"><h3 class="dsec">${m.mode === 'write' ? 'E-mail rédigé' : 'E-mail corrigé'}</h3><div class="mailtext">${esc(m.output || '')}</div>
+      <div class="mailtools"><button class="btn" data-copy="${esc(r.id)}">Copier</button></div></section>`;
+    if((r.corrections||[]).length) h += `<section class="block"><h3 class="dsec">Corrections</h3>${r.corrections.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}</section>`;
+    h += `<details class="tr"><summary>Votre texte d’origine</summary><p class="journal-raw" style="white-space:pre-wrap">${esc(m.input || '')}</p></details>`;
   }
   const pd = $('progDetail'); pd.innerHTML = h; pd.hidden = false; $('progMain').hidden = true;
   $('progBody').scrollTop = 0;
@@ -2040,13 +2324,64 @@ function openDetail(id){
 $('testYes').onclick = () => startSession('test');
 $('reviewYes').onclick = () => startSession('review');
 $('reviewNo').onclick = () => { store.settings.reviewSnooze = todayLocal(); save(); renderMeta(); };
+/* ---------- e-mail correction ---------- */
+let mailMode = 'fix';
+$('mailMode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  mailMode = b.dataset.v;
+  $('mailMode').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  $('mailIn').placeholder = mailMode === 'fix' ? 'Collez ici votre e-mail en anglais…' : 'Écrivez en français ce que vous voulez dire, même en vrac…';
+  $('mailGo').textContent = mailMode === 'fix' ? 'Corriger' : 'Rédiger en anglais';
+});
+function openMail(){ $('mailOut').innerHTML = ''; $('mail').classList.add('open'); }
+async function runMail(){
+  const input = $('mailIn').value.trim(), btn = $('mailGo');
+  if(!input){ $('mailIn').focus(); return; }
+  if(!store.settings.apiKey.trim()){ toast('Ajoutez d’abord votre clé API dans les réglages.'); return; }
+  if(!navigator.onLine){ toast('La correction d’e-mail a besoin du réseau.'); return; }
+  const tone = { neutral:'professionnel et neutre', warm:'cordial et chaleureux, tout en restant professionnel', firm:'ferme et précis, adapté à une réclamation, toujours poli' }[$('mailTone').value];
+  const old = btn.textContent; btn.disabled = true; btn.textContent = mailMode === 'fix' ? 'Correction…' : 'Rédaction…';
+  try{
+    const raw = await callClaude(`Tu aides un responsable de fret aérien et de douane à Roissy, francophone de niveau ${stats().level}, à écrire ses e-mails professionnels en anglais (agents étrangers, compagnies aériennes, clients, douane). Ton souhaité : ${tone}.
+${mailMode === 'fix' ? "Il te donne un e-mail qu'il a écrit en anglais. Corrige-le et améliore-le en gardant son sens, ses informations et sa structure ; ne rajoute aucun fait." : "Il te donne en français ce qu'il veut dire. Rédige l'e-mail en anglais, naturel et professionnel, sans rajouter de faits ; laisse [entre crochets] les informations manquantes."}
+Réponds UNIQUEMENT en JSON : {"email":"l'e-mail final en anglais, avec formule d'appel et de politesse","corrections":[{"said":"ce qu'il avait écrit","correct":"forme correcte","rule":"pourquoi, une phrase en français"}],"tips":"un ou deux conseils courts en français","vocabulary":[{"en":"expression professionnelle utile","fr":"traduction","example":"exemple"}]}
+corrections : ${mailMode === 'fix' ? '6 maximum, ses vraies erreurs de langue' : 'toujours []'}. vocabulary : 3 maximum.`,
+      [{ role:'user', content:input }], 1800, 'exercices');
+    const m = raw.match(/\{[\s\S]*\}/); const j = m && JSON.parse(m[0]);
+    if(!j || !j.email) throw new Error('mail');
+    const day = todayISO(), errs = store.profile.ERRORS, lex = store.profile.LEXICON;
+    const corr = (j.corrections||[]).filter(c => c && c.said).slice(0,6).map(c => ({ said:str(c.said), correct:str(c.correct), rule:str(c.rule) }));
+    corr.forEach(c => { const ex = errs.find(e => (c.correct && keyOf(e.correct) === keyOf(c.correct)) || keyOf(e.said) === keyOf(c.said)); if(ex){ ex.count = (ex.count||1) + 1; ex.last = day; } else errs.push({ ...c, count:1, last:day }); });
+    const voc = (j.vocabulary||[]).filter(v => v && v.en).slice(0,3).map(v => ({ en:str(v.en), fr:str(v.fr), example:str(v.example) }));
+    voc.forEach(v => { if(!lex.find(w => keyOf(w.en) === keyOf(v.en))) lex.push({ ...v, first:day, status:'learning', seen:1, box:0, due:addDays(1), theme:'WORK' }); });
+    const rec = { id:String(Date.now()), date:new Date().toISOString(), minutes:0, kind:'mail', title: mailMode === 'fix' ? 'E-mail corrigé' : 'E-mail rédigé',
+                  mail:{ mode:mailMode, input, output:str(j.email), tips:str(j.tips) }, corrections:corr, vocabulary:voc };
+    store.history.push(rec); save(); renderMeta();
+    $('mailOut').innerHTML = `<div class="mailtext" id="mailResult">${esc(rec.mail.output)}</div>
+      <div class="mailtools"><button class="btn" data-copy="${rec.id}">Copier l’e-mail</button></div>
+      ${j.tips ? `<p class="note">${esc(j.tips)}</p>` : ''}
+      ${corr.length ? `<section class="block"><h3 class="dsec">Vos corrections</h3>${corr.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}<p class="note">Ces points rejoignent vos pièges à éviter : le coach y reviendra à l’oral.</p></section>` : ''}
+      ${voc.length ? `<section class="block"><h3 class="dsec">Expressions à retenir</h3>${voc.map(w => `<div class="vocab-item"><span class="vocab-en">${esc(w.en)}</span><span class="vocab-fr">${esc(w.fr)}</span></div>`).join('')}</section>` : ''}`;
+    $('mailOut').scrollIntoView({ behavior:'smooth', block:'start' });
+  }catch(e){ toast('La correction a échoué. Vérifiez la connexion et réessayez.'); }
+  finally{ btn.disabled = false; btn.textContent = old; }
+}
+$('mailGo').onclick = runMail;
+$('mail').addEventListener('click', e => { if(e.target.id === 'mail') closeSheet('mail'); });
+document.addEventListener('click', async e => {
+  const c = e.target.closest('[data-copy]'); if(!c) return;
+  const r = store.history.find(x => x.id === c.dataset.copy); if(!r || !r.mail) return;
+  try{ await navigator.clipboard.writeText(r.mail.output); toast('E-mail copié.'); }
+  catch(_){ toast('Copie impossible : sélectionnez le texte pour le copier.'); }
+});
+
 function openExo(){
   const n = dueWords().length;
   $('dueBadge').textContent = n ? n + ' à réviser' : 'À jour';
   $('exo').classList.add('open');
 }
 $('openExo').onclick = openExo;
-document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { closeSheet('exo'); startSession(b.dataset.ex); });
+document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { closeSheet('exo'); if(b.dataset.ex === 'mail') openMail(); else startSession(b.dataset.ex); });
 $('exo').addEventListener('click', e => { if(e.target.id === 'exo') closeSheet('exo'); });
 $('weekNo').onclick = () => { store.settings.weeklyReportSeen = $('weekCard').dataset.key; save(); renderMeta(); };
 $('weekYes').onclick = () => {
@@ -2075,6 +2410,7 @@ $('progDetail').addEventListener('click', e => {
 });
 $('lexPdf').onclick = e => exportLexiconPDF(e.currentTarget);
 $('travelPdf').onclick = e => exportTravelPDF(e.currentTarget);
+$('journalPdf').onclick = e => withPDF(e.currentTarget, 'Journal', buildJournalPDF, 'journal-anglais-' + todayISO() + '.pdf');
 $('packs').addEventListener('click', e => {
   const pdf = e.target.closest('[data-packpdf]');
   if(pdf){ const name = pdf.dataset.packpdf; withPDF(pdf, 'Pack', () => buildPackPDF(name), 'pack-' + keyOf(name).replace(/\s+/g,'-') + '.pdf'); return; }
@@ -2351,6 +2687,19 @@ function buildPlacementPDF(){
   if(p.time_to_b2) P.para('Aisance B2 : ' + p.time_to_b2);
   return P.finish();
 }
+function buildJournalPDF(){
+  const entries = store.history.filter(r => r.kind === 'journal' && r.journal && (r.journal.corrected || r.journal.raw));
+  const P = PdfSheet('Mon journal');
+  P.header('Mon journal', entries.length + ' récit' + (entries.length > 1 ? 's' : '') + ' en anglais. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+           'Récits', String(entries.length));
+  if(!entries.length) P.para('Votre journal se remplira au fil des soirées : dites « journal time » au coach ou lancez le Journal du soir depuis les exercices.', { c:[110,114,152] });
+  entries.slice().reverse().forEach(r => {
+    P.section(cap(dLong(r.date)), 30, r.journal.title || '');
+    P.para(r.journal.corrected || r.journal.raw, { f:'times', s:'normal', sz:12, c:[30,32,72] });
+    (r.improvements||[]).slice(0,3).forEach(c => P.corrRow(c));
+  });
+  return P.finish();
+}
 function buildPackPDF(name){
   const list = customScenes().filter(s => s.pack === name), counts = sceneCounts();
   const P = PdfSheet('Pack ' + name);
@@ -2442,7 +2791,7 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const data = { app:'english-copilot', version:'2.0', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement, usage:store.usage };
+  const data = { app:'english-copilot', version:'2.1', exported:new Date().toISOString(), profile:store.profile, history:store.history, customScenes:customScenes(), placement:store.placement, usage:store.usage, badges:store.badges||[] };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
@@ -2452,36 +2801,27 @@ $('importFile').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
     const j = JSON.parse(await f.text());
-    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes, placement:j.placement, usage:j.usage }) : migrate({ settings:store.settings, profile:j });
-    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; store.placement = m.placement; store.usage = m.usage; save(); renderMeta(); toast('Sauvegarde importée.');
+    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history, customScenes:j.customScenes, placement:j.placement, usage:j.usage, badges:j.badges }) : migrate({ settings:store.settings, profile:j });
+    store.profile = m.profile; store.history = m.history; store.customScenes = m.customScenes; store.placement = m.placement; store.usage = m.usage; store.badges = m.badges; save(); renderMeta(); toast('Sauvegarde importée.');
   }catch(_){ toast('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
   e.target.value = '';
 };
 $('resetBtn').onclick = () => {
   if(confirm('Effacer toute la progression (historique, lexique, phases) ?')){
-    store.profile = structuredClone(defaults.profile); store.history = []; store.customScenes = []; store.placement = null; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
+    store.profile = structuredClone(defaults.profile); store.history = []; store.customScenes = []; store.placement = null; store.badges = []; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
   }
 };
 
 /* ---------- home-screen icon ---------- */
-(function makeIcon(){
-  try{
-    const c = document.createElement('canvas'); c.width = c.height = 180; const x = c.getContext('2d');
-    const g = x.createLinearGradient(0,0,0,180); g.addColorStop(0,'#0f1235'); g.addColorStop(1,'#2b2f86');
-    x.fillStyle = g; x.fillRect(0,0,180,180);
-    const glow = x.createRadialGradient(90,118,0,90,118,90); glow.addColorStop(0,'rgba(255,181,71,.55)'); glow.addColorStop(1,'transparent');
-    x.fillStyle = glow; x.fillRect(0,0,180,180);
-    [['#4fe3c1',5,0],['#ffb547',4,1.4],['#9b8cff',3,2.6]].forEach(([col,lw,ph]) => {
-      x.beginPath();
-      for(let i=0;i<=180;i+=2){ const n=i/180, env=Math.pow(Math.sin(Math.PI*n),1.6);
-        const yy = 110 + env*34*Math.sin(n*Math.PI*4 + ph); i ? x.lineTo(i,yy) : x.moveTo(i,yy); }
-      x.strokeStyle = col; x.lineWidth = lw; x.lineCap = 'round'; x.stroke();
-    });
-    x.fillStyle = '#fff'; x.font = '800 46px "Bricolage Grotesque",-apple-system,sans-serif'; x.textAlign = 'center';
-    x.fillText('EN', 90, 62);
-    $('touchIcon').href = c.toDataURL('image/png');
-  }catch(_){}
-})();
+// home-screen icons are static files (icon-180.png, icon-192.png, icon-512.png)
+
+/* ---------- offline ---------- */
+const isNetErr = e => !navigator.onLine || (e && (e.name === 'TypeError' || e.name === 'AbortError' || /Failed to fetch|NetworkError|Load failed|network/i.test(e.message||'')));
+function renderOnline(){ document.body.classList.toggle('offline', !navigator.onLine); }
+addEventListener('online', () => { renderOnline(); session.lastRetry = 0; toast('Connexion rétablie.'); if(store.pending && !session.active) summarizePending().then(renderMeta).catch(() => {}); });
+addEventListener('offline', () => { renderOnline(); toast('Hors connexion. La révision express reste disponible.'); });
+if('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+renderOnline();
 
 /* ---------- init ---------- */
 bindChips('themeChips','theme', v => {
