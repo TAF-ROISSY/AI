@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Co-Pilot">
+<meta name="theme-color" content="#12153a">
+<title>English Co-Pilot</title>
+<link rel="apple-touch-icon" id="touchIcon" href="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky-top:#0f1235;
+  --sky-low:#262a78;
+  --amber:#ffb547;
+  --lagoon:#4fe3c1;
+  --mist:#d9dcff;
+  --dim:#8f94cc;
+  --glass:rgba(255,255,255,.07);
+  --glass-line:rgba(217,220,255,.14);
+  --font:"Bricolage Grotesque",-apple-system,system-ui,sans-serif;
+  --state:var(--lagoon);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--font);color:var(--mist);
+  background:
+    radial-gradient(120% 60% at 50% 105%, rgba(255,181,71,.22), transparent 60%),
+    linear-gradient(180deg,var(--sky-top) 0%, #171a4d 45%, var(--sky-low) 100%);
+  background-color:var(--sky-top);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+
+.app{
+  position:relative;height:100dvh;display:grid;
+  grid-template-rows:auto 1fr auto;
+  padding:calc(env(safe-area-inset-top) + 14px) 20px calc(env(safe-area-inset-bottom) + 18px);
+}
+
+/* stars */
+.stars{position:absolute;inset:0 0 45% 0;pointer-events:none;opacity:.55;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 78% 9%,#fff 50%,transparent 51%),
+    radial-gradient(1.4px 1.4px at 61% 27%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 33% 36%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 89% 31%,#fff 50%,transparent 51%),
+    radial-gradient(1.2px 1.2px at 22% 6%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 47% 12%,#fff 50%,transparent 51%);
+}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}
+.hello{font-size:17px;font-weight:500;font-variation-settings:"wdth" 90;color:var(--dim)}
+.hello strong{color:var(--mist);font-weight:650}
+.gear{width:46px;height:46px;border-radius:50%;border:1px solid var(--glass-line);background:var(--glass);
+  display:grid;place-items:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.gear svg{width:22px;height:22px}
+
+/* stage */
+.stage{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.headline{position:relative;z-index:2;margin:0 0 4px;
+  font-size:clamp(46px,14vw,92px);line-height:.92;font-weight:780;letter-spacing:-.035em;
+  font-variation-settings:"wdth" 78,"opsz" 96;color:#fff;transition:color .5s}
+.headline .tail{display:block;color:var(--state);transition:color .5s}
+.subline{position:relative;z-index:2;font-size:15px;color:var(--dim);min-height:22px;max-width:34ch;margin:10px 0 0;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#wave{position:relative;width:calc(100% + 40px);margin:18px -20px 0;height:min(34vh,260px);display:block;
+  -webkit-mask-image:radial-gradient(ellipse 70% 50% at 50% 55%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 70% 50% at 50% 55%,#000 45%,transparent 100%)}
+.coachline{position:relative;z-index:2;font-size:clamp(19px,5.2vw,24px);line-height:1.32;font-weight:420;
+  font-variation-settings:"wdth" 92,"opsz" 24;color:var(--mist);margin:6px 0 0;max-width:30ch;min-height:2.6em;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.coachline:empty::before{content:"Votre coach vous parlera ici, en anglais.";color:var(--dim);font-weight:380}
+
+/* dock */
+.dock{position:relative;z-index:2;display:grid;gap:14px}
+.switches{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;background:var(--glass);border:1px solid var(--glass-line);border-radius:14px;padding:3px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.seg button{flex:1;border:0;background:transparent;padding:10px 4px;border-radius:11px;font-size:13.5px;font-weight:560;color:var(--dim);
+  transition:background .25s,color .25s}
+.seg button.on{background:rgba(217,220,255,.16);color:#fff}
+.seg-label{font-size:12px;color:var(--dim);margin:0 0 6px 4px;font-weight:500}
+
+.controls{display:flex;align-items:center;gap:14px}
+#big{
+  flex:1;height:72px;border-radius:999px;border:0;font-size:20px;font-weight:700;letter-spacing:-.01em;
+  font-variation-settings:"wdth" 85;color:#1a1640;
+  background:linear-gradient(180deg,#ffd08a,var(--amber));
+  box-shadow:0 10px 40px -8px rgba(255,181,71,.55), inset 0 1px 0 rgba(255,255,255,.6);
+  transition:transform .15s, background .4s, box-shadow .4s, color .4s;
+}
+#big:active{transform:scale(.97)}
+#big.live{background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 0 0 0 1.5px var(--glass-line)}
+#stopBtn{width:72px;height:72px;border-radius:50%;border:1.5px solid rgba(255,138,138,.5);background:rgba(255,120,120,.08);
+  color:#ffb0b0;display:none;place-items:center}
+#stopBtn svg{width:26px;height:26px}
+.meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim)}
+.meta .ver{opacity:.7}
+
+/* state colors */
+body[data-state="listening"]{--state:var(--lagoon)}
+body[data-state="thinking"]{--state:#b9a6ff}
+body[data-state="speaking"]{--state:var(--amber)}
+body[data-state="paused"]{--state:var(--dim)}
+body[data-state="idle"]{--state:var(--amber)}
+
+/* sheet */
+#sheet{position:fixed;inset:0;z-index:20;background:rgba(8,9,30,.5);opacity:0;pointer-events:none;transition:opacity .3s}
+#sheet.open{opacity:1;pointer-events:auto}
+.sheetbody{position:absolute;left:0;right:0;bottom:0;max-height:90dvh;overflow:auto;
+  background:linear-gradient(180deg,#22266a,#181b52);border-top:1px solid var(--glass-line);
+  border-radius:28px 28px 0 0;padding:10px 20px calc(28px + env(safe-area-inset-bottom));
+  transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+#sheet.open .sheetbody{transform:none}
+.grab{width:42px;height:5px;border-radius:5px;background:rgba(217,220,255,.25);margin:4px auto 14px}
+.sheetbody h2{font-size:30px;margin:0 0 4px;font-weight:760;letter-spacing:-.03em;font-variation-settings:"wdth" 80;color:#fff}
+.sheetbody .intro{color:var(--dim);font-size:14px;margin:0 0 10px}
+.group{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:4px 14px;margin:14px 0}
+.field{padding:12px 0;border-bottom:1px solid rgba(217,220,255,.08)}
+.field:last-child{border-bottom:0}
+.field label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+.field input[type=text],.field input[type=password],.field select{
+  width:100%;background:rgba(10,12,40,.45);border:1px solid rgba(217,220,255,.12);color:#fff;border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
+.field input[type=range]{width:100%;accent-color:var(--amber)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:rgba(255,255,255,.08);border:1px solid var(--glass-line);padding:11px 15px;border-radius:12px;font-size:14.5px;font-weight:580}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1640;width:100%;padding:15px;font-size:16px;font-weight:700}
+.btn.danger{color:#ffb0b0;border-color:rgba(255,138,138,.4);background:transparent}
+.note{font-size:13px;color:var(--dim);line-height:1.5}
+.cmds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cmds span{font-size:13px;background:rgba(79,227,193,.1);color:var(--lagoon);padding:6px 10px;border-radius:999px}
+pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:28vh;overflow:auto;color:var(--mist);margin:0 0 10px}
+
+/* landscape (phone on a car mount) */
+@media (orientation:landscape) and (max-height:520px){
+  .app{grid-template-columns:1.2fr 1fr;grid-template-rows:auto 1fr;column-gap:28px;
+       padding-left:calc(env(safe-area-inset-left) + 22px);padding-right:calc(env(safe-area-inset-right) + 22px)}
+  .top{grid-column:1/-1}
+  .headline{font-size:clamp(40px,8vh,64px)}
+  #wave{height:24vh;margin:4px 0 0;width:100%}
+  .subline{-webkit-line-clamp:1;margin-top:6px}
+  .coachline{font-size:18px;min-height:0}
+  .dock{align-self:end}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body data-state="idle">
+<div class="stars" aria-hidden="true"></div>
+<div class="app">
+  <div class="top">
+    <div class="hello" id="hello">Bonne route, <strong>Christophe</strong></div>
+    <button class="gear" id="openSettings" aria-label="Réglages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+
+  <section class="stage" aria-live="polite">
+    <h1 class="headline" id="status">Let’s talk<span class="tail">on the road.</span></h1>
+    <p class="subline" id="sub">Un tap pour démarrer, ensuite tout se passe à la voix.</p>
+    <canvas id="wave" aria-hidden="true"></canvas>
+    <p class="coachline" id="line"></p>
+  </section>
+
+  <div class="dock">
+    <div class="switches">
+      <div>
+        <p class="seg-label">Moment</p>
+        <div class="seg" id="modeChips">
+          <button data-v="AUTO">Auto</button><button data-v="MORNING">Matin</button><button data-v="EVENING">Soir</button>
+        </div>
+      </div>
+      <div>
+        <p class="seg-label">Corrections</p>
+        <div class="seg" id="corrChips">
+          <button data-v="FREE_CONVERSATION">Libre</button><button data-v="COACH">Coach</button><button data-v="INTENSIVE_LESSON">Intense</button>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="big">Démarrer la séance</button>
+      <button id="stopBtn" aria-label="Terminer la séance">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
+      </button>
+    </div>
+    <div class="meta"><span id="profileInfo"></span><span class="ver">v1.1</span></div>
+  </div>
+</div>
+
+<div id="sheet">
+  <div class="sheetbody" role="dialog" aria-label="Réglages">
+    <div class="grab"></div>
+    <h2>Réglages</h2>
+    <p class="intro">Tout reste sur cet iPhone.</p>
+
+    <div class="group">
+      <div class="field">
+        <label for="apiKey">Clé API Anthropic</label>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+      </div>
+      <div class="field">
+        <label for="model">Modèle</label>
+        <select id="model">
+          <option value="claude-haiku-5-5">Haiku 5.5 · rapide, conseillé</option>
+          <option value="claude-sonnet-5-5">Sonnet 5.5 · plus fin</option>
+          <option value="claude-opus-5-5">Opus 5.5 · le plus puissant</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="field"><label for="name">Prénom</label><input id="name" type="text"></div>
+      <div class="field"><label for="level">Niveau</label>
+        <select id="level"><option>A2</option><option selected>B1</option><option>B2</option><option>C1</option></select></div>
+    </div>
+
+    <div class="group">
+      <div class="field"><label for="voice">Voix du coach</label><select id="voice"></select></div>
+      <div class="field"><label for="rate">Débit : <span id="rateVal"></span></label>
+        <input id="rate" type="range" min="0.7" max="1.15" step="0.05"></div>
+      <div class="field"><button class="btn" id="testVoice">Écouter la voix</button></div>
+    </div>
+
+    <div class="group">
+      <div class="field">
+        <label>Votre progression</label>
+        <pre class="profile" id="profileView"></pre>
+        <div class="row">
+          <button class="btn" id="exportBtn">Exporter</button>
+          <button class="btn" id="importBtn">Importer</button>
+          <button class="btn danger" id="resetBtn">Tout effacer</button>
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">Ce que vous pouvez dire pendant la séance :</p>
+    <div class="cmds">
+      <span>pause</span><span>resume</span><span>repeat</span><span>slower</span><span>how do you say…</span>
+      <span>explain</span><span>morning mode</span><span>just chat</span><span>intensive</span><span>end session</span>
+    </div>
+    <div style="margin-top:20px"><button class="btn primary" id="closeSettings">Enregistrer</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const LS_KEY = 'english_copilot_v1';
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- storage ---------- */
+const defaults = {
+  settings: { apiKey:'', model:'claude-haiku-5-5', name:'Christophe', level:'B1',
+              voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH' },
+  profile:  { RECURRING_ERRORS:[], TARGET_VOCABULARY:[], RECENT_SESSIONS:[] },
+  pending:  null
+};
+function load(){
+  try { const raw = localStorage.getItem(LS_KEY); if(!raw) return structuredClone(defaults);
+    const d = JSON.parse(raw);
+    return { settings:{...defaults.settings, ...(d.settings||{})},
+             profile:{...defaults.profile, ...(d.profile||{})},
+             pending:d.pending||null };
+  } catch(e){ return structuredClone(defaults); }
+}
+let store = load();
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+
+/* ---------- dom ---------- */
+const $ = id => document.getElementById(id);
+const big=$('big'), statusEl=$('status'), sub=$('sub'), lineEl=$('line'), stopBtn=$('stopBtn');
+
+/* ---------- wave (the voice horizon) ---------- */
+const wave = (() => {
+  const cv = $('wave'), ctx = cv.getContext('2d');
+  let w=0, h=0, dpr=1, t=0, energy=0.15, target=0.15, state='idle';
+  const palette = {
+    idle:['#ffb547','#ff8f6b','#4fe3c1'], listening:['#4fe3c1','#7af0ff','#9b8cff'],
+    thinking:['#b9a6ff','#7f8cff','#4fe3c1'], speaking:['#ffb547','#ffd28a','#ff8f6b'],
+    paused:['#5c6199','#474b80','#3b3f6e']
+  };
+  const base = {idle:.18, listening:.32, thinking:.22, speaking:.42, paused:.06};
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    const r = cv.getBoundingClientRect(); w = r.width; h = r.height;
+    cv.width = w*dpr; cv.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function draw(){
+    t += 0.016;
+    target += (base[state] - target) * 0.04;
+    energy += (target - energy) * 0.12;
+    ctx.clearRect(0,0,w,h);
+    const mid = h*0.55, cols = palette[state];
+    // road glow on the horizon
+    const g = ctx.createRadialGradient(w/2, mid, 0, w/2, mid, w*0.7);
+    g.addColorStop(0, cols[0]+'33'); g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation = 'lighter';
+    for(let k=0;k<3;k++){
+      const amp = h*0.42*energy*(1 - k*0.22);
+      const freq = 1.6 + k*0.9, speed = (state==='thinking'?2.4:1.2) + k*0.35;
+      ctx.beginPath();
+      for(let x=0;x<=w;x+=3){
+        const n = x/w;
+        const env = Math.pow(Math.sin(Math.PI*n), 1.6);            // taper at the edges
+        const y = mid + env*amp*(
+          Math.sin(n*Math.PI*2*freq + t*speed + k) * 0.7 +
+          Math.sin(n*Math.PI*2*freq*2.3 - t*speed*1.3 + k*2) * 0.3);
+        x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+      }
+      ctx.strokeStyle = cols[k]; ctx.lineWidth = 2.6 - k*0.6; ctx.globalAlpha = 0.9 - k*0.22;
+      ctx.shadowColor = cols[k]; ctx.shadowBlur = 18;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.globalCompositeOperation = 'source-over';
+    // horizon line
+    ctx.strokeStyle = 'rgba(217,220,255,.10)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
+    if(!reduceMotion) requestAnimationFrame(draw);
+  }
+  addEventListener('resize', resize);
+  resize(); requestAnimationFrame(draw);
+  return {
+    set(s){ state = s; if(reduceMotion) requestAnimationFrame(draw); },
+    bump(v=0.35){ target = Math.min(0.95, target + v); }
+  };
+})();
+
+/* ---------- state ---------- */
+const COPY = {
+  idle:      ['Let’s talk', 'on the road.'],
+  listening: ['I’m', 'listening.'],
+  thinking:  ['Thinking', 'it over…'],
+  speaking:  ['Coach', 'speaking.'],
+  paused:    ['On', 'pause.']
+};
+function setState(s, _text, subtext){
+  document.body.dataset.state = s;
+  const c = COPY[s] || COPY.idle;
+  statusEl.innerHTML = '';
+  statusEl.append(c[0]);
+  const tail = document.createElement('span'); tail.className = 'tail'; tail.textContent = c[1];
+  statusEl.appendChild(tail);
+  sub.textContent = subtext || _text || '';
+  wave.set(s);
+  if(!session.active){ big.textContent = 'Démarrer la séance'; big.classList.remove('live'); return; }
+  big.classList.add('live');
+  big.textContent = {listening:'Mettre en pause', paused:'Reprendre', speaking:'Couper la parole', thinking:'Un instant…'}[s] || 'Pause';
+}
+function addLog(who, text){
+  if(who === 'coach') lineEl.textContent = text;
+}
+
+/* ---------- segmented controls ---------- */
+function bindChips(containerId, key){
+  const c = $(containerId);
+  const refresh = () => c.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === store.settings[key]));
+  c.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    store.settings[key] = b.dataset.v; save(); refresh();
+  });
+  refresh();
+}
+
+/* ---------- voices ---------- */
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices(){
+  if(!synth) return;
+  voices = synth.getVoices().filter(v => /^en(-|_)/i.test(v.lang));
+  const sel = $('voice'); sel.innerHTML = '';
+  const rank = v => (/(premium|enhanced|améliorée?)/i.test(v.name)?0:1) + (/en-US/i.test(v.lang)?0:0.5);
+  voices.sort((a,b)=>rank(a)-rank(b));
+  voices.forEach(v => { const o=document.createElement('option'); o.value=v.voiceURI; o.textContent=v.name+' ('+v.lang+')'; sel.appendChild(o); });
+  if(!store.settings.voiceURI && voices[0]) store.settings.voiceURI = voices[0].voiceURI;
+  sel.value = store.settings.voiceURI;
+}
+if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; }
+function currentVoice(){ return voices.find(v => v.voiceURI === store.settings.voiceURI) || voices[0] || null; }
+
+let speakToken = 0;
+function speak(text, rateMul=1){
+  return new Promise(resolve => {
+    if(!synth){ resolve(); return; }
+    const token = ++speakToken;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = currentVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+    u.rate = Math.max(0.5, (store.settings.rate||0.95) * rateMul);
+    let done = false;
+    const finish = () => { if(done) return; done = true; clearTimeout(t); clearInterval(pulse); resolve(); };
+    u.onend = finish; u.onerror = finish;
+    u.onboundary = () => wave.bump(0.28);
+    // gentle pulse in case the voice fires no boundary events
+    const pulse = setInterval(() => wave.bump(0.12), 260);
+    // iOS sometimes never fires onend: fallback timer
+    const t = setTimeout(finish, 2500 + text.length * 85 / u.rate);
+    if(token === speakToken) synth.speak(u);
+  });
+}
+
+/* ---------- speech recognition ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function listenOnce(){
+  return new Promise(resolve => {
+    if(!SR){ resolve({error:'unsupported'}); return; }
+    let finalText = '', interim = '', silenceTimer = null, settled = false;
+    const r = new SR(); rec = r;
+    r.lang = 'en-US'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    const settle = (res) => { if(settled) return; settled = true; clearTimeout(silenceTimer); rec = null; resolve(res); };
+    r.onresult = (e) => {
+      interim = '';
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        const tr = e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalText += ' ' + tr; else interim += ' ' + tr;
+      }
+      sub.textContent = '“' + (finalText + ' ' + interim).trim() + '”';
+      wave.bump(0.3);
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => { try{ r.stop(); }catch(_){} }, 2000);
+    };
+    r.onerror = (e) => { if(e.error === 'not-allowed' || e.error === 'service-not-allowed') settle({error:'denied'}); };
+    r.onend = () => settle({text:(finalText + ' ' + interim).trim()});
+    try { r.start(); } catch(e){ settle({error:'start'}); }
+  });
+}
+function stopListening(){ if(rec){ try{ rec.abort(); }catch(_){} rec = null; } }
+
+/* ---------- Claude API ---------- */
+async function callClaude(system, messages, maxTokens=300){
+  const key = store.settings.apiKey.trim();
+  if(!key) throw new Error('NO_KEY');
+  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 40000);
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', signal:ctrl.signal,
+      headers:{ 'content-type':'application/json', 'x-api-key':key,
+                'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:store.settings.model, max_tokens:maxTokens, system, messages })
+    });
+    if(!r.ok){ const t = await r.text(); throw new Error('HTTP '+r.status+' '+t.slice(0,160)); }
+    const j = await r.json();
+    return (j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join(' ').trim();
+  } finally { clearTimeout(to); }
+}
+function cleanForSpeech(t){
+  return t.replace(/```[\s\S]*?```/g,'').replace(/[*_#`>|~]/g,'').replace(/\[(.*?)\]\(.*?\)/g,'$1')
+          .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,'').replace(/\s+/g,' ').trim();
+}
+
+/* ---------- prompt ---------- */
+function sessionMode(){
+  if(store.settings.modeOverride !== 'AUTO') return store.settings.modeOverride;
+  return new Date().getHours() < 14 ? 'MORNING' : 'EVENING';
+}
+function buildSystem(){
+  const s = store.settings, p = store.profile;
+  const profile = {
+    NAME: s.name, LEVEL: s.level, SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
+    RECURRING_ERRORS: p.RECURRING_ERRORS, TARGET_VOCABULARY: p.TARGET_VOCABULARY,
+    RECENT_SESSIONS_SUMMARY: p.RECENT_SESSIONS.slice(-5)
+  };
+  const now = new Date();
+  return `# RÔLE
+Tu es "English Co-Pilot", le coach d'anglais vocal de ${s.name} : chaleureux, patient, naturel, comme un ami prof particulier.
+Il te parle pendant qu'il conduit. La conversation est exclusivement orale. Tu parles toujours en anglais, sauf quand une commande demande le français.
+Heure locale : ${now.toLocaleString('fr-FR')}.
+
+# RÈGLES VOCALES
+1. Réponses très courtes : 1 à 3 phrases par prise de parole, sauf demande explicite d'explication détaillée.
+2. Tes réponses sont lues par une synthèse vocale : jamais de markdown, listes, emojis, symboles ni parenthèses. Uniquement des phrases parlées naturelles.
+3. Ne demande jamais de regarder l'écran.
+4. Encouragements sobres ("Good", "Got it", "Nice one"), puis enchaîne.
+5. Laisse-le parler le plus possible ; termine souvent par une question ouverte.
+6. Une seule correction par prise de parole, la plus importante.
+7. Calibre vocabulaire et complexité sur le niveau LEVEL ; monte progressivement si ses réponses sont fluides.
+8. Ses phrases arrivent via une reconnaissance vocale imparfaite : si un mot semble absurde, devine l'intention la plus probable plutôt que de le corriger. Un mot français mal transcrit peut signaler qu'il cherche un mot.
+
+# SÉCURITÉ (PRIORITAIRE)
+S'il semble distrait ou répond très brièvement, ne pose pas de question exigeante. Jamais d'insistance.
+
+# CONTEXTE
+${s.name} dirige une petite équipe de spécialistes fret chez TAF TRANS, transitaire à Roissy Charles de Gaulle : imports, dédouanement, périssables, animaux vivants, fret aérien. Il développe aussi des applications pour son activité.
+Sujets naturels : sa journée, les vols et livraisons, la douane, son équipe, ses projets d'appli, ses voyages, le sport.
+Utilise RECENT_SESSIONS_SUMMARY pour créer une vraie continuité, comme quelqu'un qui se souvient, sans jamais mentionner de notes ou de profil.
+
+<profil_utilisateur>
+${JSON.stringify(profile, null, 1)}
+</profil_utilisateur>
+
+# MODES
+MORNING : apprentissage. Introduis un ou deux mots de TARGET_VOCABULARY (ou nouveaux mots utiles à son métier si la liste est vide) et incite-le à les réutiliser. Surveille RECURRING_ERRORS.
+EVENING : aisance. Prends des nouvelles de sa journée. Ne corrige que ce qui gêne vraiment la compréhension, quel que soit CORRECTION_MODE.
+S'il dit "morning mode"/"lesson" ou "evening mode"/"just chat", bascule de mode.
+
+# CORRECTIONS (CORRECTION_MODE)
+FREE_CONVERSATION : quasiment aucune correction.
+COACH : laisse-le finir, puis corrige par l'écho en reformulant correctement dans ta réponse. Ex : "I have many meeting today." → "A lot of meetings today? What's the most important one?" Si l'erreur figure dans RECURRING_ERRORS : "Remember, we say 'I agree', not 'I am agree'. Try again!"
+INTENSIVE_LESSON : corrige explicitement, règle en une phrase simple, demande de répéter la phrase corrigée une fois.
+S'il dit "free talk", "coach mode" ou "intensive", change de niveau.
+
+# COMMANDES
+"How do you say..." / "I don't know how to say..." / mot français : donne la formulation naturelle en 1 à 3 mots, puis invite-le à reprendre sa phrase. Ex : "dédouanement" → "You can say customs clearance. Try the sentence again."
+"Explain" / "Explique" / "French please" : explication en français, 2 phrases maximum, puis retour immédiat à l'anglais.
+
+# DÉBUT ET FIN
+Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance un sujet adapté au mode et à l'heure, en une ou deux phrases.
+Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de clôture avec un seul point à retenir de la séance.`;
+}
+
+/* ---------- summary / memory ---------- */
+const SUMMARY_SYSTEM = `Tu analyses la transcription d'une séance de coaching d'anglais oral (l'apprenant est francophone, ses phrases viennent d'une reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes).
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour :
+{"topics":["..."],"new_errors":["erreur courte -> forme correcte"],"vocabulary_used":["mots cibles réutilisés correctement"],"new_vocabulary":["mots ou expressions nouveaux appris"],"summary":"2 phrases max en anglais sur ce dont il a parlé (faits personnels et professionnels utiles pour la prochaine séance)."}
+Maximum 4 éléments par liste.`;
+
+function transcriptOf(msgs){
+  return msgs.filter(m => !/^\[SESSION_/.test(m.content))
+             .map(m => (m.role==='user'?'Learner: ':'Coach: ') + m.content).join('\n');
+}
+async function summarizePending(){
+  const pend = store.pending;
+  if(!pend || !pend.messages) return;
+  const userTurns = pend.messages.filter(m => m.role==='user' && !/^\[SESSION_/.test(m.content)).length;
+  if(userTurns < 2){ store.pending = null; save(); return; }
+  const raw = await callClaude(SUMMARY_SYSTEM, [{role:'user', content: transcriptOf(pend.messages)}], 600);
+  const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('bad summary');
+  const j = JSON.parse(m[0]);
+  const p = store.profile;
+  const uniq = (arr) => [...new Map(arr.filter(Boolean).map(x => [String(x).toLowerCase().trim(), String(x).trim()])).values()];
+  p.RECURRING_ERRORS = uniq([...(j.new_errors||[]), ...p.RECURRING_ERRORS]).slice(0, 10);
+  const used = new Set((j.vocabulary_used||[]).map(x => String(x).toLowerCase().trim()));
+  p.TARGET_VOCABULARY = uniq([...p.TARGET_VOCABULARY.filter(v => !used.has(v.toLowerCase().trim())), ...(j.new_vocabulary||[])]).slice(-10);
+  p.RECENT_SESSIONS.push({ date: pend.date, mode: pend.mode, topics: j.topics||[], summary: j.summary||'' });
+  p.RECENT_SESSIONS = p.RECENT_SESSIONS.slice(-8);
+  store.pending = null; save(); renderProfile();
+}
+
+/* ---------- commands ---------- */
+const norm = t => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z' ]/g,' ').replace(/\s+/g,' ').trim();
+const wc = t => t ? t.split(' ').length : 0;
+const RX = {
+  pause:  /\b(pause|stop|wait|hold on|attends?|je dois me concentrer)\b/,
+  resume: /\b(resume|continue|go on|i'?m back|on reprend|reprends?|let'?s go|let'?s continue)\b/,
+  end:    /\b(end (the )?session|on arrete|i'?ve arrived|i am arrived|i'?m arrived|that'?s all for today|stop the session)\b/,
+  repeat: /\b(repeat|repete|slower|plus lentement|say (it|that) again|again please|pardon)\b/
+};
+
+/* ---------- session ---------- */
+const session = { active:false, paused:false, messages:[], lastReply:'', ending:false };
+let wakeLock = null;
+async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(_){} }
+document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
+
+function persistSession(){
+  store.pending = { date: new Date().toISOString().slice(0,10), mode: sessionMode(), messages: session.messages.slice(-40) };
+  save();
+}
+function trimmedHistory(){
+  let h = session.messages.slice(-24);
+  while(h.length && h[0].role !== 'user') h = h.slice(1);
+  return h;
+}
+
+async function turn(userText){
+  session.messages.push({role:'user', content:userText});
+  setState('thinking', '');
+  let reply;
+  try { reply = cleanForSpeech(await callClaude(buildSystem(), trimmedHistory())); }
+  catch(e){
+    session.messages.pop();
+    if(e.message === 'NO_KEY'){ stopSession(false); openSettings(); setState('idle','Ajoutez votre clé API dans les réglages.'); return false; }
+    setState('speaking', 'Connexion perdue. Répétez votre phrase.');
+    await speak("Sorry, I lost the connection. Please say that again.");
+    return true;
+  }
+  if(!reply) reply = "Sorry, could you say that again?";
+  session.messages.push({role:'assistant', content:reply});
+  session.lastReply = reply;
+  persistSession();
+  addLog('coach', reply);
+  if(!session.active && !session.ending) return false;
+  setState('speaking', '');
+  await speak(reply);
+  return true;
+}
+
+async function loop(){
+  let emptyStreak = 0;
+  while(session.active){
+    setState(session.paused ? 'paused' : 'listening', session.paused ? 'Dites « resume » pour reprendre.' : 'À vous.');
+    const res = await listenOnce();
+    if(!session.active) break;
+    if(res.error === 'denied'){ stopSession(false); setState('idle','Micro refusé : autorisez le micro et la reconnaissance vocale pour Safari dans les Réglages iOS.'); return; }
+    if(res.error === 'unsupported'){ stopSession(false); setState('idle','Reconnaissance vocale indisponible : ouvrez l’app dans Safari sur iPhone.'); return; }
+    const text = (res.text || '').trim();
+    if(!text){ emptyStreak++; await wait(emptyStreak > 3 ? 600 : 150); continue; }
+    emptyStreak = 0;
+    const n = norm(text);
+
+    if(session.paused){
+      if(RX.resume.test(n)){ session.paused = false; setState('speaking',''); await speak("Okay, let's go on."); }
+      else if(RX.end.test(n)){ await endSession(); return; }
+      continue;
+    }
+    if(RX.end.test(n) && wc(n) <= 7){ await endSession(); return; }
+    if(RX.pause.test(n) && wc(n) <= 5){ session.paused = true; setState('speaking',''); await speak("Okay, I'll wait."); continue; }
+    if(RX.repeat.test(n) && wc(n) <= 5 && session.lastReply){
+      setState('speaking','Plus lentement…'); await speak(session.lastReply, 0.8); continue;
+    }
+    const ok = await turn(text);
+    if(!ok) return;
+  }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function startSession(){
+  if(!store.settings.apiKey.trim()){ openSettings(); return; }
+  // iOS: unlock speech synthesis inside the user gesture
+  if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
+  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false });
+  lineEl.textContent = '';
+  stopBtn.style.display = 'grid';
+  keepAwake();
+  if(store.pending){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
+  const ok = await turn('[SESSION_START]');
+  if(ok && session.active) loop();
+}
+
+async function endSession(){
+  session.ending = true;
+  await turn('[SESSION_END]');
+  stopSession(true);
+}
+
+async function stopSession(summarize){
+  session.active = false; session.paused = false;
+  stopListening(); if(synth) synth.cancel();
+  stopBtn.style.display = 'none';
+  try{ if(wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(_){}
+  if(summarize && store.pending){
+    setState('thinking','Enregistrement de la séance…');
+    try{ await summarizePending(); setState('idle','Séance enregistrée. Bonne route !'); }
+    catch(e){ setState('idle','Séance terminée. Le bilan sera fait au prochain démarrage.'); }
+  } else if(summarize) setState('idle','Séance terminée.');
+  else setState('idle', sub.textContent);
+  session.ending = false;
+  renderProfile();
+}
+
+big.addEventListener('click', () => {
+  if(!session.active) { startSession(); return; }
+  if(document.body.dataset.state === 'speaking'){ if(synth) synth.cancel(); return; }
+  session.paused = !session.paused;
+  stopListening();
+});
+stopBtn.addEventListener('click', () => { if(session.active) endSession(); });
+
+/* ---------- settings ---------- */
+function renderProfile(){
+  const p = store.profile;
+  $('profileView').textContent = JSON.stringify({
+    erreurs_recurrentes: p.RECURRING_ERRORS, vocabulaire_cible: p.TARGET_VOCABULARY,
+    dernieres_seances: p.RECENT_SESSIONS.slice(-3)
+  }, null, 2);
+  const n = p.RECENT_SESSIONS.length;
+  $('profileInfo').textContent = n
+    ? n + ' séance' + (n>1?'s':'') + ', ' + p.TARGET_VOCABULARY.length + ' mots en cours'
+    : 'Première séance';
+  const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
+  const st = document.createElement('strong'); st.textContent = store.settings.name || 'Christophe'; h.appendChild(st);
+}
+function openSettings(){
+  const s = store.settings;
+  $('apiKey').value = s.apiKey; $('model').value = s.model; $('name').value = s.name;
+  $('level').value = s.level; $('rate').value = s.rate; $('rateVal').textContent = s.rate;
+  loadVoices(); renderProfile();
+  $('sheet').classList.add('open');
+}
+function closeSettings(){
+  const s = store.settings;
+  s.apiKey = $('apiKey').value.trim(); s.model = $('model').value; s.name = $('name').value.trim() || 'Christophe';
+  s.level = $('level').value; s.rate = parseFloat($('rate').value); s.voiceURI = $('voice').value || s.voiceURI;
+  save(); $('sheet').classList.remove('open'); renderProfile();
+  if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, ensuite tout se passe à la voix.' : 'Ajoutez votre clé API dans les réglages.');
+}
+$('openSettings').onclick = openSettings;
+$('closeSettings').onclick = closeSettings;
+$('sheet').addEventListener('click', e => { if(e.target.id === 'sheet') closeSettings(); });
+$('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
+$('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
+$('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(store.profile, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'english-copilot-progression.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ const j = JSON.parse(await f.text()); store.profile = {...defaults.profile, ...j}; save(); renderProfile(); }
+  catch(_){ alert('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
+};
+$('resetBtn').onclick = () => {
+  if(confirm('Effacer toute la progression (erreurs, vocabulaire, séances) ?')){
+    store.profile = structuredClone(defaults.profile); store.pending = null; save(); renderProfile();
+  }
+};
+
+/* ---------- home-screen icon ---------- */
+(function makeIcon(){
+  try{
+    const c = document.createElement('canvas'); c.width = c.height = 180; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0,0,0,180); g.addColorStop(0,'#0f1235'); g.addColorStop(1,'#2b2f86');
+    x.fillStyle = g; x.fillRect(0,0,180,180);
+    const glow = x.createRadialGradient(90,118,0,90,118,90); glow.addColorStop(0,'rgba(255,181,71,.55)'); glow.addColorStop(1,'transparent');
+    x.fillStyle = glow; x.fillRect(0,0,180,180);
+    [['#4fe3c1',5,0],['#ffb547',4,1.4],['#9b8cff',3,2.6]].forEach(([col,lw,ph]) => {
+      x.beginPath();
+      for(let i=0;i<=180;i+=2){ const n=i/180, env=Math.pow(Math.sin(Math.PI*n),1.6);
+        const y = 110 + env*34*Math.sin(n*Math.PI*4 + ph); i ? x.lineTo(i,y) : x.moveTo(i,y); }
+      x.strokeStyle = col; x.lineWidth = lw; x.lineCap = 'round'; x.stroke();
+    });
+    x.fillStyle = '#fff'; x.font = '800 46px "Bricolage Grotesque",-apple-system,sans-serif'; x.textAlign = 'center';
+    x.fillText('EN', 90, 62);
+    $('touchIcon').href = c.toDataURL('image/png');
+  }catch(_){}
+})();
+
+/* ---------- init ---------- */
+bindChips('modeChips','modeOverride');
+bindChips('corrChips','correction');
+renderProfile();
+if(!SR) setState('idle','Reconnaissance vocale indisponible : ouvrez cette page dans Safari sur iPhone.');
+else if(!store.settings.apiKey) setState('idle','Ajoutez votre clé API dans les réglages pour commencer.');
+else { setState('idle','Un tap pour démarrer, ensuite tout se passe à la voix.'); if(store.pending) summarizePending().catch(()=>{}); }
+})();
+</script>
+</body>
+</html>
