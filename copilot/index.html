@@ -38,7 +38,7 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 button{font-family:inherit;color:inherit;cursor:pointer}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 
 .app{
   position:relative;height:100dvh;display:grid;
@@ -62,6 +62,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}
 .hello{font-size:17px;font-weight:500;font-variation-settings:"wdth" 90;color:var(--dim)}
 .hello strong{color:var(--mist);font-weight:650}
+.top-actions{display:flex;gap:10px}
 .gear{width:46px;height:46px;border-radius:50%;border:1px solid var(--glass-line);background:var(--glass);
   display:grid;place-items:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .gear svg{width:22px;height:22px}
@@ -91,6 +92,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .seg button.on{background:rgba(217,220,255,.16);color:#fff}
 .seg-label{font-size:12px;color:var(--dim);margin:0 0 6px 4px;font-weight:500}
 
+.recap{width:100%;border:1px solid rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:var(--amber);
+  padding:13px;border-radius:999px;font-size:15px;font-weight:650}
 .controls{display:flex;align-items:center;gap:14px}
 #big{
   flex:1;height:72px;border-radius:999px;border:0;font-size:20px;font-weight:700;letter-spacing:-.01em;
@@ -104,8 +107,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 #stopBtn{width:72px;height:72px;border-radius:50%;border:1.5px solid rgba(255,138,138,.5);background:rgba(255,120,120,.08);
   color:#ffb0b0;display:none;place-items:center}
 #stopBtn svg{width:26px;height:26px}
-.meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim)}
+.meta{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--dim)}
 .meta .ver{opacity:.7}
+.metabtn{background:none;border:0;padding:4px 0;font-size:13px;color:var(--dim);text-align:left;display:flex;align-items:center;gap:8px}
+.metabtn b{color:var(--mist);font-weight:600}
+.metabtn i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber)}
 
 /* state colors */
 body[data-state="listening"]{--state:var(--lagoon)}
@@ -115,16 +121,19 @@ body[data-state="paused"]{--state:var(--dim)}
 body[data-state="french"]{--state:#ff9ecf}
 body[data-state="idle"]{--state:var(--amber)}
 
-/* sheet */
-#sheet{position:fixed;inset:0;z-index:20;background:rgba(8,9,30,.5);opacity:0;pointer-events:none;transition:opacity .3s}
-#sheet.open{opacity:1;pointer-events:auto}
-.sheetbody{position:absolute;left:0;right:0;bottom:0;max-height:90dvh;overflow:auto;
+/* sheets */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(8,9,30,.55);opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet.open{opacity:1;pointer-events:auto}
+.sheetbody{position:absolute;left:0;right:0;bottom:0;max-height:90dvh;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   background:linear-gradient(180deg,#22266a,#181b52);border-top:1px solid var(--glass-line);
   border-radius:28px 28px 0 0;padding:10px 20px calc(28px + env(safe-area-inset-bottom));
   transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
-#sheet.open .sheetbody{transform:none}
+.sheetbody.tall{height:95dvh;max-height:none;background:linear-gradient(180deg,#1d2163 0%,#14174a 60%,#121542 100%)}
+.sheet.open .sheetbody{transform:none}
 .grab{width:42px;height:5px;border-radius:5px;background:rgba(217,220,255,.25);margin:4px auto 14px}
+.sheethead{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .sheetbody h2{font-size:30px;margin:0 0 4px;font-weight:760;letter-spacing:-.03em;font-variation-settings:"wdth" 80;color:#fff}
+.close{background:none;border:0;color:var(--dim);font-size:15px;font-weight:560;padding:8px 0}
 .sheetbody .intro{color:var(--dim);font-size:14px;margin:0 0 10px}
 .group{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:4px 14px;margin:14px 0}
 .field{padding:12px 0;border-bottom:1px solid rgba(217,220,255,.08)}
@@ -135,12 +144,82 @@ body[data-state="idle"]{--state:var(--amber)}
 .field input[type=range]{width:100%;accent-color:var(--amber)}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .btn{background:rgba(255,255,255,.08);border:1px solid var(--glass-line);padding:11px 15px;border-radius:12px;font-size:14.5px;font-weight:580}
-.btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1640;width:100%;padding:15px;font-size:16px;font-weight:700}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1640;width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:16px}
+.btn.ghost{width:100%;padding:15px;font-size:16px;font-weight:650;border-radius:16px;color:var(--amber);border-color:rgba(255,181,71,.45);background:rgba(255,181,71,.07)}
 .btn.danger{color:#ffb0b0;border-color:rgba(255,138,138,.4);background:transparent}
+.btn[disabled]{opacity:.55}
 .note{font-size:13px;color:var(--dim);line-height:1.5}
 .cmds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .cmds span{font-size:13px;background:rgba(79,227,193,.1);color:var(--lagoon);padding:6px 10px;border-radius:999px}
-pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:28vh;overflow:auto;color:var(--mist);margin:0 0 10px}
+
+/* progression */
+.phase-card{position:relative;margin:16px 0 12px;padding:18px 18px 14px;border-radius:26px;overflow:hidden;
+  background:radial-gradient(120% 90% at 100% 0%, rgba(255,181,71,.2), transparent 55%), linear-gradient(160deg,#2c3090,#191c54);
+  border:1px solid var(--glass-line)}
+.phase-kicker{margin:0;font-size:13px;color:var(--dim)}
+.phase-name{margin:2px 0 0;font-size:60px;line-height:.92;font-weight:800;letter-spacing:-.045em;font-variation-settings:"wdth" 75,"opsz" 96;color:#fff}
+.phase-desc{margin:8px 0 0;color:var(--mist);font-size:15px}
+#flight{display:block;width:100%;height:auto;margin:12px 0 2px;overflow:visible;font-family:var(--font)}
+.phase-foot{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--dim)}
+.phase-foot b{color:var(--amber);font-weight:750;font-size:20px;letter-spacing:-.02em;margin-right:3px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:14px}
+.stat b{display:block;font-size:30px;font-weight:760;letter-spacing:-.03em;font-variation-settings:"wdth" 80;color:#fff;line-height:1}
+.stat span{display:block;margin-top:6px;font-size:13px;color:var(--dim);line-height:1.3}
+.block{margin:26px 0}
+.block h3,.dsec{font-size:20px;font-weight:720;letter-spacing:-.015em;margin:0 0 10px;color:#fff;font-variation-settings:"wdth" 88}
+.block-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.block-head span{font-size:13px;color:var(--dim)}
+#flChart{display:block;width:100%;height:auto;font-family:var(--font)}
+.empty{color:var(--dim);font-size:14.5px;line-height:1.5;padding:6px 0;margin:0}
+.hrow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid rgba(217,220,255,.08);padding:14px 2px}
+.hdate{width:44px;flex:none;text-align:center}
+.hdate b{display:block;font-size:27px;font-weight:760;line-height:1;color:#fff;font-variation-settings:"wdth" 78}
+.hdate span{font-size:12px;color:var(--dim)}
+.hbody{flex:1;min-width:0}
+.htitle{margin:0;font-size:16px;font-weight:620;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hmeta{margin:3px 0 0;font-size:13px;color:var(--dim)}
+.hrow > svg{width:18px;height:18px;color:var(--dim);flex:none}
+.hscore{flex:none;font-size:13px;color:var(--lagoon);font-weight:650}
+
+/* session detail */
+.back{background:none;border:0;color:var(--amber);font-size:15px;font-weight:620;padding:6px 0;display:flex;align-items:center;gap:2px}
+.back svg{width:18px;height:18px}
+.dkick{margin:14px 0 4px;color:var(--dim);font-size:14px}
+.dtitle{font-size:34px;line-height:1;margin:0;font-weight:780;letter-spacing:-.035em;font-variation-settings:"wdth" 78,"opsz" 60;color:#fff}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.tags span{font-size:13px;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--mist)}
+.dsum{font-size:16.5px;line-height:1.5;color:var(--mist);margin:0}
+.scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 6px}
+.scores .stat b{font-size:24px;white-space:nowrap}
+.vocab-item,.corr-item{padding:13px 0;border-bottom:1px solid rgba(217,220,255,.08)}
+.vocab-item:last-child,.corr-item:last-child{border-bottom:0}
+.vocab-en{font-size:17.5px;font-weight:660;color:#fff}
+.vocab-fr{font-size:14px;color:var(--dim);margin-left:8px}
+.vocab-ex{margin:5px 0 0;font-size:15px;color:var(--mist);line-height:1.45;font-weight:380}
+.corr-said{font-size:14.5px;color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(255,138,138,.75)}
+.corr-ok{display:block;font-size:17px;font-weight:660;color:var(--lagoon);margin-top:3px}
+.corr-rule{margin:5px 0 0;font-size:14px;color:var(--mist);line-height:1.45}
+.phrase{font-size:16.5px;line-height:1.45;color:#fff;padding:4px 0 4px 14px;border-left:2px solid var(--amber);margin:12px 0}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
+.duo div{background:rgba(255,255,255,.05);border:1px solid var(--glass-line);border-radius:18px;padding:14px}
+.duo b{display:block;font-size:13px;color:var(--lagoon);margin-bottom:6px;font-weight:650}
+.duo div+div b{color:var(--amber)}
+.duo p{margin:0;font-size:14px;line-height:1.45;color:var(--mist)}
+details.tr{margin:18px 0;border-top:1px solid rgba(217,220,255,.08)}
+details.tr summary{cursor:pointer;color:var(--mist);font-weight:620;font-size:15px;padding:14px 0;list-style:none}
+details.tr summary::-webkit-details-marker{display:none}
+details.tr summary::after{content:"+";float:right;color:var(--dim)}
+details.tr[open] summary::after{content:"–"}
+.trline{font-size:14.5px;line-height:1.45;margin:9px 0;color:var(--mist)}
+.trline b{font-weight:650;margin-right:6px}
+.trline.u b{color:var(--lagoon)} .trline.c b{color:var(--amber)}
+.trline.w{color:#ff9ecf}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 28px);z-index:40;transform:translate(-50%,16px);opacity:0;
+  background:#fff;color:#1a1640;font-weight:620;font-size:14.5px;padding:12px 18px;border-radius:999px;box-shadow:0 12px 40px -10px rgba(0,0,0,.5);
+  transition:opacity .3s, transform .3s;pointer-events:none;max-width:calc(100% - 40px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* landscape (phone on a car mount) */
 @media (orientation:landscape) and (max-height:520px){
@@ -161,9 +240,14 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
 <div class="app">
   <div class="top">
     <div class="hello" id="hello">Bonne route, <strong>Christophe</strong></div>
-    <button class="gear" id="openSettings" aria-label="Réglages">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-    </button>
+    <div class="top-actions">
+      <button class="gear" id="openProgress" aria-label="Progression et historique">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19.5h18"/><path d="M4 16l5.5-5.5 4 3L20 7"/><path d="M15.5 7H20v4.5"/></svg>
+      </button>
+      <button class="gear" id="openSettings" aria-label="Réglages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
   </div>
 
   <section class="stage" aria-live="polite">
@@ -188,17 +272,52 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
         </div>
       </div>
     </div>
+    <button class="recap" id="recap" hidden>Voir le bilan de la séance</button>
     <div class="controls">
       <button id="big">Démarrer la séance</button>
       <button id="stopBtn" aria-label="Terminer la séance">
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>
       </button>
     </div>
-    <div class="meta"><span id="profileInfo"></span><span class="ver">v1.2</span></div>
+    <div class="meta"><button class="metabtn" id="progBtn"></button><span class="ver">v1.3</span></div>
   </div>
 </div>
 
-<div id="sheet">
+<!-- Progression -->
+<div class="sheet" id="prog">
+  <div class="sheetbody tall" id="progBody" role="dialog" aria-label="Progression">
+    <div class="grab"></div>
+    <div id="progMain">
+      <div class="sheethead"><h2>Progression</h2><button class="close" data-close="prog">Fermer</button></div>
+      <section class="phase-card">
+        <p class="phase-kicker">Phase actuelle</p>
+        <h3 class="phase-name" id="phaseName">Taxi</h3>
+        <p class="phase-desc" id="phaseDesc"></p>
+        <svg id="flight" viewBox="0 0 340 132" aria-hidden="true"></svg>
+        <div class="phase-foot"><span id="milesNow"></span><span id="milesNext"></span></div>
+      </section>
+      <div class="stats" id="stats"></div>
+      <p class="note">Les miles se gagnent en parlant : 10 par minute de conversation, 20 par séance, 50 par mot maîtrisé.</p>
+
+      <section class="block">
+        <div class="block-head"><h3>Aisance à l’oral</h3><span id="flLegend"></span></div>
+        <svg id="flChart" viewBox="0 0 340 120" aria-label="Évolution de l’aisance à l’oral"></svg>
+        <p class="empty" id="flEmpty">La courbe apparaîtra après votre première séance.</p>
+      </section>
+
+      <button class="btn ghost" id="lexPdf">Télécharger mon lexique (PDF)</button>
+
+      <section class="block">
+        <h3>Historique</h3>
+        <div id="histList"></div>
+      </section>
+    </div>
+    <div id="progDetail" hidden></div>
+  </div>
+</div>
+
+<!-- Réglages -->
+<div class="sheet" id="sheet">
   <div class="sheetbody" role="dialog" aria-label="Réglages">
     <div class="grab"></div>
     <h2>Réglages</h2>
@@ -221,7 +340,7 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
 
     <div class="group">
       <div class="field"><label for="name">Prénom</label><input id="name" type="text"></div>
-      <div class="field"><label for="level">Niveau</label>
+      <div class="field"><label for="level">Niveau de départ</label>
         <select id="level"><option>A2</option><option selected>B1</option><option>B2</option><option>C1</option></select></div>
     </div>
 
@@ -234,8 +353,8 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
 
     <div class="group">
       <div class="field">
-        <label>Votre progression</label>
-        <pre class="profile" id="profileView"></pre>
+        <label>Sauvegarde de votre progression</label>
+        <p class="note" style="margin:0 0 10px">Historique, lexique et phases sont stockés sur cet iPhone. Exportez-les de temps en temps pour ne rien perdre.</p>
         <div class="row">
           <button class="btn" id="exportBtn">Exporter</button>
           <button class="btn" id="importBtn">Importer</button>
@@ -254,32 +373,111 @@ pre.profile{background:rgba(10,12,40,.45);border-radius:12px;padding:10px;font-s
   </div>
 </div>
 
+<div class="toast" id="toast" role="status"></div>
+
 <script>
 (() => {
 'use strict';
 const LS_KEY = 'english_copilot_v1';
+const JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- storage ---------- */
 const defaults = {
   settings: { apiKey:'', model:'claude-haiku-5-5', name:'Christophe', level:'B1',
               voiceURI:'', rate:0.95, modeOverride:'AUTO', correction:'COACH' },
-  profile:  { RECURRING_ERRORS:[], TARGET_VOCABULARY:[], RECENT_SESSIONS:[] },
+  profile:  { LEXICON:[], ERRORS:[] },
+  history:  [],
   pending:  null
 };
+const todayISO = () => new Date().toISOString().slice(0,10);
+function migrate(d){
+  const p = d.profile || {};
+  const out = {
+    settings: {...defaults.settings, ...(d.settings||{})},
+    profile:  { LEXICON: Array.isArray(p.LEXICON) ? p.LEXICON : [], ERRORS: Array.isArray(p.ERRORS) ? p.ERRORS : [] },
+    history:  Array.isArray(d.history) ? d.history : [],
+    pending:  d.pending || null
+  };
+  // v1.0 – v1.2 data
+  if(!p.LEXICON && Array.isArray(p.TARGET_VOCABULARY)){
+    out.profile.LEXICON = p.TARGET_VOCABULARY.map(s => {
+      const m = String(s).match(/^(.*?)\s*\((.*)\)\s*$/);
+      return { en:(m ? m[1] : String(s)).trim(), fr: m ? m[2].trim() : '', example:'', first:todayISO(), status:'learning', seen:1 };
+    });
+  }
+  if(!p.ERRORS && Array.isArray(p.RECURRING_ERRORS)){
+    out.profile.ERRORS = p.RECURRING_ERRORS.map(s => {
+      const parts = String(s).split(/\s*->\s*/);
+      return { said:parts[0]||String(s), correct:parts[1]||'', rule:'', count:1, last:todayISO() };
+    });
+  }
+  if(!Array.isArray(d.history) && Array.isArray(p.RECENT_SESSIONS)){
+    out.history = p.RECENT_SESSIONS.map((r,i) => ({ id:'old'+i, date:r.date||todayISO(), minutes:0, mode:r.mode||'',
+      title:'', topics:r.topics||[], summary:r.summary||'', vocabulary:[], corrections:[], key_phrases:[], transcript:[] }));
+  }
+  return out;
+}
 function load(){
-  try { const raw = localStorage.getItem(LS_KEY); if(!raw) return structuredClone(defaults);
-    const d = JSON.parse(raw);
-    return { settings:{...defaults.settings, ...(d.settings||{})},
-             profile:{...defaults.profile, ...(d.profile||{})},
-             pending:d.pending||null };
-  } catch(e){ return structuredClone(defaults); }
+  try { const raw = localStorage.getItem(LS_KEY); return raw ? migrate(JSON.parse(raw)) : structuredClone(defaults); }
+  catch(e){ return structuredClone(defaults); }
 }
 let store = load();
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
+  catch(e){ // storage full: drop the oldest transcripts and retry once
+    store.history.slice(0, Math.max(0, store.history.length - 20)).forEach(r => r.transcript = []);
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(_){}
+  }
+}
 
-/* ---------- dom ---------- */
+/* ---------- learning model ---------- */
+const keyOf = s => String(s||'').toLowerCase().replace(/\s*\(.*\)\s*$/,'').replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
+const learning = () => store.profile.LEXICON.filter(w => w.status !== 'mastered');
+const mastered = () => store.profile.LEXICON.filter(w => w.status === 'mastered');
+const targetVocab = () => learning().slice(-15).map(w => w.fr ? `${w.en} (${w.fr})` : w.en);
+function recurringErrors(){
+  return [...store.profile.ERRORS].sort((a,b) => (b.count - a.count) || String(b.last).localeCompare(String(a.last)))
+    .slice(0,10).map(e => e.correct ? `${e.said} -> ${e.correct}` : e.said);
+}
+const PHASES = [
+  { name:'Taxi',      fr:'Roulage',       min:0,    desc:'Vous prenez vos marques.' },
+  { name:'Take-off',  fr:'Décollage',     min:300,  desc:'Les échanges deviennent réguliers.' },
+  { name:'Climb',     fr:'Montée',        min:1000, desc:'Vous gagnez en aisance.' },
+  { name:'Cruise',    fr:'Croisière',     min:2500, desc:'La conversation coule.' },
+  { name:'Long-haul', fr:'Long-courrier', min:5000, desc:'Vous tenez la distance en anglais.' }
+];
+function stats(){
+  const h = store.history;
+  const minutes = h.reduce((a,r) => a + (r.minutes||0), 0);
+  const m = mastered().length;
+  const lastLevel = [...h].reverse().find(r => r.level);
+  return {
+    sessions:h.length, minutes, mastered:m, learning:learning().length,
+    miles: minutes*10 + m*50 + h.length*20,
+    fl: h.filter(r => r.fluency).slice(-12),
+    level: lastLevel ? lastLevel.level : store.settings.level
+  };
+}
+function phaseOf(miles){
+  let i = 0; PHASES.forEach((p,k) => { if(miles >= p.min) i = k; });
+  const next = PHASES[i+1];
+  return { index:i, ...PHASES[i], next, pct: next ? (miles - PHASES[i].min) / (next.min - PHASES[i].min) : 1 };
+}
+
+/* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtN = n => Math.round(n).toLocaleString('fr-FR');
+const fmtMin = m => { m = Math.round(m||0); if(m < 60) return m + ' min'; const h = Math.floor(m/60), r = m%60; return h + ' h' + (r ? ' ' + String(r).padStart(2,'0') : ''); };
+const MODE_FR = { MORNING:'Matin', EVENING:'Soir' };
+const dLong = iso => new Date(iso).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+const dFull = iso => new Date(iso).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+let toastTimer;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); }
+
 const big=$('big'), statusEl=$('status'), sub=$('sub'), lineEl=$('line'), stopBtn=$('stopBtn');
 
 /* ---------- wave (the voice horizon) ---------- */
@@ -289,8 +487,7 @@ const wave = (() => {
   const palette = {
     idle:['#ffb547','#ff8f6b','#4fe3c1'], listening:['#4fe3c1','#7af0ff','#9b8cff'],
     thinking:['#b9a6ff','#7f8cff','#4fe3c1'], speaking:['#ffb547','#ffd28a','#ff8f6b'],
-    paused:['#5c6199','#474b80','#3b3f6e'],
-    french:['#ff9ecf','#ffffff','#7af0ff']
+    paused:['#5c6199','#474b80','#3b3f6e'], french:['#ff9ecf','#ffffff','#7af0ff']
   };
   const base = {idle:.18, listening:.32, thinking:.22, speaking:.42, paused:.06, french:.34};
   function resize(){
@@ -304,7 +501,6 @@ const wave = (() => {
     energy += (target - energy) * 0.12;
     ctx.clearRect(0,0,w,h);
     const mid = h*0.55, cols = palette[state];
-    // road glow on the horizon
     const g = ctx.createRadialGradient(w/2, mid, 0, w/2, mid, w*0.7);
     g.addColorStop(0, cols[0]+'33'); g.addColorStop(1, 'transparent');
     ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
@@ -315,7 +511,7 @@ const wave = (() => {
       ctx.beginPath();
       for(let x=0;x<=w;x+=3){
         const n = x/w;
-        const env = Math.pow(Math.sin(Math.PI*n), 1.6);            // taper at the edges
+        const env = Math.pow(Math.sin(Math.PI*n), 1.6);
         const y = mid + env*amp*(
           Math.sin(n*Math.PI*2*freq + t*speed + k) * 0.7 +
           Math.sin(n*Math.PI*2*freq*2.3 - t*speed*1.3 + k*2) * 0.3);
@@ -326,7 +522,6 @@ const wave = (() => {
       ctx.stroke();
     }
     ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.globalCompositeOperation = 'source-over';
-    // horizon line
     ctx.strokeStyle = 'rgba(217,220,255,.10)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
     if(!reduceMotion) requestAnimationFrame(draw);
@@ -361,9 +556,7 @@ function setState(s, _text, subtext){
   big.classList.add('live');
   big.textContent = {french:'Dites le mot en français', listening:'Mettre en pause', paused:'Reprendre', speaking:'Couper la parole', thinking:'Un instant…'}[s] || 'Pause';
 }
-function addLog(who, text){
-  if(who === 'coach') lineEl.textContent = text;
-}
+function addLog(who, text){ if(who === 'coach') lineEl.textContent = text; }
 
 /* ---------- segmented controls ---------- */
 function bindChips(containerId, key){
@@ -405,9 +598,7 @@ function speak(text, rateMul=1){
     const finish = () => { if(done) return; done = true; clearTimeout(t); clearInterval(pulse); resolve(); };
     u.onend = finish; u.onerror = finish;
     u.onboundary = () => wave.bump(0.28);
-    // gentle pulse in case the voice fires no boundary events
     const pulse = setInterval(() => wave.bump(0.12), 260);
-    // iOS sometimes never fires onend: fallback timer
     const t = setTimeout(finish, 2500 + text.length * 85 / u.rate);
     if(token === speakToken) synth.speak(u);
   });
@@ -445,7 +636,7 @@ function stopListening(){ if(rec){ try{ rec.abort(); }catch(_){} rec = null; } }
 async function callClaude(system, messages, maxTokens=300){
   const key = store.settings.apiKey.trim();
   if(!key) throw new Error('NO_KEY');
-  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 40000);
+  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 45000);
   try{
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST', signal:ctrl.signal,
@@ -469,11 +660,14 @@ function sessionMode(){
   return new Date().getHours() < 14 ? 'MORNING' : 'EVENING';
 }
 function buildSystem(){
-  const s = store.settings, p = store.profile;
+  const s = store.settings;
+  const st = stats();
+  const last = store.history[store.history.length-1];
   const profile = {
-    NAME: s.name, LEVEL: s.level, SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
-    RECURRING_ERRORS: p.RECURRING_ERRORS, TARGET_VOCABULARY: p.TARGET_VOCABULARY,
-    RECENT_SESSIONS_SUMMARY: p.RECENT_SESSIONS.slice(-5)
+    NAME: s.name, LEVEL: st.level, SESSION_MODE: sessionMode(), CORRECTION_MODE: s.correction,
+    RECURRING_ERRORS: recurringErrors(), TARGET_VOCABULARY: targetVocab(),
+    LAST_SESSION_FOCUS: last && last.focus ? last.focus : '',
+    RECENT_SESSIONS_SUMMARY: store.history.slice(-5).map(r => ({ date:String(r.date).slice(0,10), mode:r.mode, topics:r.topics, summary:r.summary }))
   };
   const now = new Date();
   return `# RÔLE
@@ -504,7 +698,7 @@ ${JSON.stringify(profile, null, 1)}
 </profil_utilisateur>
 
 # MODES
-MORNING : apprentissage. Introduis un ou deux mots de TARGET_VOCABULARY (ou nouveaux mots utiles à son métier si la liste est vide) et incite-le à les réutiliser. Surveille RECURRING_ERRORS.
+MORNING : apprentissage. Introduis un ou deux mots de TARGET_VOCABULARY (ou nouveaux mots utiles à son métier si la liste est vide) et incite-le à les réutiliser. Surveille RECURRING_ERRORS. Si LAST_SESSION_FOCUS est renseigné, crée une occasion naturelle de le travailler.
 EVENING : aisance. Prends des nouvelles de sa journée. Ne corrige que ce qui gêne vraiment la compréhension, quel que soit CORRECTION_MODE.
 S'il dit "morning mode"/"lesson" ou "evening mode"/"just chat", bascule de mode.
 
@@ -524,33 +718,89 @@ Le message [SESSION_START] ouvre la séance : salue-le par son prénom et lance 
 Le message [SESSION_END] ou une demande de terminer : une phrase chaleureuse de clôture avec un seul point à retenir de la séance.`;
 }
 
-/* ---------- summary / memory ---------- */
-const SUMMARY_SYSTEM = `Tu analyses la transcription d'une séance de coaching d'anglais oral (l'apprenant est francophone, ses phrases viennent d'une reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes).
-Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour :
-{"topics":["..."],"new_errors":["erreur courte -> forme correcte"],"vocabulary_used":["mots cibles réutilisés correctement"],"new_vocabulary":["mots ou expressions nouveaux appris"],"summary":"2 phrases max en anglais sur ce dont il a parlé (faits personnels et professionnels utiles pour la prochaine séance)."}
-Les messages [MOT EN FRANÇAIS] sont des mots qu'il ne connaissait pas : mets TOUJOURS leur traduction anglaise dans new_vocabulary, sous la forme "customs clearance (dédouanement)".
-Maximum 6 éléments par liste.`;
+/* ---------- end-of-session review ---------- */
+const SUMMARY_SYSTEM = `Tu analyses la transcription d'une séance de coaching d'anglais oral entre un coach et un apprenant francophone. Ses phrases viennent d'une reconnaissance vocale imparfaite : ignore les erreurs de transcription évidentes et ne les compte jamais comme des fautes.
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, de cette forme exacte :
+{
+ "title": "titre court et vivant de la séance, en français, 3 à 7 mots",
+ "topics": ["sujets abordés, en français, 1 à 4 mots chacun"],
+ "summary": "2 phrases maximum, en anglais simple : ce dont il a parlé et les faits utiles pour la prochaine séance",
+ "vocabulary": [{"en":"mot ou expression anglaise","fr":"traduction française","example":"phrase d'exemple naturelle en anglais, liée à ce qu'il a raconté"}],
+ "corrections": [{"said":"ce qu'il a dit, court","correct":"la forme correcte","rule":"pourquoi, en une phrase courte en français"}],
+ "key_phrases": ["phrases anglaises correctes, utiles et réutilisables, tirées de la séance"],
+ "vocabulary_used": ["entrées EXACTES de la liste de vocabulaire cible qu'il a lui-même employées correctement"],
+ "fluency": 6,
+ "level_estimate": "B1",
+ "strength": "son point fort pendant cette séance, une phrase en français, au vouvoiement",
+ "focus": "le point à travailler en priorité à la prochaine séance, une phrase en français, au vouvoiement"
+}
+Règles :
+- vocabulary : les mots nouveaux qu'il a demandés ou appris (TOUJOURS ceux des messages [MOT EN FRANÇAIS]) et les mots utiles introduits par le coach. 8 maximum.
+- corrections : ses vraies erreurs de langue, les plus importantes, 6 maximum.
+- key_phrases : 2 à 4.
+- fluency : entier de 1 (très hésitant) à 10 (parfaitement fluide), selon l'aisance observée.
+- level_estimate : A2, B1, B2 ou C1.
+- Si une liste n'a pas de contenu, renvoie [].`;
 
 function transcriptOf(msgs){
   return msgs.filter(m => !/^\[SESSION_/.test(m.content))
              .map(m => (m.role==='user'?'Learner: ':'Coach: ') + m.content).join('\n');
 }
+const str = v => String(v==null?'':v).trim();
 async function summarizePending(){
   const pend = store.pending;
-  if(!pend || !pend.messages) return;
+  if(!pend || !pend.messages) return null;
   const userTurns = pend.messages.filter(m => m.role==='user' && !/^\[SESSION_/.test(m.content)).length;
-  if(userTurns < 2){ store.pending = null; save(); return; }
-  const raw = await callClaude(SUMMARY_SYSTEM, [{role:'user', content: transcriptOf(pend.messages)}], 600);
+  if(userTurns < 2){ store.pending = null; save(); return null; }
+  const raw = await callClaude(SUMMARY_SYSTEM, [{ role:'user',
+    content: 'Vocabulaire cible actuel : ' + JSON.stringify(targetVocab()) + '\n\nTranscription :\n' + transcriptOf(pend.messages) }], 1600);
   const m = raw.match(/\{[\s\S]*\}/); if(!m) throw new Error('bad summary');
   const j = JSON.parse(m[0]);
-  const p = store.profile;
-  const uniq = (arr) => [...new Map(arr.filter(Boolean).map(x => [String(x).toLowerCase().trim(), String(x).trim()])).values()];
-  p.RECURRING_ERRORS = uniq([...(j.new_errors||[]), ...p.RECURRING_ERRORS]).slice(0, 10);
-  const used = new Set((j.vocabulary_used||[]).map(x => String(x).toLowerCase().trim()));
-  p.TARGET_VOCABULARY = uniq([...p.TARGET_VOCABULARY.filter(v => !used.has(v.toLowerCase().trim())), ...(j.new_vocabulary||[])]).slice(-15);
-  p.RECENT_SESSIONS.push({ date: pend.date, mode: pend.mode, topics: j.topics||[], summary: j.summary||'' });
-  p.RECENT_SESSIONS = p.RECENT_SESSIONS.slice(-8);
-  store.pending = null; save(); renderProfile();
+  if(store.pending !== pend) return null;                 // already handled elsewhere
+
+  const phaseBefore = phaseOf(stats().miles).index;
+  const startISO = new Date(pend.start || Date.now()).toISOString();
+  const day = startISO.slice(0,10);
+  const lex = store.profile.LEXICON, errs = store.profile.ERRORS;
+
+  const used = new Set((j.vocabulary_used||[]).map(keyOf));
+  lex.forEach(w => { if(w.status !== 'mastered' && used.has(keyOf(w.en))){ w.status = 'mastered'; w.mastered = day; } });
+
+  const vocab = (Array.isArray(j.vocabulary) ? j.vocabulary : []).filter(v => v && v.en).slice(0,8)
+    .map(v => ({ en:str(v.en), fr:str(v.fr), example:str(v.example) }));
+  vocab.forEach(v => {
+    const ex = lex.find(w => keyOf(w.en) === keyOf(v.en));
+    if(ex){ ex.seen = (ex.seen||1) + 1; if(!ex.example) ex.example = v.example; if(!ex.fr) ex.fr = v.fr; }
+    else lex.push({ ...v, first:day, status:'learning', seen:1 });
+  });
+
+  const corr = (Array.isArray(j.corrections) ? j.corrections : []).filter(c => c && c.said).slice(0,6)
+    .map(c => ({ said:str(c.said), correct:str(c.correct), rule:str(c.rule) }));
+  corr.forEach(c => {
+    const ex = errs.find(e => (c.correct && keyOf(e.correct) === keyOf(c.correct)) || keyOf(e.said) === keyOf(c.said));
+    if(ex){ ex.count = (ex.count||1) + 1; ex.last = day; if(!ex.rule) ex.rule = c.rule; }
+    else errs.push({ ...c, count:1, last:day });
+  });
+  store.profile.ERRORS = errs.sort((a,b) => String(b.last).localeCompare(String(a.last))).slice(0,60);
+
+  const fl = parseInt(j.fluency, 10);
+  const rec = {
+    id: String(pend.start || Date.now()),
+    date: startISO,
+    minutes: pend.start && pend.end ? Math.max(1, Math.round((pend.end - pend.start)/60000)) : 0,
+    mode: pend.mode, correction: pend.correction || '',
+    title: str(j.title), topics: (j.topics||[]).map(str).filter(Boolean).slice(0,5), summary: str(j.summary),
+    vocabulary: vocab, corrections: corr, key_phrases: (j.key_phrases||[]).map(str).filter(Boolean).slice(0,4),
+    fluency: fl >= 1 && fl <= 10 ? fl : null,
+    level: /^(A1|A2|B1|B2|C1|C2)$/.test(str(j.level_estimate)) ? str(j.level_estimate) : '',
+    strength: str(j.strength), focus: str(j.focus),
+    transcript: pend.messages.filter(x => !/^\[SESSION_/.test(x.content)).map(x => ({ r: x.role==='user' ? 'u' : 'c', t: x.content }))
+  };
+  store.history.push(rec);
+  if(store.history.length > 60) store.history.slice(0, store.history.length - 60).forEach(r => r.transcript = []);
+  store.pending = null; save(); renderMeta();
+  const phaseAfter = phaseOf(stats().miles).index;
+  return { rec, phaseUp: phaseAfter > phaseBefore ? PHASES[phaseAfter] : null };
 }
 
 /* ---------- commands ---------- */
@@ -566,13 +816,14 @@ const RX = {
 };
 
 /* ---------- session ---------- */
-const session = { active:false, paused:false, messages:[], lastReply:'', ending:false };
+const session = { active:false, paused:false, messages:[], lastReply:'', ending:false, startedAt:0 };
 let wakeLock = null;
 async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(_){} }
 document.addEventListener('visibilitychange', () => { if(session.active && document.visibilityState==='visible') keepAwake(); });
 
 function persistSession(){
-  store.pending = { date: new Date().toISOString().slice(0,10), mode: sessionMode(), messages: session.messages.slice(-40) };
+  store.pending = { date: todayISO(), start: session.startedAt, end: Date.now(), mode: sessionMode(),
+                    correction: store.settings.correction, messages: session.messages.slice(-60) };
   save();
 }
 function trimmedHistory(){
@@ -658,10 +909,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 async function startSession(){
   if(!store.settings.apiKey.trim()){ openSettings(); return; }
-  // iOS: unlock speech synthesis inside the user gesture
   if(synth){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); }
-  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false });
+  Object.assign(session, { active:true, paused:false, messages:[], lastReply:'', ending:false, startedAt:Date.now() });
   lineEl.textContent = '';
+  $('recap').hidden = true;
   stopBtn.style.display = 'grid';
   keepAwake();
   if(store.pending){ setState('thinking','Mise à jour de votre progression…'); try{ await summarizePending(); }catch(_){ } }
@@ -681,13 +932,20 @@ async function stopSession(summarize){
   stopBtn.style.display = 'none';
   try{ if(wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(_){}
   if(summarize && store.pending){
-    setState('thinking','Enregistrement de la séance…');
-    try{ await summarizePending(); setState('idle','Séance enregistrée. Bonne route !'); }
-    catch(e){ setState('idle','Séance terminée. Le bilan sera fait au prochain démarrage.'); }
+    setState('thinking','Préparation du bilan de la séance…');
+    try{
+      const res = await summarizePending();
+      if(res && res.rec){ $('recap').hidden = false; $('recap').dataset.id = res.rec.id; }
+      if(res && res.phaseUp){
+        setState('idle', 'Nouvelle phase atteinte : ' + res.phaseUp.name + ', ' + res.phaseUp.fr.toLowerCase() + '.');
+        speak(`Congratulations! You've just reached the ${res.phaseUp.name} phase.`);
+      } else setState('idle', res ? 'Séance enregistrée. Votre bilan est prêt.' : 'Séance terminée. Bonne route !');
+    }
+    catch(e){ setState('idle','Séance terminée. Le bilan sera préparé au prochain démarrage.'); }
   } else if(summarize) setState('idle','Séance terminée.');
   else setState('idle', sub.textContent);
   session.ending = false;
-  renderProfile();
+  renderMeta();
 }
 
 big.addEventListener('click', () => {
@@ -698,32 +956,382 @@ big.addEventListener('click', () => {
 });
 stopBtn.addEventListener('click', () => { if(session.active) endSession(); });
 
-/* ---------- settings ---------- */
-function renderProfile(){
-  const p = store.profile;
-  $('profileView').textContent = JSON.stringify({
-    erreurs_recurrentes: p.RECURRING_ERRORS, vocabulaire_cible: p.TARGET_VOCABULARY,
-    dernieres_seances: p.RECENT_SESSIONS.slice(-3)
-  }, null, 2);
-  const n = p.RECENT_SESSIONS.length;
-  $('profileInfo').textContent = n
-    ? n + ' séance' + (n>1?'s':'') + ', ' + p.TARGET_VOCABULARY.length + ' mots en cours'
-    : 'Première séance';
+/* ---------- main screen meta ---------- */
+function renderMeta(){
+  const st = stats(), ph = phaseOf(st.miles);
+  const b = $('progBtn');
+  b.innerHTML = st.sessions
+    ? `<i></i><span>Phase <b>${esc(ph.name)}</b>, ${fmtN(st.miles)} miles</span>`
+    : `<i></i><span>Première séance</span>`;
   const h = $('hello'); h.textContent = (new Date().getHours() < 14 ? 'Bonjour, ' : 'Bonsoir, ');
-  const st = document.createElement('strong'); st.textContent = store.settings.name || 'Christophe'; h.appendChild(st);
+  const s2 = document.createElement('strong'); s2.textContent = store.settings.name || 'Christophe'; h.appendChild(s2);
 }
+
+/* ---------- progression sheet ---------- */
+const STOPS = [[16,104],[86,101],[160,66],[240,36],[324,31]];
+function segPath(i){
+  const T = STOPS.map((p,k) => { const a = STOPS[Math.max(0,k-1)], b = STOPS[Math.min(STOPS.length-1,k+1)]; return [(b[0]-a[0])/2, (b[1]-a[1])/2]; });
+  const [x0,y0] = STOPS[i], [x1,y1] = STOPS[i+1];
+  return `M${x0},${y0} C${(x0+T[i][0]/3).toFixed(1)},${(y0+T[i][1]/3).toFixed(1)} ${(x1-T[i+1][0]/3).toFixed(1)},${(y1-T[i+1][1]/3).toFixed(1)} ${x1},${y1}`;
+}
+function drawFlight(ph){
+  const svg = $('flight');
+  let h = `<defs><linearGradient id="fg" x1="0" x2="1"><stop offset="0" stop-color="#4fe3c1"/><stop offset="1" stop-color="#ffb547"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+  h += `<line x1="0" x2="340" y1="112" y2="112" stroke="rgba(217,220,255,.16)" stroke-dasharray="6 6"/>`;
+  for(let i=0;i<4;i++){
+    const d = segPath(i);
+    h += `<path d="${d}" fill="none" stroke="rgba(217,220,255,.2)" stroke-width="1.6" stroke-dasharray="2 5" stroke-linecap="round"/>`;
+    h += `<path class="done" data-i="${i}" d="${d}" fill="none" stroke="url(#fg)" stroke-width="3" stroke-linecap="round" filter="url(#glow)"/>`;
+  }
+  STOPS.forEach(([x,y],i) => {
+    const reached = i <= ph.index, cur = i === ph.index;
+    h += `<circle cx="${x}" cy="${y}" r="${cur?5:3.6}" fill="${reached?'#ffb547':'#1d2163'}" stroke="${reached?'#ffb547':'rgba(217,220,255,.4)'}" stroke-width="1.5"/>`;
+    const lp = [[0,20,'middle'],[0,20,'middle'],[9,17,'start'],[0,-11,'middle'],[0,-11,'middle']][i];
+    h += `<text x="${x + lp[0]}" y="${y + lp[1]}" text-anchor="${lp[2]}" font-size="10.5" font-weight="${cur?700:500}" fill="${cur?'#ffffff':reached?'#d9dcff':'#8f94cc'}">${PHASES[i].name}</text>`;
+  });
+  h += `<g id="plane"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#fff"/></g>`;
+  svg.innerHTML = h;
+  svg.querySelectorAll('path.done').forEach(p => {
+    const i = +p.dataset.i, L = p.getTotalLength();
+    const f = i < ph.index ? 1 : i === ph.index ? ph.pct : 0;
+    p.setAttribute('stroke-dasharray', `${(L*f).toFixed(1)} ${L.toFixed(1)}`);
+    if(f <= 0) p.setAttribute('opacity','0');
+  });
+  let pos = STOPS[4], ang = -3;
+  if(ph.index < 4){
+    const p = svg.querySelector(`path.done[data-i="${ph.index}"]`), L = p.getTotalLength();
+    const l = Math.min(L - 1, Math.max(0, L * ph.pct));
+    const a = p.getPointAtLength(l), b = p.getPointAtLength(l + 1);
+    pos = [a.x, a.y]; ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  }
+  $('plane').setAttribute('transform', `translate(${pos[0].toFixed(1)},${pos[1].toFixed(1)}) rotate(${(ang+90).toFixed(1)}) scale(.8) translate(-11.5,-12)`);
+}
+function drawFluency(fl){
+  const svg = $('flChart');
+  if(!fl.length){ svg.style.display = 'none'; $('flEmpty').hidden = false; $('flLegend').textContent = ''; return; }
+  svg.style.display = ''; $('flEmpty').hidden = true;
+  const W = 340, H = 120, px = 16, top = 14, bot = 26, n = fl.length;
+  const X = i => n === 1 ? W/2 : px + i * (W - 2*px) / (n - 1);
+  const Y = v => top + (10 - v) * (H - top - bot) / 9;
+  const pts = fl.map((r,i) => [X(i), Y(r.fluency)]);
+  const line = pts.map((p,i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const area = line + ` L${pts[pts.length-1][0].toFixed(1)},${H-bot} L${pts[0][0].toFixed(1)},${H-bot} Z`;
+  let h = `<defs><linearGradient id="fa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fe3c1" stop-opacity=".35"/><stop offset="1" stop-color="#4fe3c1" stop-opacity="0"/></linearGradient></defs>`;
+  [10,5].forEach(v => { h += `<line x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(217,220,255,.1)"/><text x="${W}" y="${Y(v)-4}" text-anchor="end" font-size="9.5" fill="#8f94cc">${v}</text>`; });
+  if(n > 1) h += `<path d="${area}" fill="url(#fa)"/><path d="${line}" fill="none" stroke="#4fe3c1" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach((p,i) => { const lastP = i === n-1; h += `<circle cx="${p[0]}" cy="${p[1]}" r="${lastP?5:3}" fill="${lastP?'#ffb547':'#4fe3c1'}" stroke="#14174a" stroke-width="1.5"/>`; });
+  const lbl = r => new Date(r.date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+  h += `<text x="${X(0)}" y="${H-6}" text-anchor="${n===1?'middle':'start'}" font-size="10" fill="#8f94cc">${esc(lbl(fl[0]))}</text>`;
+  if(n > 1) h += `<text x="${X(n-1)}" y="${H-6}" text-anchor="end" font-size="10" fill="#8f94cc">${esc(lbl(fl[n-1]))}</text>`;
+  svg.innerHTML = h;
+  $('flLegend').textContent = 'Dernière séance : ' + fl[n-1].fluency + '/10';
+}
+function renderProgress(){
+  const st = stats(), ph = phaseOf(st.miles);
+  $('phaseName').textContent = ph.name;
+  $('phaseDesc').textContent = ph.fr + '. ' + ph.desc;
+  $('milesNow').innerHTML = `<b>${fmtN(st.miles)}</b>miles`;
+  $('milesNext').textContent = ph.next ? fmtN(ph.next.min - st.miles) + ' miles avant ' + ph.next.name : 'Phase maximale atteinte';
+  drawFlight(ph);
+  $('stats').innerHTML = [
+    [st.sessions, st.sessions > 1 ? 'séances' : 'séance'],
+    [fmtMin(st.minutes), 'de conversation'],
+    [st.mastered, 'mots maîtrisés, ' + st.learning + ' en cours'],
+    [st.level, 'niveau estimé']
+  ].map(([b,t]) => `<div class="stat"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
+  drawFluency(st.fl);
+  const list = [...store.history].reverse();
+  $('histList').innerHTML = list.length ? list.map(r => {
+    const d = new Date(r.date);
+    const meta = [MODE_FR[r.mode] || '', r.minutes ? r.minutes + ' min' : '',
+      (r.vocabulary||[]).length ? (r.vocabulary.length + ' mot' + (r.vocabulary.length > 1 ? 's' : '')) : ''].filter(Boolean).join(', ');
+    return `<button class="hrow" data-id="${esc(r.id)}">
+      <div class="hdate"><b>${d.getDate()}</b><span>${esc(d.toLocaleDateString('fr-FR',{month:'short'}))}</span></div>
+      <div class="hbody"><p class="htitle">${esc(r.title || (r.topics||[]).join(', ') || 'Séance')}</p><p class="hmeta">${esc(meta || 'Séance')}</p></div>
+      ${r.fluency ? `<span class="hscore">${r.fluency}/10</span>` : ''}${CHEV}</button>`;
+  }).join('') : '<p class="empty">Vos séances apparaîtront ici, chacune avec son bilan et sa fiche de révision.</p>';
+}
+function openProgress(){
+  $('progDetail').hidden = true; $('progMain').hidden = false;
+  $('prog').classList.add('open');
+  requestAnimationFrame(renderProgress);
+  loadJsPDF().catch(() => {});
+}
+function closeSheet(id){ $(id).classList.remove('open'); }
+
+function frWordLine(t){
+  const m = t.match(/^\[MOT EN FRANÇAIS\]\s*(.*?)(\s*\(dans le contexte[\s\S]*)?$/);
+  return m ? 'Mot cherché en français : ' + m[1] : t;
+}
+function openDetail(id){
+  const r = store.history.find(x => x.id === id); if(!r) return;
+  const v = r.vocabulary || [], c = r.corrections || [], k = r.key_phrases || [], tr = r.transcript || [];
+  let h = `<button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Progression</button>
+    <p class="dkick">${esc(cap(dLong(r.date)))}${MODE_FR[r.mode] ? ', séance du ' + (r.mode === 'MORNING' ? 'matin' : 'soir') : ''}</p>
+    <h2 class="dtitle">${esc(r.title || 'Séance')}</h2>`;
+  if((r.topics||[]).length) h += `<div class="tags">${r.topics.map(t => `<span>${esc(t)}</span>`).join('')}</div>`;
+  if(r.summary) h += `<p class="dsum">${esc(r.summary)}</p>`;
+  h += `<div class="scores">
+      <div class="stat"><b>${r.fluency ? r.fluency + '<small style="font-size:15px;color:#8f94cc">/10</small>' : '–'}</b><span>aisance</span></div>
+      <div class="stat"><b>${esc(r.level || '–')}</b><span>niveau estimé</span></div>
+      <div class="stat"><b>${r.minutes ? esc(fmtMin(r.minutes)) : '–'}</b><span>durée</span></div></div>`;
+  h += `<div style="margin:18px 0"><button class="btn primary" data-pdf="${esc(r.id)}">Fiche de révision (PDF)</button></div>`;
+  if(v.length) h += `<section class="block"><h3 class="dsec">Vocabulaire</h3>${v.map(w => `<div class="vocab-item"><span class="vocab-en">${esc(w.en)}</span><span class="vocab-fr">${esc(w.fr)}</span>${w.example ? `<p class="vocab-ex">${esc(w.example)}</p>` : ''}</div>`).join('')}</section>`;
+  if(c.length) h += `<section class="block"><h3 class="dsec">Corrections</h3>${c.map(x => `<div class="corr-item"><span class="corr-said">${esc(x.said)}</span><span class="corr-ok">${esc(x.correct)}</span>${x.rule ? `<p class="corr-rule">${esc(x.rule)}</p>` : ''}</div>`).join('')}</section>`;
+  if(k.length) h += `<section class="block"><h3 class="dsec">Phrases à retenir</h3>${k.map(p => `<p class="phrase">${esc(p)}</p>`).join('')}</section>`;
+  if(r.strength || r.focus) h += `<div class="duo"><div><b>Votre point fort</b><p>${esc(r.strength || '–')}</p></div><div><b>À travailler</b><p>${esc(r.focus || '–')}</p></div></div>`;
+  if(tr.length) h += `<details class="tr"><summary>Transcription de la séance</summary>${tr.map(l => {
+      const w = l.r === 'u' && l.t.startsWith('[MOT EN FRANÇAIS]');
+      return `<p class="trline ${l.r}${w ? ' w' : ''}"><b>${l.r === 'u' ? 'Vous' : 'Coach'}</b>${esc(w ? frWordLine(l.t) : l.t)}</p>`; }).join('')}</details>`;
+  const pd = $('progDetail'); pd.innerHTML = h; pd.hidden = false; $('progMain').hidden = true;
+  $('progBody').scrollTop = 0;
+}
+
+$('openProgress').onclick = openProgress;
+$('progBtn').onclick = openProgress;
+$('recap').onclick = () => { openProgress(); openDetail($('recap').dataset.id); };
+$('histList').addEventListener('click', e => { const b = e.target.closest('.hrow'); if(b) openDetail(b.dataset.id); });
+$('progDetail').addEventListener('click', e => {
+  if(e.target.closest('[data-back]')){ $('progDetail').hidden = true; $('progMain').hidden = false; $('progBody').scrollTop = 0; renderProgress(); return; }
+  const p = e.target.closest('[data-pdf]'); if(p) exportSessionPDF(p.dataset.pdf, p);
+});
+$('lexPdf').onclick = e => exportLexiconPDF(e.currentTarget);
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeSheet(b.dataset.close));
+$('prog').addEventListener('click', e => { if(e.target.id === 'prog') closeSheet('prog'); });
+
+/* ---------- PDF revision sheets ---------- */
+let jsPDFPromise = null;
+function loadJsPDF(){
+  if(window.jspdf) return Promise.resolve();
+  if(jsPDFPromise) return jsPDFPromise;
+  jsPDFPromise = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = JSPDF_URL; s.onload = res;
+    s.onerror = () => { jsPDFPromise = null; s.remove(); rej(new Error('jspdf')); };
+    document.head.appendChild(s);
+  });
+  return jsPDFPromise;
+}
+const pdfClean = s => String(s==null?'':s)
+  .replace(/[‘’ʼ]/g,"'").replace(/[“”]/g,'"').replace(/…/g,'...')
+  .replace(/[–—]/g,'-').replace(/[  ]/g,' ').replace(/œ/g,'oe').replace(/Œ/g,'OE')
+  .replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'');
+
+function PdfSheet(docTitle){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
+  doc.setLineHeightFactor(1.36);
+  const W = 210, H = 297, M = 18, CW = W - 2*M;
+  const C = { night:[15,18,53], indigo:[44,48,136], ink:[24,26,66], amber:[255,181,71], amberInk:[190,112,8],
+              lagoon:[79,227,193], lagoonInk:[12,124,101], violet:[155,140,255], mist:[217,220,255],
+              dim:[110,114,152], line:[226,228,242], wash:[245,246,252], red:[214,96,96] };
+  let y = 0;
+  const fill = c => doc.setFillColor(...c), stroke = c => doc.setDrawColor(...c), color = c => doc.setTextColor(...c);
+  const font = (f,s,sz) => { doc.setFont(f,s); doc.setFontSize(sz); };
+  const lh = sz => sz * 0.3528 * 1.36;
+  const asc = sz => sz * 0.3528 * 0.8;
+  const mix = (a,b,t) => a.map((v,k) => Math.round(v + (b[k]-v)*t));
+  const wrap = (t,w) => doc.splitTextToSize(pdfClean(t), w);
+  const measure = (t,w,f,s,sz) => { font(f,s,sz); return wrap(t,w).length * lh(sz); };
+  function block(t,x,yTop,w,f,s,sz,c){ font(f,s,sz); color(c); const L = wrap(t,w); doc.text(L, x, yTop + asc(sz)); return L.length * lh(sz); }
+
+  function waves(yMid, amp){
+    [[C.amber,.75,0],[C.lagoon,.5,1.3],[C.violet,.4,2.6]].forEach(([c,lw,ph],k) => {
+      stroke(c); doc.setLineWidth(lw);
+      let px = null, py = null;
+      for(let x = 0; x <= W; x += 1.1){
+        const n = x / W, env = Math.pow(Math.sin(Math.PI*n), 1.6);
+        const yy = yMid + env*amp*(1-k*.2)*(Math.sin(n*Math.PI*2*(1.6+k*.8)+ph)*.7 + Math.sin(n*Math.PI*2*(3.4+k)-ph)*.3);
+        if(px !== null) doc.line(px, py, x, yy); px = x; py = yy;
+      }
+    });
+  }
+  function band(h){
+    const N = 36; for(let i=0;i<N;i++){ fill(mix(C.night, C.indigo, (i/(N-1))*0.75)); doc.rect(0, i*h/N, W, h/N + 0.4, 'F'); }
+  }
+  function header(title, subtitle, rLabel, rValue){
+    band(64); waves(53, 6.5);
+    font('helvetica','bold',9); color(C.amber); doc.text('English Co-Pilot', M, 16);
+    font('helvetica','bold',30); color([255,255,255]); doc.text(pdfClean(title), M, 33);
+    font('helvetica','normal',10.5); color(C.mist); doc.text(pdfClean(subtitle), M, 41.5);
+    if(rValue){
+      font('helvetica','normal',8.5); color(C.mist); doc.text(pdfClean(rLabel), W-M, 16, {align:'right'});
+      font('helvetica','bold',26); color(C.amber); doc.text(pdfClean(rValue), W-M, 29, {align:'right'});
+    }
+    y = 78;
+  }
+  function contHeader(){
+    band(16);
+    font('helvetica','bold',8.5); color(C.amber); doc.text('English Co-Pilot', M, 10);
+    font('helvetica','normal',8.5); color(C.mist); doc.text(pdfClean(docTitle), W-M, 10, {align:'right'});
+    y = 28;
+  }
+  function ensure(h){ if(y + h > H - 20){ doc.addPage(); contHeader(); } }
+  function section(t, keep=34){
+    ensure(22 + keep); y += 5;
+    font('helvetica','bold',14); color(C.ink); doc.text(pdfClean(t), M, y + asc(14));
+    fill(C.amber); doc.rect(M, y + lh(14) + 0.6, 9, 1, 'F');
+    y += lh(14) + 6;
+  }
+  function heading(t, sz=20){ const h = measure(t, CW, 'helvetica','bold', sz); ensure(h); y += block(t, M, y, CW, 'helvetica','bold', sz, C.ink) + 2; }
+  function para(t, opt={}){
+    const o = { f:'helvetica', s:'normal', sz:10.5, c:C.ink, ...opt };
+    const h = measure(t, CW, o.f, o.s, o.sz); ensure(h); y += block(t, M, y, CW, o.f, o.s, o.sz, o.c) + 3;
+  }
+  function tags(list){
+    if(!list.length) return;
+    font('helvetica','normal',9); let x = M; const hh = 6.4; ensure(hh + 4);
+    list.forEach(t => {
+      const s = pdfClean(t), w = doc.getTextWidth(s) + 7;
+      if(x + w > W - M){ x = M; y += hh + 2.5; ensure(hh + 2); }
+      fill(C.wash); stroke(C.line); doc.setLineWidth(.2); doc.roundedRect(x, y, w, hh, 3.2, 3.2, 'FD');
+      color(C.indigo); doc.text(s, x + 3.5, y + 4.3); x += w + 2.5;
+    });
+    y += hh + 5;
+  }
+  function figures(items){
+    const n = items.length, gap = 4, w = (CW - gap*(n-1)) / n, hh = 19;
+    ensure(hh + 4);
+    items.forEach(([v,l],i) => {
+      const x = M + i*(w+gap);
+      fill(C.wash); doc.roundedRect(x, y, w, hh, 3, 3, 'F');
+      font('helvetica','bold',17); color(C.ink); doc.text(pdfClean(v), x + 5, y + 9.5);
+      font('helvetica','normal',8.5); color(C.dim); doc.text(pdfClean(l), x + 5, y + 15);
+    });
+    y += hh + 6;
+  }
+  function rule(){ stroke(C.line); doc.setLineWidth(.25); doc.line(M, y, W-M, y); }
+  function vocabRow(v, note){
+    const lw = 64, rx = M + lw + 8, rw = CW - lw - 8;
+    const hL = measure(v.en, lw, 'helvetica','bold', 11.5) + 1 + (v.fr ? measure(v.fr, lw, 'helvetica','normal', 9.5) : 0) + (note ? lh(8) + 0.5 : 0);
+    const hR = v.example ? measure(v.example, rw, 'times','italic', 11.5) : 0;
+    const hh = Math.max(hL, hR) + 7;
+    ensure(hh);
+    let yy = y + 3.5;
+    yy += block(v.en, M, yy, lw, 'helvetica','bold', 11.5, C.ink) + 1;
+    if(v.fr) yy += block(v.fr, M, yy, lw, 'helvetica','normal', 9.5, C.dim);
+    if(note) block(note, M, yy + 0.5, lw, 'helvetica','normal', 8, C.amberInk);
+    if(v.example) block(v.example, rx, y + 3.5, rw, 'times','italic', 11.5, C.indigo);
+    y += hh; rule();
+  }
+  function corrRow(c, note){
+    const lw = 76, rx = M + lw + 8, rw = CW - lw - 8;
+    const hS = measure(c.said, lw, 'helvetica','normal', 10.5), hC = measure(c.correct, lw, 'helvetica','bold', 11);
+    const hL = lh(7.5) + hS + 2 + lh(7.5) + hC + (note ? lh(8) + 0.5 : 0);
+    const hR = c.rule ? measure(c.rule, rw, 'helvetica','normal', 10) : 0;
+    const hh = Math.max(hL, hR) + 7;
+    ensure(hh);
+    let yy = y + 3.5;
+    yy += block('Vous avez dit', M, yy, lw, 'helvetica','normal', 7.5, C.dim);
+    font('helvetica','normal',10.5); color(C.dim);
+    const L = wrap(c.said, lw); doc.text(L, M, yy + asc(10.5));
+    stroke(C.red); doc.setLineWidth(.3);
+    L.forEach((line,i) => { const by = yy + asc(10.5) + i*lh(10.5) - 1.3; doc.line(M, by, M + doc.getTextWidth(line), by); });
+    yy += L.length*lh(10.5) + 2;
+    yy += block('On dit', M, yy, lw, 'helvetica','normal', 7.5, C.dim);
+    yy += block(c.correct, M, yy, lw, 'helvetica','bold', 11, C.lagoonInk);
+    if(note) block(note, M, yy + 0.5, lw, 'helvetica','normal', 8, C.amberInk);
+    if(c.rule) block(c.rule, rx, y + 3.5 + lh(7.5), rw, 'helvetica','normal', 10, C.ink);
+    y += hh; rule();
+  }
+  function phrase(t){
+    const hh = measure(t, CW - 8, 'times','italic', 12.5) + 3; ensure(hh + 3);
+    fill(C.amber); doc.rect(M, y + 0.5, 1.1, hh - 2, 'F');
+    block(t, M + 6, y + 0.8, CW - 8, 'times','italic', 12.5, C.ink); y += hh + 3;
+  }
+  function duo(a, b){
+    const gap = 5, w = (CW - gap) / 2, pad = 5;
+    const hA = lh(9) + 1.5 + measure(a[1], w - 2*pad, 'helvetica','normal', 10);
+    const hB = lh(9) + 1.5 + measure(b[1], w - 2*pad, 'helvetica','normal', 10);
+    const hh = Math.max(hA, hB) + 2*pad; ensure(hh + 4); y += 2;
+    [[a, C.lagoonInk], [b, C.amberInk]].forEach(([[t,txt], tc], i) => {
+      const x = M + i*(w+gap);
+      fill(C.wash); doc.roundedRect(x, y, w, hh, 3, 3, 'F');
+      block(t, x + pad, y + pad, w - 2*pad, 'helvetica','bold', 9, tc);
+      block(txt, x + pad, y + pad + lh(9) + 1.5, w - 2*pad, 'helvetica','normal', 10, C.ink);
+    });
+    y += hh + 4;
+  }
+  function finish(){
+    const n = doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){
+      doc.setPage(i); stroke(C.line); doc.setLineWidth(.25); doc.line(M, H-14, W-M, H-14);
+      font('helvetica','normal',8); color(C.dim);
+      doc.text('English Co-Pilot  |  taf-roissy.github.io/AI/copilot', M, H-9);
+      doc.text(i + ' / ' + n, W-M, H-9, {align:'right'});
+    }
+    return doc;
+  }
+  return { doc, header, section, heading, para, tags, figures, vocabRow, corrRow, phrase, duo, finish, space:(d)=>{ y += d; } };
+}
+
+function buildSessionPDF(r){
+  const P = PdfSheet('Fiche de révision');
+  const when = cap(dFull(r.date)) + (r.mode ? ', séance du ' + (r.mode === 'MORNING' ? 'matin' : 'soir') : '') + (r.minutes ? ', ' + fmtMin(r.minutes) : '');
+  P.header('Fiche de révision', when, 'Niveau estimé', r.level || '');
+  P.heading(r.title || 'Séance d’anglais');
+  P.tags(r.topics || []);
+  if(r.summary) P.para(r.summary, { f:'times', s:'normal', sz:12.5, c:[44,48,100] });
+  P.space(2);
+  P.figures([[r.fluency ? r.fluency + '/10' : '-', 'Aisance à l’oral'], [String((r.vocabulary||[]).length), 'Mots nouveaux'], [String((r.corrections||[]).length), 'Points corrigés']]);
+  if((r.vocabulary||[]).length){ P.section('Vocabulaire de la séance'); r.vocabulary.forEach(v => P.vocabRow(v)); }
+  if((r.corrections||[]).length){ P.section('Corrections'); r.corrections.forEach(c => P.corrRow(c)); }
+  if((r.key_phrases||[]).length){ P.section('Phrases à retenir'); r.key_phrases.forEach(p => P.phrase(p)); }
+  if(r.strength || r.focus){ P.section('Bilan'); P.duo(['Votre point fort', r.strength || '-'], ['À travailler', r.focus || '-']); }
+  return P.finish();
+}
+function buildLexiconPDF(){
+  const st = stats(), ph = phaseOf(st.miles);
+  const lex = store.profile.LEXICON;
+  const P = PdfSheet('Mon lexique');
+  P.header('Mon lexique', lex.length + ' mot' + (lex.length > 1 ? 's' : '') + ' appris, ' + st.mastered + ' maîtrisé' + (st.mastered > 1 ? 's' : '') + '. Édition du ' + new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+           'Phase actuelle', ph.name);
+  P.figures([[String(st.sessions), st.sessions > 1 ? 'Séances' : 'Séance'], [fmtMin(st.minutes), 'De conversation'], [fmtN(st.miles), 'Miles'], [st.level, 'Niveau estimé']]);
+  const fmtD = d => d ? new Date(d).toLocaleDateString('fr-FR', {day:'numeric', month:'short'}) : '';
+  const learn = learning().slice().reverse(), done = mastered().slice().reverse();
+  if(!lex.length) P.para('Votre lexique se remplira au fil des séances : chaque mot demandé ou appris avec le coach viendra s’ajouter ici.', { c:[110,114,152] });
+  if(learn.length){ P.section('À revoir'); learn.forEach(w => P.vocabRow(w, 'Appris le ' + fmtD(w.first))); }
+  if(done.length){ P.section('Maîtrisés'); done.forEach(w => P.vocabRow(w, 'Maîtrisé le ' + fmtD(w.mastered))); }
+  const errs = [...store.profile.ERRORS].sort((a,b) => (b.count - a.count) || String(b.last).localeCompare(String(a.last))).slice(0,30);
+  if(errs.length){ P.section('Pièges à éviter'); errs.forEach(e => P.corrRow(e, e.count > 1 ? 'Relevé ' + e.count + ' fois' : '')); }
+  return P.finish();
+}
+async function deliverPDF(doc, filename){
+  const blob = doc.output('blob');
+  try{
+    const file = new File([blob], filename, { type:'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:filename }); return; }
+  }catch(e){ if(e && e.name === 'AbortError') return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function withPDF(btn, label, build, filename){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Création de la fiche…';
+  try{ await loadJsPDF(); await deliverPDF(build(), filename); }
+  catch(e){ toast(e && e.message === 'jspdf' ? 'Connexion nécessaire pour créer le PDF.' : 'La fiche n’a pas pu être créée.'); }
+  finally{ btn.disabled = false; btn.textContent = old; }
+}
+function exportSessionPDF(id, btn){
+  const r = store.history.find(x => x.id === id); if(!r) return;
+  withPDF(btn, 'Fiche', () => buildSessionPDF(r), 'fiche-anglais-' + String(r.date).slice(0,10) + '.pdf');
+}
+function exportLexiconPDF(btn){ withPDF(btn, 'Lexique', buildLexiconPDF, 'lexique-anglais-' + todayISO() + '.pdf'); }
+
+/* ---------- settings ---------- */
 function openSettings(){
   const s = store.settings;
   $('apiKey').value = s.apiKey; $('model').value = s.model; $('name').value = s.name;
   $('level').value = s.level; $('rate').value = s.rate; $('rateVal').textContent = s.rate;
-  loadVoices(); renderProfile();
+  loadVoices();
   $('sheet').classList.add('open');
 }
 function closeSettings(){
   const s = store.settings;
   s.apiKey = $('apiKey').value.trim(); s.model = $('model').value; s.name = $('name').value.trim() || 'Christophe';
   s.level = $('level').value; s.rate = parseFloat($('rate').value); s.voiceURI = $('voice').value || s.voiceURI;
-  save(); $('sheet').classList.remove('open'); renderProfile();
+  save(); closeSheet('sheet'); renderMeta();
   if(!session.active) setState('idle', s.apiKey ? 'Un tap pour démarrer, ensuite tout se passe à la voix.' : 'Ajoutez votre clé API dans les réglages.');
 }
 $('openSettings').onclick = openSettings;
@@ -733,19 +1341,24 @@ $('rate').oninput = e => { $('rateVal').textContent = e.target.value; };
 $('voice').onchange = e => { store.settings.voiceURI = e.target.value; save(); };
 $('testVoice').onclick = () => { store.settings.rate = parseFloat($('rate').value); speak("Hi! I'm your English co-pilot. Ready for today's drive?"); };
 $('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify(store.profile, null, 2)], {type:'application/json'});
+  const data = { app:'english-copilot', version:'1.3', exported:new Date().toISOString(), profile:store.profile, history:store.history };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'english-copilot-progression.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  a.download = 'english-copilot-sauvegarde-' + todayISO() + '.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
 };
 $('importBtn').onclick = () => $('importFile').click();
 $('importFile').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ const j = JSON.parse(await f.text()); store.profile = {...defaults.profile, ...j}; save(); renderProfile(); }
-  catch(_){ alert('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
+  try{
+    const j = JSON.parse(await f.text());
+    const m = j.app === 'english-copilot' ? migrate({ settings:store.settings, profile:j.profile, history:j.history }) : migrate({ settings:store.settings, profile:j });
+    store.profile = m.profile; store.history = m.history; save(); renderMeta(); toast('Sauvegarde importée.');
+  }catch(_){ toast('Ce fichier n’est pas une sauvegarde English Co-Pilot.'); }
+  e.target.value = '';
 };
 $('resetBtn').onclick = () => {
-  if(confirm('Effacer toute la progression (erreurs, vocabulaire, séances) ?')){
-    store.profile = structuredClone(defaults.profile); store.pending = null; save(); renderProfile();
+  if(confirm('Effacer toute la progression (historique, lexique, phases) ?')){
+    store.profile = structuredClone(defaults.profile); store.history = []; store.pending = null; save(); renderMeta(); toast('Progression effacée.');
   }
 };
 
@@ -760,7 +1373,7 @@ $('resetBtn').onclick = () => {
     [['#4fe3c1',5,0],['#ffb547',4,1.4],['#9b8cff',3,2.6]].forEach(([col,lw,ph]) => {
       x.beginPath();
       for(let i=0;i<=180;i+=2){ const n=i/180, env=Math.pow(Math.sin(Math.PI*n),1.6);
-        const y = 110 + env*34*Math.sin(n*Math.PI*4 + ph); i ? x.lineTo(i,y) : x.moveTo(i,y); }
+        const yy = 110 + env*34*Math.sin(n*Math.PI*4 + ph); i ? x.lineTo(i,yy) : x.moveTo(i,yy); }
       x.strokeStyle = col; x.lineWidth = lw; x.lineCap = 'round'; x.stroke();
     });
     x.fillStyle = '#fff'; x.font = '800 46px "Bricolage Grotesque",-apple-system,sans-serif'; x.textAlign = 'center';
@@ -772,10 +1385,11 @@ $('resetBtn').onclick = () => {
 /* ---------- init ---------- */
 bindChips('modeChips','modeOverride');
 bindChips('corrChips','correction');
-renderProfile();
+renderMeta();
 if(!SR) setState('idle','Reconnaissance vocale indisponible : ouvrez cette page dans Safari sur iPhone.');
 else if(!store.settings.apiKey) setState('idle','Ajoutez votre clé API dans les réglages pour commencer.');
-else { setState('idle','Un tap pour démarrer, ensuite tout se passe à la voix.'); if(store.pending) summarizePending().catch(()=>{}); }
+else { setState('idle','Un tap pour démarrer, ensuite tout se passe à la voix.'); if(store.pending) summarizePending().then(renderMeta).catch(()=>{}); }
+save();
 })();
 </script>
 </body>
