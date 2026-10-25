@@ -135,14 +135,14 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
 </div>
 
 <dialog id="settings">
-  <h2>Réglages</h2>
+  <h2>Réglages <span style="font:500 12px 'IBM Plex Sans';color:var(--muted)">version 1.3</span></h2>
   <div class="hint">Adresse du serveur Jarvis et clé d’accès (définie dans JARVIS_API_KEY).</div>
   <label for="srv">Serveur</label>
   <input id="srv" type="url" placeholder="https://xxxx.lambda-url.eu-west-3.on.aws" autocomplete="off">
   <label for="key">Clé Jarvis</label>
   <input id="key" type="password" autocomplete="off" placeholder="Clé d’accès">
   <label for="ckey">Clé Claude <span style="color:var(--muted)">(sk-ant-…, facultative si le serveur en a une)</span></label>
-  <input id="ckey" type="password" autocomplete="off" placeholder="sk-ant-…">
+  <input id="ckey" type="password" autocomplete="off" placeholder="sk-ant-… (vide = clé d’English Co-Pilot)">
   <div class="hint">Clés stockées uniquement sur cet appareil. La clé Claude est envoyée au serveur Jarvis à chaque question, jamais enregistrée chez lui.</div>
   <div id="status"></div>
   <div class="dlg-row">
@@ -163,7 +163,12 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   const feed = $("feed"), input = $("input"), send = $("send"), mic = $("mic");
   let busy = false, lastFromVoice = false;
 
-  const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key"), ckey: store.get("ckey") });
+  function copilotKey() {
+    try { return (JSON.parse(localStorage.getItem("english_copilot_v1") || "{}").settings || {}).apiKey?.trim() || ""; }
+    catch { return ""; }
+  }
+  const claudeKey = () => (store.get("ckey") || copilotKey()).replace(/\s+/g, "");
+  const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key"), ckey: claudeKey() });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   async function fetchRetry(url, init, tries = 3) {
     for (let i = 0; ; i++) {
@@ -337,7 +342,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const auth = await fetchRetry(base + "/api/v1/actions", { headers: { "X-Jarvis-Key": key.trim() } });
     if (auth.status === 401) throw new Error("clé Jarvis refusée");
     if (!auth.ok) throw new Error("HTTP " + auth.status);
-    const ckey = (ckeyOverride ?? store.get("ckey")).replace(/\s+/g, "");
+    const ckey = ((ckeyOverride || "").trim() || claudeKey()).replace(/\s+/g, "");
     try {
       const chk = await fetchRetry(base + "/api/v1/claude/check", { method: "POST",
         headers: { "X-Jarvis-Key": key.trim(), ...(ckey ? { "X-Anthropic-Key": ckey } : {}) } });
@@ -351,7 +356,8 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const names = { taf_ops: "TAF OPS", outlook: "Outlook", google_calendar: "Google Agenda", web: "Web" };
     const cc = h.claude_check || {};
     const claudeOk = !!cc.ok;
-    const claudeTxt = claudeOk ? `Claude OK (clé ${cc.source === "appli" ? "de cette appli" : "du serveur"})`
+    const origin = store.get("ckey") ? "de Jarvis" : copilotKey() ? "reprise d’English Co-Pilot" : "du serveur";
+    const claudeTxt = claudeOk ? `Claude OK (clé ${cc.source === "appli" ? origin : "du serveur"})`
       : `Claude : ${cc.detail || "clé à saisir"}`;
     $("status").innerHTML = `✅ Serveur connecté (v${esc(h.version || "?")})<div class="conn">` +
       `<span class="${claudeOk ? "on" : "off"}" style="${claudeOk ? "" : "color:var(--red)"}">${claudeOk ? "●" : "✕"} ${esc(claudeTxt)}</span>` +
@@ -391,7 +397,8 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     catch (e) { $("sub").textContent = /clé/.test(e.message) ? "Clé Jarvis refusée" : "Serveur injoignable"; }
   })();
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+    .then((reg) => reg.update()).catch(() => {});
 })();
 </script>
 </body>
