@@ -87,6 +87,17 @@ header{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-t
 .btn:disabled{opacity:.35}
 .t{margin-left:auto;font:600 11px "Orbitron";letter-spacing:1px;color:var(--muted)}
 .action.done{opacity:.7}
+.report{border-color:rgba(56,225,255,.55)}.report::before{content:attr(data-label);color:var(--cyan)}
+.report .step{font:600 12px "Orbitron";letter-spacing:1px;color:var(--soft);margin-top:4px}
+.prog{height:4px;margin-top:10px;background:rgba(56,225,255,.12);overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
+  box-shadow:0 0 10px var(--cyan);transition:width .6s ease}
+.prog.wait i{width:30%;animation:slide 1.4s ease-in-out infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+.files{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+a.btn.cloud{text-decoration:none;color:var(--soft)}
+a.btn.pdf{text-decoration:none;display:inline-flex;align-items:center;gap:8px;color:var(--cyan2);
+  border-color:var(--cyan);box-shadow:inset 0 0 14px rgba(56,225,255,.18)}
 @keyframes in{from{opacity:0;transform:translateY(8px)}}
 /* commandes rapides + saisie */
 .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 10px;scrollbar-width:none}
@@ -153,6 +164,8 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   <div class="chips" id="chips">
     <button class="chip">Qu’est-ce qui m’attend ?</button>
     <button class="chip">Mails urgents</button>
+    <button class="chip">Résumé PDF de mes mails depuis hier 18h</button>
+    <button class="chip">Mes derniers rapports PDF</button>
     <button class="chip">Vols en retard aujourd’hui</button>
     <button class="chip">Qui est absent cette semaine ?</button>
     <button class="chip">Conflits d’agenda demain</button>
@@ -178,7 +191,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.6</small></h2>
+  <h2>RÉGLAGES <small>v2.7</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -537,7 +550,8 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   function el(cls, html) { const d = document.createElement("div"); d.className = cls; d.innerHTML = html; return d; }
   const NAMES = { taf_ops_search: "TAF OPS", taf_ops_call: "TAF OPS", taf_ops_describe: "TAF OPS",
     outlook_mail_digest: "MAILS", outlook_mail_search: "MAILS", outlook_mail_read: "MAILS", outlook_draft: "BROUILLON",
-    outlook_send_draft: "ENVOI", calendar_events: "AGENDA", calendar_conflicts: "AGENDA", calendar_free_slots: "AGENDA",
+    outlook_send_draft: "ENVOI", outlook_send: "ENVOI", pdf_create: "PDF", mail_report: "RAPPORT", research_report: "RECHERCHE",
+    report_get: "RAPPORT", documents_search: "ONEDRIVE", calendar_events: "AGENDA", calendar_conflicts: "AGENDA", calendar_free_slots: "AGENDA",
     calendar_create_event: "AGENDA", web_search: "WEB", web_fetch: "WEB", web_research: "WEB" };
   function botMessage(data) {
     const p = el("panel", `<div class="body">${md(data.reply || "(pas de réponse)")}</div>`);
@@ -548,10 +562,79 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       [...seen].map(([n, e]) => `<span class="tag ${e ? "err" : ""}">${esc(n)}</span>`).join(""));
     const sp = document.createElement("button"); sp.className = "speak"; sp.textContent = "▶ ÉCOUTER";
     sp.onclick = () => speak(data.speech || data.reply);
-    meta.appendChild(sp); p.appendChild(meta); add(p);
+    meta.appendChild(sp); p.appendChild(meta);
+    if ((data.files || []).length) p.querySelector(".body").appendChild(filesRow(data.files));
+    add(p);
     (data.pending_actions || []).forEach(actionCard);
+    (data.reports || []).forEach((r) => trackReport(r.id, r.estimate, r.kind));
     $("modelInfo").textContent = `${data.steps} ÉTAPE${data.steps > 1 ? "S" : ""}`;
   }
+  // ---- documents PDF et rapports de mails (traités en tâche de fond par le serveur) ----
+  function filesRow(files) {
+    const row = el("files", "");
+    files.forEach((f) => {
+      const a = document.createElement("a"); a.className = "btn pdf"; a.target = "_blank"; a.rel = "noopener";
+      a.href = /^https?:/.test(f.url) ? f.url : cfg().url + f.url;
+      a.textContent = "📄 " + (f.title || "PDF").toUpperCase().slice(0, 48);
+      row.appendChild(a);
+      if (f.onedrive && f.onedrive.url && f.showCloud) {
+        const c = document.createElement("a"); c.className = "btn cloud"; c.target = "_blank"; c.rel = "noopener";
+        c.href = f.onedrive.url; c.textContent = "☁ ONEDRIVE"; row.appendChild(c);
+      }
+    });
+    return row;
+  }
+  const tracked = () => { try { return JSON.parse(store.get("reports") || "[]"); } catch { return []; } };
+  const untrack = (id) => store.set("reports", JSON.stringify(tracked().filter((x) => x !== id)));
+  const KIND_LABEL = { mail_report: "RAPPORT MAILS", research: "RAPPORT DE RECHERCHE" };
+  function trackReport(id, estimate, kind) {
+    if (!tracked().includes(id)) store.set("reports", JSON.stringify([...tracked(), id].slice(-5)));
+    const p = el("panel report", `<div class="body"><div class="step">PRÉPARATION…</div>
+      <div class="prog wait"><i></i></div></div>`);
+    p.dataset.label = KIND_LABEL[kind] || "RAPPORT";
+    const step = p.querySelector(".step"), prog = p.querySelector(".prog");
+    if (estimate) step.textContent = `≈ ${estimate} MAILS À ANALYSER`;
+    else if (kind === "research") step.textContent = "PLAN ET RECHERCHES EN COURS — QUELQUES MINUTES";
+    add(p);
+    let fails = 0;
+    const tick = async () => {
+      let r;
+      try { r = await api(`/api/v1/reports/${encodeURIComponent(id)}`, { timeout: 20000 }); fails = 0; }
+      catch (e) {
+        if (e.status === 404 || ++fails > 20) { untrack(id); step.textContent = "RAPPORT INDISPONIBLE"; prog.remove(); return; }
+        return setTimeout(tick, 5000);
+      }
+      if (r.kind) p.dataset.label = KIND_LABEL[r.kind] || "RAPPORT";
+      if (r.state === "done") return showReport(p, r);
+      if (r.state === "error") {
+        untrack(id); p.classList.add("err");
+        p.querySelector(".body").innerHTML = esc("Rapport en échec : " + (r.error || "erreur inconnue")); return;
+      }
+      step.textContent = (r.step || "En cours").toUpperCase();
+      if (r.total) { prog.classList.remove("wait"); prog.firstElementChild.style.width = Math.max(4, Math.round(100 * (r.done || 0) / r.total)) + "%"; }
+      setTimeout(tick, 3000);
+    };
+    setTimeout(tick, 1500);
+  }
+  function showReport(p, r) {
+    untrack(r.id);
+    const body = p.querySelector(".body");
+    body.innerHTML = md(r.summary || "Rapport prêt.");
+    const research = r.kind === "research";
+    if (r.file) body.appendChild(filesRow([{ ...r.file, showCloud: true,
+      title: research ? `Rapport complet · ${r.pages || "?"} p.` : `Rapport détaillé · ${r.total || 0} mails · ${r.pages || "?"} p.` }]));
+    const meta = el("meta", research
+      ? `<span class="tag">${r.total || 0} SECTIONS</span><span class="tag ${r.web === false ? "err" : ""}">${r.web === false ? "SANS WEB" : "WEB"}</span>`
+      : `<span class="tag">${r.total || 0} MAILS</span>`);
+    if (r.file && r.file.onedrive) meta.insertAdjacentHTML("beforeend", `<span class="tag">ONEDRIVE ✓</span>`);
+    const sp = document.createElement("button"); sp.className = "speak"; sp.textContent = "▶ ÉCOUTER";
+    sp.onclick = () => speak(r.speech || r.summary);
+    meta.appendChild(sp); p.appendChild(meta);
+    requestAnimationFrame(() => (feed.scrollTop = feed.scrollHeight));
+    // mode vocal : lu dès qu'il est prêt, si Jarvis n'est pas déjà en train d'écouter ou de parler
+    if (convMode === "voice" && !busy && !recState && R.mode === "idle") speak(r.speech || "Votre rapport est prêt.");
+  }
+
   function actionCard(a) {
     const p = el("panel action", `<div class="body">${esc(a.summary)}</div>
       <div class="row"><button class="btn ok">VALIDER</button><button class="btn">REFUSER</button><span class="t"></span></div>`);
@@ -834,6 +917,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   $("modeVoice").onclick = () => { setConvMode("voice"); unlockAudio(); };
   $("modeText").onclick = () => setConvMode("text");
   setConvMode(convMode);
+  tracked().forEach((id) => trackReport(id));  // rapports lancés avant la fermeture de l'appli
   $("newChat").onclick = () => { stopVoice(); handsFree = false; if (recState) cancelRecording();
     const sid = store.get("session"); store.del("session");
     feed.innerHTML = ""; app.classList.remove("chat"); app.classList.add("idle"); $("modelInfo").textContent = ""; setMode("idle");
