@@ -1,6 +1,6 @@
-// Version 1.4 — l'interface est toujours rechargée depuis le réseau (cache seulement hors ligne) ;
+// Version 2.0 — l'interface est toujours rechargée depuis le réseau (cache seulement hors ligne) ;
 // les appels à l'API Jarvis ne passent jamais par le cache.
-const CACHE = "jarvis-v7";
+const CACHE = "jarvis-v8";
 const SHELL = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-180.png"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener("activate", (e) => e.waitUntil(
