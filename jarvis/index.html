@@ -165,7 +165,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.1</small></h2>
+  <h2>RÉGLAGES <small>v2.2</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -188,6 +188,18 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     </div>
     <div id="tafOut" class="row2" style="display:none"><button class="btn warn" id="tafLogout">DÉCONNEXION</button></div>
     <div class="hint">Le PIN va directement à AWS, comme dans TAF OPS. Jarvis agit avec tes droits.</div>
+  </div>
+  <div class="sec">
+    <h3>VOIX</h3>
+    <select id="voiceSel" style="width:100%;padding:11px 12px;margin-top:8px;border:1px solid var(--line);background:rgba(1,8,16,.8);color:var(--text);font:500 16px 'Rajdhani'">
+      <option value="Remi">Rémi — homme, posé (conseillé)</option>
+      <option value="Florian">Florian — homme, dynamique</option>
+      <option value="Lea">Léa — femme</option>
+      <option value="Ambre">Ambre — femme, chaleureuse</option>
+      <option value="Celine">Céline — femme</option>
+      <option value="phone">Voix du téléphone (hors ligne)</option>
+    </select>
+    <div class="row2" style="margin-top:8px"><button class="btn" id="voiceTest">ÉCOUTER</button></div>
   </div>
   <div class="sec">
     <h3>APPLIS PERSO</h3>
@@ -508,9 +520,33 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   }
 
   // ================= voix =================
-  function speak(text) {
+  // Voix naturelle (Amazon Polly via le serveur) ; repli sur la voix du téléphone.
+  const audio = new Audio(); audio.preload = "auto"; audio.playsInline = true;
+  let actx = null, analyser = null, unlocked = false, meter = null;
+  function silentWav() {  // 0,1 s de silence, format WAV valide pour iOS
+    const n = 2205, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 22050, true); v.setUint32(28, 44100, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
+  }
+  function unlockAudio() {  // iOS : l'audio doit être « débloqué » par un geste de l'utilisateur
+    if (unlocked) return; unlocked = true;
+    try {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = actx.createMediaElementSource(audio);
+      analyser = actx.createAnalyser(); analyser.fftSize = 256;
+      src.connect(analyser); analyser.connect(actx.destination);
+      actx.resume();
+    } catch {}
+    audio.src = silentWav();
+    audio.play().catch(() => {});
+  }
+  document.addEventListener("pointerdown", unlockAudio, { once: true });
+  function stopVoice() { audio.pause(); speechSynthesis?.cancel(); clearInterval(meter); }
+  function phoneVoice(text) {
     if (!("speechSynthesis" in window) || !text) { setMode("idle"); return; }
-    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 1.04; u.pitch = .95;
     const fr = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("fr"));
     u.voice = fr.find((v) => /Thomas|Premium|Enhanced|Google/i.test(v.name)) || fr[0] || null;
@@ -520,13 +556,43 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     u.onend = u.onerror = () => { clearInterval(beat); setMode("idle"); };
     speechSynthesis.speak(u);
   }
+  async function speak(text) {
+    if (!text) { setMode("idle"); return; }
+    stopVoice();
+    const voice = store.get("voice") || "Remi";
+    if (voice === "phone") { phoneVoice(text); return; }
+    setMode("think");
+    try {
+      const { url, key } = cfg();
+      const res = await fetchRetry(url + "/api/v1/tts", { method: "POST",
+        headers: { "X-Jarvis-Key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 2900), voice }) }, 2);
+      if (!res.ok) throw new Error("tts " + res.status);
+      const blob = await res.blob();
+      if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
+      audio.src = URL.createObjectURL(blob);
+      audio.onplay = () => {
+        setMode("speak");
+        if (analyser) {  // le réacteur suit la vraie amplitude de la voix
+          const buf = new Uint8Array(analyser.frequencyBinCount);
+          meter = setInterval(() => { analyser.getByteFrequencyData(buf);
+            let sum = 0; for (let i = 2; i < 40; i++) sum += buf[i]; pulse(Math.min(1, sum / 38 / 160)); }, 50);
+        } else meter = setInterval(() => pulse(.4 + Math.random() * .5), 110);
+      };
+      audio.onended = audio.onpause = () => { clearInterval(meter); if (R.mode === "speak") setMode("idle"); };
+      actx?.resume();
+      await audio.play();
+    } catch (e) {
+      phoneVoice(text);  // serveur ou lecture indisponible : voix du téléphone
+    }
+  }
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, finalText = "";
   if (!Rec) mic.style.display = "none";
   function toggleMic() {
     if (!Rec || busy) return;
     if (listening) { rec.stop(); return; }
-    speechSynthesis?.cancel();
+    stopVoice();
     rec = new Rec(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false;
     finalText = "";
     rec.onsoundstart = () => pulse(.6);
@@ -551,7 +617,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => ask(c.textContent)));
   $("voiceOut").checked = store.get("voiceOut") === "1";
   $("voiceOut").onchange = (e) => store.set("voiceOut", e.target.checked ? "1" : "0");
-  $("newChat").onclick = () => {
+  $("newChat").onclick = () => { stopVoice();
     const sid = store.get("session"); store.del("session");
     feed.innerHTML = ""; app.classList.remove("chat"); app.classList.add("idle"); $("modelInfo").textContent = ""; setMode("idle");
     if (sid) api(`/api/v1/sessions/${encodeURIComponent(sid)}`, { method: "DELETE" }).catch(() => {});
@@ -572,12 +638,14 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     finally { $("tafLogin").disabled = false; }
   };
   $("tafLogout").onclick = () => { store.del("taf"); showTaf(); $("status").textContent = "Déconnecté de TAF OPS."; refreshSys(); };
+  $("voiceSel").onchange = (e) => store.set("voice", e.target.value);
+  $("voiceTest").onclick = () => { unlockAudio(); speak("Bonjour Christophe. Tous les systèmes sont opérationnels. Que puis-je faire pour vous ?"); };
   $("share").onchange = (e) => { store.set("share", e.target.checked ? "1" : "0"); refreshSys(); };
   function persoInfo() {
     const F = readLS("foulee_v1"), C = readLS("english_copilot_v1");
     return `Foulée : ${F ? (F.activities || []).length + " activités" : "non trouvée sur cet iPhone"} · Co-Pilot : ${C ? (C.history || []).length + " sessions" : "non trouvé"}. Envoyé seulement quand ta question concerne le sport, l’anglais ou un bilan.`;
   }
-  function openSettings() { $("share").checked = store.get("share") !== "0"; $("persoInfo").textContent = persoInfo();
+  function openSettings() { $("voiceSel").value = store.get("voice") || "Remi"; $("share").checked = store.get("share") !== "0"; $("persoInfo").textContent = persoInfo();
     $("srv").value = store.get("url"); $("key").value = store.get("key"); $("ckey").value = store.get("ckey");
     $("status").textContent = ""; try { showTaf(); } catch {} dlg.showModal(); }
   $("openSettings").onclick = openSettings;
