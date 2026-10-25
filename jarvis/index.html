@@ -104,7 +104,10 @@ textarea::placeholder{color:var(--muted);letter-spacing:1px}
 #mic.on{color:#fff;border-color:var(--red);background:rgba(255,93,108,.25);box-shadow:0 0 18px rgba(255,93,108,.5)}
 #send:disabled{opacity:.3}
 .opts{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font:600 11px "Orbitron";letter-spacing:1px;color:var(--muted)}
-.opts label{display:flex;align-items:center;gap:8px}.opts input{accent-color:var(--cyan)}
+.seg{display:flex;border:1px solid var(--line)}
+.seg button{font:700 11px "Orbitron";letter-spacing:2px;padding:8px 12px;color:var(--muted)}
+.seg button.on{color:var(--bg0);background:var(--cyan);box-shadow:0 0 14px rgba(56,225,255,.5)}
+.app.voice .bar textarea::placeholder{color:var(--cyan)}
 /* réglages */
 dialog{border:1px solid var(--line);background:rgba(3,16,30,.96);color:var(--text);width:min(94vw,480px);
   max-height:88dvh;overflow:auto;padding:20px;clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
@@ -165,12 +168,17 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       <button class="round" id="send" aria-label="Envoyer" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </div>
-    <div class="opts"><label><input type="checkbox" id="voiceOut"> RÉPONSES VOCALES</label><span id="modelInfo"></span></div>
+    <div class="opts">
+      <div class="seg" role="radiogroup" aria-label="Mode de conversation">
+        <button id="modeVoice" role="radio">🎙 VOCAL</button><button id="modeText" role="radio">⌨ ÉCRIT</button>
+      </div>
+      <span id="modelInfo"></span>
+    </div>
   </footer>
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.5</small></h2>
+  <h2>RÉGLAGES <small>v2.6</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -565,8 +573,17 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   }
 
   // ================= dialogue =================
+  const STOP_WORDS = /^(stop|arr[êe]te|c'?est tout|merci,? c'?est tout|termin[ée]|fin de (la )?conversation|au revoir|bonne nuit)[\s.!]*$/i;
+  function continueConversation() {  // mode vocal : on rouvre le micro après la réponse
+    if (convMode !== "voice" || !handsFree) return;
+    setTimeout(() => { if (convMode === "voice" && handsFree && !busy && !recState) startServerRecording(true); }, 350);
+  }
   async function ask(text, fromVoice = false) {
     text = text.trim(); if (!text || busy) return;
+    if (convMode === "voice" && STOP_WORDS.test(text)) {
+      handsFree = false; input.value = ""; autosize();
+      add(el("me", esc(text))); speak("Très bien. Je reste à votre disposition."); return;
+    }
     busy = true; send.disabled = true; setMode("think");
     add(el("me", esc(text)));
     input.value = ""; autosize();
@@ -576,11 +593,11 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
         personal_context: personalContext(text) } });
       store.set("session", data.session_id);
       botMessage(data);
-      if (fromVoice || $("voiceOut").checked) speak(data.speech || data.reply); else setMode("idle");
+      if (convMode === "voice") speak(data.speech || data.reply, continueConversation); else setMode("idle");
     } catch (e) {
       add(el("panel err", `<div class="body">${esc(e.message)}</div>`));
       setMode("error"); setTimeout(() => R.mode === "error" && setMode("idle"), 2500);
-      if (fromVoice) speak(e.message);
+      if (convMode === "voice") { handsFree = false; speak(e.message); }
     } finally { busy = false; send.disabled = !input.value.trim(); }
   }
 
@@ -606,14 +623,15 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     if (!e.target.closest("#mic, #reactor")) unlockAudio();
   });
   function stopVoice() { audio.pause(); speechSynthesis?.cancel(); clearInterval(meter); setCaption(""); }
-  function phoneVoice(text) {
+  function phoneVoice(text, after) {
     if (!("speechSynthesis" in window) || !text) { setMode("idle"); return; }
     const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 1.04; u.pitch = .95;
     const fr = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("fr"));
     u.voice = fr.find((v) => /Thomas|Premium|Enhanced|Google/i.test(v.name)) || fr[0] || null;
     R.env = null; setCaption(text);
     u.onstart = () => setMode("speak");
-    u.onend = u.onerror = () => { setMode("idle"); setCaption(""); };
+    u.onend = () => { setMode("idle"); setCaption(""); after?.(); };
+    u.onerror = () => { setMode("idle"); setCaption(""); };
     speechSynthesis.speak(u);
   }
   async function envelopeOf(blob) {
@@ -634,11 +652,11 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       return env;
     } catch { return null; }
   }
-  async function speak(text) {
+  async function speak(text, after) {
     if (!text) { setMode("idle"); return; }
     stopVoice();
     const voice = store.get("voice") || "Remi";
-    if (voice === "phone") { phoneVoice(text); return; }
+    if (voice === "phone") { phoneVoice(text, after); return; }
     setMode("think");
     try {
       const { url, key } = cfg();
@@ -652,10 +670,11 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       R.env = await envelopeOf(blob);  // amplitude réelle, synchronisée sur la lecture
       setCaption(text);
       audio.onplay = () => setMode("speak");
-      audio.onended = audio.onpause = () => { if (R.mode === "speak") setMode("idle"); setCaption(""); };
+      audio.onpause = () => { if (R.mode === "speak") setMode("idle"); setCaption(""); };
+      audio.onended = () => { if (R.mode === "speak") setMode("idle"); setCaption(""); after?.(); };
       await audio.play();
     } catch (e) {
-      phoneVoice(text);  // serveur ou lecture indisponible : voix du téléphone
+      phoneVoice(text, after);  // serveur ou lecture indisponible : voix du téléphone
     }
   }
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -672,7 +691,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     setTimeout(() => R.mode === "error" && setMode("idle"), 2500); }
   // ---- Écoute via le serveur (Amazon Transcribe) : fonctionne aussi depuis l'écran d'accueil ----
   const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
-  const useServerSTT = () => store.get("stt") === "server" || standalone || !Rec;
+  const useServerSTT = () => convMode === "voice" || store.get("stt") === "server" || standalone || !Rec;
   let recState = null;
   function toWav(chunks, inRate) {
     const total = chunks.reduce((n, c) => n + c.length, 0), ratio = inRate / 16000;
@@ -692,8 +711,16 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     new Int16Array(buf, 44).set(out);
     return new Blob([buf], { type: "audio/wav" });
   }
-  async function startServerRecording() {
-    unlockAudio();  // geste utilisateur : débloque aussi la lecture de la réponse vocale
+  let recCtx = null;
+  function cancelRecording() {
+    const r = recState; if (!r) return; r.stopped = true; recState = null;
+    try { r.proc.disconnect(); r.src.disconnect(); } catch {}
+    r.stream.getTracks().forEach((t) => t.stop()); recCtx?.suspend().catch(() => {});
+    listening = false; mic.classList.remove("on"); setMode("idle");
+  }
+  async function startServerRecording(auto = false) {
+    if (!auto) unlockAudio();  // geste utilisateur : débloque aussi la lecture de la réponse vocale
+    if (convMode === "voice") handsFree = true;
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true,
@@ -702,12 +729,15 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       micError(e.name === "NotAllowedError" ? "Micro refusé. Réglages iPhone › Safari › Micro : autorise taf-roissy.github.io (ou réponds « Autoriser » à la question)." : "Micro indisponible : " + e.message);
       return;
     }
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await ctx.resume();
+    // Un seul contexte audio, créé au premier geste puis réutilisé : permet de relancer l'écoute
+    // automatiquement après chaque réponse (iOS refuse d'en démarrer un nouveau sans geste).
+    if (!recCtx || recCtx.state === "closed") recCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = recCtx;
+    await ctx.resume().catch(() => {});
     const src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1);
     const chunks = [], t0 = performance.now();
     let spoke = false, lastVoice = t0;
-    recState = { stream, ctx, src, proc, chunks, stopped: false };
+    recState = { stream, ctx, src, proc, chunks, stopped: false, auto };
     proc.onaudioprocess = (e) => {
       const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d));
       let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] * d[i];
@@ -724,9 +754,14 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     const r = recState; if (!r || r.stopped) return; r.stopped = true; recState = null;
     try { r.proc.disconnect(); r.src.disconnect(); } catch {}
     r.stream.getTracks().forEach((t) => t.stop());
-    const rate = r.ctx.sampleRate; r.ctx.close().catch(() => {});
+    const rate = r.ctx.sampleRate; r.ctx.suspend().catch(() => {});
     listening = false; mic.classList.remove("on"); input.placeholder = "Votre demande, monsieur ?";
-    if (!r.spoke()) { micError(MIC_ERR["no-speech"]); return; }
+    if (!r.spoke()) {
+      if (r.auto) {  // silence après une réponse : la conversation se met en veille, sans alerte
+        handsFree = false; setMode("idle"); input.placeholder = "En veille — touchez le réacteur pour reprendre"; return;
+      }
+      micError(MIC_ERR["no-speech"]); return;
+    }
     setMode("think"); input.placeholder = "Transcription…";
     try {
       const { url, key } = cfg();
@@ -734,14 +769,18 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
         headers: { "X-Jarvis-Key": key, "Content-Type": "audio/wav" }, body: toWav(r.chunks, rate) }, 2);
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.detail || "HTTP " + res.status);
-      input.placeholder = "Votre demande, monsieur ?";
-      if (!d.text) { micError("Je n’ai pas compris, peux-tu répéter ?"); return; }
+      input.placeholder = convMode === "voice" ? "Mode vocal : touchez le réacteur et parlez" : "Votre demande, monsieur ?";
+      if (!d.text) {
+        if (convMode === "voice") { speak("Pardon, je n'ai pas compris. Pouvez-vous répéter ?", continueConversation); return; }
+        micError("Je n’ai pas compris, peux-tu répéter ?"); return;
+      }
       input.value = d.text; autosize(); ask(d.text, true);
     } catch (e) { input.placeholder = "Votre demande, monsieur ?"; micError("Transcription impossible : " + e.message); }
   }
 
   function toggleMic() {
     if (busy) return;
+    if (R.mode === "speak") { stopVoice(); }
     if (recState) { stopServerRecording(); return; }
     if (useServerSTT()) { stopVoice(); startServerRecording(); return; }
     if (listening) { rec.stop(); return; }
@@ -782,9 +821,20 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value); } });
   send.onclick = () => ask(input.value);
   document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => ask(c.textContent)));
-  $("voiceOut").checked = store.get("voiceOut") === "1";
-  $("voiceOut").onchange = (e) => store.set("voiceOut", e.target.checked ? "1" : "0");
-  $("newChat").onclick = () => { stopVoice();
+  // Mode de la session : « voice » = mains libres (réponse lue + micro rouvert automatiquement)
+  let convMode = store.get("mode") || "text", handsFree = false;
+  function setConvMode(m) {
+    convMode = m; store.set("mode", m);
+    $("modeVoice").classList.toggle("on", m === "voice"); $("modeText").classList.toggle("on", m === "text");
+    $("modeVoice").setAttribute("aria-checked", m === "voice"); $("modeText").setAttribute("aria-checked", m === "text");
+    app.classList.toggle("voice", m === "voice");
+    input.placeholder = m === "voice" ? "Mode vocal : touchez le réacteur et parlez" : "Votre demande, monsieur ?";
+    if (m === "text") { handsFree = false; stopVoice(); if (recState) cancelRecording(); }
+  }
+  $("modeVoice").onclick = () => { setConvMode("voice"); unlockAudio(); };
+  $("modeText").onclick = () => setConvMode("text");
+  setConvMode(convMode);
+  $("newChat").onclick = () => { stopVoice(); handsFree = false; if (recState) cancelRecording();
     const sid = store.get("session"); store.del("session");
     feed.innerHTML = ""; app.classList.remove("chat"); app.classList.add("idle"); $("modelInfo").textContent = ""; setMode("idle");
     if (sid) api(`/api/v1/sessions/${encodeURIComponent(sid)}`, { method: "DELETE" }).catch(() => {});
