@@ -51,6 +51,10 @@ header{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-t
 #reactor{width:100%;height:100%;cursor:pointer;touch-action:manipulation}
 .state{position:absolute;bottom:4px;left:0;right:0;text-align:center;font:700 12px "Orbitron";letter-spacing:4px;color:var(--cyan)}
 .app.chat .state{bottom:-2px;font-size:10px}
+.caption{position:absolute;left:16px;right:16px;bottom:-34px;text-align:center;font:600 18px/1.35 "Rajdhani";
+  color:rgba(217,246,255,.35);opacity:0;transition:opacity .4s;pointer-events:none;text-shadow:0 0 12px rgba(56,225,255,.4)}
+.caption.on{opacity:1}.caption b{font-weight:600;color:#fff;text-shadow:0 0 14px rgba(127,240,255,.9)}
+.app.chat .caption{display:none}
 .greet{text-align:center;padding:0 24px;margin-top:2px}
 .greet h1{margin:0;font:700 22px "Orbitron";letter-spacing:2px;color:var(--text)}
 .greet p{margin:6px 0 0;color:var(--soft)}
@@ -137,6 +141,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   <div class="core">
     <canvas id="reactor" aria-label="Touchez pour parler à Jarvis" role="button"></canvas>
     <div class="state" id="state">PRÊT</div>
+    <div class="caption" id="caption"></div>
   </div>
   <div class="greet" id="greet"><h1 id="hello">Bonjour Christophe</h1><p>Touche le réacteur pour parler, ou écris ta demande.</p></div>
 
@@ -165,7 +170,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.4</small></h2>
+  <h2>RÉGLAGES <small>v2.5</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -241,22 +246,56 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     cx.beginPath(); cx.arc(x, y, r, a0, a1); cx.lineWidth = w; cx.strokeStyle = col;
     cx.shadowBlur = glow || 0; cx.shadowColor = col; cx.stroke(); cx.shadowBlur = 0;
   }
-  function frame() {
+  // Enveloppe vocale : amplitude réelle de la réponse, pré-calculée (lecture synchronisée, sans
+  // brancher le micro/son en direct — ce qui bloquait le micro sur iPhone).
+  R.env = null; R.envStep = .02; R.wave = 0; R.lastT = performance.now(); R.bars = new Float32Array(96);
+  function envLevel() {
+    if (R.mode !== "speak") return null;
+    if (R.env && !audio.paused) {
+      const pos = audio.currentTime / R.envStep, i = Math.floor(pos), f = pos - i;
+      const a = R.env[i] ?? 0, b = R.env[i + 1] ?? a;
+      return a + (b - a) * f;
+    }
+    // voix du téléphone : enveloppe synthétique douce (syllabes ~4 Hz)
+    const t = R.t;
+    return .35 + .3 * Math.abs(Math.sin(t * 6.3)) * (.6 + .4 * Math.sin(t * 1.7)) + .1 * Math.sin(t * 13.1);
+  }
+  let capWords = [], capKey = "";
+  function setCaption(text) { capWords = (text || "").split(/\s+/).filter(Boolean); capKey = ""; $("caption").classList.toggle("on", !!capWords.length); }
+  function updateCaption() {
+    if (!capWords.length) return;
+    if (R.mode !== "speak") { $("caption").classList.remove("on"); return; }
+    const prog = audio.duration && !audio.paused ? audio.currentTime / audio.duration : (R.t % 1000) / Math.max(4, capWords.length * .38);
+    const idx = Math.min(capWords.length - 1, Math.floor(prog * capWords.length));
+    const from = Math.max(0, idx - 6), key = from + ":" + idx;
+    if (key === capKey) return; capKey = key;
+    $("caption").innerHTML = capWords.slice(from, idx + 7).map((w, i) => from + i <= idx ? `<b>${esc(w)}</b>` : esc(w)).join(" ");
+  }
+  function frame(now) {
     const w = cv.clientWidth, h = cv.clientHeight, x = w / 2, y = h / 2 - 8;
     const S = Math.min(w, h) / 2 - 18;
-    R.t += 1 / 60;
-    const speed = { idle: .25, listen: .6, think: 2.2, speak: .9, error: .1 }[R.mode] || .3;
-    R.spin += speed / 60;
+    const dt = Math.min(.05, ((now || performance.now()) - R.lastT) / 1000); R.lastT = now || performance.now();
+    R.t += dt;
+    const speaking = R.mode === "speak";
+    const speed = { idle: .25, listen: .6, think: 2.2, speak: .35, error: .1 }[R.mode] || .3;
+    R.spin += speed * dt;
     if (R.mode === "think") pulse(.35 + .25 * Math.sin(R.t * 6));
     if (R.mode === "idle") pulse(.12 + .06 * Math.sin(R.t * 1.6));
-    R.level += (R.target - R.level) * .18; R.target *= .9;
+    const ev = envLevel();
+    if (ev !== null) R.target = Math.max(R.target * .5, ev);
+    // attaque rapide, relâchement doux : mouvement fluide, sans à-coups
+    const k = R.target > R.level ? 1 - Math.pow(.0005, dt) : 1 - Math.pow(.02, dt);
+    R.level += (R.target - R.level) * k;
+    R.target *= Math.pow(.15, dt);
+    R.wave += dt * (speaking ? 1.6 + R.level * 2.2 : 1);
     const L = R.level, err = R.mode === "error";
-    const C = err ? "255,93,108" : "56,225,255", C2 = err ? "255,140,150" : "127,240,255";
+    const C = err ? "255,93,108" : speaking ? "90,215,255" : "56,225,255";
+    const C2 = err ? "255,140,150" : speaking ? "200,245,255" : "127,240,255";
     cx.clearRect(0, 0, w, h);
-    // halo
-    const g = cx.createRadialGradient(x, y, 0, x, y, S * 1.05);
-    g.addColorStop(0, `rgba(${C},${.28 + L * .4})`); g.addColorStop(.35, `rgba(${C},.07)`); g.addColorStop(1, "rgba(0,0,0,0)");
-    cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, S * 1.05, 0, 7); cx.fill();
+    // halo qui respire avec la voix
+    const g = cx.createRadialGradient(x, y, 0, x, y, S * (1.05 + L * .12));
+    g.addColorStop(0, `rgba(${C},${.26 + L * .5})`); g.addColorStop(.38, `rgba(${C},${.06 + L * .08})`); g.addColorStop(1, "rgba(0,0,0,0)");
+    cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, S * 1.2, 0, 7); cx.fill();
     // anneau externe gradué
     cx.save(); cx.translate(x, y); cx.rotate(R.spin * .15);
     for (let i = 0; i < 72; i++) {
@@ -266,34 +305,60 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     }
     cx.restore();
     arc(x, y, S * .97, 0, 7, 1, `rgba(${C},.35)`);
-    // arcs tournants (vitesses et sens différents)
+    // arcs tournants (calmes quand Jarvis parle : la voix prend le relais)
     const rings = [[.8, 1, .9, 3, 4], [.7, -1.6, .45, 2, 3], [.6, 2.4, .25, 4, 2], [.5, -3, .6, 2, 6]];
-    rings.forEach(([rr, sp, len, wd, n], k) => {
+    rings.forEach(([rr, sp, len, wd, n], kk) => {
+      const fade = speaking ? .35 + L * .35 : .55 + L * .4;
       for (let j = 0; j < n; j++) {
-        const a0 = R.spin * sp + j * (Math.PI * 2 / n) + k;
-        arc(x, y, S * rr, a0, a0 + len * (Math.PI * 2 / n) * (1 + L * .6), wd + L * 2, `rgba(${k % 2 ? C2 : C},${.55 + L * .4})`, 10 + L * 18);
+        const a0 = R.spin * sp + j * (Math.PI * 2 / n) + kk;
+        arc(x, y, S * rr, a0, a0 + len * (Math.PI * 2 / n) * (1 + L * .4), wd + L * 1.5, `rgba(${kk % 2 ? C2 : C},${fade})`, 8 + L * 14);
       }
     });
-    // onde audio autour du cœur
-    cx.beginPath();
-    for (let i = 0; i <= 120; i++) {
-      const a = i / 120 * Math.PI * 2;
-      const amp = S * (.36 + L * .1 * (Math.sin(a * 6 + R.t * 9) + Math.sin(a * 11 - R.t * 7) * .6));
-      const px = x + Math.cos(a) * amp, py = y + Math.sin(a) * amp;
-      i ? cx.lineTo(px, py) : cx.moveTo(px, py);
+    if (speaking || L > .3) {
+      // égaliseur radial : 96 barres lissées autour du cœur
+      const r0 = S * .41;
+      cx.save(); cx.translate(x, y); cx.lineCap = "round";
+      for (let i = 0; i < 96; i++) {
+        const a = i / 96 * Math.PI * 2 - Math.PI / 2;
+        const shape = Math.sin(a * 3 + R.wave * 1.3) * .5 + Math.sin(a * 7 - R.wave * 2.1 + i * .37) * .3
+          + Math.sin(a * 13 + R.wave * 3.3) * .2;
+        const want = speaking ? L * (.25 + .75 * Math.abs(shape)) : 0;
+        R.bars[i] += (want - R.bars[i]) * (1 - Math.pow(.001, dt));
+        const len = S * .2 * R.bars[i];
+        if (len < .6) continue;
+        cx.beginPath(); cx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+        cx.lineTo(Math.cos(a) * (r0 + len), Math.sin(a) * (r0 + len));
+        cx.strokeStyle = `rgba(${C2},${.25 + R.bars[i] * .6})`; cx.lineWidth = 2.2;
+        cx.shadowBlur = 10; cx.shadowColor = `rgb(${C})`; cx.stroke();
+      }
+      cx.restore(); cx.shadowBlur = 0;
     }
-    cx.closePath(); cx.strokeStyle = `rgba(${C2},${.5 + L * .5})`; cx.lineWidth = 1.5;
-    cx.shadowBlur = 14; cx.shadowColor = `rgb(${C})`; cx.stroke(); cx.shadowBlur = 0;
-    // cœur
-    const core = cx.createRadialGradient(x, y, 0, x, y, S * .3);
-    core.addColorStop(0, "rgba(255,255,255,.95)"); core.addColorStop(.25, `rgba(${C2},.9)`);
-    core.addColorStop(.6, `rgba(${C},.35)`); core.addColorStop(1, `rgba(${C},0)`);
-    cx.fillStyle = core; cx.beginPath(); cx.arc(x, y, S * (.24 + L * .08), 0, 7); cx.fill();
-    // triangle central façon réacteur
+    // ondes fluides superposées autour du cœur
+    const layers = speaking ? [[1, .5, 2.2], [.65, .3, 1.4], [.4, .18, 1]] : [[1, .5, 1.5]];
+    layers.forEach(([amp, alpha, lw], li) => {
+      cx.beginPath();
+      for (let i = 0; i <= 160; i++) {
+        const a = i / 160 * Math.PI * 2;
+        const wob = Math.sin(a * 4 + R.wave * (1.4 + li * .3)) * .6 + Math.sin(a * 7 - R.wave * (1.1 + li * .2)) * .4;
+        const rad = S * (.355 + li * .012 + L * .085 * amp * wob);
+        const px = x + Math.cos(a) * rad, py = y + Math.sin(a) * rad;
+        i ? cx.lineTo(px, py) : cx.moveTo(px, py);
+      }
+      cx.closePath(); cx.strokeStyle = `rgba(${C2},${alpha + L * .45})`; cx.lineWidth = lw;
+      cx.shadowBlur = 16 + L * 14; cx.shadowColor = `rgb(${C})`; cx.stroke(); cx.shadowBlur = 0;
+    });
+    // cœur lumineux
+    const core = cx.createRadialGradient(x, y, 0, x, y, S * (.3 + L * .06));
+    core.addColorStop(0, "rgba(255,255,255,.97)"); core.addColorStop(.25, `rgba(${C2},.92)`);
+    core.addColorStop(.6, `rgba(${C},${.3 + L * .25})`); core.addColorStop(1, `rgba(${C},0)`);
+    cx.fillStyle = core; cx.beginPath(); cx.arc(x, y, S * (.24 + L * .07), 0, 7); cx.fill();
+    // triangle central
     cx.save(); cx.translate(x, y); cx.rotate(-R.spin * .3);
+    const tri = S * (.17 + L * .015);
     cx.beginPath();
-    for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 - Math.PI / 2; cx[i ? "lineTo" : "moveTo"](Math.cos(a) * S * .17, Math.sin(a) * S * .17); }
+    for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 - Math.PI / 2; cx[i ? "lineTo" : "moveTo"](Math.cos(a) * tri, Math.sin(a) * tri); }
     cx.closePath(); cx.strokeStyle = `rgba(255,255,255,${.5 + L * .5})`; cx.lineWidth = 2; cx.stroke(); cx.restore();
+    updateCaption();
     if (!reduce || R.mode !== "idle") requestAnimationFrame(frame);
     else setTimeout(() => requestAnimationFrame(frame), 500);
   }
@@ -540,17 +605,34 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   document.addEventListener("pointerdown", (e) => {
     if (!e.target.closest("#mic, #reactor")) unlockAudio();
   });
-  function stopVoice() { audio.pause(); speechSynthesis?.cancel(); clearInterval(meter); }
+  function stopVoice() { audio.pause(); speechSynthesis?.cancel(); clearInterval(meter); setCaption(""); }
   function phoneVoice(text) {
     if (!("speechSynthesis" in window) || !text) { setMode("idle"); return; }
     const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 1.04; u.pitch = .95;
     const fr = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("fr"));
     u.voice = fr.find((v) => /Thomas|Premium|Enhanced|Google/i.test(v.name)) || fr[0] || null;
-    let beat;
-    u.onstart = () => { setMode("speak"); beat = setInterval(() => pulse(.45 + Math.random() * .45), 110); };
-    u.onboundary = () => pulse(.9);
-    u.onend = u.onerror = () => { clearInterval(beat); setMode("idle"); };
+    R.env = null; setCaption(text);
+    u.onstart = () => setMode("speak");
+    u.onend = u.onerror = () => { setMode("idle"); setCaption(""); };
     speechSynthesis.speak(u);
+  }
+  async function envelopeOf(blob) {
+    try {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const oc = new OAC(1, 2, 24000);  // contexte hors ligne : aucune sortie son, n'affecte pas le micro
+      const data = await blob.arrayBuffer();
+      const buf = await new Promise((ok, ko) => { const pr = oc.decodeAudioData(data, ok, ko); if (pr?.then) pr.then(ok, ko); });
+      const ch = buf.getChannelData(0), step = Math.round(buf.sampleRate * R.envStep);
+      const env = new Float32Array(Math.ceil(ch.length / step) + 1);
+      let max = 1e-6;
+      for (let i = 0; i < env.length - 1; i++) {
+        let sum = 0; const a = i * step, b = Math.min(ch.length, a + step);
+        for (let j = a; j < b; j += 2) sum += ch[j] * ch[j];
+        env[i] = Math.sqrt(sum / Math.max(1, (b - a) / 2)); if (env[i] > max) max = env[i];
+      }
+      for (let i = 0; i < env.length; i++) env[i] = Math.pow(env[i] / max, .7);  // courbe plus vivante
+      return env;
+    } catch { return null; }
   }
   async function speak(text) {
     if (!text) { setMode("idle"); return; }
@@ -567,12 +649,10 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       const blob = await res.blob();
       if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
       audio.src = URL.createObjectURL(blob);
-      audio.onplay = () => {
-        setMode("speak");
-        let ph = 0;  // pulsation façon voix (syllabes) pendant la lecture
-        meter = setInterval(() => { ph += .55; pulse(.35 + .4 * Math.abs(Math.sin(ph)) + Math.random() * .25); }, 90);
-      };
-      audio.onended = audio.onpause = () => { clearInterval(meter); if (R.mode === "speak") setMode("idle"); };
+      R.env = await envelopeOf(blob);  // amplitude réelle, synchronisée sur la lecture
+      setCaption(text);
+      audio.onplay = () => setMode("speak");
+      audio.onended = audio.onpause = () => { if (R.mode === "speak") setMode("idle"); setCaption(""); };
       await audio.play();
     } catch (e) {
       phoneVoice(text);  // serveur ou lecture indisponible : voix du téléphone
