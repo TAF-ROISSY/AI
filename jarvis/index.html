@@ -329,7 +329,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("ckey").value = store.get("ckey"); $("status").textContent = ""; dlg.showModal(); }
   $("openSettings").onclick = openSettings;
   $("closeSettings").onclick = () => dlg.close();
-  async function testServer(url, key) {
+  async function testServer(url, key, ckeyOverride) {
     const base = url.trim().replace(/\/+$/, "");
     const res = await fetchRetry(base + "/health", {});
     if (!res.ok) throw new Error("HTTP " + res.status);
@@ -337,28 +337,42 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const auth = await fetchRetry(base + "/api/v1/actions", { headers: { "X-Jarvis-Key": key.trim() } });
     if (auth.status === 401) throw new Error("clé Jarvis refusée");
     if (!auth.ok) throw new Error("HTTP " + auth.status);
+    const ckey = (ckeyOverride ?? store.get("ckey")).replace(/\s+/g, "");
+    try {
+      const chk = await fetchRetry(base + "/api/v1/claude/check", { method: "POST",
+        headers: { "X-Jarvis-Key": key.trim(), ...(ckey ? { "X-Anthropic-Key": ckey } : {}) } });
+      const c = await chk.json().catch(() => ({}));
+      health.claude_check = chk.ok ? c : { ok: false, detail: c.detail || ("HTTP " + chk.status) };
+    } catch (e) { health.claude_check = { ok: false, detail: e.message }; }
     return health;
   }
   function showHealth(h) {
     const c = h.connectors || {};
     const names = { taf_ops: "TAF OPS", outlook: "Outlook", google_calendar: "Google Agenda", web: "Web" };
-    const claudeOk = h.claude_key === "serveur" || !!store.get("ckey");
-    $("status").innerHTML = `✅ Connecté (v${esc(h.version || "?")})<div class="conn">` +
-      `<span class="${claudeOk ? "on" : "off"}">${claudeOk ? "●" : "○"} Claude${h.claude_key === "serveur" ? " (serveur)" : store.get("ckey") ? " (cette appli)" : " — clé à saisir"}</span>` +
+    const cc = h.claude_check || {};
+    const claudeOk = !!cc.ok;
+    const claudeTxt = claudeOk ? `Claude OK (clé ${cc.source === "appli" ? "de cette appli" : "du serveur"})`
+      : `Claude : ${cc.detail || "clé à saisir"}`;
+    $("status").innerHTML = `✅ Serveur connecté (v${esc(h.version || "?")})<div class="conn">` +
+      `<span class="${claudeOk ? "on" : "off"}" style="${claudeOk ? "" : "color:var(--red)"}">${claudeOk ? "●" : "✕"} ${esc(claudeTxt)}</span>` +
       Object.entries(names).map(([k, n]) => `<span class="${c[k] ? "on" : "off"}">${c[k] ? "●" : "○"} ${n}</span>`).join("") + "</div>";
     $("sub").textContent = Object.entries(names).filter(([k]) => c[k]).map(([, n]) => n).join(" · ") || "Connecté — aucun connecteur";
   }
   $("testSrv").onclick = async () => {
     $("status").textContent = "Test en cours… (le premier réveil peut prendre quelques secondes)";
-    try { showHealth(await testServer($("srv").value, $("key").value)); }
+    try { showHealth(await testServer($("srv").value, $("key").value, $("ckey").value)); }
     catch (e) { $("status").textContent = /clé/.test(e.message) ? "❌ Serveur joignable, mais la clé Jarvis est refusée." : "❌ Serveur injoignable (" + e.message + ")"; }
   };
   $("saveSettings").onclick = async () => {
     store.set("url", $("srv").value.trim()); store.set("key", $("key").value.trim());
-    const ck = $("ckey").value.trim();
-    if (ck && !/^sk-ant-[A-Za-z0-9_\-]{20,}$/.test(ck)) { $("status").textContent = "❌ La clé Claude doit commencer par sk-ant-"; return; }
+    const ck = $("ckey").value.replace(/\s+/g, "");
+    if (ck && ck.length < 20) { $("status").textContent = "❌ Clé Claude trop courte : colle-la en entier."; return; }
     store.set("ckey", ck);
-    try { showHealth(await testServer(store.get("url"), store.get("key"))); setTimeout(() => dlg.close(), 700); }
+    try {
+      const h = await testServer(store.get("url"), store.get("key"));
+      showHealth(h);
+      if (h.claude_check && h.claude_check.ok) setTimeout(() => dlg.close(), 900);
+    }
     catch (e) { $("status").textContent = "Enregistré, mais le serveur ne répond pas (" + e.message + ")."; }
   };
 
