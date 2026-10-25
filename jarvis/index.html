@@ -189,7 +189,9 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = new Error(data.speech || data.error || ("Erreur " + res.status));
+        const msg = res.status === 401 ? "Clé Jarvis refusée : vérifie-la dans les Réglages (roue dentée)."
+          : (data.speech || data.detail || data.error || ("Erreur " + res.status));
+        const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
         err.status = res.status; err.data = data; throw err;
       }
       return data;
@@ -325,9 +327,14 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   $("openSettings").onclick = openSettings;
   $("closeSettings").onclick = () => dlg.close();
   async function testServer(url, key) {
-    const res = await fetchRetry(url.trim().replace(/\/+$/, "") + "/health", { headers: { "X-Jarvis-Key": key.trim() } });
+    const base = url.trim().replace(/\/+$/, "");
+    const res = await fetchRetry(base + "/health", {});
     if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.json();
+    const health = await res.json();
+    const auth = await fetchRetry(base + "/api/v1/actions", { headers: { "X-Jarvis-Key": key.trim() } });
+    if (auth.status === 401) throw new Error("clé Jarvis refusée");
+    if (!auth.ok) throw new Error("HTTP " + auth.status);
+    return health;
   }
   function showHealth(h) {
     const c = h.connectors || {};
@@ -339,7 +346,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   $("testSrv").onclick = async () => {
     $("status").textContent = "Test en cours… (le premier réveil peut prendre quelques secondes)";
     try { showHealth(await testServer($("srv").value, $("key").value)); }
-    catch (e) { $("status").textContent = "❌ Serveur injoignable (" + e.message + ")"; }
+    catch (e) { $("status").textContent = /clé/.test(e.message) ? "❌ Serveur joignable, mais la clé Jarvis est refusée." : "❌ Serveur injoignable (" + e.message + ")"; }
   };
   $("saveSettings").onclick = async () => {
     store.set("url", $("srv").value.trim()); store.set("key", $("key").value.trim());
@@ -347,10 +354,18 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     catch (e) { $("status").textContent = "Enregistré, mais le serveur ne répond pas (" + e.message + ")."; }
   };
 
+  if (location.hash.length > 1) {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("serveur")) store.set("url", h.get("serveur").trim());
+    if (h.get("cle")) store.set("key", h.get("cle").trim());
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
   (async () => {
     const { url, key } = cfg();
     if (!url || !key) { openSettings(); return; }
-    try { showHealth(await testServer(url, key)); } catch { $("sub").textContent = "Serveur injoignable"; }
+    try { showHealth(await testServer(url, key)); }
+    catch (e) { $("sub").textContent = /clé/.test(e.message) ? "Clé Jarvis refusée" : "Serveur injoignable"; }
   })();
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
