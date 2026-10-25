@@ -141,7 +141,9 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   <input id="srv" type="url" placeholder="https://xxxx.lambda-url.eu-west-3.on.aws" autocomplete="off">
   <label for="key">Clé Jarvis</label>
   <input id="key" type="password" autocomplete="off" placeholder="Clé d’accès">
-  <div class="hint">Stockées uniquement sur cet appareil.</div>
+  <label for="ckey">Clé Claude <span style="color:var(--muted)">(sk-ant-…, facultative si le serveur en a une)</span></label>
+  <input id="ckey" type="password" autocomplete="off" placeholder="sk-ant-…">
+  <div class="hint">Clés stockées uniquement sur cet appareil. La clé Claude est envoyée au serveur Jarvis à chaque question, jamais enregistrée chez lui.</div>
   <div id="status"></div>
   <div class="dlg-row">
     <button class="btn no" id="testSrv">Tester</button>
@@ -161,7 +163,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   const feed = $("feed"), input = $("input"), send = $("send"), mic = $("mic");
   let busy = false, lastFromVoice = false;
 
-  const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key") });
+  const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key"), ckey: store.get("ckey") });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   async function fetchRetry(url, init, tries = 3) {
     for (let i = 0; ; i++) {
@@ -177,14 +179,15 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   }
 
   async function api(path, opts = {}) {
-    const { url, key } = cfg();
+    const { url, key, ckey } = cfg();
     if (!url || !key) { openSettings(); throw new Error("Configure d’abord le serveur et la clé."); }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
     try {
       const res = await fetchRetry(url + path, {
         method: opts.method || "GET", signal: ctrl.signal,
-        headers: { "X-Jarvis-Key": key, ...(opts.body ? { "Content-Type": "application/json" } : {}) },
+        headers: { "X-Jarvis-Key": key, ...(ckey ? { "X-Anthropic-Key": ckey } : {}),
+          ...(opts.body ? { "Content-Type": "application/json" } : {}) },
         body: opts.body ? JSON.stringify(opts.body) : undefined,
       });
       const data = await res.json().catch(() => ({}));
@@ -323,7 +326,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
 
   // ---------- réglages ----------
   const dlg = $("settings");
-  function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("status").textContent = ""; dlg.showModal(); }
+  function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("ckey").value = store.get("ckey"); $("status").textContent = ""; dlg.showModal(); }
   $("openSettings").onclick = openSettings;
   $("closeSettings").onclick = () => dlg.close();
   async function testServer(url, key) {
@@ -339,7 +342,9 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   function showHealth(h) {
     const c = h.connectors || {};
     const names = { taf_ops: "TAF OPS", outlook: "Outlook", google_calendar: "Google Agenda", web: "Web" };
+    const claudeOk = h.claude_key === "serveur" || !!store.get("ckey");
     $("status").innerHTML = `✅ Connecté (v${esc(h.version || "?")})<div class="conn">` +
+      `<span class="${claudeOk ? "on" : "off"}">${claudeOk ? "●" : "○"} Claude${h.claude_key === "serveur" ? " (serveur)" : store.get("ckey") ? " (cette appli)" : " — clé à saisir"}</span>` +
       Object.entries(names).map(([k, n]) => `<span class="${c[k] ? "on" : "off"}">${c[k] ? "●" : "○"} ${n}</span>`).join("") + "</div>";
     $("sub").textContent = Object.entries(names).filter(([k]) => c[k]).map(([, n]) => n).join(" · ") || "Connecté — aucun connecteur";
   }
@@ -350,6 +355,9 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   };
   $("saveSettings").onclick = async () => {
     store.set("url", $("srv").value.trim()); store.set("key", $("key").value.trim());
+    const ck = $("ckey").value.trim();
+    if (ck && !/^sk-ant-[A-Za-z0-9_\-]{20,}$/.test(ck)) { $("status").textContent = "❌ La clé Claude doit commencer par sk-ant-"; return; }
+    store.set("ckey", ck);
     try { showHealth(await testServer(store.get("url"), store.get("key"))); setTimeout(() => dlg.close(), 700); }
     catch (e) { $("status").textContent = "Enregistré, mais le serveur ne répond pas (" + e.message + ")."; }
   };
@@ -358,6 +366,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const h = new URLSearchParams(location.hash.slice(1));
     if (h.get("serveur")) store.set("url", h.get("serveur").trim());
     if (h.get("cle")) store.set("key", h.get("cle").trim());
+    if (h.get("claude")) store.set("ckey", h.get("claude").trim());
     history.replaceState(null, "", location.pathname + location.search);
   }
 
