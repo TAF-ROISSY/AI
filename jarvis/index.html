@@ -135,7 +135,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
 </div>
 
 <dialog id="settings">
-  <h2>Réglages <span style="font:500 12px 'IBM Plex Sans';color:var(--muted)">version 1.3</span></h2>
+  <h2>Réglages <span style="font:500 12px 'IBM Plex Sans';color:var(--muted)">version 1.4</span></h2>
   <div class="hint">Adresse du serveur Jarvis et clé d’accès (définie dans JARVIS_API_KEY).</div>
   <label for="srv">Serveur</label>
   <input id="srv" type="url" placeholder="https://xxxx.lambda-url.eu-west-3.on.aws" autocomplete="off">
@@ -144,6 +144,16 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   <label for="ckey">Clé Claude <span style="color:var(--muted)">(sk-ant-…, facultative si le serveur en a une)</span></label>
   <input id="ckey" type="password" autocomplete="off" placeholder="sk-ant-… (vide = clé d’English Co-Pilot)">
   <div class="hint">Clés stockées uniquement sur cet appareil. La clé Claude est envoyée au serveur Jarvis à chaque question, jamais enregistrée chez lui.</div>
+  <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:6px">
+    <label style="margin-top:10px">Connexion TAF OPS <span id="tafState" style="color:var(--muted)"></span></label>
+    <div id="tafForm">
+      <input id="tafEmail" type="text" inputmode="email" autocomplete="username" placeholder="email TAF TRANS" style="margin-bottom:8px">
+      <input id="tafPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="PIN à 4 chiffres">
+      <div class="dlg-row" style="margin-top:10px"><button class="btn no" id="tafLogin">Se connecter à TAF OPS</button></div>
+    </div>
+    <div id="tafOut" class="dlg-row" style="display:none;margin-top:6px"><button class="btn no" id="tafLogout">Se déconnecter de TAF OPS</button></div>
+    <div class="hint">Le PIN va directement à AWS (Cognito), comme dans TAF OPS. Jarvis agit ensuite avec tes droits.</div>
+  </div>
   <div id="status"></div>
   <div class="dlg-row">
     <button class="btn no" id="testSrv">Tester</button>
@@ -167,6 +177,45 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     try { return (JSON.parse(localStorage.getItem("english_copilot_v1") || "{}").settings || {}).apiKey?.trim() || ""; }
     catch { return ""; }
   }
+  // ---------- session TAF OPS (Cognito CUSTOM_AUTH, comme l'appli TAF OPS) ----------
+  let tafCfg = null;  // {region, client_id} fourni par /health
+  const tafSession = () => { try { return JSON.parse(store.get("taf") || "null"); } catch { return null; } };
+  async function cognito(target, body) {
+    if (!tafCfg) throw new Error("Configuration TAF OPS indisponible sur le serveur");
+    const r = await fetch(`https://cognito-idp.${tafCfg.region}.amazonaws.com/`, { method: "POST",
+      headers: { "Content-Type": "application/x-amz-json-1.1", "X-Amz-Target": "AWSCognitoIdentityProviderService." + target },
+      body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(/NotAuthorized/.test(d.__type || "") ? "PIN ou email incorrect" : (d.message || "Connexion TAF OPS refusée"));
+    return d;
+  }
+  async function tafLogin(email, pin) {
+    const start = await cognito("InitiateAuth", { AuthFlow: "CUSTOM_AUTH", ClientId: tafCfg.client_id, AuthParameters: { USERNAME: email } });
+    if (start.ChallengeName !== "CUSTOM_CHALLENGE") throw new Error("Authentification PIN indisponible");
+    const done = await cognito("RespondToAuthChallenge", { ClientId: tafCfg.client_id, ChallengeName: "CUSTOM_CHALLENGE",
+      Session: start.Session, ChallengeResponses: { USERNAME: email, ANSWER: pin } });
+    const a = done.AuthenticationResult;
+    if (!a?.AccessToken) throw new Error("PIN incorrect");
+    store.set("taf", JSON.stringify({ email, access: a.AccessToken, refresh: a.RefreshToken, exp: Date.now() + (a.ExpiresIn || 3600) * 1000 }));
+  }
+  async function tafToken() {
+    const s = tafSession(); if (!s) return "";
+    if (Date.now() < s.exp - 120000) return s.access;
+    if (!s.refresh || !tafCfg) return "";
+    try {
+      const d = await cognito("InitiateAuth", { AuthFlow: "REFRESH_TOKEN_AUTH", ClientId: tafCfg.client_id, AuthParameters: { REFRESH_TOKEN: s.refresh } });
+      const a = d.AuthenticationResult;
+      store.set("taf", JSON.stringify({ ...s, access: a.AccessToken, exp: Date.now() + (a.ExpiresIn || 3600) * 1000 }));
+      return a.AccessToken;
+    } catch { store.del("taf"); return ""; }
+  }
+  function showTaf() {
+    const s = tafSession();
+    $("tafState").textContent = s ? `— connecté (${s.email})` : tafCfg ? "— non connecté" : "";
+    $("tafForm").style.display = s ? "none" : "";
+    $("tafOut").style.display = s ? "" : "none";
+  }
+
   const claudeKey = () => (store.get("ckey") || copilotKey()).replace(/\s+/g, "");
   const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key"), ckey: claudeKey() });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -186,12 +235,14 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   async function api(path, opts = {}) {
     const { url, key, ckey } = cfg();
     if (!url || !key) { openSettings(); throw new Error("Configure d’abord le serveur et la clé."); }
+    const taf = await tafToken();
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
     try {
       const res = await fetchRetry(url + path, {
         method: opts.method || "GET", signal: ctrl.signal,
         headers: { "X-Jarvis-Key": key, ...(ckey ? { "X-Anthropic-Key": ckey } : {}),
+          ...(taf ? { "X-TAF-OPS-Token": taf } : {}),
           ...(opts.body ? { "Content-Type": "application/json" } : {}) },
         body: opts.body ? JSON.stringify(opts.body) : undefined,
       });
@@ -331,7 +382,21 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
 
   // ---------- réglages ----------
   const dlg = $("settings");
-  function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("ckey").value = store.get("ckey"); $("status").textContent = ""; dlg.showModal(); }
+  $("tafLogin").onclick = async () => {
+    const email = $("tafEmail").value.trim().toLowerCase(), pin = $("tafPin").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $("status").textContent = "❌ Email TAF TRANS invalide"; return; }
+    if (!/^\d{4}$/.test(pin)) { $("status").textContent = "❌ Le PIN fait 4 chiffres"; return; }
+    $("tafLogin").disabled = true; $("status").textContent = "Connexion à TAF OPS…";
+    try {
+      if (!tafCfg) await testServer(store.get("url") || $("srv").value, store.get("key") || $("key").value);
+      await tafLogin(email, pin); $("tafPin").value = ""; showTaf();
+      $("status").textContent = "✅ Connecté à TAF OPS : Jarvis utilisera tes droits.";
+    } catch (e) { $("status").textContent = "❌ " + e.message; }
+    finally { $("tafLogin").disabled = false; }
+  };
+  $("tafLogout").onclick = () => { store.del("taf"); showTaf(); $("status").textContent = "Déconnecté de TAF OPS."; };
+
+  function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("ckey").value = store.get("ckey"); $("status").textContent = ""; try { showTaf(); } catch {} dlg.showModal(); }
   $("openSettings").onclick = openSettings;
   $("closeSettings").onclick = () => dlg.close();
   async function testServer(url, key, ckeyOverride) {
@@ -339,6 +404,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const res = await fetchRetry(base + "/health", {});
     if (!res.ok) throw new Error("HTTP " + res.status);
     const health = await res.json();
+    if (health.taf_ops_login) { tafCfg = health.taf_ops_login; try { showTaf(); } catch {} }
     const auth = await fetchRetry(base + "/api/v1/actions", { headers: { "X-Jarvis-Key": key.trim() } });
     if (auth.status === 401) throw new Error("clé Jarvis refusée");
     if (!auth.ok) throw new Error("HTTP " + auth.status);
