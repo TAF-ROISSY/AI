@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Jarvis</title>
+<meta name="theme-color" content="#0e1726">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1726;--panel:#152238;--panel2:#1b2b45;--line:#26395a;--text:#eef0ea;--soft:#a9b6c9;
+  --muted:#7b8aa1;--amber:#f2a541;--amber-ink:#2a1a03;--green:#4cc38a;--red:#ef6b6b;--blue:#7fb2ff;
+  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:16px/1.45 "IBM Plex Sans",system-ui,-apple-system,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.app{display:flex;flex-direction:column;height:100dvh;max-width:760px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;padding:calc(10px + var(--safe-t)) 16px 10px;
+  border-bottom:1px solid var(--line);background:linear-gradient(180deg,#101b2e,var(--bg))}
+.logo{width:34px;height:34px;border-radius:50%;border:2px solid var(--amber);display:grid;place-items:center}
+.logo i{width:10px;height:10px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber)}
+.logo.busy i{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.7);opacity:.5}}
+.brand{flex:1;min-width:0}
+.brand b{font:700 20px/1 "Space Grotesk",sans-serif;letter-spacing:2px}
+.brand small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--soft)}
+.icon-btn:active{background:var(--panel)}
+.icon-btn svg{width:22px;height:22px}
+#feed{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+.empty{margin:auto 0;text-align:center;color:var(--soft);padding:24px 8px}
+.empty h1{font:700 30px/1.1 "Space Grotesk",sans-serif;margin:0 0 8px;color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+.chip{padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  font-size:14px;color:var(--text)}
+.chip:active{border-color:var(--amber)}
+.msg{max-width:88%;padding:11px 14px;border-radius:16px;white-space:normal;word-wrap:break-word}
+.me{align-self:flex-end;background:var(--amber);color:var(--amber-ink);border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.bot p{margin:0 0 6px}.bot p:last-child{margin:0}
+.bot ul{margin:4px 0 6px;padding-left:20px}
+.bot code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:14px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--soft)}
+.tag.smart{color:var(--amber)} .tag.err{color:var(--red)}
+.speak{margin-left:auto;color:var(--soft);font-size:12px;padding:2px 6px}
+.err-msg{align-self:stretch;background:#3a1d24;border:1px solid #6b2c36;color:#ffd6d6}
+.action{align-self:stretch;background:var(--panel2);border:1px solid var(--amber);border-radius:14px;padding:12px 14px}
+.action .k{font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.action .s{margin:4px 0 10px}
+.action .row{display:flex;gap:8px;align-items:center}
+.btn{padding:9px 16px;border-radius:10px;font-weight:600}
+.ok{background:var(--green);color:#06210f}.no{background:transparent;border:1px solid var(--line);color:var(--soft)}
+.action .t{margin-left:auto;font-size:12px;color:var(--muted)}
+.action.done{border-color:var(--line);opacity:.75}
+.typing{align-self:flex-start;color:var(--muted);font-size:14px;padding:4px 6px}
+footer{padding:10px 12px calc(10px + var(--safe-b));border-top:1px solid var(--line);background:var(--bg)}
+.bar{display:flex;align-items:flex-end;gap:8px;background:var(--panel);border:1px solid var(--line);
+  border-radius:22px;padding:6px 6px 6px 14px}
+textarea{flex:1;resize:none;border:0;outline:0;background:transparent;color:var(--text);
+  font:inherit;max-height:140px;padding:8px 0;min-height:24px}
+textarea::placeholder{color:var(--muted)}
+.round{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none}
+.round svg{width:22px;height:22px}
+#mic{background:var(--panel2);color:var(--amber)}
+#mic.on{background:var(--red);color:#fff;animation:ring 1.2s infinite}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(239,107,107,.6)}100%{box-shadow:0 0 0 14px rgba(239,107,107,0)}}
+#send{background:var(--amber);color:var(--amber-ink)}
+#send:disabled{opacity:.4}
+.opts{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:0 6px;
+  font-size:12px;color:var(--muted)}
+.switch{display:flex;align-items:center;gap:6px}
+.switch input{accent-color:var(--amber)}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--panel);color:var(--text);
+  width:min(92vw,460px);padding:20px}
+dialog::backdrop{background:rgba(5,10,20,.7)}
+dialog h2{font:700 22px "Space Grotesk",sans-serif;margin:0 0 4px}
+label{display:block;font-size:13px;color:var(--soft);margin:14px 0 6px}
+input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.dlg-row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+#status{font-size:13px;margin-top:12px;color:var(--soft)}
+.conn{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.conn span{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg)}
+.conn .on{color:var(--green)}.conn .off{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo" id="logo"><i></i></div>
+    <div class="brand"><b>JARVIS</b><small id="sub">Non connecté</small></div>
+    <button class="icon-btn" id="newChat" title="Nouvelle conversation" aria-label="Nouvelle conversation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="icon-btn" id="openSettings" title="Réglages" aria-label="Réglages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </header>
+
+  <main id="feed" aria-live="polite">
+    <div class="empty" id="empty">
+      <h1>Bonjour Christophe</h1>
+      <div>Pose ta question à l’écrit ou au micro.</div>
+      <div class="chips">
+        <button class="chip">Qu’est-ce qui m’attend ce matin ?</button>
+        <button class="chip">Quels vols sont en retard aujourd’hui ?</button>
+        <button class="chip">Qui est absent cette semaine ?</button>
+        <button class="chip">Des conflits d’agenda demain ?</button>
+        <button class="chip">Où en est le recouvrement ?</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="bar">
+      <textarea id="input" rows="1" placeholder="Écris à Jarvis…" enterkeyhint="send"></textarea>
+      <button class="round" id="mic" aria-label="Parler">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button class="round" id="send" aria-label="Envoyer" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="opts">
+      <label class="switch" style="margin:0"><input type="checkbox" id="voiceOut"> Réponses à voix haute</label>
+      <span id="modelInfo"></span>
+    </div>
+  </footer>
+</div>
+
+<dialog id="settings">
+  <h2>Réglages</h2>
+  <div class="hint">Adresse du serveur Jarvis et clé d’accès (définie dans JARVIS_API_KEY).</div>
+  <label for="srv">Serveur</label>
+  <input id="srv" type="url" placeholder="https://xxxx.lambda-url.eu-west-3.on.aws" autocomplete="off">
+  <label for="key">Clé Jarvis</label>
+  <input id="key" type="password" autocomplete="off" placeholder="Clé d’accès">
+  <div class="hint">Stockées uniquement sur cet appareil.</div>
+  <div id="status"></div>
+  <div class="dlg-row">
+    <button class="btn no" id="testSrv">Tester</button>
+    <button class="btn no" id="closeSettings">Fermer</button>
+    <button class="btn ok" id="saveSettings">Enregistrer</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d = "") { try { return localStorage.getItem("jarvis." + k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("jarvis." + k, v); } catch {} },
+    del(k) { try { localStorage.removeItem("jarvis." + k); } catch {} },
+  };
+  const feed = $("feed"), input = $("input"), send = $("send"), mic = $("mic");
+  let busy = false, lastFromVoice = false;
+
+  const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key") });
+
+  async function api(path, opts = {}) {
+    const { url, key } = cfg();
+    if (!url || !key) { openSettings(); throw new Error("Configure d’abord le serveur et la clé."); }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
+    try {
+      const res = await fetch(url + path, {
+        method: opts.method || "GET", signal: ctrl.signal,
+        headers: { "X-Jarvis-Key": key, ...(opts.body ? { "Content-Type": "application/json" } : {}) },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.speech || data.error || ("Erreur " + res.status));
+        err.status = res.status; err.data = data; throw err;
+      }
+      return data;
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("Délai dépassé : le serveur ne répond pas.");
+      if (e instanceof TypeError) throw new Error("Serveur injoignable. Vérifie l’adresse dans les réglages.");
+      throw e;
+    } finally { clearTimeout(timer); }
+  }
+
+  // ---------- rendu ----------
+  const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function md(text) {
+    const lines = esc(text || "").split(/\n/);
+    let html = "", list = false;
+    for (const raw of lines) {
+      let l = raw.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--blue)">$1</a>');
+      const item = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+      if (item) { if (!list) { html += "<ul>"; list = true; } html += "<li>" + item[1] + "</li>"; continue; }
+      if (list) { html += "</ul>"; list = false; }
+      if (l.trim()) html += "<p>" + l.replace(/^#{1,6}\s*/, "") + "</p>";
+    }
+    return html + (list ? "</ul>" : "");
+  }
+  function add(el) { $("empty")?.remove(); feed.appendChild(el); feed.scrollTop = feed.scrollHeight; return el; }
+  function div(cls, html) { const d = document.createElement("div"); d.className = cls; d.innerHTML = html; return d; }
+
+  function botMessage(data) {
+    const el = div("msg bot", md(data.reply || "(pas de réponse)"));
+    const meta = document.createElement("div"); meta.className = "meta";
+    const smart = data.route === "complex";
+    meta.innerHTML = `<span class="tag ${smart ? "smart" : ""}">${smart ? "Sonnet" : "Haiku"}${data.escalated ? " ↑" : ""}</span>` +
+      (data.tools_used || []).map((t) => `<span class="tag ${t.error ? "err" : ""}">${esc(t.name.replace(/_/g, " "))}</span>`).join("");
+    const sp = document.createElement("button"); sp.className = "speak"; sp.textContent = "🔊 Écouter";
+    sp.onclick = () => speak(data.speech || data.reply);
+    meta.appendChild(sp); el.appendChild(meta);
+    add(el);
+    (data.pending_actions || []).forEach(actionCard);
+    $("modelInfo").textContent = `${data.steps} étape${data.steps > 1 ? "s" : ""}`;
+  }
+
+  function actionCard(a) {
+    const el = div("action", `<div class="k">Action à valider</div><div class="s">${esc(a.summary)}</div>
+      <div class="row"><button class="btn ok">Valider</button><button class="btn no">Refuser</button><span class="t"></span></div>`);
+    const [ok, no] = el.querySelectorAll("button"); const t = el.querySelector(".t");
+    const end = new Date(a.expires_at).getTime();
+    const tick = setInterval(() => {
+      const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      t.textContent = left ? `expire dans ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "expirée";
+      if (!left) { clearInterval(tick); ok.disabled = no.disabled = true; el.classList.add("done"); }
+    }, 1000);
+    const finish = (label) => { clearInterval(tick); el.classList.add("done"); el.querySelector(".row").innerHTML = `<span class="t" style="margin:0">${label}</span>`; };
+    ok.onclick = async () => {
+      ok.disabled = no.disabled = true;
+      try { await api(`/api/v1/actions/${encodeURIComponent(a.id)}/confirm`, { method: "POST" }); finish("✅ Exécutée"); }
+      catch (e) { finish("⚠️ " + esc(e.message)); }
+    };
+    no.onclick = async () => {
+      ok.disabled = no.disabled = true;
+      try { await api(`/api/v1/actions/${encodeURIComponent(a.id)}/reject`, { method: "POST" }); finish("Refusée"); }
+      catch (e) { finish("⚠️ " + esc(e.message)); }
+    };
+    add(el);
+  }
+
+  // ---------- envoi ----------
+  async function ask(text, fromVoice = false) {
+    text = text.trim(); if (!text || busy) return;
+    busy = true; $("logo").classList.add("busy"); send.disabled = true;
+    add(div("msg me", esc(text)));
+    input.value = ""; autosize();
+    const typing = add(div("typing", "Jarvis réfléchit…"));
+    try {
+      const data = await api("/api/v1/chat", { method: "POST", body: {
+        message: text, session_id: store.get("session") || undefined, mode: fromVoice ? "voice" : "text" } });
+      store.set("session", data.session_id);
+      typing.remove(); botMessage(data);
+      if (fromVoice || $("voiceOut").checked) speak(data.speech || data.reply);
+    } catch (e) {
+      typing.remove(); add(div("msg err-msg", esc(e.message)));
+      if (fromVoice) speak(e.message);
+    } finally { busy = false; $("logo").classList.remove("busy"); send.disabled = !input.value.trim(); }
+  }
+
+  // ---------- voix ----------
+  function speak(text) {
+    if (!("speechSynthesis" in window) || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = "fr-FR"; u.rate = 1.05;
+    const fr = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("fr"));
+    u.voice = fr.find((v) => /Thomas|Amélie|Google|Premium|Enhanced/i.test(v.name)) || fr[0] || null;
+    speechSynthesis.speak(u);
+  }
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false, finalText = "";
+  if (!Rec) mic.style.display = "none";
+  mic.onclick = () => {
+    if (!Rec) return;
+    if (listening) { rec.stop(); return; }
+    speechSynthesis?.cancel();
+    rec = new Rec(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false;
+    finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (const r of e.results) (r.isFinal ? (finalText += r[0].transcript) : (interim += r[0].transcript));
+      input.value = (finalText + interim).trim(); autosize();
+    };
+    rec.onend = () => { listening = false; mic.classList.remove("on"); if (input.value.trim()) ask(input.value, true); };
+    rec.onerror = (e) => { if (e.error === "not-allowed") add(div("msg err-msg", "Micro refusé : autorise-le dans les réglages du navigateur.")); };
+    rec.start(); listening = true; mic.classList.add("on");
+  };
+
+  // ---------- saisie ----------
+  function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; send.disabled = busy || !input.value.trim(); }
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value); } });
+  send.onclick = () => ask(input.value);
+  document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => ask(c.textContent)));
+  $("voiceOut").checked = store.get("voiceOut") === "1";
+  $("voiceOut").onchange = (e) => store.set("voiceOut", e.target.checked ? "1" : "0");
+
+  $("newChat").onclick = async () => {
+    const sid = store.get("session"); store.del("session");
+    feed.innerHTML = ""; feed.appendChild(div("empty", `<h1>Nouvelle conversation</h1><div>Je t’écoute.</div>`)).id = "empty";
+    $("modelInfo").textContent = "";
+    if (sid) api(`/api/v1/sessions/${encodeURIComponent(sid)}`, { method: "DELETE" }).catch(() => {});
+  };
+
+  // ---------- réglages ----------
+  const dlg = $("settings");
+  function openSettings() { $("srv").value = store.get("url"); $("key").value = store.get("key"); $("status").textContent = ""; dlg.showModal(); }
+  $("openSettings").onclick = openSettings;
+  $("closeSettings").onclick = () => dlg.close();
+  async function testServer(url, key) {
+    const res = await fetch(url.replace(/\/+$/, "") + "/health", { headers: { "X-Jarvis-Key": key } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+  function showHealth(h) {
+    const c = h.connectors || {};
+    const names = { taf_ops: "TAF OPS", outlook: "Outlook", google_calendar: "Google Agenda", web: "Web" };
+    $("status").innerHTML = `✅ Connecté (v${esc(h.version || "?")})<div class="conn">` +
+      Object.entries(names).map(([k, n]) => `<span class="${c[k] ? "on" : "off"}">${c[k] ? "●" : "○"} ${n}</span>`).join("") + "</div>";
+    $("sub").textContent = Object.entries(names).filter(([k]) => c[k]).map(([, n]) => n).join(" · ") || "Connecté — aucun connecteur";
+  }
+  $("testSrv").onclick = async () => {
+    $("status").textContent = "Test en cours…";
+    try { showHealth(await testServer($("srv").value, $("key").value)); }
+    catch (e) { $("status").textContent = "❌ Serveur injoignable (" + e.message + ")"; }
+  };
+  $("saveSettings").onclick = async () => {
+    store.set("url", $("srv").value.trim()); store.set("key", $("key").value.trim());
+    try { showHealth(await testServer(store.get("url"), store.get("key"))); setTimeout(() => dlg.close(), 700); }
+    catch (e) { $("status").textContent = "Enregistré, mais le serveur ne répond pas (" + e.message + ")."; }
+  };
+
+  (async () => {
+    const { url, key } = cfg();
+    if (!url || !key) { openSettings(); return; }
+    try { showHealth(await testServer(url, key)); } catch { $("sub").textContent = "Serveur injoignable"; }
+  })();
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
