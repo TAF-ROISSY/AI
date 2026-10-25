@@ -162,6 +162,19 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   let busy = false, lastFromVoice = false;
 
   const cfg = () => ({ url: store.get("url").replace(/\/+$/, ""), key: store.get("key") });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function fetchRetry(url, init, tries = 3) {
+    for (let i = 0; ; i++) {
+      try {
+        const res = await fetch(url, init);
+        if ((res.status === 429 || res.status === 502) && i < tries - 1) { await wait(1500 * (i + 1)); continue; }
+        return res;
+      } catch (e) {
+        if (e.name === "AbortError" || i >= tries - 1) throw e;
+        await wait(1500 * (i + 1));  // serveur en cours de réveil : on réessaie
+      }
+    }
+  }
 
   async function api(path, opts = {}) {
     const { url, key } = cfg();
@@ -169,7 +182,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
     try {
-      const res = await fetch(url + path, {
+      const res = await fetchRetry(url + path, {
         method: opts.method || "GET", signal: ctrl.signal,
         headers: { "X-Jarvis-Key": key, ...(opts.body ? { "Content-Type": "application/json" } : {}) },
         body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -312,7 +325,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
   $("openSettings").onclick = openSettings;
   $("closeSettings").onclick = () => dlg.close();
   async function testServer(url, key) {
-    const res = await fetch(url.replace(/\/+$/, "") + "/health", { headers: { "X-Jarvis-Key": key } });
+    const res = await fetchRetry(url.trim().replace(/\/+$/, "") + "/health", { headers: { "X-Jarvis-Key": key.trim() } });
     if (!res.ok) throw new Error("HTTP " + res.status);
     return res.json();
   }
@@ -324,7 +337,7 @@ input[type=url],input[type=password],input[type=text]{width:100%;padding:11px 12
     $("sub").textContent = Object.entries(names).filter(([k]) => c[k]).map(([, n]) => n).join(" · ") || "Connecté — aucun connecteur";
   }
   $("testSrv").onclick = async () => {
-    $("status").textContent = "Test en cours…";
+    $("status").textContent = "Test en cours… (le premier réveil peut prendre quelques secondes)";
     try { showHealth(await testServer($("srv").value, $("key").value)); }
     catch (e) { $("status").textContent = "❌ Serveur injoignable (" + e.message + ")"; }
   };
