@@ -165,7 +165,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.2</small></h2>
+  <h2>RÉGLAGES <small>v2.3</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -522,7 +522,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   // ================= voix =================
   // Voix naturelle (Amazon Polly via le serveur) ; repli sur la voix du téléphone.
   const audio = new Audio(); audio.preload = "auto"; audio.playsInline = true;
-  let actx = null, analyser = null, unlocked = false, meter = null;
+  let unlocked = false, meter = null;
   function silentWav() {  // 0,1 s de silence, format WAV valide pour iOS
     const n = 2205, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
     const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
@@ -531,19 +531,15 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
     v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
     return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
   }
-  function unlockAudio() {  // iOS : l'audio doit être « débloqué » par un geste de l'utilisateur
-    if (unlocked) return; unlocked = true;
-    try {
-      actx = new (window.AudioContext || window.webkitAudioContext)();
-      const src = actx.createMediaElementSource(audio);
-      analyser = actx.createAnalyser(); analyser.fftSize = 256;
-      src.connect(analyser); analyser.connect(actx.destination);
-      actx.resume();
-    } catch {}
+  function unlockAudio() {  // débloque la lecture audio iOS — jamais pendant l'écoute du micro
+    if (unlocked || listening) return; unlocked = true;
     audio.src = silentWav();
-    audio.play().catch(() => {});
+    audio.play().then(() => audio.pause()).catch(() => { unlocked = false; });
   }
-  document.addEventListener("pointerdown", unlockAudio, { once: true });
+  // Débloque au premier toucher… sauf sur le micro / le réacteur (sinon iOS coupe la captation)
+  document.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest("#mic, #reactor")) unlockAudio();
+  });
   function stopVoice() { audio.pause(); speechSynthesis?.cancel(); clearInterval(meter); }
   function phoneVoice(text) {
     if (!("speechSynthesis" in window) || !text) { setMode("idle"); return; }
@@ -573,14 +569,10 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       audio.src = URL.createObjectURL(blob);
       audio.onplay = () => {
         setMode("speak");
-        if (analyser) {  // le réacteur suit la vraie amplitude de la voix
-          const buf = new Uint8Array(analyser.frequencyBinCount);
-          meter = setInterval(() => { analyser.getByteFrequencyData(buf);
-            let sum = 0; for (let i = 2; i < 40; i++) sum += buf[i]; pulse(Math.min(1, sum / 38 / 160)); }, 50);
-        } else meter = setInterval(() => pulse(.4 + Math.random() * .5), 110);
+        let ph = 0;  // pulsation façon voix (syllabes) pendant la lecture
+        meter = setInterval(() => { ph += .55; pulse(.35 + .4 * Math.abs(Math.sin(ph)) + Math.random() * .25); }, 90);
       };
       audio.onended = audio.onpause = () => { clearInterval(meter); if (R.mode === "speak") setMode("idle"); };
-      actx?.resume();
       await audio.play();
     } catch (e) {
       phoneVoice(text);  // serveur ou lecture indisponible : voix du téléphone
@@ -588,23 +580,38 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   }
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, finalText = "";
-  if (!Rec) mic.style.display = "none";
+
+  const MIC_ERR = {
+    "not-allowed": "Micro refusé. Réglages iPhone › Safari › Micro (et Reconnaissance vocale) : autorise taf-roissy.github.io.",
+    "service-not-allowed": "La dictée est désactivée. Réglages iPhone › Général › Clavier : active « Dictée », puis réessaie.",
+    "audio-capture": "Aucun micro disponible (déjà utilisé par une autre appli ?).",
+    "network": "Reconnaissance vocale indisponible sans réseau.",
+    "no-speech": "Je n’ai rien entendu. Touche le micro et parle juste après le signal rouge.",
+  };
+  function micError(msg) { add(el("panel err", `<div class="body">${esc(msg)}</div>`)); setMode("error");
+    setTimeout(() => R.mode === "error" && setMode("idle"), 2500); }
   function toggleMic() {
-    if (!Rec || busy) return;
+    if (!Rec) { micError("La reconnaissance vocale n’est pas disponible dans ce navigateur. Ouvre Jarvis dans Safari, ou utilise le micro du clavier."); return; }
+    if (busy) return;
     if (listening) { rec.stop(); return; }
     stopVoice();
-    rec = new Rec(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false;
-    finalText = "";
-    rec.onsoundstart = () => pulse(.6);
+    rec = new Rec(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    finalText = ""; let heard = false, failed = false;
+    rec.onstart = () => { listening = true; mic.classList.add("on"); setMode("listen"); input.placeholder = "Je vous écoute…"; };
+    rec.onsoundstart = rec.onspeechstart = () => { heard = true; pulse(.6); };
     rec.onresult = (e) => {
-      let interim = "";
+      heard = true; let interim = "";
       for (const r of e.results) (r.isFinal ? (finalText += r[0].transcript) : (interim += r[0].transcript));
       input.value = (finalText + interim).trim(); autosize(); pulse(.5 + Math.random() * .5);
     };
-    rec.onend = () => { listening = false; mic.classList.remove("on"); if (R.mode === "listen") setMode("idle");
-      if (input.value.trim()) ask(input.value, true); };
-    rec.onerror = (e) => { if (e.error === "not-allowed") add(el("panel err", `<div class="body">Micro refusé : autorise-le dans les réglages de Safari.</div>`)); };
-    rec.start(); listening = true; mic.classList.add("on"); setMode("listen");
+    rec.onerror = (e) => { failed = true; micError(MIC_ERR[e.error] || "Micro : " + e.error); };
+    rec.onend = () => {
+      listening = false; mic.classList.remove("on"); input.placeholder = "Votre demande, monsieur ?";
+      if (R.mode === "listen") setMode("idle");
+      if (input.value.trim()) ask(input.value, true);
+      else if (!failed) micError(heard ? "Je n’ai pas compris, peux-tu répéter ?" : MIC_ERR["no-speech"]);
+    };
+    try { rec.start(); } catch (err) { micError("Impossible de démarrer le micro : " + err.message); }
   }
   mic.onclick = toggleMic;
   cv.onclick = toggleMic;
