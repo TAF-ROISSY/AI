@@ -165,7 +165,7 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 </div>
 
 <dialog id="settings">
-  <h2>RÉGLAGES <small>v2.3</small></h2>
+  <h2>RÉGLAGES <small>v2.4</small></h2>
   <div class="sec" style="border:0;padding-top:0">
     <h3>SERVEUR</h3>
     <label class="f" for="srv">Adresse</label>
@@ -590,9 +590,80 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
   };
   function micError(msg) { add(el("panel err", `<div class="body">${esc(msg)}</div>`)); setMode("error");
     setTimeout(() => R.mode === "error" && setMode("idle"), 2500); }
+  // ---- Écoute via le serveur (Amazon Transcribe) : fonctionne aussi depuis l'écran d'accueil ----
+  const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  const useServerSTT = () => store.get("stt") === "server" || standalone || !Rec;
+  let recState = null;
+  function toWav(chunks, inRate) {
+    const total = chunks.reduce((n, c) => n + c.length, 0), ratio = inRate / 16000;
+    const out = new Int16Array(Math.floor(total / ratio));
+    const all = new Float32Array(total); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+    for (let i = 0; i < out.length; i++) {
+      const a = Math.floor(i * ratio), b = Math.min(all.length, Math.floor((i + 1) * ratio));
+      let sum = 0; for (let j = a; j < b; j++) sum += all[j];
+      const v = Math.max(-1, Math.min(1, sum / Math.max(1, b - a)));
+      out[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+    }
+    const buf = new ArrayBuffer(44 + out.length * 2), v = new DataView(buf);
+    const w = (off, t) => [...t].forEach((c, i) => v.setUint8(off + i, c.charCodeAt(0)));
+    w(0, "RIFF"); v.setUint32(4, 36 + out.length * 2, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 16000, true); v.setUint32(28, 32000, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, out.length * 2, true);
+    new Int16Array(buf, 44).set(out);
+    return new Blob([buf], { type: "audio/wav" });
+  }
+  async function startServerRecording() {
+    unlockAudio();  // geste utilisateur : débloque aussi la lecture de la réponse vocale
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true,
+        noiseSuppression: true, autoGainControl: true } });
+    } catch (e) {
+      micError(e.name === "NotAllowedError" ? "Micro refusé. Réglages iPhone › Safari › Micro : autorise taf-roissy.github.io (ou réponds « Autoriser » à la question)." : "Micro indisponible : " + e.message);
+      return;
+    }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();
+    const src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1);
+    const chunks = [], t0 = performance.now();
+    let spoke = false, lastVoice = t0;
+    recState = { stream, ctx, src, proc, chunks, stopped: false };
+    proc.onaudioprocess = (e) => {
+      const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d));
+      let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] * d[i];
+      const rms = Math.sqrt(sum / (d.length / 4)), now = performance.now();
+      pulse(Math.min(1, rms * 9));
+      if (rms > .025) { spoke = true; lastVoice = now; }
+      if ((spoke && now - lastVoice > 1400) || (!spoke && now - t0 > 8000) || now - t0 > 45000) stopServerRecording();
+    };
+    src.connect(proc); proc.connect(ctx.destination);
+    listening = true; mic.classList.add("on"); setMode("listen"); input.placeholder = "Je vous écoute… (touchez pour terminer)";
+    recState.spoke = () => spoke;
+  }
+  async function stopServerRecording() {
+    const r = recState; if (!r || r.stopped) return; r.stopped = true; recState = null;
+    try { r.proc.disconnect(); r.src.disconnect(); } catch {}
+    r.stream.getTracks().forEach((t) => t.stop());
+    const rate = r.ctx.sampleRate; r.ctx.close().catch(() => {});
+    listening = false; mic.classList.remove("on"); input.placeholder = "Votre demande, monsieur ?";
+    if (!r.spoke()) { micError(MIC_ERR["no-speech"]); return; }
+    setMode("think"); input.placeholder = "Transcription…";
+    try {
+      const { url, key } = cfg();
+      const res = await fetchRetry(url + "/api/v1/stt", { method: "POST",
+        headers: { "X-Jarvis-Key": key, "Content-Type": "audio/wav" }, body: toWav(r.chunks, rate) }, 2);
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || "HTTP " + res.status);
+      input.placeholder = "Votre demande, monsieur ?";
+      if (!d.text) { micError("Je n’ai pas compris, peux-tu répéter ?"); return; }
+      input.value = d.text; autosize(); ask(d.text, true);
+    } catch (e) { input.placeholder = "Votre demande, monsieur ?"; micError("Transcription impossible : " + e.message); }
+  }
+
   function toggleMic() {
-    if (!Rec) { micError("La reconnaissance vocale n’est pas disponible dans ce navigateur. Ouvre Jarvis dans Safari, ou utilise le micro du clavier."); return; }
     if (busy) return;
+    if (recState) { stopServerRecording(); return; }
+    if (useServerSTT()) { stopVoice(); startServerRecording(); return; }
     if (listening) { rec.stop(); return; }
     stopVoice();
     rec = new Rec(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
@@ -604,14 +675,23 @@ input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
       for (const r of e.results) (r.isFinal ? (finalText += r[0].transcript) : (interim += r[0].transcript));
       input.value = (finalText + interim).trim(); autosize(); pulse(.5 + Math.random() * .5);
     };
-    rec.onerror = (e) => { failed = true; micError(MIC_ERR[e.error] || "Micro : " + e.error); };
+    rec.onerror = (e) => {
+      failed = true;
+      if (e.error === "service-not-allowed" || e.error === "not-allowed") {
+        store.set("stt", "server");  // le navigateur refuse : on bascule sur l'écoute serveur
+        listening = false; mic.classList.remove("on"); setMode("idle");
+        startServerRecording(); return;
+      }
+      micError(MIC_ERR[e.error] || "Micro : " + e.error);
+    };
     rec.onend = () => {
+      if (recState) return;
       listening = false; mic.classList.remove("on"); input.placeholder = "Votre demande, monsieur ?";
       if (R.mode === "listen") setMode("idle");
       if (input.value.trim()) ask(input.value, true);
       else if (!failed) micError(heard ? "Je n’ai pas compris, peux-tu répéter ?" : MIC_ERR["no-speech"]);
     };
-    try { rec.start(); } catch (err) { micError("Impossible de démarrer le micro : " + err.message); }
+    try { rec.start(); } catch (err) { store.set("stt", "server"); startServerRecording(); }
   }
   mic.onclick = toggleMic;
   cv.onclick = toggleMic;
