@@ -675,7 +675,7 @@ $("pdf").onclick=async()=>{
     const W=210, M=18; let y=M;
     const ink=[27,33,40], mute=[93,104,116], acc=[226,88,11], line=[213,218,222];
     const today=new Date(); const dstr=today.toLocaleDateString("fr-FR");
-    const num="D"+today.getFullYear()+String(today.getMonth()+1).padStart(2,"0")+String(today.getDate()).padStart(2,"0")+"-"+String(today.getHours()).padStart(2,"0")+String(today.getMinutes()).padStart(2,"0");
+    const devisNo="D"+today.getFullYear()+String(today.getMonth()+1).padStart(2,"0")+String(today.getDate()).padStart(2,"0")+"-"+String(today.getHours()).padStart(2,"0")+String(today.getMinutes()).padStart(2,"0");
     const valid=new Date(today.getTime()+num_(S.dValid||30)*864e5).toLocaleDateString("fr-FR");
     function num_(v){ return Math.max(1,Math.round(+v||30)); }
 
@@ -688,7 +688,7 @@ $("pdf").onclick=async()=>{
     doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...acc);
     doc.text("DEVIS", W-M, y+7, {align:"right"});
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(...mute);
-    doc.text(`N° ${num}`, W-M, y+13, {align:"right"});
+    doc.text(`N° ${devisNo}`, W-M, y+13, {align:"right"});
     doc.text(`Date : ${dstr}  ·  Valable jusqu'au ${valid}`, W-M, y+18, {align:"right"});
     y+=28;
     if(S.dClient){ doc.setFontSize(9); doc.text("POUR", M, y); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...ink); doc.text(S.dClient, M, y+6); y+=13; }
