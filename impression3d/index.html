@@ -101,16 +101,30 @@ td input[type=number]{width:74px}
 .status.err{border-left-color:#c2412d}
 .status ul{margin:6px 0 0;padding-left:18px}
 .fname{display:block;font-size:11px;color:var(--muted);max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-.thumb{position:relative;width:96px;height:96px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:4px;cursor:pointer}
-.thumb img{width:100%;height:100%;object-fit:contain}
-.thumb[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--soft)}
-.thumb span{position:absolute;left:4px;bottom:2px;font-family:var(--f-mono);font-size:10px;color:#5d6874}
-.thumb.add{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);background:var(--bg);text-align:center}
-textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-height:72px;resize:vertical}
-textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.client-price{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 14px;border-radius:8px;background:var(--soft)}
-.client-price .v{font-family:var(--f-display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
+.save-box{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:12px;border-top:1px dashed var(--line)}
+.save-box .full{grid-column:1/-1}
+.hist{margin-top:28px}
+.hist-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
+.hist-head h2{font-family:var(--f-display);font-weight:800;font-size:28px;margin:0;letter-spacing:-.01em}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi .l{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--f-display);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .d{font-size:12px;color:var(--muted)}
+.kpi.goal{grid-column:1/-1;display:flex;flex-direction:column;gap:8px}
+.gauge{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.gauge i{display:block;height:100%;background:var(--ok)}
+.pos{color:var(--ok)} .neg{color:#c2412d}
+.pill{display:inline-block;font:inherit;font-size:12px;border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.pill.ok{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.htable{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px}
+.htable table{min-width:760px}
+.htable td{border-bottom:1px solid var(--line);font-size:14px}
+.htable tr:last-child td{border-bottom:0}
+.sub{display:block;font-size:11px;color:var(--muted)}
+.empty{color:var(--muted);padding:18px 4px;font-size:14px}
+.two{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
 .badge{position:fixed;right:max(10px, env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));font-family:var(--f-mono);font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
 .foot{color:var(--muted);font-size:12px;margin-top:20px;max-width:75ch}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
@@ -214,31 +228,6 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
           <label class="f">Marge visée <span class="u">%</span><input id="marge" type="number" min="0" step="5"></label>
         </div>
       </section>
-      <!-- Devis client -->
-      <section class="card">
-        <h2>Devis client <span class="tag">PDF</span></h2>
-        <p class="hint">Le visuel et les dimensions sont repris du fichier importé. Le prix client est arrondi à l'euro supérieur.</p>
-        <div class="grid">
-          <label class="f">Client<input id="dClient" type="text" placeholder="Nom du client"></label>
-          <label class="f">Votre nom / atelier<input id="dEmet" type="text"></label>
-          <label class="f">Contact<input id="dContact" type="text" placeholder="Téléphone ou e-mail"></label>
-          <label class="f">Validité <span class="u">jours</span><input id="dValid" type="number" min="1" step="1"></label>
-        </div>
-        <div class="grid" style="margin-top:12px;grid-template-columns:1fr">
-          <label class="f">Description<textarea id="dDesc" placeholder="Ex. figurine décorative imprimée en PLA, finition brute"></textarea></label>
-          <label class="f">Dimensions (une ligne par pièce, en mm)<textarea id="dDims" placeholder="Importez un fichier Bambu Studio pour les remplir automatiquement"></textarea></label>
-        </div>
-        <div class="f" style="margin-top:12px;font-size:12px;color:var(--muted)">Visuels à inclure
-          <div class="thumbs" id="thumbs"></div>
-          <input type="file" id="photo" accept="image/png,image/jpeg" hidden>
-        </div>
-        <div class="client-price">
-          <span>Prix client <span class="callout" id="dPriceTxt"></span></span>
-          <span class="v" id="dPrice">0 €</span>
-          <button type="button" class="primary" id="pdf">Télécharger le devis PDF</button>
-        </div>
-        <div class="status" id="pdfStatus" hidden></div>
-      </section>
     </div>
 
     <!-- Ticket -->
@@ -259,17 +248,52 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
           <span id="tVenteLbl">Prix de vente conseillé</span><span class="v" id="tVente">0</span>
           <span class="callout" id="tMargeTxt">marge</span><span></span>
         </div>
-        <button type="button" class="primary" id="copy">Copier le détail</button>
+        <div class="save-box">
+          <label class="f full">Client<input id="hClient" type="text" placeholder="Nom du client"></label>
+          <label class="f">Prix facturé <span class="u">€</span><input id="hPrix" type="number" min="0" step="1"></label>
+          <label class="f">Payé ?<select id="hPaye"><option value="0">Pas encore</option><option value="1">Oui</option></select></label>
+          <button type="button" class="primary full" id="hSave">Enregistrer la demande</button>
+          <span class="callout full" id="hMsg"></span>
+        </div>
+        <button type="button" class="ghost" id="copy">Copier le détail</button>
       </div>
     </aside>
   </div>
 
-  <span class="badge">v1.3</span>
-  <p class="foot">Prix filaments et imprimantes : valeurs indicatives Bambu Lab Europe, à vérifier sur la boutique au moment de la commande. Vos réglages et les prix que vous modifiez sont mémorisés dans ce navigateur. Le fichier importé est lu sur votre appareil, il n'est envoyé nulle part.</p>
+  <section class="hist" id="historique">
+    <div class="hist-head">
+      <h2>Historique des demandes</h2>
+      <div class="row-tools" style="margin:0">
+        <button type="button" id="hExport">Sauvegarder</button>
+        <label class="pill" for="hImport" style="padding:8px 12px;border-radius:7px;font-size:15px">Restaurer</label>
+        <input type="file" id="hImport" accept=".json" hidden>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="two">
+      <div class="htable"><table>
+        <thead><tr><th>Date</th><th>Client</th><th>Projet</th><th style="text-align:right">Filament</th><th style="text-align:right">Coût revient</th><th style="text-align:right">Facturé</th><th style="text-align:right">Marge</th><th>Paiement</th><th></th></tr></thead>
+        <tbody id="hRows"></tbody>
+      </table><div class="empty" id="hEmpty">Aucune demande enregistrée. Calculez une impression, puis cliquez sur « Enregistrer la demande ».</div></div>
+      <div class="card">
+        <h2>Achats de filament</h2>
+        <p class="hint">Notez vos commandes Bambu Lab pour voir si les clients les ont remboursées.</p>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+          <label class="f">Date<input id="aDate" type="date"></label>
+          <label class="f">Montant <span class="u">€</span><input id="aMont" type="number" min="0" step="0.01"></label>
+          <label class="f" style="grid-column:1/-1">Détail<input id="aDet" type="text" placeholder="Ex. 4 bobines PLA Basic"></label>
+        </div>
+        <div class="row-tools"><button type="button" class="primary" id="aAdd">Ajouter l'achat</button></div>
+        <div class="lines" id="aList" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </section>
+
+  <span class="badge">v1.4</span>
+  <p class="foot">Prix filaments et imprimantes : valeurs indicatives Bambu Lab Europe, à vérifier sur la boutique au moment de la commande. Vos réglages, l'historique et les achats sont mémorisés dans ce navigateur : utilisez « Sauvegarder » de temps en temps pour en garder une copie. Le fichier importé est lu sur votre appareil, il n'est envoyé nulle part.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
 const PRINTERS = {
@@ -361,7 +385,7 @@ function renderFils(){
   calc();
 }
 $("addFil").onclick=()=>{ S.fils.push({type:"PLA Basic",col:"#2e7dd7",prix:22.99,poids:1000,g:0,pu:0,tour:0}); renderFils(); };
-$("reset").onclick=()=>{ const keep={}; ["dClient","dEmet","dContact","dValid","dDesc","dDims","tarifs"].forEach(k=>keep[k]=S[k]); S=Object.assign(structuredClone(EXAMPLE),keep); fillInputs(); };
+$("reset").onclick=()=>{ const keep={}; ["tarifs","hist","achats"].forEach(k=>keep[k]=S[k]); S=Object.assign(structuredClone(EXAMPLE),keep); fillInputs(); };
 
 const COLORS = {mat:"var(--accent)", purge:"var(--purge)", elec:"#e0b100", amort:"#3a86c8", echec:"#c2412d", mo:"var(--ok)", conso:"var(--muted)"};
 let last=null;
@@ -492,7 +516,6 @@ async function handleFile(file){
     if(/\.gcode$/i.test(file.name)){
       const an=analyseGcode(await file.text());
       applyResult([{an, plate:null}], null);
-      if(an.bbox){ S.dDims=`${FNAME} : ${fmtMM(an.bbox.x)} × ${fmtMM(an.bbox.y)} × ${fmtMM(an.bbox.z)} mm`; $("dDims").value=S.dDims; save(); }
       return;
     }
     if(typeof JSZip==="undefined") throw new Error("La bibliothèque de lecture des .3mf n'a pas pu se charger. Vérifiez la connexion et rechargez la page.");
@@ -517,14 +540,6 @@ async function handleFile(file){
       parts.push({an: gf ? analyseGcode(await gf.async("string")) : null, plate:plates[k]});
     }
     applyResult(parts, proj);
-    // Visuels et dimensions pour le devis
-    DV.thumbs=DV.thumbs.filter(t=>t.own);
-    for(const p of plates){ const f=zip.file(`Metadata/plate_${p.index}.png`); if(f) DV.thumbs.push({src:"data:image/png;base64,"+await f.async("base64"), label:"Plateau "+p.index, sel:false, own:false}); }
-    const firstAuto=DV.thumbs.find(t=>!t.own); if(firstAuto && !DV.thumbs.some(t=>t.sel)) firstAuto.sel=true;
-    let dims=[]; try{ dims=await meshDims(zip); }catch(e){}
-    if(!dims.length) dims=parts.filter(x=>x.an&&x.an.bbox).map(x=>({name:(parts.length>1?"Plateau "+x.plate.index:"Pièce"), ...x.an.bbox}));
-    S.dDims = dims.slice(0,12).map(d=>`${d.name} : ${fmtMM(d.x)} × ${fmtMM(d.y)} × ${fmtMM(d.z)} mm`).join("\n") + (dims.length>12?`\n… et ${dims.length-12} autres pièces`:"");
-    $("dDims").value=S.dDims; renderThumbs(); save();
   }catch(err){ st.className="status err"; st.textContent=err.message||String(err); }
 }
 
@@ -580,184 +595,89 @@ drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) handleF
 
 fillInputs();
 
-/* ===== Devis client PDF ===== */
-const DV={thumbs:[]};
-const fmtMM=v=>(Math.round(v*10)/10).toLocaleString("fr-FR");
+/* ===== Historique ===== */
 const ceilEur=v=>Math.ceil(Math.round(v*100)/100 - 1e-9);
-const intEur=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" €";
+S.hist=S.hist||[]; S.achats=S.achats||[];
+let prixTouched=false;
+$("hPrix").addEventListener("input",()=>{ prixTouched=true; });
+const _calc=calc; calc=function(){ _calc(); if(!prixTouched && last) $("hPrix").value=ceilEur(last.vente*last.qte); };
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fdate=d=>d? d.split("-").reverse().join("/") : "";
+function flash(t){ $("hMsg").innerHTML=t; setTimeout(()=>$("hMsg").textContent="",4000); }
 
-function parseTransform(t){
-  if(!t) return [1,0,0,0,1,0,0,0,1,0,0,0];
-  const a=t.trim().split(/\s+/).map(Number); return a.length===12?a:[1,0,0,0,1,0,0,0,1,0,0,0];
-}
-function mul(a,b){ // applique a puis b (convention 3MF : ligne × matrice)
-  const r=new Array(12);
-  for(let i=0;i<3;i++) for(let j=0;j<3;j++) r[i*3+j]=a[i*3]*b[j]+a[i*3+1]*b[3+j]+a[i*3+2]*b[6+j];
-  for(let j=0;j<3;j++) r[9+j]=a[9]*b[j]+a[10]*b[3+j]+a[11]*b[6+j]+b[9+j];
-  return r;
-}
-async function meshDims(zip){
-  const files={};
-  const getFile=async path=>{ path=path.replace(/^\//,""); if(!(path in files)){ const f=zip.file(path); files[path]=f?indexObjects(await f.async("string")):{}; } return files[path]; };
-  function indexObjects(txt){
-    const objs={}; const re=/<object\b([^>]*)>([\s\S]*?)<\/object>/g; let m;
-    while(m=re.exec(txt)){
-      const id=/\bid="([^"]+)"/.exec(m[1]); if(!id) continue;
-      const body=m[2]; const o={};
-      if(body.includes("<mesh")){ const vs=[]; const vr=/<vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g; let v; while(v=vr.exec(body)) vs.push(+v[1],+v[2],+v[3]); o.v=vs; }
-      const comps=[]; const cr=/<component\b([^>]*)\/?>/g; let c;
-      while(c=cr.exec(body)){ const a=c[1]; comps.push({path:(/path="([^"]+)"/.exec(a)||[])[1]||null, id:(/objectid="([^"]+)"/.exec(a)||[])[1], tf:parseTransform((/transform="([^"]+)"/.exec(a)||[])[1])}); }
-      o.c=comps; objs[id[1]]=o;
-    }
-    return objs;
-  }
-  const box={};
-  async function walk(path,id,tf,b,depth){
-    if(depth>6) return; const objs=await getFile(path); const o=objs[id]; if(!o) return;
-    if(o.v){ const v=o.v; for(let i=0;i<v.length;i+=3){ const x=v[i],y=v[i+1],z=v[i+2];
-      const X=x*tf[0]+y*tf[3]+z*tf[6]+tf[9], Y=x*tf[1]+y*tf[4]+z*tf[7]+tf[10], Z=x*tf[2]+y*tf[5]+z*tf[8]+tf[11];
-      if(X<b.x0)b.x0=X; if(X>b.x1)b.x1=X; if(Y<b.y0)b.y0=Y; if(Y>b.y1)b.y1=Y; if(Z<b.z0)b.z0=Z; if(Z>b.z1)b.z1=Z; } }
-    for(const c of o.c) await walk(c.path||path, c.id, mul(c.tf,tf), b, depth+1);
-  }
-  const root=zip.file("3D/3dmodel.model"); if(!root) return [];
-  const rtxt=await root.async("string"); files["3D/3dmodel.model"]=indexObjects(rtxt);
-  // noms
-  const names={}; try{ const ms=zip.file("Metadata/model_settings.config"); if(ms){ const t=await ms.async("string"); const re=/<object id="([^"]+)">\s*<metadata key="name" value="([^"]*)"/g; let m; while(m=re.exec(t)) names[m[1]]=m[2]; } }catch(e){}
-  const items=[]; const ir=/<item\b([^>]*)\/?>/g; let m;
-  while(m=ir.exec(rtxt)){ const a=m[1]; if(/printable="0"/.test(a)) continue; items.push({id:(/objectid="([^"]+)"/.exec(a)||[])[1], tf:parseTransform((/transform="([^"]+)"/.exec(a)||[])[1])}); }
-  const out=[];
-  for(const it of items){
-    const b={x0:1e9,y0:1e9,z0:1e9,x1:-1e9,y1:-1e9,z1:-1e9};
-    await walk("3D/3dmodel.model", it.id, it.tf, b, 0);
-    if(b.x1>b.x0) out.push({name:(names[it.id]||"Pièce "+(out.length+1)).replace(/\.(stl|3mf|obj|step)$/i,""), x:b.x1-b.x0, y:b.y1-b.y0, z:b.z1-b.z0});
-  }
-  return out;
-}
-
-function renderThumbs(){
-  const box=$("thumbs"); box.innerHTML="";
-  DV.thumbs.forEach((t,i)=>{
-    const b=document.createElement("button"); b.type="button"; b.className="thumb"; b.setAttribute("aria-pressed",t.sel); b.title="Inclure ou retirer ce visuel";
-    b.innerHTML=`<img alt="${t.label}" src="${t.src}"><span>${t.label}</span>`;
-    b.onclick=()=>{ t.sel=!t.sel; b.setAttribute("aria-pressed",t.sel); };
-    box.appendChild(b);
-  });
-  const add=document.createElement("label"); add.className="thumb add"; add.htmlFor="photo"; add.textContent="+ Ajouter une photo"; box.appendChild(add);
-}
-$("photo").addEventListener("change",e=>{
-  const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{ DV.thumbs.unshift({src:r.result,label:"Photo",sel:true,own:true}); renderThumbs(); };
-  r.readAsDataURL(f); e.target.value="";
-});
-
-const DFIELDS={dClient:"",dEmet:"",dContact:"",dValid:30,dDesc:"",dDims:""};
-Object.keys(DFIELDS).forEach(k=>{ if(S[k]==null) S[k]=DFIELDS[k]; $(k).value=S[k]; $(k).addEventListener("input",e=>{ S[k]= k==="dValid"?num(e.target.value):e.target.value; save(); }); });
-
-function clientPrice(){
-  if(!last) return {unit:0,total:0,qte:1};
-  const unit=ceilEur(last.vente); return {unit, total:unit*last.qte, qte:last.qte};
-}
-function updateClientPrice(){
-  const c=clientPrice();
-  $("dPrice").textContent=intEur(c.total);
-  $("dPriceTxt").textContent = c.qte>1 ? `(${c.qte} × ${intEur(c.unit)})` : `(arrondi depuis ${eur(last?last.vente:0)})`;
-}
-const _calc=calc; calc=function(){ _calc(); updateClientPrice(); };
-
-function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
-function hexRgb(h){ const n=parseInt(h.slice(1),16); return [n>>16&255,n>>8&255,n&255]; }
-
-$("pdf").onclick=async()=>{
-  const st=$("pdfStatus"); st.hidden=false; st.className="status"; st.textContent="Création du PDF…";
-  try{
-    if(!window.jspdf) throw new Error("Le module PDF n'a pas pu se charger. Vérifiez la connexion et rechargez la page.");
-    const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"});
-    const W=210, M=18; let y=M;
-    const ink=[27,33,40], mute=[93,104,116], acc=[226,88,11], line=[213,218,222];
-    const today=new Date(); const dstr=today.toLocaleDateString("fr-FR");
-    const devisNo="D"+today.getFullYear()+String(today.getMonth()+1).padStart(2,"0")+String(today.getDate()).padStart(2,"0")+"-"+String(today.getHours()).padStart(2,"0")+String(today.getMinutes()).padStart(2,"0");
-    const valid=new Date(today.getTime()+num_(S.dValid||30)*864e5).toLocaleDateString("fr-FR");
-    function num_(v){ return Math.max(1,Math.round(+v||30)); }
-
-    // En-tête
-    doc.setFillColor(...acc); doc.rect(0,0,W,4,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(...ink);
-    doc.text(S.dEmet||"Impression 3D", M, y+6);
-    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(...mute);
-    if(S.dContact) doc.text(S.dContact, M, y+12);
-    doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...acc);
-    doc.text("DEVIS", W-M, y+7, {align:"right"});
-    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(...mute);
-    doc.text(`N° ${devisNo}`, W-M, y+13, {align:"right"});
-    doc.text(`Date : ${dstr}  ·  Valable jusqu'au ${valid}`, W-M, y+18, {align:"right"});
-    y+=28;
-    if(S.dClient){ doc.setFontSize(9); doc.text("POUR", M, y); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...ink); doc.text(S.dClient, M, y+6); y+=13; }
-    doc.setDrawColor(...line); doc.setLineWidth(.3); doc.line(M,y,W-M,y); y+=9;
-
-    // Titre + description
-    doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.setTextColor(...ink);
-    const tl=doc.splitTextToSize(S.nom||"Impression 3D", W-2*M); doc.text(tl, M, y); y+=tl.length*7;
-    if(S.dDesc){ doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(...mute); const dl=doc.splitTextToSize(S.dDesc, W-2*M); doc.text(dl, M, y); y+=dl.length*5+2; }
-    y+=3;
-
-    // Visuels
-    const sel=DV.thumbs.filter(t=>t.sel);
-    if(sel.length){
-      const imgs=await Promise.all(sel.map(t=>loadImg(t.src)));
-      const fmt=s=>/^data:image\/jpe?g/i.test(s)?"JPEG":"PNG";
-      if(imgs.length===1){
-        const i=imgs[0]; const mw=W-2*M, mh=95; const r=Math.min(mw/i.width, mh/i.height);
-        const w=i.width*r, h=i.height*r;
-        doc.setFillColor(244,245,247); doc.roundedRect(M,y,mw,mh+8,3,3,"F");
-        doc.addImage(sel[0].src, fmt(sel[0].src), M+(mw-w)/2, y+4+(mh-h)/2, w, h); y+=mh+14;
-      } else {
-        const cols=Math.min(3,imgs.length), gap=5, cw=(W-2*M-gap*(cols-1))/cols, ch=cw*.8;
-        imgs.slice(0,6).forEach((i,k)=>{
-          const cx=M+(k%cols)*(cw+gap), cy=y+Math.floor(k/cols)*(ch+gap);
-          doc.setFillColor(244,245,247); doc.roundedRect(cx,cy,cw,ch,2,2,"F");
-          const r=Math.min((cw-6)/i.width,(ch-6)/i.height), w=i.width*r, h=i.height*r;
-          doc.addImage(sel[k].src, fmt(sel[k].src), cx+(cw-w)/2, cy+(ch-h)/2, w, h);
-        });
-        y+=Math.ceil(Math.min(6,imgs.length)/cols)*(ch+gap)+6;
-      }
-    }
-
-    // Caractéristiques
-    const pageBreak=need=>{ if(y+need>297-M-40){ doc.addPage(); y=M; } };
-    pageBreak(30);
-    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...mute); doc.text("CARACTÉRISTIQUES", M, y); y+=6;
-    const row=(label, draw)=>{ pageBreak(8); doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(...mute); doc.text(label, M, y); doc.setTextColor(...ink); draw(M+42); };
-    // Matière
-    row("Matière et couleurs", x=>{
-      let cx=x; S.fils.forEach(f=>{ const t=f.type==="Autre"?(f.label||"Filament"):f.type; doc.setFillColor(...hexRgb(f.col)); doc.setDrawColor(...line); doc.circle(cx+1.8,y-1.3,1.8,"FD"); doc.text(t, cx+5, y); cx+=doc.getTextWidth(t)+11; if(cx>W-M-30){ y+=6; cx=x; } });
-    }); y+=7;
-    const dims=(S.dDims||"").split("\n").map(s=>s.trim()).filter(Boolean);
-    if(dims.length){ dims.forEach((d,k)=>{ row(k===0?"Dimensions (L × l × H)":"", x=>{ doc.text(doc.splitTextToSize(d, W-M-x)[0], x, y); }); y+=6; }); y+=1; }
-    const gPiece=S.fils.reduce((a,f)=>a+num(f.g),0);
-    if(gPiece>0){ row("Poids", x=>doc.text(`environ ${Math.ceil(gPiece)} g`, x, y)); y+=6; }
-    if(last && last.qte>1){ row("Quantité", x=>doc.text(`${last.qte} exemplaires`, x, y)); y+=6; }
-    y+=4;
-
-    // Prix
-    pageBreak(34);
-    const c=clientPrice();
-    doc.setFillColor(...ink); doc.roundedRect(M,y,W-2*M,24,3,3,"F");
-    doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(10);
-    doc.text(c.qte>1?`${c.qte} × ${intEur(c.unit)}`:"Prix", M+8, y+10);
-    doc.setFontSize(9); doc.setTextColor(200,205,210); doc.text("Montant total", M+8, y+16);
-    doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(255,255,255);
-    doc.text(intEur(c.total), W-M-8, y+15.5, {align:"right"});
-    y+=32;
-
-    // Pied
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(...mute);
-    doc.text(doc.splitTextToSize("Pièce réalisée en impression 3D par dépôt de filament. Les visuels sont des rendus du fichier d'impression ; de légères variations d'aspect et de couleur sont possibles.", W-2*M), M, 297-M-6);
-
-    const fname=("Devis "+(S.nom||"impression 3D")+(S.dClient?" - "+S.dClient:"")).replace(/[\\/:*?"<>|]+/g,"").slice(0,80)+".pdf";
-    doc.save(fname);
-    st.textContent=`PDF « ${fname} » créé : ${intEur(c.total)}.`;
-  }catch(err){ st.className="status err"; st.textContent=err.message||String(err); }
+$("hSave").onclick=()=>{
+  if(!last) return;
+  const prix=num($("hPrix").value);
+  const fil=last.parts.find(p=>p.k==="mat").v + last.parts.find(p=>p.k==="purge").v;
+  S.hist.unshift({id:Date.now(), date:today(), client:$("hClient").value.trim()||"Client", projet:S.nom||"Impression",
+    grammes:Math.round((last.grPiece+last.grPurge)*10)/10, fil:Math.round(fil*100)/100, cout:Math.round(last.total*100)/100, prix, paye:$("hPaye").value==="1"});
+  save(); renderHist();
+  flash(`Enregistré dans l'historique. Marge : <b>${eur(prix-last.total)}</b>.`);
+  $("hClient").value=""; $("hPaye").value="0"; prixTouched=false; calc();
 };
-renderThumbs(); updateClientPrice();
+
+let pendingDel=null;
+function armDelete(id){ pendingDel=id; setTimeout(()=>{ if(pendingDel===id){ pendingDel=null; renderHist(); } },4000); }
+function renderHist(){
+  const H=S.hist, A=S.achats;
+  const fact=H.reduce((a,h)=>a+h.prix,0);
+  const factPaye=H.filter(h=>h.paye).reduce((a,h)=>a+h.prix,0);
+  const filCons=H.reduce((a,h)=>a+h.fil,0);
+  const marge=H.reduce((a,h)=>a+h.prix-h.cout,0);
+  const achats=A.reduce((a,x)=>a+x.mont,0);
+  const solde=factPaye-achats;
+  const pct = achats>0 ? Math.min(100, factPaye/achats*100) : (factPaye>0?100:0);
+  const goal = achats>0
+    ? (solde>=0 ? `<b class="pos">Vos filaments sont payés.</b> Les clients ont réglé ${eur(factPaye)} pour ${eur(achats)} d'achats, soit ${eur(solde)} d'avance.`
+                : `Il manque <b class="neg">${eur(-solde)}</b> encaissés pour couvrir vos ${eur(achats)} d'achats de filament (${Math.round(pct)} % remboursés).`)
+    : `Notez vos achats de filament à droite pour suivre leur remboursement par les clients.`;
+  $("kpis").innerHTML = `
+    <div class="kpi goal"><div class="l">Objectif : filaments payés par les clients</div><div>${goal}</div><div class="gauge"><i style="width:${pct.toFixed(1)}%"></i></div></div>
+    <div class="kpi"><div class="l">Encaissé</div><div class="v">${eur(factPaye)}</div><div class="d">${eur(fact-factPaye)} à encaisser</div></div>
+    <div class="kpi"><div class="l">Achats filament</div><div class="v">${eur(achats)}</div><div class="d">${A.length} commande${A.length>1?"s":""}</div></div>
+    <div class="kpi"><div class="l">Filament consommé</div><div class="v">${eur(filCons)}</div><div class="d">${(H.reduce((a,h)=>a+h.grammes,0)/1000).toLocaleString("fr-FR",{maximumFractionDigits:2})} kg · ${H.length} demande${H.length>1?"s":""}</div></div>
+    <div class="kpi"><div class="l">Marge totale</div><div class="v ${marge>=0?"pos":"neg"}">${eur(marge)}</div><div class="d">facturé − coût de revient</div></div>`;
+  $("hEmpty").hidden = H.length>0;
+  $("hRows").innerHTML = H.map(h=>{ const m=h.prix-h.cout, mp=h.prix>0?Math.round(m/h.prix*100):0;
+    return `<tr data-id="${h.id}">
+      <td class="num" style="text-align:left">${fdate(h.date)}</td><td>${esc(h.client)}</td><td>${esc(h.projet)}</td>
+      <td class="num">${eur(h.fil)}<span class="sub">${String(h.grammes).replace(".",",")} g</span></td>
+      <td class="num">${eur(h.cout)}</td><td class="num"><b>${eur(h.prix)}</b></td>
+      <td class="num ${m>=0?"pos":"neg"}">${eur(m)}<span class="sub">${mp} %</span></td>
+      <td><button type="button" class="pill ${h.paye?"ok":""}" data-act="paye">${h.paye?"Payé":"À encaisser"}</button></td>
+      <td><button type="button" class="x" data-act="del" aria-label="Supprimer la demande">${pendingDel===h.id?"Supprimer ?":"✕"}</button></td></tr>`; }).join("");
+  $("aList").innerHTML = A.length ? A.map(a=>`<div class="line" style="grid-template-columns:1fr auto auto" data-id="${a.id}"><span>${fdate(a.date)}<span class="d">${esc(a.det)}</span></span><span class="v">${eur(a.mont)}</span><button type="button" class="x" aria-label="Supprimer l'achat">${pendingDel===a.id?"Supprimer ?":"✕"}</button></div>`).join("") : `<div class="empty">Aucun achat noté.</div>`;
+}
+$("hRows").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return; const id=+b.closest("tr").dataset.id;
+  if(b.dataset.act==="paye"){ const h=S.hist.find(x=>x.id===id); h.paye=!h.paye; }
+  if(b.dataset.act==="del"){ if(pendingDel===id){ S.hist=S.hist.filter(x=>x.id!==id); pendingDel=null; } else armDelete(id); }
+  save(); renderHist();
+});
+$("aList").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return; const id=+b.closest("[data-id]").dataset.id;
+  if(pendingDel===id){ S.achats=S.achats.filter(x=>x.id!==id); pendingDel=null; } else armDelete(id);
+  save(); renderHist();
+});
+$("aDate").value=today();
+$("aAdd").onclick=()=>{
+  const mont=num($("aMont").value); if(mont<=0){ $("aMont").focus(); return; }
+  S.achats.push({id:Date.now(), date:$("aDate").value||today(), mont, det:$("aDet").value.trim()});
+  S.achats.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  $("aMont").value=""; $("aDet").value=""; save(); renderHist();
+};
+$("hExport").onclick=()=>{
+  const blob=new Blob([JSON.stringify({hist:S.hist, achats:S.achats, tarifs:S.tarifs||{}},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="historique-impression3d-"+today()+".json"; document.body.appendChild(a); a.click(); a.remove();
+};
+$("hImport").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const d=JSON.parse(await f.text()); if(!Array.isArray(d.hist)) throw 0;
+    S.hist=d.hist; S.achats=d.achats||[]; if(d.tarifs) S.tarifs=d.tarifs; save(); renderHist(); flash("Historique restauré."); }
+  catch(_){ flash("Ce fichier n'est pas une sauvegarde de l'historique."); }
+  e.target.value="";
+});
+calc(); renderHist();
 })();
 </script>
