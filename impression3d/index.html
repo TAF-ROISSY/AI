@@ -121,27 +121,24 @@ td input[type=number]{width:74px}
       <!-- Import -->
       <section class="card">
         <h2>Importer depuis Bambu Studio <span class="tag">auto</span></h2>
-        <p class="hint">Dans Bambu Studio, après « Découper » : Fichier › Exporter › <b>Exporter le fichier de plateau découpé</b>. Déposez ici le fichier obtenu.</p>
+        <p class="hint">Dans Bambu Studio, après « Découper » : Fichier › Exporter › <b>Exporter le fichier de plateau découpé</b>. Déposez ici le fichier obtenu : tous les plateaux sont additionnés.</p>
         <label class="drop" id="drop" for="file">
           <strong>Déposer le fichier ou cliquer pour choisir</strong>
           <span class="ext">.gcode.3mf · .gcode</span>
         </label>
         <input type="file" id="file" accept=".3mf,.gcode" hidden>
-        <div class="row-tools" id="plateRow" hidden>
-          <label class="f" style="flex-direction:row;align-items:center;gap:8px">Plateau <select id="plate" style="width:auto"></select></label>
-        </div>
         <div class="status" id="status" hidden></div>
       </section>
 
       <!-- Pièce -->
       <section class="card">
-        <h2>La pièce <span class="tag">plateau</span></h2>
+        <h2>Le projet <span class="tag">tous plateaux</span></h2>
         <p class="hint">Reprenez les valeurs affichées par Bambu Studio après le découpage.</p>
         <div class="grid">
-          <label class="f" style="grid-column:span 2">Nom de la pièce<input id="nom" type="text"></label>
+          <label class="f" style="grid-column:span 2">Nom du projet<input id="nom" type="text"></label>
           <label class="f">Durée heures<input id="h" type="number" min="0" step="1"></label>
           <label class="f">Durée minutes<input id="m" type="number" min="0" max="59" step="1"></label>
-          <label class="f">Pièces sur le plateau<input id="qte" type="number" min="1" step="1"></label>
+          <label class="f">Diviser par (exemplaires)<input id="qte" type="number" min="1" step="1"></label>
         </div>
       </section>
 
@@ -213,18 +210,18 @@ td input[type=number]{width:74px}
     <aside class="ticket" aria-live="polite">
       <div class="head">
         <div class="lbl" id="tNom">Coût de revient</div>
-        <div class="big" id="tUnit">0,00 €<small>/ pièce</small></div>
+        <div class="big" id="tUnit">0,00 €<small>au total</small></div>
       </div>
       <div class="body">
         <div class="bar" id="bar"></div>
         <div class="lines" id="lines"></div>
         <div class="tot">
-          <span>Total plateau</span><span class="v strong" id="tPlateau">0</span>
+          <span>Coût total</span><span class="v strong" id="tPlateau">0</span>
           <span>Filament consommé</span><span class="v" id="tGr">0</span>
         </div>
         <div class="callout" id="purgeNote"></div>
         <div class="sell">
-          <span>Prix de vente conseillé / pièce</span><span class="v" id="tVente">0</span>
+          <span id="tVenteLbl">Prix de vente conseillé</span><span class="v" id="tVente">0</span>
           <span class="callout" id="tMargeTxt">marge</span><span></span>
         </div>
         <button type="button" class="primary" id="copy">Copier le détail</button>
@@ -232,7 +229,7 @@ td input[type=number]{width:74px}
     </aside>
   </div>
 
-  <span class="badge">v1.1</span>
+  <span class="badge">v1.2</span>
   <p class="foot">Prix filaments et imprimantes : valeurs indicatives Bambu Lab Europe, à vérifier sur la boutique au moment de la commande. Vos réglages et les prix que vous modifiez sont mémorisés dans ce navigateur. Le fichier importé est lu sur votre appareil, il n'est envoyé nulle part.</p>
 </div>
 
@@ -372,8 +369,8 @@ function calc(){
   $("bar").innerHTML = parts.filter(p=>p.v>0).map(p=>`<i style="width:${(p.v/total*100).toFixed(2)}%;background:${COLORS[p.k]}" title="${p.n}"></i>`).join("");
   $("lines").innerHTML = parts.map(p=>`<div class="line"><span class="dot" style="background:${COLORS[p.k]}"></span><span>${p.n}<span class="d">${p.d}</span></span><span class="v">${eur(p.v)}</span></div>`).join("");
   $("tNom").textContent = S.nom ? S.nom : "Coût de revient";
-  $("tUnit").innerHTML = eur(unit)+`<small>/ pièce</small>`;
-  $("tPlateau").textContent = eur(total)+(qte>1?` (${qte} pièces)`:"");
+  $("tUnit").innerHTML = eur(unit)+`<small>${qte>1?"/ exemplaire":"au total"}</small>`; $("tVenteLbl").textContent="Prix de vente conseillé"+(qte>1?" / exemplaire":"");
+  $("tPlateau").textContent = eur(total);
   $("tGr").textContent = g1(grPiece+grPurge);
   $("tVente").textContent = eur(vente);
   $("tMargeTxt").textContent = `marge ${num(S.marge)} % · bénéfice ${eur(vente-unit)}`;
@@ -386,8 +383,7 @@ function calc(){
 $("copy").onclick=async()=>{
   if(!last) return;
   const t = [`${S.nom||"Pièce"} — prix de revient`, ...last.parts.map(p=>`${p.n} : ${eur(p.v)}`),
-    `Total plateau : ${eur(last.total)} (${last.qte} pièce${last.qte>1?"s":""})`,
-    `Coût / pièce : ${eur(last.unit)}`, `Prix de vente conseillé : ${eur(last.vente)} (marge ${num(S.marge)} %)`].join("\n");
+    `Coût total : ${eur(last.total)}`, ...(last.qte>1?[`Coût / exemplaire (${last.qte}) : ${eur(last.unit)}`]:[]), `Prix de vente conseillé : ${eur(last.vente)} (marge ${num(S.marge)} %)`].join("\n");
   const b=$("copy");
   try{ await navigator.clipboard.writeText(t); b.textContent="Détail copié"; }
   catch(e){ b.textContent="Copie impossible ici"; }
@@ -449,90 +445,82 @@ function analyseGcode(txt){
 }
 function listVal(s,i,sep){ if(s==null) return null; const a=String(s).replace(/"/g,"").split(sep||/[;,]/).map(x=>x.trim()); return a[i]!==undefined?a[i]:a[0]; }
 
-let ZIP=null, PLATES=[], FNAME="";
+let FNAME="";
 async function handleFile(file){
   const st=$("status"); st.hidden=false; st.className="status"; st.textContent="Lecture de "+file.name+"…";
-  FNAME=file.name.replace(/\.gcode\.3mf$|\.3mf$|\.gcode$/i,"");
+  FNAME=file.name.replace(/\.gcode\.3mf$|\.3mf$|\.gcode$/i,"").replace(/\s*\(\d+\)/g,"").trim();
   try{
     if(/\.gcode$/i.test(file.name)){
-      ZIP=null; PLATES=[]; $("plateRow").hidden=true;
-      const txt=await file.text();
-      applyResult(analyseGcode(txt), null, null);
+      applyResult([{an:analyseGcode(await file.text()), plate:null}], null);
       return;
     }
     if(typeof JSZip==="undefined") throw new Error("La bibliothèque de lecture des .3mf n'a pas pu se charger. Vérifiez la connexion et rechargez la page.");
-    ZIP=await JSZip.loadAsync(file);
-    const sliceXml = ZIP.file("Metadata/slice_info.config") ? await ZIP.file("Metadata/slice_info.config").async("string") : null;
-    const gfiles=Object.keys(ZIP.files).filter(n=>/^Metadata\/plate_\d+\.gcode$/.test(n));
-    if(!sliceXml && !gfiles.length) throw new Error("Ce fichier ne contient pas de découpage. Dans Bambu Studio, découpez le plateau puis utilisez « Exporter le fichier de plateau découpé ».");
-    let proj=null; try{ const pj=ZIP.file("Metadata/project_settings.config"); if(pj) proj=JSON.parse(await pj.async("string")); }catch(e){}
+    const zip=await JSZip.loadAsync(file);
+    const sliceXml = zip.file("Metadata/slice_info.config") ? await zip.file("Metadata/slice_info.config").async("string") : null;
+    const gfiles=Object.keys(zip.files).filter(n=>/^Metadata\/plate_\d+\.gcode$/.test(n));
+    if(!sliceXml && !gfiles.length) throw new Error("Ce fichier ne contient pas de découpage. Dans Bambu Studio, découpez tous les plateaux puis utilisez « Exporter le fichier de plateau découpé » (tous les plateaux).");
+    let proj=null; try{ const pj=zip.file("Metadata/project_settings.config"); if(pj) proj=JSON.parse(await pj.async("string")); }catch(e){}
     const doc = sliceXml ? new DOMParser().parseFromString(sliceXml,"application/xml") : null;
-    PLATES=[];
+    let plates=[];
     if(doc){ doc.querySelectorAll("plate").forEach(p=>{
       const md={}; p.querySelectorAll(":scope > metadata").forEach(m=>md[m.getAttribute("key")]=m.getAttribute("value"));
-      const fil=[...p.querySelectorAll(":scope > filament")].map(f=>({id:+f.getAttribute("id"),type:f.getAttribute("type"),color:f.getAttribute("color"),used_g:+f.getAttribute("used_g")||0,idx:f.getAttribute("tray_info_idx")}));
-      const objs=p.querySelectorAll(":scope > object").length;
-      PLATES.push({index:+md.index||PLATES.length+1, prediction:+md.prediction||0, fil, objs, proj});
+      const fil=[...p.querySelectorAll(":scope > filament")].map(f=>({id:+f.getAttribute("id"),type:f.getAttribute("type"),color:f.getAttribute("color"),used_g:+f.getAttribute("used_g")||0}));
+      plates.push({index:+md.index||plates.length+1, prediction:+md.prediction||0, fil});
     }); }
-    if(!PLATES.length) gfiles.forEach(g=>PLATES.push({index:+g.match(/plate_(\d+)/)[1], prediction:0, fil:[], objs:0, proj}));
-    PLATES=PLATES.filter(p=>ZIP.file(`Metadata/plate_${p.index}.gcode`) || p.fil.length);
-    const sel=$("plate"); sel.innerHTML=PLATES.map((p,k)=>`<option value="${k}">Plateau ${p.index}</option>`).join("");
-    $("plateRow").hidden = PLATES.length<2;
-    await loadPlate(0);
+    if(!plates.length) gfiles.forEach(g=>plates.push({index:+g.match(/plate_(\d+)/)[1], prediction:0, fil:[]}));
+    plates=plates.filter(p=>zip.file(`Metadata/plate_${p.index}.gcode`) || p.fil.length);
+    const parts=[];
+    for(let k=0;k<plates.length;k++){
+      st.textContent=`Analyse du plateau ${k+1} / ${plates.length}…`;
+      const gf=zip.file(`Metadata/plate_${plates[k].index}.gcode`);
+      parts.push({an: gf ? analyseGcode(await gf.async("string")) : null, plate:plates[k]});
+    }
+    applyResult(parts, proj);
   }catch(err){ st.className="status err"; st.textContent=err.message||String(err); }
 }
-async function loadPlate(k){
-  const p=PLATES[k]; const st=$("status"); st.className="status"; st.textContent="Analyse du G-code du plateau "+p.index+"…";
-  const gf=ZIP.file(`Metadata/plate_${p.index}.gcode`);
-  const an = gf ? analyseGcode(await gf.async("string")) : null;
-  applyResult(an, p, p.proj);
-}
-$("plate").addEventListener("change",e=>loadPlate(+e.target.value).catch(err=>{ $("status").className="status err"; $("status").textContent=err.message; }));
 
-function applyResult(an, plate, proj){
-  const head=an?an.head:{};
+function applyResult(parts, proj){
+  const head = (parts.find(x=>x.an)||{an:{head:{}}}).an.head;
   const pget=(key,i)=> proj && proj[key]!=null ? (Array.isArray(proj[key])? (proj[key][i]??proj[key][0]) : proj[key]) : listVal(head[key],i, key==="filament_settings_id"?/";\s*"|;/:null);
-  // Liste des filaments utilisés
-  let ids;
-  if(plate && plate.fil.length) ids=plate.fil.map(f=>f.id-1);
-  else ids=Object.keys(an?an.tot:{}).map(Number).sort((a,b)=>a-b);
-  if(!ids.length) throw new Error("Aucun filament trouvé dans ce fichier.");
-  const notes=[];
-  const fils=ids.map(t=>{
-    const pf = plate ? plate.fil.find(f=>f.id-1===t) : null;
-    const dens = parseFloat(pget("filament_density",t))||1.24;
-    const diam = parseFloat(pget("filament_diameter",t))||1.75;
-    const mm2g = Math.PI*(diam/2)**2*dens/1000;
-    const gTot = an ? (an.tot[t]||0)*mm2g : 0;
-    const gFl = an ? (an.flush[t]||0)*mm2g : 0;
-    const gTw = an ? (an.tower[t]||0)*mm2g : 0;
-    const total = pf && pf.used_g>0 ? pf.used_g : gTot;
-    const label = String(pget("filament_settings_id",t)||"").replace(/"/g,"");
-    const type = matchType(label, pf?pf.type:pget("filament_type",t));
-    const color = normColor(pf?pf.color:pget("filament_colour",t));
-    const r=x=>Math.round(x*10)/10;
-    return {type, col:color, prix:prixType(type), poids:1000, label: label||(pf?pf.type:""),
-      g:r(Math.max(0,total-gFl-gTw)), pu:r(gFl), tour:r(gTw)};
+  const merged={}; let sec=0, changes=0, anyFlush=false;
+  parts.forEach(({an,plate})=>{
+    let ids = plate && plate.fil.length ? plate.fil.map(f=>f.id-1) : Object.keys(an?an.tot:{}).map(Number);
+    ids.forEach(t=>{
+      const pf = plate ? plate.fil.find(f=>f.id-1===t) : null;
+      const dens=parseFloat(pget("filament_density",t))||1.24, diam=parseFloat(pget("filament_diameter",t))||1.75;
+      const mm2g=Math.PI*(diam/2)**2*dens/1000;
+      const gTot=an?(an.tot[t]||0)*mm2g:0, gFl=an?(an.flush[t]||0)*mm2g:0, gTw=an?(an.tower[t]||0)*mm2g:0;
+      const total = pf && pf.used_g>0 ? pf.used_g : gTot;
+      const m = merged[t] || (merged[t]={t, g:0, pu:0, tour:0, ptype:pf?pf.type:null, pcolor:pf?pf.color:null});
+      m.g += Math.max(0,total-gFl-gTw); m.pu += gFl; m.tour += gTw;
+    });
+    let ps = plate && plate.prediction ? plate.prediction : 0;
+    if(!ps && an){ const k=Object.keys(an.head).find(x=>/total estimated time|estimated printing time/i.test(x)); if(k) ps=parseTime(an.head[k]); }
+    sec+=ps; if(an){ changes+=an.changes; anyFlush = anyFlush || an.hasFlush; }
   });
+  const r=x=>Math.round(x*10)/10;
+  const fils=Object.values(merged).sort((a,b)=>a.t-b.t).map(m=>{
+    const label=String(pget("filament_settings_id",m.t)||"").replace(/"/g,"");
+    const type=matchType(label, m.ptype||pget("filament_type",m.t));
+    return {type, col:normColor(m.pcolor||pget("filament_colour",m.t)), prix:prixType(type), poids:1000,
+      label:label||m.ptype||"", g:r(m.g), pu:r(m.pu), tour:r(m.tour)};
+  });
+  if(!fils.length) throw new Error("Aucun filament trouvé dans ce fichier.");
   S.fils=fils;
-  // Durée
-  let sec = plate && plate.prediction ? plate.prediction : 0;
-  if(!sec){ const k=Object.keys(head).find(x=>/total estimated time|estimated printing time/i.test(x)); if(k) sec=parseTime(head[k]); }
   if(sec){ S.h=Math.floor(sec/3600); S.m=Math.round(sec%3600/60); if(S.m===60){S.h++;S.m=0;} }
-  // Imprimante
   const pm = matchPrinter((proj&&(proj.printer_model||proj.printer_settings_id))||head.printer_model||head.printer_settings_id);
   if(pm && pm!==S.printer){ S.printer=pm; S.pPrix=PRINTERS[pm].prix; S.pW=PRINTERS[pm].w; }
-  S.nom = FNAME + (PLATES.length>1 && plate ? " — plateau "+plate.index : "");
-  // Purge
+  S.nom=FNAME; S.qte=1;
+  const notes=[];
   const purgeTot=fils.reduce((a,f)=>a+f.pu+f.tour,0);
-  if(an && an.hasFlush || purgeTot>0){ S.mode="slicer"; notes.push(`Purge détectée dans le G-code : ${g1(purgeTot)} (dont tour ${g1(fils.reduce((a,f)=>a+f.tour,0))}).`); }
-  else if(fils.length>1){ S.mode="est"; S.nbChg=an?an.changes:S.nbChg; notes.push(`Purge non repérée dans le G-code : passage en estimation avec ${S.nbChg} changements de couleur.`); }
-  else { S.mode="slicer"; notes.push("Une seule couleur : pas de purge de changement."); }
+  if(anyFlush || purgeTot>0){ S.mode="slicer"; notes.push(`Purge mesurée dans le G-code : ${g1(purgeTot)} (dont tour ${g1(fils.reduce((a,f)=>a+f.tour,0))}).`); }
+  else if(changes>0){ S.mode="est"; S.nbChg=changes; notes.push(`Purge non repérée dans le G-code : estimation sur ${changes} changements de couleur.`); }
+  else { S.mode="slicer"; notes.push("Aucun changement de couleur : pas de purge."); }
   fillInputs();
-  const st=$("status"); st.className="status";
-  st.innerHTML = `<b>${fils.length} filament${fils.length>1?"s":""} importé${fils.length>1?"s":""}</b> · ${S.h} h ${String(S.m).padStart(2,"0")} · ${g1(fils.reduce((a,f)=>a+f.g+f.pu+f.tour,0))} au total${pm?` · ${pm}`:""}
-    <ul>${fils.map(f=>`<li>${f.label||f.type} → tarif « ${f.type} » ${eur(f.prix)}</li>`).join("")}${notes.map(n=>`<li>${n}</li>`).join("")}</ul>
-    Vérifiez les prix et le nombre de pièces sur le plateau.`;
+  const np=parts.length, st=$("status"); st.className="status";
+  st.innerHTML = `<b>${np>1?np+" plateaux additionnés":"1 plateau"}</b> · ${fils.length} filament${fils.length>1?"s":""} · ${S.h} h ${String(S.m).padStart(2,"0")} d'impression · ${g1(fils.reduce((a,f)=>a+f.g+f.pu+f.tour,0))}${pm?` · ${pm}`:""}
+    <ul>${fils.map(f=>`<li>${f.label||f.type} → tarif « ${f.type} » ${eur(f.prix)} · ${g1(f.g+f.pu+f.tour)}</li>`).join("")}${notes.map(n=>`<li>${n}</li>`).join("")}</ul>
+    Vérifiez les prix des bobines.`;
 }
 
 const drop=$("drop");
