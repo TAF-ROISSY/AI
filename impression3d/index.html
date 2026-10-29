@@ -1,0 +1,546 @@
+<title>Prix de revient 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout : atelier — saisie à gauche en "fiches", ticket de revient collant à droite, grille de plateau en fond */
+:root{
+  --bg:#eef0f2; --panel:#ffffff; --ink:#1b2128; --muted:#5d6874; --line:#d5dade;
+  --accent:#e2580b; --accent-ink:#ffffff; --soft:#fbe6da; --grid:rgba(27,33,40,.045);
+  --purge:#9a3fb8; --ok:#1f7a55;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14181d; --panel:#1c2229; --ink:#e7ebef; --muted:#97a3ae; --line:#2e3740;
+  --accent:#ff7a33; --accent-ink:#1a0d04; --soft:#3a2416; --grid:rgba(231,235,239,.04);
+  --purge:#c98ae0; --ok:#5fc596; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#14181d; --panel:#1c2229; --ink:#e7ebef; --muted:#97a3ae; --line:#2e3740;
+  --accent:#ff7a33; --accent-ink:#1a0d04; --soft:#3a2416; --grid:rgba(231,235,239,.04);
+  --purge:#c98ae0; --ok:#5fc596; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.5;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:22px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,4.2vw,42px);line-height:1.05;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+.sub{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:22px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.card h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.card h2 .tag{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);letter-spacing:.02em;min-width:0}
+label.f span.u{font-family:var(--f-mono)}
+input,select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;cursor:pointer;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.ghost{background:transparent}
+button.x{padding:6px 9px;color:var(--muted)}
+button:hover{border-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;font-size:13px;padding:7px 12px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+
+/* Bobines */
+.fil-table{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:6px 4px;vertical-align:middle}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.swatch{width:30px;height:30px;padding:0;border-radius:50%;border:2px solid var(--line);cursor:pointer;background:none}
+input.sm{padding:6px 8px;font-size:14px}
+td input[type=number]{width:74px}
+.purgecol{color:var(--purge)}
+.row-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.est{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:14px;padding:12px;border:1px dashed var(--purge);border-radius:8px}
+
+/* Ticket */
+.ticket{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ticket .head{background:var(--ink);color:var(--panel);padding:16px 18px}
+.ticket .head .lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.big{font-family:var(--f-display);font-weight:800;font-size:44px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:6px}
+.big small{font-size:16px;font-weight:500;opacity:.75;margin-left:6px}
+.ticket .body{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line)}
+.bar i{display:block;height:100%}
+.lines{display:flex;flex-direction:column}
+.line{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.line:last-child{border-bottom:0}
+.line .dot{width:10px;height:10px;border-radius:3px;align-self:center}
+.line .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.line .d{display:block;color:var(--muted);font-size:12px}
+.tot{display:grid;grid-template-columns:1fr auto;gap:6px 10px;padding-top:10px;border-top:2px solid var(--ink);font-size:14px}
+.tot .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.tot .strong{font-weight:600}
+.sell{background:var(--soft);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline}
+.sell .v{font-family:var(--f-display);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}
+.callout{font-size:13px;color:var(--muted)}
+.callout b{color:var(--purge);font-weight:600}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;border:2px dashed var(--line);border-radius:var(--r);padding:22px 16px;cursor:pointer;background:var(--bg);transition:border-color .15s}
+.drop:hover,.drop.over{border-color:var(--accent)}
+.drop strong{font-family:var(--f-display);font-size:17px}
+.drop .ext{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.status{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--bg);border-left:3px solid var(--ok)}
+.status.err{border-left-color:#c2412d}
+.status ul{margin:6px 0 0;padding-left:18px}
+.fname{display:block;font-size:11px;color:var(--muted);max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:fixed;right:max(10px, env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));font-family:var(--f-mono);font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.foot{color:var(--muted);font-size:12px;margin-top:20px;max-width:75ch}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Prix de revient <em>3D</em></h1>
+      <p class="sub">Calcul du coût réel d'une impression Bambu Lab : matière, purge et tour de purge, électricité, usure machine, échecs et main d'œuvre.</p>
+    </div>
+    <button class="ghost" id="reset" type="button">Revenir à l'exemple</button>
+  </header>
+
+  <div class="layout">
+    <div class="stack">
+
+      <!-- Import -->
+      <section class="card">
+        <h2>Importer depuis Bambu Studio <span class="tag">auto</span></h2>
+        <p class="hint">Dans Bambu Studio, après « Découper » : Fichier › Exporter › <b>Exporter le fichier de plateau découpé</b>. Déposez ici le fichier obtenu.</p>
+        <label class="drop" id="drop" for="file">
+          <strong>Déposer le fichier ou cliquer pour choisir</strong>
+          <span class="ext">.gcode.3mf · .gcode</span>
+        </label>
+        <input type="file" id="file" accept=".3mf,.gcode" hidden>
+        <div class="row-tools" id="plateRow" hidden>
+          <label class="f" style="flex-direction:row;align-items:center;gap:8px">Plateau <select id="plate" style="width:auto"></select></label>
+        </div>
+        <div class="status" id="status" hidden></div>
+      </section>
+
+      <!-- Pièce -->
+      <section class="card">
+        <h2>La pièce <span class="tag">plateau</span></h2>
+        <p class="hint">Reprenez les valeurs affichées par Bambu Studio après le découpage.</p>
+        <div class="grid">
+          <label class="f" style="grid-column:span 2">Nom de la pièce<input id="nom" type="text"></label>
+          <label class="f">Durée heures<input id="h" type="number" min="0" step="1"></label>
+          <label class="f">Durée minutes<input id="m" type="number" min="0" max="59" step="1"></label>
+          <label class="f">Pièces sur le plateau<input id="qte" type="number" min="1" step="1"></label>
+        </div>
+      </section>
+
+      <!-- Filaments -->
+      <section class="card">
+        <h2>Filaments <span class="tag">AMS</span></h2>
+        <p class="hint">Une ligne par bobine utilisée. Prix Bambu Lab indicatifs, à ajuster selon votre commande (bobine ou recharge, promo).</p>
+
+        <div class="row-tools" style="margin:0 0 12px">
+          <span class="callout">Purge :</span>
+          <div class="seg" role="group" aria-label="Mode de calcul de la purge">
+            <button type="button" id="modeSlicer" aria-pressed="true">Valeurs du slicer</button>
+            <button type="button" id="modeEst" aria-pressed="false">Estimation</button>
+          </div>
+        </div>
+
+        <div class="fil-table">
+          <table>
+            <thead><tr>
+              <th></th><th>Filament</th><th>Prix bobine €</th><th>Poids g</th>
+              <th>Pièce g</th><th class="purgecol slc">Purge g</th><th class="purgecol slc">Tour g</th>
+              <th style="text-align:right">Coût</th><th></th>
+            </tr></thead>
+            <tbody id="fils"></tbody>
+          </table>
+        </div>
+
+        <div class="est" id="estBox" hidden>
+          <label class="f">Nombre de changements de couleur<input id="nbChg" type="number" min="0" step="1"></label>
+          <label class="f">Purge par changement <span class="u">g</span><input id="gChg" type="number" min="0" step="0.1"></label>
+          <label class="f">Tour de purge <span class="u">g</span><input id="tourEst" type="number" min="0" step="0.5"></label>
+        </div>
+
+        <div class="row-tools">
+          <button type="button" id="addFil">+ Ajouter une bobine</button>
+          <label class="f" style="flex-direction:row;align-items:center;gap:8px">Frais de port Bambu <span class="u">€/kg</span>
+            <input id="port" type="number" min="0" step="0.1" style="width:90px"></label>
+        </div>
+      </section>
+
+      <!-- Machine -->
+      <section class="card">
+        <h2>Imprimante &amp; énergie</h2>
+        <p class="hint">Le modèle pré-remplit prix et consommation moyenne. Tout reste modifiable.</p>
+        <div class="grid">
+          <label class="f">Modèle<select id="printer"></select></label>
+          <label class="f">Prix d'achat <span class="u">€</span><input id="pPrix" type="number" min="0" step="1"></label>
+          <label class="f">Durée de vie <span class="u">h</span><input id="pVie" type="number" min="1" step="100"></label>
+          <label class="f">Conso. moyenne <span class="u">W</span><input id="pW" type="number" min="0" step="5"></label>
+          <label class="f">Électricité <span class="u">€/kWh</span><input id="kwh" type="number" min="0" step="0.001"></label>
+          <label class="f">Entretien <span class="u">€/h</span><input id="maint" type="number" min="0" step="0.01"></label>
+        </div>
+      </section>
+
+      <!-- Extras -->
+      <section class="card">
+        <h2>Risque, main d'œuvre &amp; marge</h2>
+        <div class="grid">
+          <label class="f">Taux d'échec <span class="u">%</span><input id="echec" type="number" min="0" max="100" step="1"></label>
+          <label class="f">Préparation + finition <span class="u">min</span><input id="mo" type="number" min="0" step="5"></label>
+          <label class="f">Taux horaire <span class="u">€/h</span><input id="taux" type="number" min="0" step="1"></label>
+          <label class="f">Consommables <span class="u">€</span><input id="conso" type="number" min="0" step="0.1"></label>
+          <label class="f">Marge visée <span class="u">%</span><input id="marge" type="number" min="0" step="5"></label>
+        </div>
+      </section>
+    </div>
+
+    <!-- Ticket -->
+    <aside class="ticket" aria-live="polite">
+      <div class="head">
+        <div class="lbl" id="tNom">Coût de revient</div>
+        <div class="big" id="tUnit">0,00 €<small>/ pièce</small></div>
+      </div>
+      <div class="body">
+        <div class="bar" id="bar"></div>
+        <div class="lines" id="lines"></div>
+        <div class="tot">
+          <span>Total plateau</span><span class="v strong" id="tPlateau">0</span>
+          <span>Filament consommé</span><span class="v" id="tGr">0</span>
+        </div>
+        <div class="callout" id="purgeNote"></div>
+        <div class="sell">
+          <span>Prix de vente conseillé / pièce</span><span class="v" id="tVente">0</span>
+          <span class="callout" id="tMargeTxt">marge</span><span></span>
+        </div>
+        <button type="button" class="primary" id="copy">Copier le détail</button>
+      </div>
+    </aside>
+  </div>
+
+  <span class="badge">v1.1</span>
+  <p class="foot">Prix filaments et imprimantes : valeurs indicatives Bambu Lab Europe, à vérifier sur la boutique au moment de la commande. Vos réglages et les prix que vous modifiez sont mémorisés dans ce navigateur. Le fichier importé est lu sur votre appareil, il n'est envoyé nulle part.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+const PRINTERS = {
+  "A1 mini": {prix:249, w:80},
+  "A1":      {prix:399, w:95},
+  "P1S":     {prix:649, w:120},
+  "P2S":     {prix:799, w:130},
+  "X1 Carbon": {prix:1199, w:140},
+  "H2D":     {prix:1899, w:200},
+  "Autre":   {prix:500, w:120}
+};
+const FILAMENTS = {
+  "PLA Basic": 22.99, "PLA Matte": 22.99, "PLA Silk+": 26.99, "PLA-CF": 34.99,
+  "PETG HF": 22.99, "ABS": 22.99, "ASA": 27.99, "TPU 95A HF": 34.99, "Support for PLA": 34.99, "Autre": 20
+};
+const EXAMPLE = {
+  nom:"Support de casque — 3 couleurs", h:4, m:30, qte:1,
+  mode:"slicer", nbChg:24, gChg:2.5, tourEst:6, port:4,
+  fils:[
+    {type:"PLA Basic", col:"#1d1d1f", prix:22.99, poids:1000, g:85, pu:12.4, tour:3.6},
+    {type:"PLA Basic", col:"#c62828", prix:22.99, poids:1000, g:21, pu:18.2, tour:1.9},
+    {type:"PLA Matte", col:"#f2efe9", prix:22.99, poids:1000, g:14, pu:15.1, tour:1.5}
+  ],
+  printer:"P1S", pPrix:649, pVie:5000, pW:120, kwh:0.1952, maint:0.10,
+  echec:8, mo:15, taux:20, conso:0.30, marge:40
+};
+let S;
+const KEY="prix-revient-3d-v1";
+try{ S = JSON.parse(localStorage.getItem(KEY)) || null; }catch(e){ S=null; }
+if(!S) S = structuredClone(EXAMPLE);
+
+const $ = id => document.getElementById(id);
+const eur = n => (isFinite(n)?n:0).toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
+const g1 = n => (isFinite(n)?n:0).toLocaleString("fr-FR",{maximumFractionDigits:1})+" g";
+const num = v => { const n=parseFloat(String(v).replace(",",".")); return isFinite(n)?n:0; };
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+// Printer select
+Object.keys(PRINTERS).forEach(k=>{ const o=document.createElement("option"); o.value=k;o.textContent="Bambu Lab "+k; if(k==="Autre")o.textContent="Autre imprimante"; $("printer").appendChild(o); });
+
+const simple = ["nom","h","m","qte","nbChg","gChg","tourEst","port","pPrix","pVie","pW","kwh","maint","echec","mo","taux","conso","marge"];
+function fillInputs(){
+  simple.forEach(k=>{ $(k).value = S[k]; });
+  $("printer").value = S.printer;
+  setMode(S.mode, false);
+  renderFils();
+}
+simple.forEach(k=>{
+  $(k).addEventListener("input", e=>{ S[k] = k==="nom" ? e.target.value : num(e.target.value); calc(); });
+});
+$("printer").addEventListener("change", e=>{
+  S.printer = e.target.value; const p = PRINTERS[S.printer];
+  S.pPrix = p.prix; S.pW = p.w; $("pPrix").value=p.prix; $("pW").value=p.w; calc();
+});
+
+function setMode(m, recalc=true){
+  S.mode=m;
+  $("modeSlicer").setAttribute("aria-pressed", m==="slicer");
+  $("modeEst").setAttribute("aria-pressed", m==="est");
+  $("estBox").hidden = m!=="est";
+  document.querySelectorAll(".slc").forEach(el=>el.hidden = m!=="slicer");
+  if(recalc) calc();
+}
+$("modeSlicer").onclick=()=>setMode("slicer");
+$("modeEst").onclick=()=>setMode("est");
+
+function renderFils(){
+  const tb=$("fils"); tb.innerHTML="";
+  S.fils.forEach((f,i)=>{
+    const tr=document.createElement("tr");
+    const opts = Object.keys(FILAMENTS).map(k=>`<option ${k===f.type?"selected":""}>${k}</option>`).join("");
+    tr.innerHTML = `
+      <td><input type="color" class="swatch" id="fc${i}" value="${f.col}" aria-label="Couleur"></td>
+      <td><select class="sm" id="ft${i}">${opts}</select>${f.label?`<span class="fname" title="${f.label}">${f.label}</span>`:""}</td>
+      <td><input class="sm" type="number" id="fp${i}" step="0.01" min="0" value="${f.prix}"></td>
+      <td><input class="sm" type="number" id="fw${i}" step="50" min="1" value="${f.poids}"></td>
+      <td><input class="sm" type="number" id="fg${i}" step="0.1" min="0" value="${f.g}"></td>
+      <td class="slc"><input class="sm" type="number" id="fu${i}" step="0.1" min="0" value="${f.pu}"></td>
+      <td class="slc"><input class="sm" type="number" id="fo${i}" step="0.1" min="0" value="${f.tour}"></td>
+      <td class="num" id="fcost${i}">—</td>
+      <td><button type="button" class="x" aria-label="Retirer la bobine">✕</button></td>`;
+    tb.appendChild(tr);
+    const bind=(id,key,isNum=true)=>$(id).addEventListener("input",e=>{ f[key]= isNum?num(e.target.value):e.target.value; calc(); });
+    bind("fc"+i,"col",false); bind("fp"+i,"prix"); $("fp"+i).addEventListener("input",e=>{ S.tarifs=S.tarifs||{}; S.tarifs[f.type]=num(e.target.value); }); bind("fw"+i,"poids"); bind("fg"+i,"g"); bind("fu"+i,"pu"); bind("fo"+i,"tour");
+    $("ft"+i).addEventListener("change",e=>{ f.type=e.target.value; f.prix=prixType(f.type); $("fp"+i).value=f.prix; calc(); });
+    tr.querySelector("button.x").onclick=()=>{ S.fils.splice(i,1); renderFils(); };
+  });
+  document.querySelectorAll(".slc").forEach(el=>el.hidden = S.mode!=="slicer");
+  calc();
+}
+$("addFil").onclick=()=>{ S.fils.push({type:"PLA Basic",col:"#2e7dd7",prix:22.99,poids:1000,g:0,pu:0,tour:0}); renderFils(); };
+$("reset").onclick=()=>{ S=structuredClone(EXAMPLE); fillInputs(); };
+
+const COLORS = {mat:"var(--accent)", purge:"var(--purge)", elec:"#e0b100", amort:"#3a86c8", echec:"#c2412d", mo:"var(--ok)", conso:"var(--muted)"};
+let last=null;
+
+function calc(){
+  const hours = num(S.h) + num(S.m)/60;
+  const port = num(S.port);
+  let mat=0, purge=0, grPiece=0, grPurge=0, wPrice=0;
+  S.fils.forEach((f,i)=>{
+    const pg = (num(f.prix) + port*num(f.poids)/1000) / Math.max(1,num(f.poids));
+    const pp = S.mode==="slicer" ? num(f.pu)+num(f.tour) : 0;
+    const cm = num(f.g)*pg, cp = pp*pg;
+    mat+=cm; purge+=cp; grPiece+=num(f.g); grPurge+=pp; wPrice += num(f.g)*pg;
+    const c=$("fcost"+i); if(c) c.textContent = eur(cm+cp);
+  });
+  if(S.mode==="est"){
+    const avg = grPiece>0 ? wPrice/grPiece : (S.fils[0]? (num(S.fils[0].prix)+port)/1000 : 0.023);
+    grPurge = num(S.nbChg)*num(S.gChg) + num(S.tourEst);
+    purge = grPurge*avg;
+  }
+  const elec = num(S.pW)/1000*hours*num(S.kwh);
+  const amort = (num(S.pPrix)/Math.max(1,num(S.pVie)) + num(S.maint))*hours;
+  const base = mat+purge+elec+amort;
+  const echec = base*num(S.echec)/100;
+  const mo = num(S.mo)/60*num(S.taux);
+  const conso = num(S.conso);
+  const total = base+echec+mo+conso;
+  const qte = Math.max(1, Math.round(num(S.qte)));
+  const unit = total/qte;
+  const vente = unit*(1+num(S.marge)/100);
+
+  const parts = [
+    {k:"mat", n:"Matière (pièce)", v:mat, d:g1(grPiece)},
+    {k:"purge", n:"Purge & tour", v:purge, d:g1(grPurge)+(S.mode==="est"?" estimés":"")},
+    {k:"elec", n:"Électricité", v:elec, d:(num(S.pW)/1000*hours).toLocaleString("fr-FR",{maximumFractionDigits:2})+" kWh"},
+    {k:"amort", n:"Usure imprimante", v:amort, d:hours.toLocaleString("fr-FR",{maximumFractionDigits:2})+" h machine"},
+    {k:"echec", n:"Provision échecs", v:echec, d:num(S.echec)+" % du coût machine + matière"},
+    {k:"mo", n:"Main d'œuvre", v:mo, d:num(S.mo)+" min"},
+    {k:"conso", n:"Consommables", v:conso, d:"colle, ponçage, inserts…"}
+  ];
+  $("bar").innerHTML = parts.filter(p=>p.v>0).map(p=>`<i style="width:${(p.v/total*100).toFixed(2)}%;background:${COLORS[p.k]}" title="${p.n}"></i>`).join("");
+  $("lines").innerHTML = parts.map(p=>`<div class="line"><span class="dot" style="background:${COLORS[p.k]}"></span><span>${p.n}<span class="d">${p.d}</span></span><span class="v">${eur(p.v)}</span></div>`).join("");
+  $("tNom").textContent = S.nom ? S.nom : "Coût de revient";
+  $("tUnit").innerHTML = eur(unit)+`<small>/ pièce</small>`;
+  $("tPlateau").textContent = eur(total)+(qte>1?` (${qte} pièces)`:"");
+  $("tGr").textContent = g1(grPiece+grPurge);
+  $("tVente").textContent = eur(vente);
+  $("tMargeTxt").textContent = `marge ${num(S.marge)} % · bénéfice ${eur(vente-unit)}`;
+  const tg = grPiece+grPurge;
+  $("purgeNote").innerHTML = tg>0 ? `La purge représente <b>${Math.round(grPurge/tg*100)} %</b> du filament consommé (${eur(purge)}).` : "";
+  last={parts,total,unit,vente,qte,grPiece,grPurge};
+  save();
+}
+
+$("copy").onclick=async()=>{
+  if(!last) return;
+  const t = [`${S.nom||"Pièce"} — prix de revient`, ...last.parts.map(p=>`${p.n} : ${eur(p.v)}`),
+    `Total plateau : ${eur(last.total)} (${last.qte} pièce${last.qte>1?"s":""})`,
+    `Coût / pièce : ${eur(last.unit)}`, `Prix de vente conseillé : ${eur(last.vente)} (marge ${num(S.marge)} %)`].join("\n");
+  const b=$("copy");
+  try{ await navigator.clipboard.writeText(t); b.textContent="Détail copié"; }
+  catch(e){ b.textContent="Copie impossible ici"; }
+  setTimeout(()=>b.textContent="Copier le détail",1800);
+};
+
+/* ===== Import Bambu Studio ===== */
+function prixType(t){ return (S.tarifs && S.tarifs[t]!=null) ? S.tarifs[t] : FILAMENTS[t]; }
+function matchType(name, type){
+  const n=(name||"")+" "+(type||"");
+  const tests=[[/support/i,"Support for PLA"],[/pla[- ]?cf/i,"PLA-CF"],[/silk/i,"PLA Silk+"],[/matte/i,"PLA Matte"],
+    [/petg/i,"PETG HF"],[/\basa\b/i,"ASA"],[/\babs\b/i,"ABS"],[/tpu/i,"TPU 95A HF"],[/pla/i,"PLA Basic"]];
+  for(const [re,k] of tests) if(re.test(n)) return k;
+  return "Autre";
+}
+function matchPrinter(s){
+  s=s||"";
+  const t=[[/a1 ?mini/i,"A1 mini"],[/\bA1\b/i,"A1"],[/p1s|p1p/i,"P1S"],[/p2s/i,"P2S"],[/x1/i,"X1 Carbon"],[/h2d/i,"H2D"]];
+  for(const [re,k] of t) if(re.test(s)) return k;
+  return null;
+}
+function normColor(c){ c=(c||"").trim(); if(/^#[0-9a-f]{8}$/i.test(c)) c=c.slice(0,7); return /^#[0-9a-f]{6}$/i.test(c)?c.toLowerCase():"#888888"; }
+function parseTime(str){
+  const m=/(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?/.exec(str||""); if(!m) return 0;
+  return (+m[1]||0)*86400+(+m[2]||0)*3600+(+m[3]||0)*60+(+m[4]||0);
+}
+/* Lit le G-code : extrusion par outil, séparée en modèle / purge (FLUSH) / tour de purge */
+function analyseGcode(txt){
+  const head={}; let tool=0, rel=true, lastE=0, inFlush=false, inTower=false, changes=0, seenTool=false;
+  const tot={}, flush={}, tower={};
+  const add=(o,k,v)=>{o[k]=(o[k]||0)+v;};
+  let i=0; const L=txt.length;
+  while(i<L){
+    let j=txt.indexOf("\n",i); if(j<0) j=L;
+    const line=txt.slice(i,j); i=j+1;
+    const c0=line.charCodeAt(0);
+    if(c0===59){ // ';'
+      if(line.startsWith("; FLUSH_START")) inFlush=true;
+      else if(line.startsWith("; FLUSH_END")) inFlush=false;
+      else if(line.startsWith("; FEATURE:")) inTower=/prime tower|wipe tower/i.test(line);
+      else { const m=/^;\s*([^:=]+?)\s*[:=]\s*(.*)$/.exec(line); if(m && !(m[1] in head)) head[m[1]]=m[2]; }
+      continue;
+    }
+    if(c0===84){ // 'T'
+      const m=/^T(\d+)\s*$/.exec(line); if(m){ const t=+m[1]; if(t<64){ if(seenTool && t!==tool) changes++; tool=t; seenTool=true; } }
+      continue;
+    }
+    if(c0!==71 && c0!==77) continue; // G / M
+    if(line.startsWith("M83")){rel=true;continue;} if(line.startsWith("M82")){rel=false;continue;}
+    if(line.startsWith("G92")){ const m=/E(-?[\d.]+)/.exec(line); if(m) lastE=+m[1]; continue; }
+    if(!/^G[0-3]\s/.test(line)) continue;
+    const sc=line.indexOf(";"); const cmd=sc>=0?line.slice(0,sc):line;
+    const m=/E(-?\d*\.?\d+)/.exec(cmd); if(!m) continue;
+    let e=+m[1]; if(!rel){ const d=e-lastE; lastE=e; e=d; }
+    if(e<=0) continue;
+    add(tot,tool,e); if(inFlush) add(flush,tool,e); else if(inTower) add(tower,tool,e);
+  }
+  return {head,tot,flush,tower,changes,hasFlush:Object.keys(flush).length>0};
+}
+function listVal(s,i,sep){ if(s==null) return null; const a=String(s).replace(/"/g,"").split(sep||/[;,]/).map(x=>x.trim()); return a[i]!==undefined?a[i]:a[0]; }
+
+let ZIP=null, PLATES=[], FNAME="";
+async function handleFile(file){
+  const st=$("status"); st.hidden=false; st.className="status"; st.textContent="Lecture de "+file.name+"…";
+  FNAME=file.name.replace(/\.gcode\.3mf$|\.3mf$|\.gcode$/i,"");
+  try{
+    if(/\.gcode$/i.test(file.name)){
+      ZIP=null; PLATES=[]; $("plateRow").hidden=true;
+      const txt=await file.text();
+      applyResult(analyseGcode(txt), null, null);
+      return;
+    }
+    if(typeof JSZip==="undefined") throw new Error("La bibliothèque de lecture des .3mf n'a pas pu se charger. Vérifiez la connexion et rechargez la page.");
+    ZIP=await JSZip.loadAsync(file);
+    const sliceXml = ZIP.file("Metadata/slice_info.config") ? await ZIP.file("Metadata/slice_info.config").async("string") : null;
+    const gfiles=Object.keys(ZIP.files).filter(n=>/^Metadata\/plate_\d+\.gcode$/.test(n));
+    if(!sliceXml && !gfiles.length) throw new Error("Ce fichier ne contient pas de découpage. Dans Bambu Studio, découpez le plateau puis utilisez « Exporter le fichier de plateau découpé ».");
+    let proj=null; try{ const pj=ZIP.file("Metadata/project_settings.config"); if(pj) proj=JSON.parse(await pj.async("string")); }catch(e){}
+    const doc = sliceXml ? new DOMParser().parseFromString(sliceXml,"application/xml") : null;
+    PLATES=[];
+    if(doc){ doc.querySelectorAll("plate").forEach(p=>{
+      const md={}; p.querySelectorAll(":scope > metadata").forEach(m=>md[m.getAttribute("key")]=m.getAttribute("value"));
+      const fil=[...p.querySelectorAll(":scope > filament")].map(f=>({id:+f.getAttribute("id"),type:f.getAttribute("type"),color:f.getAttribute("color"),used_g:+f.getAttribute("used_g")||0,idx:f.getAttribute("tray_info_idx")}));
+      const objs=p.querySelectorAll(":scope > object").length;
+      PLATES.push({index:+md.index||PLATES.length+1, prediction:+md.prediction||0, fil, objs, proj});
+    }); }
+    if(!PLATES.length) gfiles.forEach(g=>PLATES.push({index:+g.match(/plate_(\d+)/)[1], prediction:0, fil:[], objs:0, proj}));
+    PLATES=PLATES.filter(p=>ZIP.file(`Metadata/plate_${p.index}.gcode`) || p.fil.length);
+    const sel=$("plate"); sel.innerHTML=PLATES.map((p,k)=>`<option value="${k}">Plateau ${p.index}</option>`).join("");
+    $("plateRow").hidden = PLATES.length<2;
+    await loadPlate(0);
+  }catch(err){ st.className="status err"; st.textContent=err.message||String(err); }
+}
+async function loadPlate(k){
+  const p=PLATES[k]; const st=$("status"); st.className="status"; st.textContent="Analyse du G-code du plateau "+p.index+"…";
+  const gf=ZIP.file(`Metadata/plate_${p.index}.gcode`);
+  const an = gf ? analyseGcode(await gf.async("string")) : null;
+  applyResult(an, p, p.proj);
+}
+$("plate").addEventListener("change",e=>loadPlate(+e.target.value).catch(err=>{ $("status").className="status err"; $("status").textContent=err.message; }));
+
+function applyResult(an, plate, proj){
+  const head=an?an.head:{};
+  const pget=(key,i)=> proj && proj[key]!=null ? (Array.isArray(proj[key])? (proj[key][i]??proj[key][0]) : proj[key]) : listVal(head[key],i, key==="filament_settings_id"?/";\s*"|;/:null);
+  // Liste des filaments utilisés
+  let ids;
+  if(plate && plate.fil.length) ids=plate.fil.map(f=>f.id-1);
+  else ids=Object.keys(an?an.tot:{}).map(Number).sort((a,b)=>a-b);
+  if(!ids.length) throw new Error("Aucun filament trouvé dans ce fichier.");
+  const notes=[];
+  const fils=ids.map(t=>{
+    const pf = plate ? plate.fil.find(f=>f.id-1===t) : null;
+    const dens = parseFloat(pget("filament_density",t))||1.24;
+    const diam = parseFloat(pget("filament_diameter",t))||1.75;
+    const mm2g = Math.PI*(diam/2)**2*dens/1000;
+    const gTot = an ? (an.tot[t]||0)*mm2g : 0;
+    const gFl = an ? (an.flush[t]||0)*mm2g : 0;
+    const gTw = an ? (an.tower[t]||0)*mm2g : 0;
+    const total = pf && pf.used_g>0 ? pf.used_g : gTot;
+    const label = String(pget("filament_settings_id",t)||"").replace(/"/g,"");
+    const type = matchType(label, pf?pf.type:pget("filament_type",t));
+    const color = normColor(pf?pf.color:pget("filament_colour",t));
+    const r=x=>Math.round(x*10)/10;
+    return {type, col:color, prix:prixType(type), poids:1000, label: label||(pf?pf.type:""),
+      g:r(Math.max(0,total-gFl-gTw)), pu:r(gFl), tour:r(gTw)};
+  });
+  S.fils=fils;
+  // Durée
+  let sec = plate && plate.prediction ? plate.prediction : 0;
+  if(!sec){ const k=Object.keys(head).find(x=>/total estimated time|estimated printing time/i.test(x)); if(k) sec=parseTime(head[k]); }
+  if(sec){ S.h=Math.floor(sec/3600); S.m=Math.round(sec%3600/60); if(S.m===60){S.h++;S.m=0;} }
+  // Imprimante
+  const pm = matchPrinter((proj&&(proj.printer_model||proj.printer_settings_id))||head.printer_model||head.printer_settings_id);
+  if(pm && pm!==S.printer){ S.printer=pm; S.pPrix=PRINTERS[pm].prix; S.pW=PRINTERS[pm].w; }
+  S.nom = FNAME + (PLATES.length>1 && plate ? " — plateau "+plate.index : "");
+  // Purge
+  const purgeTot=fils.reduce((a,f)=>a+f.pu+f.tour,0);
+  if(an && an.hasFlush || purgeTot>0){ S.mode="slicer"; notes.push(`Purge détectée dans le G-code : ${g1(purgeTot)} (dont tour ${g1(fils.reduce((a,f)=>a+f.tour,0))}).`); }
+  else if(fils.length>1){ S.mode="est"; S.nbChg=an?an.changes:S.nbChg; notes.push(`Purge non repérée dans le G-code : passage en estimation avec ${S.nbChg} changements de couleur.`); }
+  else { S.mode="slicer"; notes.push("Une seule couleur : pas de purge de changement."); }
+  fillInputs();
+  const st=$("status"); st.className="status";
+  st.innerHTML = `<b>${fils.length} filament${fils.length>1?"s":""} importé${fils.length>1?"s":""}</b> · ${S.h} h ${String(S.m).padStart(2,"0")} · ${g1(fils.reduce((a,f)=>a+f.g+f.pu+f.tour,0))} au total${pm?` · ${pm}`:""}
+    <ul>${fils.map(f=>`<li>${f.label||f.type} → tarif « ${f.type} » ${eur(f.prix)}</li>`).join("")}${notes.map(n=>`<li>${n}</li>`).join("")}</ul>
+    Vérifiez les prix et le nombre de pièces sur le plateau.`;
+}
+
+const drop=$("drop");
+$("file").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=""; });
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+fillInputs();
+})();
+</script>
