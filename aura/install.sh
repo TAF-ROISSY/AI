@@ -13,8 +13,14 @@ print(r["assets"][0]["browser_download_url"])')
 echo "✦ Téléchargement : $URL"
 curl -fL --progress-bar -o /tmp/Aura.zip "$URL"
 pkill -x Aura 2>/dev/null && sleep 1 || true
-rm -rf /Applications/Aura.app
-ditto -x -k /tmp/Aura.zip /Applications
+# Une ancienne installation peut appartenir au compte système : on passe alors par sudo
+if ! rm -rf /Applications/Aura.app 2>/dev/null || [ -e /Applications/Aura.app ]; then
+  echo "✦ Mot de passe du Mac demandé pour remplacer l'ancienne version :"
+  sudo rm -rf /Applications/Aura.app < /dev/tty
+fi
+ditto -x -k /tmp/Aura.zip /Applications 2>/dev/null || sudo ditto -x -k /tmp/Aura.zip /Applications < /dev/tty
+# L'app doit t'appartenir pour que les mises à jour intégrées marchent sans mot de passe
+[ -O /Applications/Aura.app ] || sudo chown -R "$(whoami)" /Applications/Aura.app < /dev/tty
 xattr -dr com.apple.quarantine /Applications/Aura.app 2>/dev/null || true
 echo "✅ Aura installée : $(defaults read /Applications/Aura.app/Contents/Info CFBundleShortVersionString)"
 open /Applications/Aura.app
