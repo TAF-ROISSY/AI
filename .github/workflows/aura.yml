@@ -1,0 +1,62 @@
+name: Aura (Mac) — compilation et publication
+
+# À chaque envoi touchant le dossier aura/ :
+#   1. compile Aura sur un Mac GitHub (détecte les erreurs) ;
+#   2. si le numéro de aura/VERSION n'a pas encore de release, publie
+#      « aura-vX.Y.Z » avec Aura.zip : les Aura installées se mettent à jour.
+on:
+  push:
+    branches: [main]
+    paths: ['aura/**', '.github/workflows/aura.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aura-build
+  cancel-in-progress: false
+
+jobs:
+  aura:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: aura
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Numéro de version
+        run: |
+          V=$(tr -d '[:space:]' < VERSION)
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          if gh release view "aura-v$V" >/dev/null 2>&1; then
+            echo "PUBLIER=non" >> "$GITHUB_ENV"
+            echo "aura-v$V existe déjà : compilation de contrôle uniquement."
+          else
+            echo "PUBLIER=oui" >> "$GITHUB_ENV"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compilation (contrôle rapide, Apple Silicon)
+        if: env.PUBLIER == 'non'
+        run: |
+          chmod +x build_app.sh
+          ARCHS="arm64" ./build_app.sh
+
+      - name: Compilation universelle (Apple Silicon + Intel)
+        if: env.PUBLIER == 'oui'
+        run: |
+          chmod +x build_app.sh
+          ARCHS="arm64 x86_64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh
+
+      - name: Publication de la version
+        if: env.PUBLIER == 'oui'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES=$(awk -v v="## $VERSION" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md)
+          [ -z "$NOTES" ] && NOTES="Nouvelle version d'Aura."
+          gh release create "aura-v$VERSION" build/Aura.zip \
+            --title "Aura $VERSION" --notes "$NOTES" --target "$GITHUB_SHA"
