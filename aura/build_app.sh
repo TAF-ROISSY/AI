@@ -25,7 +25,7 @@ for A in $ARCHS; do
     BINS+=("build/Aura-$A")
 done
 
-echo "▶︎ Assemblage de $APP…"
+echo "▶︎ Assemblage de ${APP}…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 if [ "${#BINS[@]}" -gt 1 ]; then
