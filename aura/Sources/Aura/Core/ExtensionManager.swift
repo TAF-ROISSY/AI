@@ -191,11 +191,13 @@ final class ExtensionManager: ObservableObject {
         if FS.trash(item.url) {
             items.removeAll { $0.id == item.id }
             message = "\(item.name) envoyé à la Corbeille"
-        } else {
-            let dest = FS.home.appendingPathComponent(".Trash").path + "/"
-            let r = Shell.admin("/bin/mv \(Shell.quote(item.url.path)) \(Shell.quote(dest))")
+            return
+        }
+        let dest = FS.home.appendingPathComponent(".Trash").path + "/"
+        Task {
+            let r = await Shell.adminAsync("/bin/mv \(Shell.quote(item.url.path)) \(Shell.quote(dest))")
             if r.ok { items.removeAll { $0.id == item.id }; message = "\(item.name) envoyé à la Corbeille" }
-            else { message = "Suppression annulée" }
+            else { message = r.output.isEmpty ? "Suppression annulée" : r.output }
         }
     }
 

@@ -196,7 +196,7 @@ final class PrivacyManager: ObservableObject {
     func forgetWifi(_ ssids: [String]) async {
         let iface = await Task.detached { Self.wifiInterface() }.value
         let cmd = ssids.map { "/usr/sbin/networksetup -removepreferredwirelessnetwork \(iface) \(Shell.quote($0))" }.joined(separator: "; ")
-        let r = Shell.admin(cmd)
+        let r = await Shell.adminAsync(cmd)
         message = r.ok ? "\(ssids.count) réseau(x) Wi-Fi oublié(s)" : "Opération annulée"
         wifiNetworks = await Task.detached { Self.readWifi() }.value
     }

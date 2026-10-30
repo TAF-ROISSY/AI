@@ -30,14 +30,21 @@ enum Shell {
     }
 
     /// Lance une commande avec le mot de passe administrateur (fenêtre macOS standard).
+    /// Passe par l'outil `osascript` : la fenêtre de mot de passe et l'exécution se font
+    /// dans un processus séparé, Aura ne se fige jamais. À appeler hors du fil principal.
     @discardableResult
-    static func admin(_ command: String) -> (ok: Bool, output: String) {
+    static func admin(_ command: String, timeout: TimeInterval = 3600) -> (ok: Bool, output: String) {
         let escaped = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         let script = "do shell script \"\(escaped)\" with administrator privileges"
-        var err: NSDictionary?
-        let result = NSAppleScript(source: script)?.executeAndReturnError(&err)
-        if let err { return (false, (err[NSAppleScript.errorMessage] as? String) ?? "Annulé") }
-        return (true, result?.stringValue ?? "")
+        let r = run("/usr/bin/osascript", ["-e", script], timeout: timeout)
+        if r.status == 0 { return (true, r.output) }
+        if r.output.contains("-128") { return (false, "Mot de passe non saisi (annulé)") }
+        return (false, r.output.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Version asynchrone, utilisable depuis l'interface.
+    static func adminAsync(_ command: String, timeout: TimeInterval = 3600) async -> (ok: Bool, output: String) {
+        await Task.detached(priority: .userInitiated) { Shell.admin(command, timeout: timeout) }.value
     }
 
     static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }

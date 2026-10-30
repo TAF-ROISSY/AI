@@ -296,16 +296,14 @@ final class SystemMonitor: ObservableObject {
 
     /// Libère la mémoire inactive (commande `purge`, demande le mot de passe admin).
     func purgeMemory() {
-        let script = "do shell script \"/usr/sbin/purge\" with administrator privileges"
-        var err: NSDictionary?
-        NSAppleScript(source: script)?.executeAndReturnError(&err)
-        refresh()
+        Task {
+            _ = await Shell.adminAsync("/usr/sbin/purge")
+            refresh()
+        }
     }
 
     /// Vide le cache DNS (mot de passe admin).
     func flushDNS() {
-        let script = "do shell script \"dscacheutil -flushcache; killall -HUP mDNSResponder\" with administrator privileges"
-        var err: NSDictionary?
-        NSAppleScript(source: script)?.executeAndReturnError(&err)
+        Task { _ = await Shell.adminAsync("/usr/bin/dscacheutil -flushcache; /usr/bin/killall -HUP mDNSResponder") }
     }
 }

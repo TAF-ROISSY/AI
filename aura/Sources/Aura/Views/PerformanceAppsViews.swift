@@ -7,57 +7,36 @@ struct MaintenanceView: View {
     @EnvironmentObject var maint: MaintenanceManager
 
     private var selectedCount: Int { maint.tasks.filter(\.selected).count }
+    private var needsPassword: Bool { maint.tasks.contains { $0.selected && $0.needsAdmin } }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 ModuleHeader(module: .maintenance, subtitle: "Les petits réglages qui gardent ton Mac rapide et stable.")
-                HStack {
-                    if maint.recommendedCount > 0 {
+                HStack(spacing: 12) {
+                    if maint.isRunning {
+                        ProgressView().controlSize(.small)
+                        Text("Maintenance en cours, tu peux continuer à utiliser Aura…").foregroundStyle(.secondary)
+                    } else if !maint.summary.isEmpty {
+                        Text(maint.summary).fontWeight(.semibold)
+                    } else if maint.recommendedCount > 0 {
                         Label("\(maint.recommendedCount) tâche(s) recommandée(s)", systemImage: "star.fill").foregroundStyle(.orange)
                     }
                     Spacer()
-                    Button("Sélectionner les recommandées") { maint.selectRecommended() }
-                    BigButton(title: maint.running != nil ? "En cours…" : "Lancer \(selectedCount) tâche(s)",
-                              icon: "wrench.and.screwdriver.fill", busy: maint.running != nil) {
+                    Button("Sélectionner les recommandées") { maint.selectRecommended() }.disabled(maint.isRunning)
+                    BigButton(title: maint.isRunning ? "En cours…" : "Lancer \(selectedCount) tâche(s)",
+                              icon: "wrench.and.screwdriver.fill", busy: maint.isRunning) {
                         Task { await maint.runSelected() }
                     }
                     .disabled(selectedCount == 0)
                 }
-                if let r = maint.running {
-                    HStack { ProgressView().controlSize(.small); Text(r).foregroundStyle(.secondary).lineLimit(1) }
-                }
-                if !maint.log.isEmpty {
-                    GlassCard(padding: 14) {
-                        VStack(alignment: .leading, spacing: 4) { ForEach(maint.log, id: \.self) { Text($0).font(.callout) } }
-                    }
+                if needsPassword && !maint.isRunning {
+                    Label("Certaines tâches demanderont ton mot de passe du Mac (une seule fois).", systemImage: "lock.fill")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 12)], spacing: 12) {
-                    ForEach(maint.tasks) { t in
-                        Button { maint.toggle(t.id) } label: {
-                            GlassCard(padding: 14) {
-                                HStack(alignment: .top, spacing: 12) {
-                                    CheckCircle(on: t.selected, tint: .orange)
-                                    Image(systemName: t.icon).font(.title2).foregroundStyle(.orange).frame(width: 30)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(spacing: 6) {
-                                            Text(t.name).fontWeight(.semibold)
-                                            if maint.isRecommended(t) {
-                                                Text("recommandée").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                                    .background(.orange.opacity(0.3), in: Capsule())
-                                            }
-                                            if t.needsAdmin { Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary) }
-                                        }
-                                        Text(t.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                                        Text(maint.lastRun(t).map { "Dernière fois \(Fmt.relativeDate($0))" } ?? "Jamais lancée")
-                                            .font(.caption2).foregroundStyle(.tertiary)
-                                    }
-                                    Spacer()
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    ForEach(maint.tasks) { t in taskCard(t) }
                 }
                 if !maint.snapshots.isEmpty {
                     GlassCard {
@@ -71,6 +50,52 @@ struct MaintenanceView: View {
             .padding(28)
         }
         .task { await maint.loadSnapshots() }
+    }
+
+    private func taskCard(_ t: MaintenanceTask) -> some View {
+        let state = maint.states[t.id] ?? .idle
+        return Button { maint.toggle(t.id) } label: {
+            GlassCard(padding: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    stateIcon(state, selected: t.selected)
+                    Image(systemName: t.icon).font(.title2).foregroundStyle(.orange).frame(width: 30)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(t.name).fontWeight(.semibold)
+                            if maint.isRecommended(t) {
+                                Text("recommandée").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(.orange.opacity(0.3), in: Capsule())
+                            }
+                            if t.needsAdmin { Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary) }
+                        }
+                        Text(t.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        switch state {
+                        case .running:
+                            Text("En cours…").font(.caption2.bold()).foregroundStyle(.orange)
+                        case .done(let m):
+                            Text(m).font(.caption2.bold()).foregroundStyle(.green)
+                        case .failed(let m):
+                            Text(m).font(.caption2.bold()).foregroundStyle(.red).lineLimit(3)
+                        case .idle:
+                            Text(maint.lastRun(t).map { "Dernière fois \(Fmt.relativeDate($0))" } ?? "Jamais lancée")
+                                .font(.caption2).foregroundStyle(.tertiary)
+                        }
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func stateIcon(_ s: TaskState, selected: Bool) -> some View {
+        switch s {
+        case .running: ProgressView().controlSize(.small).frame(width: 22)
+        case .done: Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
+        case .failed: Image(systemName: "exclamationmark.triangle.fill").font(.title3).foregroundStyle(.red)
+        case .idle: CheckCircle(on: selected, tint: .orange)
+        }
     }
 }
 

@@ -313,7 +313,7 @@ final class SecurityScanner: ObservableObject {
                 c += "/bin/mv \(Shell.quote(t.url.path)) \(Shell.quote(FS.home.appendingPathComponent(".Trash").path + "/"))"
                 return c
             }.joined(separator: "; ")
-            let r = Shell.admin(cmds)
+            let r = await Shell.adminAsync(cmds)
             if r.ok { removed += needAdmin.count } else { failed += needAdmin.count }
         }
         let gone = Set(threats.filter { $0.selected && $0.removable }.map(\.id))

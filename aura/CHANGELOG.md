@@ -1,5 +1,11 @@
 # Nouveautés d'Aura
 
+## 2.4.0
+- Maintenance réécrite : les tâches tournent en arrière-plan, Aura ne se fige plus pendant qu'elles s'exécutent.
+- Chaque tâche affiche son propre résultat (réussie, en cours, ou la raison précise de l'échec) ; une erreur n'annule plus les autres.
+- Un seul mot de passe pour toutes les tâches administrateur.
+- « Libérer la RAM », « Vider le cache DNS » et les suppressions protégées ne bloquent plus l'interface.
+
 ## 2.3.0
 - Correction du blocage au lancement (roue multicolore) : une boucle de rafraîchissement liée aux réglages enregistrés est supprimée.
 - Fenêtre principale nettement plus légère : seule la zone de surveillance se redessine à chaque mesure.
