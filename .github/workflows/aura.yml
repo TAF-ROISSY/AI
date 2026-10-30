@@ -53,18 +53,20 @@ jobs:
           set -o pipefail
           ARCHS="arm64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh 2>&1 | tee build.log
 
-      - name: Remontée des erreurs de compilation
+      - name: Remontée du journal de compilation
         if: failure()
+        working-directory: ${{ github.workspace }}
         run: |
-          [ -f build.log ] || exit 0
-          # Journal découpé en notes de 50 Ko (lisibles via l'API GitHub)
-          split -b 50000 build.log part_
-          i=0
-          for f in part_*; do
-            i=$((i+1)); [ $i -gt 8 ] && break
-            body=$(sed 's/%/%25/g; s/\r//g' "$f" | awk '{printf "%s%%0A", $0}')
-            echo "::error title=Journal $i::$body"
-          done
+          [ -f aura/build.log ] || exit 0
+          cp aura/build.log /tmp/build.log
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout -q --orphan aura-logs-tmp
+          git rm -rfq . >/dev/null
+          cp /tmp/build.log build.log
+          git add build.log
+          git commit -qm "Journal de compilation Aura (${GITHUB_SHA::7})"
+          git push -qf origin HEAD:refs/heads/aura-logs
 
       - name: Publication de la version
         if: env.PUBLIER == 'oui'
