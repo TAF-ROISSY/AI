@@ -46,12 +46,12 @@ jobs:
           set -o pipefail
           ARCHS="arm64" ./build_app.sh 2>&1 | tee build.log
 
-      - name: Compilation universelle (Apple Silicon + Intel)
+      - name: Compilation de publication (Apple Silicon)
         if: env.PUBLIER == 'oui'
         run: |
           chmod +x build_app.sh
           set -o pipefail
-          ARCHS="arm64 x86_64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh 2>&1 | tee build.log
+          ARCHS="arm64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh 2>&1 | tee build.log
 
       - name: Remontée des erreurs de compilation
         if: failure()
