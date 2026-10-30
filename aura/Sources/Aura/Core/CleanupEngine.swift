@@ -163,8 +163,8 @@ final class CleanupEngine: ObservableObject {
     @Published var lastFailed = 0
     @Published var lastScanDate: Date?
 
-    @AppStorage("aura.exclusions") private var exclusionsRaw = ""
-    @AppStorage("aura.totalFreed") var totalFreed: Double = 0
+    @Pref("aura.exclusions") private var exclusionsRaw = ""
+    @Pref("aura.totalFreed") var totalFreed: Double = 0
 
     var exclusions: [String] {
         get { exclusionsRaw.split(separator: "\n").map(String.init).filter { !$0.isEmpty } }

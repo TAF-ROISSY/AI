@@ -21,7 +21,7 @@ struct SettingsView: View {
                 Section("Aura") {
                     Toggle("Lancer Aura à l'ouverture de session", isOn: Binding(
                         get: { health.launchAtLogin }, set: { health.launchAtLogin = $0 }))
-                    Toggle("Afficher Aura dans la barre des menus", isOn: $menuBarEnabled)
+                    Toggle("Afficher Aura dans la barre des menus (au prochain lancement)", isOn: $menuBarEnabled)
                     Toggle("Analyser chaque nouveau support branché", isOn: $autoScanVolumes)
                 }
                 Section("Accès") {

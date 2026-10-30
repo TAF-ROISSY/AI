@@ -67,7 +67,7 @@ final class SecurityScanner: ObservableObject {
     @Published var progressLabel = ""
     @Published var lastScan: Date?
     @Published var depth: ScanDepth = .balanced
-    @AppStorage("aura.security.ignored") private var ignoredRaw = ""
+    @Pref("aura.security.ignored") private var ignoredRaw = ""
 
     private var ignored: Set<String> { Set(ignoredRaw.split(separator: "\n").map(String.init)) }
 

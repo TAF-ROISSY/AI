@@ -31,12 +31,12 @@ final class HealthCenter: ObservableObject {
     @Published var activeAlert: HealthAlert?
     @Published var history: [(Date, HealthAlert)] = []
 
-    @AppStorage("aura.alerts.enabled") var alertsEnabled = true
-    @AppStorage("aura.alerts.diskPercent") var diskThreshold = 10.0
-    @AppStorage("aura.alerts.temp") var tempThreshold = 95.0
-    @AppStorage("aura.alerts.cpuHog") var cpuHogThreshold = 85.0
-    @AppStorage("aura.schedule") private var scheduleRaw = CleanSchedule.weekly.rawValue
-    @AppStorage("aura.schedule.last") private var lastAutoClean: Double = 0
+    @Pref("aura.alerts.enabled") var alertsEnabled = true
+    @Pref("aura.alerts.diskPercent") var diskThreshold = 10.0
+    @Pref("aura.alerts.temp") var tempThreshold = 95.0
+    @Pref("aura.alerts.cpuHog") var cpuHogThreshold = 85.0
+    @Pref("aura.schedule") private var scheduleRaw = CleanSchedule.weekly.rawValue
+    @Pref("aura.schedule.last") private var lastAutoClean: Double = 0
 
     var schedule: CleanSchedule {
         get { CleanSchedule(rawValue: scheduleRaw) ?? .off }

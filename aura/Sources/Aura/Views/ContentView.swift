@@ -94,14 +94,12 @@ enum Module: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
-    @EnvironmentObject var cleanup: CleanupEngine
-    @EnvironmentObject var monitor: SystemMonitor
     @EnvironmentObject var router: Router
     @EnvironmentObject var volumes: VolumeManager
     @EnvironmentObject var alerts: HealthCenter
     @EnvironmentObject var selfUpdate: SelfUpdater
     @Etat private var showNotes = false
-    @Etat private var hasFDA = FS.hasFullDiskAccess
+    @Etat private var hasFDA = true
     private var current: Module { router.selection ?? .smartScan }
 
     var body: some View {
@@ -118,7 +116,7 @@ struct ContentView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 230, ideal: 250)
-            .safeAreaInset(edge: .bottom) { sidebarFooter }
+            .safeAreaInset(edge: .bottom) { SidebarFooter() }
         } detail: {
             ZStack {
                 AuraTheme.background(for: current)
@@ -133,8 +131,10 @@ struct ContentView: View {
             }
             .animation(.easeInOut(duration: 0.25), value: current)
         }
+        .onAppear { hasFDA = FS.hasFullDiskAccess }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            hasFDA = FS.hasFullDiskAccess
+            let v = FS.hasFullDiskAccess
+            if v != hasFDA { hasFDA = v }
         }
     }
 
@@ -158,19 +158,6 @@ struct ContentView: View {
         }
         .tag(m)
         .padding(.vertical, 2)
-    }
-
-    private var sidebarFooter: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Divider().opacity(0.3)
-            HStack {
-                Circle().fill(AuraTheme.scoreColor(monitor.healthScore)).frame(width: 8, height: 8)
-                Text("Santé du Mac : \(monitor.healthScore)/100").font(.caption)
-            }
-            Text("Libéré au total : \(Fmt.bytes(Int64(cleanup.totalFreed)))")
-                .font(.caption2).foregroundStyle(.secondary)
-        }
-        .padding(12)
     }
 
     private var fdaBanner: some View {
@@ -256,5 +243,25 @@ struct ContentView: View {
         case .cloud: CloudView()
         case .shredder: ShredderView()
         }
+    }
+}
+
+/// Pied de la barre latérale : seul élément de la fenêtre principale qui suit
+/// la surveillance en continu, pour ne pas redessiner toute la fenêtre à chaque mesure.
+struct SidebarFooter: View {
+    @EnvironmentObject var cleanup: CleanupEngine
+    @EnvironmentObject var monitor: SystemMonitor
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider().opacity(0.3)
+            HStack {
+                Circle().fill(AuraTheme.scoreColor(monitor.healthScore)).frame(width: 8, height: 8)
+                Text("Santé du Mac : \(monitor.healthScore)/100").font(.caption)
+            }
+            Text("Libéré au total : \(Fmt.bytes(Int64(cleanup.totalFreed)))")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(12)
     }
 }

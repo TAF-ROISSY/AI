@@ -25,8 +25,8 @@ final class SelfUpdater: ObservableObject {
     @Published var status = ""
     @Published var lastResult = ""
 
-    @AppStorage("aura.update.auto") var autoInstall = false
-    @AppStorage("aura.update.lastCheck") var lastCheck: Double = 0
+    @Pref("aura.update.auto") var autoInstall = false
+    @Pref("aura.update.lastCheck") var lastCheck: Double = 0
 
     private var timer: Timer?
 

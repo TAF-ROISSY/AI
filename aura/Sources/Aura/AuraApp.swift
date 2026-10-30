@@ -13,72 +13,95 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Tous les moteurs d'Aura, créés une seule fois.
+/// Ils ne sont pas observés par l'App elle-même : seules les vues qui les utilisent
+/// se rafraîchissent quand ils changent.
+@MainActor
+final class AppModel {
+    static let shared = AppModel()
+    let router = Router()
+    let cleanup = CleanupEngine()
+    let monitor = SystemMonitor.shared
+    let apps = AppManager()
+    let files = FileTools()
+    let volumes = VolumeManager()
+    let security = SecurityScanner()
+    let privacy = PrivacyManager()
+    let permissions = PermissionsManager()
+    let maintenance = MaintenanceManager()
+    let updater = UpdateManager()
+    let extensions = ExtensionManager()
+    let similar = SimilarImageFinder()
+    let cloud = CloudManager()
+    let health = HealthCenter()
+    let selfUpdate = SelfUpdater()
+    /// Lu une fois au lancement (modifiable dans les Réglages, effectif au prochain lancement).
+    let showMenuBar = UserDefaults.standard.object(forKey: "aura.menuBarEnabled") as? Bool ?? true
+    private var started = false
+
+    func startServices() {
+        guard !started else { return }
+        started = true
+        monitor.start()
+        health.start(monitor: monitor, cleanup: cleanup)
+        selfUpdate.start()
+    }
+}
+
+extension View {
+    func withAuraModel(_ m: AppModel) -> some View {
+        self.environmentObject(m.router)
+            .environmentObject(m.cleanup)
+            .environmentObject(m.monitor)
+            .environmentObject(m.apps)
+            .environmentObject(m.files)
+            .environmentObject(m.volumes)
+            .environmentObject(m.security)
+            .environmentObject(m.privacy)
+            .environmentObject(m.permissions)
+            .environmentObject(m.maintenance)
+            .environmentObject(m.updater)
+            .environmentObject(m.extensions)
+            .environmentObject(m.similar)
+            .environmentObject(m.cloud)
+            .environmentObject(m.health)
+            .environmentObject(m.selfUpdate)
+    }
+}
+
 @main
 struct AuraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @StateObject private var router = Router()
-    @StateObject private var cleanup = CleanupEngine()
-    @StateObject private var monitor = SystemMonitor.shared
-    @StateObject private var apps = AppManager()
-    @StateObject private var files = FileTools()
-    @StateObject private var volumes = VolumeManager()
-    @StateObject private var security = SecurityScanner()
-    @StateObject private var privacy = PrivacyManager()
-    @StateObject private var permissions = PermissionsManager()
-    @StateObject private var maintenance = MaintenanceManager()
-    @StateObject private var updater = UpdateManager()
-    @StateObject private var extensions = ExtensionManager()
-    @StateObject private var similar = SimilarImageFinder()
-    @StateObject private var cloud = CloudManager()
-    @StateObject private var health = HealthCenter()
-    @StateObject private var selfUpdate = SelfUpdater()
-    @AppStorage("aura.menuBarEnabled") private var menuBarEnabled = true
+    private let model = AppModel.shared
 
     var body: some Scene {
         WindowGroup("Aura", id: "main") {
             ContentView()
-                .environmentObject(router)
-                .environmentObject(cleanup)
-                .environmentObject(monitor)
-                .environmentObject(apps)
-                .environmentObject(files)
-                .environmentObject(volumes)
-                .environmentObject(security)
-                .environmentObject(privacy)
-                .environmentObject(permissions)
-                .environmentObject(maintenance)
-                .environmentObject(updater)
-                .environmentObject(extensions)
-                .environmentObject(similar)
-                .environmentObject(cloud)
-                .environmentObject(health)
-                .environmentObject(selfUpdate)
+                .withAuraModel(model)
                 .frame(minWidth: 1180, minHeight: 760)
                 .preferredColorScheme(.dark)
-                .onAppear { startServices() }
+                .onAppear { model.startServices() }
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Rechercher des mises à jour…") { Task { await selfUpdate.check(silent: false) } }
+                Button("Rechercher des mises à jour…") { Task { await model.selfUpdate.check(silent: false) } }
             }
             CommandMenu("Aura") {
-                Button("Analyse intelligente") { router.open(.smartScan) }.keyboardShortcut("1")
-                Button("Déchets système") { router.open(.cleanup) }.keyboardShortcut("2")
-                Button("Sécurité") { router.open(.security) }.keyboardShortcut("3")
-                Button("Surveillance") { router.open(.monitor) }.keyboardShortcut("4")
-                Button("Carte de l'espace") { router.open(.spaceMap) }.keyboardShortcut("5")
+                Button("Analyse intelligente") { model.router.open(.smartScan) }.keyboardShortcut("1")
+                Button("Déchets système") { model.router.open(.cleanup) }.keyboardShortcut("2")
+                Button("Sécurité") { model.router.open(.security) }.keyboardShortcut("3")
+                Button("Surveillance") { model.router.open(.monitor) }.keyboardShortcut("4")
+                Button("Carte de l'espace") { model.router.open(.spaceMap) }.keyboardShortcut("5")
             }
         }
 
-        MenuBarExtra(isInserted: $menuBarEnabled) {
+        MenuBarExtra(isInserted: .constant(model.showMenuBar)) {
             MenuBarView()
-                .environmentObject(cleanup)
-                .environmentObject(monitor)
-                .environmentObject(volumes)
+                .withAuraModel(model)
                 .preferredColorScheme(.dark)
-                .onAppear { startServices() }
+                .onAppear { model.startServices() }
         } label: {
             Image(systemName: "sparkles")
         }
@@ -86,16 +109,8 @@ struct AuraApp: App {
 
         Settings {
             SettingsView()
-                .environmentObject(cleanup)
-                .environmentObject(health)
-                .environmentObject(selfUpdate)
+                .withAuraModel(model)
                 .preferredColorScheme(.dark)
         }
-    }
-
-    private func startServices() {
-        monitor.start()
-        health.start(monitor: monitor, cleanup: cleanup)
-        selfUpdate.start()
     }
 }
