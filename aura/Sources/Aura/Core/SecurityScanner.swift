@@ -107,6 +107,13 @@ final class SecurityScanner: ObservableObject {
         let hasPending = pending.contains("* Label:")
 
         func yes(_ s: String, _ k: String) -> Bool? { s.isEmpty ? nil : s.lowercased().contains(k) }
+        let tm = TimeMachine.status()
+        let tmDetail: String = {
+            guard tm.configured else { return "Aucun disque de sauvegarde configuré." }
+            guard let d = tm.last else { return "Sauvegarde configurée, date de la dernière inconnue." }
+            return "Dernière sauvegarde \(Fmt.relativeDate(d))."
+        }()
+        let tmOK: Bool? = !tm.configured ? false : tm.last.map { Date().timeIntervalSince($0) < 7 * 86400 }
 
         return [
             SecurityCheck(id: "sip", title: "Protection de l'intégrité du système (SIP)",
@@ -133,6 +140,11 @@ final class SecurityScanner: ObservableObject {
                           detail: "Réponses de sécurité rapides et fichiers de données système.",
                           fixHint: "Réglages › Général › Mise à jour de logiciels › Mises à jour automatiques",
                           settingsURL: "x-apple.systempreferences:com.apple.Software-Update-Settings.extension"),
+            SecurityCheck(id: "timemachine", title: "Sauvegarde Time Machine",
+                          ok: tmOK, detail: tmDetail,
+                          fixHint: tm.configured ? "Branche ton disque de sauvegarde ou lance une sauvegarde"
+                                                 : "Réglages › Général › Time Machine › Ajouter un disque de sauvegarde",
+                          settingsURL: "x-apple.systempreferences:com.apple.Time-Machine-Settings.extension"),
             SecurityCheck(id: "pending", title: "macOS à jour",
                           ok: pending.isEmpty ? nil : !hasPending,
                           detail: hasPending ? "Des mises à jour macOS sont en attente." : "Aucune mise à jour connue en attente.",

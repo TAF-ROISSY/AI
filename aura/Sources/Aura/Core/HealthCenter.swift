@@ -64,10 +64,30 @@ final class HealthCenter: ObservableObject {
         Task { await tick() }
     }
 
+    private var lastSlowCheck = Date.distantPast
+    var onSlowTick: (() async -> Void)?
+
     private func tick() async {
         guard let m = monitor else { return }
         if alertsEnabled { evaluate(m) }
         await runScheduledCleanIfDue()
+        // Vérifications lentes (sauvegarde, batterie, rangement) : toutes les 6 heures
+        if Date().timeIntervalSince(lastSlowCheck) > 6 * 3600 {
+            lastSlowCheck = Date()
+            if alertsEnabled { await checkBackup() }
+            await onSlowTick?()
+        }
+    }
+
+    private func checkBackup() async {
+        let tm = await Task.detached { TimeMachine.status() }.value
+        guard tm.configured, let last = tm.last else { return }
+        let days = Int(Date().timeIntervalSince(last) / 86400)
+        if days >= 7 {
+            raise(HealthAlert(id: "backup", title: "Pas de sauvegarde depuis \(days) jours",
+                              message: "Branche ton disque Time Machine pour protéger tes fichiers.",
+                              icon: "clock.arrow.circlepath", color: .orange, module: .security), silenceDays: 2)
+        }
     }
 
     // MARK: Règles d'alerte

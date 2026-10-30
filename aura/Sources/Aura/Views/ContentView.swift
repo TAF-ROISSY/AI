@@ -5,9 +5,9 @@ enum Module: String, CaseIterable, Identifiable {
     case smartScan
     case cleanup
     case security, privacy, permissions
-    case monitor, maintenance, launch
+    case monitor, battery, network, disks, maintenance, launch
     case apps, updater, extensions
-    case largeFiles, duplicates, similarImages, spaceMap, volumes, cloud, shredder
+    case largeFiles, duplicates, similarImages, spaceMap, volumes, cloud, tidy, shredder
 
     var id: String { rawValue }
 
@@ -19,6 +19,9 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: "Confidentialité"
         case .permissions: "Autorisations des apps"
         case .monitor: "Surveillance"
+        case .battery: "Batterie et veille"
+        case .network: "Réseau"
+        case .disks: "Disques"
         case .maintenance: "Maintenance"
         case .launch: "Démarrage et arrière-plan"
         case .apps: "Désinstalleur"
@@ -30,6 +33,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceMap: "Carte de l'espace"
         case .volumes: "Supports amovibles"
         case .cloud: "Nettoyage du cloud"
+        case .tidy: "Rangement"
         case .shredder: "Broyeur"
         }
     }
@@ -42,6 +46,9 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: "hand.raised.fill"
         case .permissions: "lock.rectangle.stack.fill"
         case .monitor: "waveform.path.ecg"
+        case .battery: "battery.75percent"
+        case .network: "wifi"
+        case .disks: "internaldrive.fill"
         case .maintenance: "wrench.and.screwdriver.fill"
         case .launch: "power.circle.fill"
         case .apps: "square.grid.2x2.fill"
@@ -53,6 +60,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceMap: "chart.pie.fill"
         case .volumes: "externaldrive.fill"
         case .cloud: "icloud.fill"
+        case .tidy: "tray.2.fill"
         case .shredder: "scissors"
         }
     }
@@ -65,6 +73,9 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: .mint
         case .permissions: .indigo
         case .monitor: .green
+        case .battery: .mint
+        case .network: .cyan
+        case .disks: .blue
         case .maintenance: .orange
         case .launch: .red
         case .apps: .orange
@@ -76,6 +87,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceMap: .pink
         case .volumes: .cyan
         case .cloud: .blue
+        case .tidy: .teal
         case .shredder: .red
         }
     }
@@ -84,9 +96,9 @@ enum Module: String, CaseIterable, Identifiable {
         switch self {
         case .smartScan, .cleanup: ""
         case .security, .privacy, .permissions: "Protection"
-        case .monitor, .maintenance, .launch: "Performances"
+        case .monitor, .battery, .network, .disks, .maintenance, .launch: "Performances"
         case .apps, .updater, .extensions: "Applications"
-        case .largeFiles, .duplicates, .similarImages, .spaceMap, .volumes, .cloud, .shredder: "Fichiers"
+        case .largeFiles, .duplicates, .similarImages, .spaceMap, .volumes, .cloud, .tidy, .shredder: "Fichiers"
         }
     }
 
@@ -98,6 +110,7 @@ struct ContentView: View {
     @EnvironmentObject var volumes: VolumeManager
     @EnvironmentObject var alerts: HealthCenter
     @EnvironmentObject var selfUpdate: SelfUpdater
+    @EnvironmentObject var guardian: Guardian
     @Etat private var showNotes = false
     @Etat private var hasFDA = true
     private var current: Module { router.selection ?? .smartScan }
@@ -143,6 +156,11 @@ struct ContentView: View {
             HStack {
                 Text(m.title)
                 Spacer()
+                if m == .security && guardian.unhandledCount > 0 {
+                    Text("\(guardian.unhandledCount)").font(.caption2.bold())
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(.red.opacity(0.6), in: Capsule())
+                }
                 if m == .volumes && !volumes.externalVolumes.isEmpty {
                     Text("\(volumes.externalVolumes.count)").font(.caption2.bold())
                         .padding(.horizontal, 6).padding(.vertical, 1)
@@ -230,6 +248,9 @@ struct ContentView: View {
         case .privacy: PrivacyView()
         case .permissions: PermissionsView()
         case .monitor: MonitorView()
+        case .battery: BatteryView()
+        case .network: NetworkView()
+        case .disks: DisksView()
         case .maintenance: MaintenanceView()
         case .launch: LaunchItemsView()
         case .apps: AppsView()
@@ -241,6 +262,7 @@ struct ContentView: View {
         case .spaceMap: SpaceMapView()
         case .volumes: VolumesView()
         case .cloud: CloudView()
+        case .tidy: TidyView()
         case .shredder: ShredderView()
         }
     }

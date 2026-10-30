@@ -35,6 +35,12 @@ final class AppModel {
     let cloud = CloudManager()
     let health = HealthCenter()
     let selfUpdate = SelfUpdater()
+    let guardian = Guardian()
+    let net = NetworkTools()
+    let disks = DiskTools()
+    let batteryHistory = BatteryHistory()
+    let keepAwake = KeepAwake()
+    let tidy = TidyManager()
     /// Lu une fois au lancement (modifiable dans les Réglages, effectif au prochain lancement).
     let showMenuBar = UserDefaults.standard.object(forKey: "aura.menuBarEnabled") as? Bool ?? true
     private var started = false
@@ -45,6 +51,12 @@ final class AppModel {
         monitor.start()
         health.start(monitor: monitor, cleanup: cleanup)
         selfUpdate.start()
+        guardian.start(health: health)
+        health.onSlowTick = { [weak self] in
+            guard let self else { return }
+            self.batteryHistory.record(self.monitor.battery)
+            await self.tidy.autoRunIfDue { title, body in self.health.notify(title, body) }
+        }
     }
 }
 
@@ -66,6 +78,12 @@ extension View {
             .environmentObject(m.cloud)
             .environmentObject(m.health)
             .environmentObject(m.selfUpdate)
+            .environmentObject(m.guardian)
+            .environmentObject(m.net)
+            .environmentObject(m.disks)
+            .environmentObject(m.batteryHistory)
+            .environmentObject(m.keepAwake)
+            .environmentObject(m.tidy)
     }
 }
 
@@ -94,6 +112,10 @@ struct AuraApp: App {
                 Button("Sécurité") { model.router.open(.security) }.keyboardShortcut("3")
                 Button("Surveillance") { model.router.open(.monitor) }.keyboardShortcut("4")
                 Button("Carte de l'espace") { model.router.open(.spaceMap) }.keyboardShortcut("5")
+                Divider()
+                Button("Rester éveillé 1 h / arrêter") {
+                    if model.keepAwake.isActive { model.keepAwake.deactivate() } else { model.keepAwake.activate(minutes: 60) }
+                }
             }
         }
 

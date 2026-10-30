@@ -42,6 +42,8 @@ struct SecurityView: View {
                     }
                 }
 
+                GuardianCard()
+
                 if !security.checks.isEmpty { checksGrid }
 
                 if !security.threats.isEmpty { threatsCard }

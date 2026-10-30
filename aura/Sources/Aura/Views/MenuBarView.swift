@@ -5,6 +5,7 @@ struct MenuBarView: View {
     @EnvironmentObject var monitor: SystemMonitor
     @EnvironmentObject var cleanup: CleanupEngine
     @EnvironmentObject var volumes: VolumeManager
+    @EnvironmentObject var awake: KeepAwake
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -84,6 +85,14 @@ struct MenuBarView: View {
                 .disabled(cleanup.isScanning || cleanup.isCleaning)
                 Button("Libérer la RAM") { monitor.purgeMemory() }
                 Spacer()
+                Button {
+                    if awake.isActive { awake.deactivate() } else { awake.activate(minutes: 60) }
+                } label: {
+                    Image(systemName: awake.isActive ? "cup.and.saucer.fill" : "cup.and.saucer")
+                        .foregroundStyle(awake.isActive ? .orange : .secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(awake.isActive ? "Rester éveillé : actif (cliquer pour arrêter)" : "Rester éveillé pendant 1 heure")
             }
             if cleanup.lastFreed > 0 {
                 Text("Dernier nettoyage : \(Fmt.bytes(cleanup.lastFreed)) libérés").font(.caption).foregroundStyle(.green)
