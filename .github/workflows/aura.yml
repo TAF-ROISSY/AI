@@ -43,13 +43,28 @@ jobs:
         if: env.PUBLIER == 'non'
         run: |
           chmod +x build_app.sh
-          ARCHS="arm64" ./build_app.sh
+          set -o pipefail
+          ARCHS="arm64" ./build_app.sh 2>&1 | tee build.log
 
       - name: Compilation universelle (Apple Silicon + Intel)
         if: env.PUBLIER == 'oui'
         run: |
           chmod +x build_app.sh
-          ARCHS="arm64 x86_64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh
+          set -o pipefail
+          ARCHS="arm64 x86_64" BUILD_NUMBER="${{ github.run_number }}" ./build_app.sh 2>&1 | tee build.log
+
+      - name: Remontée des erreurs de compilation
+        if: failure()
+        run: |
+          [ -f build.log ] || exit 0
+          # Une note par erreur (10 max) + une note récapitulative lisible via l'API
+          grep -E ": error: " build.log | sort -u > errors.txt || true
+          head -10 errors.txt | while IFS= read -r l; do
+            f=$(echo "$l" | cut -d: -f1); n=$(echo "$l" | cut -d: -f2); m=$(echo "$l" | cut -d: -f4- | sed 's/^ error: //')
+            echo "::error file=aura/$f,line=$n::$m"
+          done
+          ALL=$( (cat errors.txt; echo "----"; tail -40 build.log) | head -c 60000 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Journal de compilation::$ALL"
 
       - name: Publication de la version
         if: env.PUBLIER == 'oui'
