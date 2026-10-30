@@ -19,9 +19,9 @@ mkdir -p build
 BINS=()
 for A in $ARCHS; do
     echo "▶︎ Compilation $A (version $VERSION)…"
-    xcrun swiftc -O -parse-as-library -swift-version 5 \
+    xcrun swiftc -O -parse-as-library -swift-version 5 -suppress-warnings \
         -target "$A-apple-macosx14.0" -sdk "$SDK" -module-name Aura \
-        "${FICHIERS[@]}" -o "build/Aura-$A"
+        "${FICHIERS[@]}" -o "build/Aura-$A" || { echo "ECHEC_SWIFTC arch=$A code=$?"; exit 1; }
     BINS+=("build/Aura-$A")
 done
 
