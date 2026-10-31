@@ -6,6 +6,7 @@ struct MenuBarView: View {
     @EnvironmentObject var cleanup: CleanupEngine
     @EnvironmentObject var volumes: VolumeManager
     @EnvironmentObject var awake: KeepAwake
+    @EnvironmentObject var activity: AppActivityMonitor
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -60,12 +61,27 @@ struct MenuBarView: View {
 
             Divider()
 
-            Text("Plus gourmands").font(.caption).foregroundStyle(.secondary)
-            ForEach(Array(monitor.processes.sorted { $0.cpu > $1.cpu }.prefix(4))) { p in
-                HStack {
-                    Text(p.name).lineLimit(1).font(.callout)
+            HStack {
+                Text("Applications les plus gourmandes").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if !activity.idleApps.isEmpty {
+                    Button("Fermer \(activity.idleApps.count) inutilisée(s)") { activity.quitIdleApps() }
+                        .buttonStyle(.borderless).font(.caption)
+                }
+            }
+            ForEach(activity.apps.filter { !$0.isBackground || $0.isGreedy }.prefix(4)) { a in
+                HStack(spacing: 8) {
+                    Image(nsImage: a.icon).resizable().frame(width: 18, height: 18)
+                    Text(a.name).lineLimit(1).font(.callout)
+                    if a.isGreedy { Image(systemName: "flame.fill").font(.caption2).foregroundStyle(.orange) }
                     Spacer()
-                    Text(String(format: "%.0f %%", p.cpu)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(String(format: "%.0f %%", a.cpu)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(Fmt.bytes(a.memory)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .frame(width: 62, alignment: .trailing)
+                    if a.canQuit {
+                        Button { activity.quit(a) } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.borderless).foregroundStyle(.secondary).help("Quitter \(a.name)")
+                    }
                 }
             }
 
@@ -109,7 +125,9 @@ struct MenuBarView: View {
             .buttonStyle(.borderless)
         }
         .padding(16)
-        .frame(width: 320)
+        .frame(width: 340)
+        .onAppear { activity.beginLive() }
+        .onDisappear { activity.endLive() }
     }
 
     private func row(_ icon: String, _ label: String, _ value: String) -> some View {

@@ -9,6 +9,7 @@ struct SmartScanView: View {
     @EnvironmentObject var maint: MaintenanceManager
     @EnvironmentObject var updater: UpdateManager
     @EnvironmentObject var apps: AppManager
+    @EnvironmentObject var activity: AppActivityMonitor
     var goTo: (Module) -> Void
 
     @Etat private var phase: Phase = .idle
@@ -202,6 +203,12 @@ struct SmartScanView: View {
         }
         if apps.loginItems.count > 6 {
             r.append(Tip(id: "login", text: "\(apps.loginItems.count) apps s'ouvrent au démarrage : allège la liste pour démarrer plus vite.", module: .launch))
+        }
+        if !activity.idleApps.isEmpty {
+            r.append(Tip(id: "idle-apps", text: "\(activity.idleApps.count) app(s) ouvertes mais inutilisées depuis plus d'une heure occupent \(Fmt.bytes(activity.idleMemory)) de mémoire.", module: .activity))
+        }
+        if let g = activity.greedyApps.first {
+            r.append(Tip(id: "greedy", text: "\(g.name) est gourmande : \(activity.explanation(g).lowercased()).", module: .activity))
         }
         if monitor.swapUsed > 4_000_000_000 {
             r.append(Tip(id: "swap", text: "Ton Mac utilise \(Fmt.bytes(monitor.swapUsed)) de swap : ferme les apps gourmandes.", module: .monitor))

@@ -1,5 +1,13 @@
 # Nouveautés d'Aura
 
+## 2.6.0
+- Nouveau module « Applications actives » (Performances, ⌘6) : consommation de chaque application ouverte, sous-processus et onglets compris (processeur, mémoire réelle, énergie, disque), avec courbe d'activité en direct.
+- Analyse automatique : repère les apps gourmandes en processeur, en mémoire ou en énergie, et celles ouvertes mais inutilisées depuis plus d'une heure.
+- Fermeture en un clic : Quitter, Forcer à quitter (proposé automatiquement si l'app ne répond pas), Masquer, fermeture groupée de la sélection ou de toutes les apps inutilisées.
+- Détail par application : liste de ses processus, arrêt d'un processus précis (par exemple un onglet bloqué).
+- Alerte quand une app reste gourmande en arrière-plan plus de 2 minutes.
+- Barre des menus : les applications les plus gourmandes avec bouton de fermeture.
+
 ## 2.5.0
 - Protection en temps réel : alerte immédiate quand un programme s'installe pour démarrer tout seul, avec suppression en un clic.
 - Contrôle des téléchargements : chaque .dmg, .pkg, app ou script téléchargé est vérifié par Gatekeeper dès son arrivée (éditeur, notarisation, provenance).

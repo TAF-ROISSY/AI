@@ -41,6 +41,7 @@ final class AppModel {
     let batteryHistory = BatteryHistory()
     let keepAwake = KeepAwake()
     let tidy = TidyManager()
+    let activity = AppActivityMonitor()
     /// Lu une fois au lancement (modifiable dans les Réglages, effectif au prochain lancement).
     let showMenuBar = UserDefaults.standard.object(forKey: "aura.menuBarEnabled") as? Bool ?? true
     private var started = false
@@ -52,6 +53,11 @@ final class AppModel {
         health.start(monitor: monitor, cleanup: cleanup)
         selfUpdate.start()
         guardian.start(health: health)
+        activity.start()
+        activity.onGreedy = { [weak self] app, text in
+            self?.health.report(HealthAlert(id: "app-\(app.id)", title: "\(app.name) est gourmande",
+                                            message: text, icon: "flame.fill", color: .orange, module: .activity))
+        }
         health.onSlowTick = { [weak self] in
             guard let self else { return }
             self.batteryHistory.record(self.monitor.battery)
@@ -84,6 +90,7 @@ extension View {
             .environmentObject(m.batteryHistory)
             .environmentObject(m.keepAwake)
             .environmentObject(m.tidy)
+            .environmentObject(m.activity)
     }
 }
 
@@ -111,6 +118,7 @@ struct AuraApp: App {
                 Button("Déchets système") { model.router.open(.cleanup) }.keyboardShortcut("2")
                 Button("Sécurité") { model.router.open(.security) }.keyboardShortcut("3")
                 Button("Surveillance") { model.router.open(.monitor) }.keyboardShortcut("4")
+                Button("Applications actives") { model.router.open(.activity) }.keyboardShortcut("6")
                 Button("Carte de l'espace") { model.router.open(.spaceMap) }.keyboardShortcut("5")
                 Divider()
                 Button("Rester éveillé 1 h / arrêter") {

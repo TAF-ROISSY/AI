@@ -129,6 +129,12 @@ final class HealthCenter: ObservableObject {
         hogStrikes = strikes
     }
 
+    /// Signalement venant d'un autre module (même mécanique : bandeau + notification, sans répétition).
+    func report(_ a: HealthAlert, silenceDays: Double = 0.25) {
+        guard alertsEnabled else { return }
+        raise(a, silenceDays: silenceDays)
+    }
+
     private func raise(_ a: HealthAlert, silenceDays: Double = 0.25) {
         if let until = silenced[a.id], until > Date() { return }
         silenced[a.id] = Date().addingTimeInterval(silenceDays * 86_400)

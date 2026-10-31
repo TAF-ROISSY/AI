@@ -5,7 +5,7 @@ enum Module: String, CaseIterable, Identifiable {
     case smartScan
     case cleanup
     case security, privacy, permissions
-    case monitor, battery, network, disks, maintenance, launch
+    case monitor, activity, battery, network, disks, maintenance, launch
     case apps, updater, extensions
     case largeFiles, duplicates, similarImages, spaceMap, volumes, cloud, tidy, shredder
 
@@ -19,6 +19,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: "Confidentialité"
         case .permissions: "Autorisations des apps"
         case .monitor: "Surveillance"
+        case .activity: "Applications actives"
         case .battery: "Batterie et veille"
         case .network: "Réseau"
         case .disks: "Disques"
@@ -46,6 +47,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: "hand.raised.fill"
         case .permissions: "lock.rectangle.stack.fill"
         case .monitor: "waveform.path.ecg"
+        case .activity: "rectangle.stack.fill"
         case .battery: "battery.75percent"
         case .network: "wifi"
         case .disks: "internaldrive.fill"
@@ -73,6 +75,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .privacy: .mint
         case .permissions: .indigo
         case .monitor: .green
+        case .activity: .indigo
         case .battery: .mint
         case .network: .cyan
         case .disks: .blue
@@ -96,7 +99,7 @@ enum Module: String, CaseIterable, Identifiable {
         switch self {
         case .smartScan, .cleanup: ""
         case .security, .privacy, .permissions: "Protection"
-        case .monitor, .battery, .network, .disks, .maintenance, .launch: "Performances"
+        case .monitor, .activity, .battery, .network, .disks, .maintenance, .launch: "Performances"
         case .apps, .updater, .extensions: "Applications"
         case .largeFiles, .duplicates, .similarImages, .spaceMap, .volumes, .cloud, .tidy, .shredder: "Fichiers"
         }
@@ -111,6 +114,7 @@ struct ContentView: View {
     @EnvironmentObject var alerts: HealthCenter
     @EnvironmentObject var selfUpdate: SelfUpdater
     @EnvironmentObject var guardian: Guardian
+    @EnvironmentObject var activity: AppActivityMonitor
     @Etat private var showNotes = false
     @Etat private var hasFDA = true
     private var current: Module { router.selection ?? .smartScan }
@@ -156,6 +160,11 @@ struct ContentView: View {
             HStack {
                 Text(m.title)
                 Spacer()
+                if m == .activity && !activity.greedyApps.isEmpty {
+                    Text("\(activity.greedyApps.count)").font(.caption2.bold())
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(.orange.opacity(0.6), in: Capsule())
+                }
                 if m == .security && guardian.unhandledCount > 0 {
                     Text("\(guardian.unhandledCount)").font(.caption2.bold())
                         .padding(.horizontal, 6).padding(.vertical, 1)
@@ -248,6 +257,7 @@ struct ContentView: View {
         case .privacy: PrivacyView()
         case .permissions: PermissionsView()
         case .monitor: MonitorView()
+        case .activity: AppActivityView()
         case .battery: BatteryView()
         case .network: NetworkView()
         case .disks: DisksView()
