@@ -79,7 +79,7 @@ h2 small{font-family:var(--sans);font-size:13px;color:var(--mut);font-weight:600
 @media (max-width:639px){.hero{padding:22px 20px 24px}.hero .gl{position:absolute;right:-4px;top:6px;width:112px;height:150px}.hero h3,.hero .eyebrow{padding-right:100px}.hero p{padding-right:84px;font-size:14.5px}.hero .btn{padding:12px 16px;font-size:14px}}
 @media (min-width:640px){.hero{grid-template-columns:1.3fr 1fr;align-items:center;padding:36px 40px}.hero .gl{width:220px;height:290px;grid-column:2;grid-row:1/3}}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;font-weight:800;font-size:15px;background:var(--grad);color:#1b0f14;box-shadow:0 12px 30px -10px #ff5c8a99;transition:.2s}
+.btn{text-decoration:none;display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;font-weight:800;font-size:15px;background:var(--grad);color:#1b0f14;box-shadow:0 12px 30px -10px #ff5c8a99;transition:.2s}
 .btn:active{transform:scale(.97)}
 .btn.ghost{background:var(--glass2);color:var(--ink);box-shadow:none;border:1px solid var(--line)}
 .btn svg{width:18px;height:18px}
@@ -192,7 +192,15 @@ h2 small{font-family:var(--sans);font-size:13px;color:var(--mut);font-weight:600
 
 .toast{position:fixed;z-index:80;left:50%;bottom:calc(100px + var(--sab));transform:translate(-50%,20px);padding:12px 18px;border-radius:999px;background:#f6f1e9;color:#1b0f14;font-weight:800;font-size:14px;opacity:0;transition:.35s;pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
-.ver{position:fixed;z-index:30;right:10px;top:calc(8px + var(--sat));font-size:10.5px;font-weight:800;color:var(--mut2);padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.25)}
+.ver{position:fixed;z-index:30;right:10px;top:calc(8px + var(--sat));display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;color:var(--mut);padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.3);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sd{width:7px;height:7px;border-radius:50%;background:var(--mut2)}.sd.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}.sd.busy{background:var(--sub);animation:pulse 1s infinite}.sd.err{background:var(--no)}
+@keyframes pulse{50%{opacity:.3}}
+.field{display:flex;gap:8px;margin-top:10px}.field input{flex:1;min-width:0;padding:13px 16px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.05);outline:0;font-size:15px}
+.field input:focus{border-color:var(--a2)}
+.note{font-size:13.5px;color:var(--mut);line-height:1.55}.note b{color:var(--ink)}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:12px}.stack .btn{justify-content:center}
+.okline{display:flex;gap:10px;align-items:center;padding:14px 16px;border-radius:18px;background:var(--glass);border:1px solid var(--line);font-weight:700;font-size:14.5px}
+.okline.e{border-color:#ff7b8a66;color:#ffc2c9}
 
 /* svg glass anims */
 .bub{animation:rise 3.4s linear infinite;transform-box:fill-box}
@@ -210,14 +218,14 @@ h2 small{font-family:var(--sans);font-size:13px;color:var(--mut);font-weight:600
 
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
 <div class="toast" id="toast"></div>
-<div class="ver">v1.0</div>
+<button class="ver" data-act="sync" id="ver"><i class="sd"></i>v1.1</button>
 
 <script>
 'use strict';
 /* =========================================================
    SHAKER v1.0 — Atelier cocktails (PWA mono-fichier)
    ========================================================= */
-const VERSION='1.0';
+const VERSION='1.1';
 
 /* ---------- Ingrédients ---------- */
 const CATS=[
@@ -663,7 +671,7 @@ let tab=store.get('tab','home');
 let listBase='all',listMood=null,listReady=false,listQ='';
 let labQ='';
 const GEN={};
-function saveBar(){store.set('bar',[...P])}
+function saveBar(){store.set('bar',[...P]);touch('bar')}
 
 /* ---------- moteur ---------- */
 function hs(id,pan){pan=pan||P;if(pan.has(id))return 2;for(const g of SUBS)if(g.includes(id)&&g.some(x=>x!==id&&pan.has(x)))return 1;return 0}
@@ -1085,7 +1093,7 @@ function reroll(){rerollSeed+=3;const sig=signatures(P,rerollSeed).concat(signat
 function vFav(){
   const favs=[...FAV].map(id=>CK.find(c=>c.id===id)).filter(Boolean);
   MINE.forEach(m=>{GEN[m.id]=m});
-  return `<div class="view"><div class="eyebrow">Favoris</div><h1>Ta <em>collection</em></h1>
+  return `<div class="view"><div class="eyebrow">Favoris</div><h1>Ta <em>collection</em></h1><button class="btn ghost" data-act="sync">☁️ Sauvegarde & synchro${SYNC.tok?' · '+esc(syncAgo()):''}</button>
   ${MINE.length?`<h2>Mes créations <small>${MINE.length}</small></h2><div class="grid">${MINE.map(m=>card(m)).join('')}</div>`:''}
   ${favs.length?`<h2>Cocktails favoris <small>${favs.length}</small></h2><div class="grid">${favs.map(c=>card(c)).join('')}</div>`:''}
   ${!favs.length&&!MINE.length?`<div class="empty" style="margin-top:10px"><b>Rien pour l’instant</b>Touche le cœur sur une recette, ou enregistre une création de l’Atelier.</div>`:''}</div>`;
@@ -1159,6 +1167,12 @@ document.addEventListener('click',e=>{
   if(d.ex){labQ=d.ex;$('#lq').value=labQ;runLab();$('#labout').scrollIntoView({behavior:'smooth',block:'start'});return}
   switch(d.act){
     case 'close':closeDetail();break;
+    case 'sync':openSync();break;
+    case 'gh-connect':ghConnect();break;
+    case 'gh-now':syncNow(true);break;
+    case 'gh-off':if(confirm('Déconnecter cet appareil de la synchro ? (tes données restent sur l’appareil et sur GitHub)')){SYNC.tok='';SYNC.gist='';SYNC.err='';store.set('gh_tok','');store.set('gh_gist','');setSyncUI();renderSync()}break;
+    case 'export':exportJSON();break;
+    case 'import':$('#impfile').click();break;
     case 'random':openDetail(CK[Math.floor(Math.random()*CK.length)]);break;
     case 'ready':listReady=!listReady;el.classList.toggle('on',listReady);fillList();break;
     case 'seeready':listReady=true;listMood=null;listBase='all';go('list');break;
@@ -1169,8 +1183,8 @@ document.addEventListener('click',e=>{
     case 'plus':serv=Math.min(12,serv+1);renderDetail();break;
     case 'fav':{
       const c=cur;
-      if(c.gen){const i=MINE.findIndex(m=>m.id===c.id);if(i>=0){MINE.splice(i,1);toast('Retirée de tes créations')}else{MINE.unshift(clone(c));toast('Enregistrée dans tes créations ✨')}store.set('mine',MINE)}
-      else{FAV.has(c.id)?FAV.delete(c.id):FAV.add(c.id);store.set('fav',[...FAV]);toast(FAV.has(c.id)?'Ajouté aux favoris':'Retiré des favoris')}
+      if(c.gen){const i=MINE.findIndex(m=>m.id===c.id);if(i>=0){MINE.splice(i,1);toast('Retirée de tes créations')}else{MINE.unshift(clone(c));toast('Enregistrée dans tes créations ✨')}store.set('mine',MINE);touch('mine')}
+      else{FAV.has(c.id)?FAV.delete(c.id):FAV.add(c.id);store.set('fav',[...FAV]);touch('fav');toast(FAV.has(c.id)?'Ajouté aux favoris':'Retiré des favoris')}
       renderDetail();break;}
     case 'share':{const t=shareTxt(cur);if(navigator.share)navigator.share({title:cur.n,text:t}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Recette copiée'),()=>toast('Copie impossible'))}break;}
   }
@@ -1179,11 +1193,116 @@ document.addEventListener('input',e=>{
   if(e.target.id==='q'){listQ=e.target.value;fillList()}
   if(e.target.id==='iq'){const q=norm(e.target.value);document.querySelectorAll('#cats [data-ing]').forEach(b=>{b.style.display=!q||b.dataset.n.includes(q)?'':'none'});document.querySelectorAll('#cats .cat').forEach(c=>{c.style.display=[...c.querySelectorAll('[data-ing]')].some(b=>b.style.display!=='none')?'':'none'})}
 });
+document.addEventListener('change',e=>{if(e.target.id==='impfile'&&e.target.files[0])importJSON(e.target.files[0])});
 document.addEventListener('submit',e=>{if(e.target.id==='forge'){e.preventDefault();labQ=$('#lq').value;$('#lq').blur();runLab();setTimeout(()=>$('#labout').scrollIntoView({behavior:'smooth',block:'start'}),50)}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheet').classList.contains('on'))closeDetail()});
 
+
+/* ---------- sauvegarde & synchro GitHub (Gist privé) ---------- */
+const GFILE='shaker-sync.json';
+const SYNC={tok:store.get('gh_tok',''),gist:store.get('gh_gist',''),last:store.get('gh_last',0),busy:false,err:''};
+let TS=store.get('ts',{bar:0,fav:0,mine:0});
+function touch(f){TS[f]=Date.now();store.set('ts',TS);schedulePush()}
+let pushT;function schedulePush(){if(!SYNC.tok)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(),1500)}
+function syncAgo(){if(!SYNC.last)return 'jamais';const s=Math.round((Date.now()-SYNC.last)/1000);return s<60?'à l’instant':s<3600?'il y a '+Math.round(s/60)+' min':s<86400?'il y a '+Math.round(s/3600)+' h':'il y a '+Math.round(s/86400)+' j'}
+async function gh(path,opt){
+  opt=opt||{};
+  const r=await fetch('https://api.github.com'+path,{method:opt.method||'GET',body:opt.body,cache:'no-store',headers:Object.assign({'Accept':'application/vnd.github+json','Authorization':'Bearer '+SYNC.tok,'X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{})});
+  if(!r.ok){const e=new Error(r.status===401?'Jeton invalide ou expiré':r.status===403?'Accès refusé : le jeton doit avoir le droit « gist »':r.status===404?'Sauvegarde introuvable (404)':'Erreur GitHub '+r.status);e.status=r.status;throw e}
+  return r.status===204?null:r.json();
+}
+function snapshot(){return{app:'shaker',v:1,saved:new Date().toISOString(),ts:TS,bar:[...P],fav:[...FAV],mine:MINE}}
+const body=()=>JSON.stringify({files:{[GFILE]:{content:JSON.stringify(snapshot(),null,1)}}});
+async function findGist(){
+  for(let page=1;page<=5;page++){const l=await gh('/gists?per_page=100&page='+page);const g=l.find(x=>x.files&&x.files[GFILE]);if(g)return{id:g.id,isNew:false};if(l.length<100)break}
+  const c=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Shaker — sauvegarde de mes cocktails (bar, favoris, créations)',public:false,files:{[GFILE]:{content:JSON.stringify(snapshot(),null,1)}}})});
+  return{id:c.id,isNew:true};
+}
+function applyLocal(){store.set('bar',[...P]);store.set('fav',[...FAV]);store.set('mine',MINE);store.set('ts',TS)}
+async function syncNow(manual){
+  if(!SYNC.tok||SYNC.busy)return;SYNC.busy=true;setSyncUI();
+  try{
+    let firstLink=false;
+    if(!SYNC.gist){const f=await findGist();SYNC.gist=f.id;store.set('gh_gist',f.id);firstLink=!f.isNew;if(f.isNew){finishSync(false);return}}
+    const g=await gh('/gists/'+SYNC.gist);
+    const f=g.files&&g.files[GFILE];let R=null;
+    if(f){let t=f.content;if(f.truncated)t=await(await fetch(f.raw_url)).text();try{R=JSON.parse(t)}catch(e){}}
+    let changed=false,push=!R;
+    if(R&&firstLink){
+      // première connexion de cet appareil : on fusionne tout
+      const nb=new Set([...P,...(R.bar||[])]),nf=new Set([...FAV,...(R.fav||[])]);
+      const nm=[...MINE];(R.mine||[]).forEach(m=>{if(!nm.some(x=>x.id===m.id))nm.push(m)});
+      changed=nb.size!==P.size||nf.size!==FAV.size||nm.length!==MINE.length;
+      push=nb.size!==(R.bar||[]).length||nf.size!==(R.fav||[]).length||nm.length!==(R.mine||[]).length;
+      P=nb;FAV=nf;MINE=nm;const now=Date.now();TS={bar:now,fav:now,mine:now};
+    }else if(R){
+      const rt=R.ts||{};
+      for(const k of ['bar','fav','mine']){const a=rt[k]||0,b=TS[k]||0;
+        if(a>b){if(k==='bar')P=new Set(R.bar||[]);if(k==='fav')FAV=new Set(R.fav||[]);if(k==='mine')MINE=R.mine||[];TS[k]=a;changed=true}
+        else if(b>a)push=true}
+    }
+    if(changed||firstLink)applyLocal();
+    if(push)await gh('/gists/'+SYNC.gist,{method:'PATCH',body:body()});
+    finishSync(changed);
+    if(manual)toast(changed?'Données récupérées depuis GitHub':push?'Sauvegardé sur GitHub':'Déjà à jour ✓');
+  }catch(e){
+    SYNC.err=e.message||'Pas de connexion';if(e.status===404){SYNC.gist='';store.set('gh_gist','')}
+    SYNC.busy=false;setSyncUI();if(manual)toast(SYNC.err);
+    if(document.getElementById('syncbox'))renderSync();
+  }
+}
+function finishSync(changed){
+  SYNC.last=Date.now();store.set('gh_last',SYNC.last);SYNC.err='';SYNC.busy=false;setSyncUI();
+  if(document.getElementById('syncbox'))renderSync();
+  else if(changed&&!$('#sheet').classList.contains('on'))render(true);
+}
+function setSyncUI(){const d=document.querySelector('#ver .sd');if(d)d.className='sd'+(!SYNC.tok?'':SYNC.busy?' busy':SYNC.err?' err':' ok')}
+function openSync(){cur=null;renderSync();$('#sheet').classList.add('on');document.body.style.overflow='hidden'}
+async function ghConnect(){
+  const v=($('#ghtok').value||'').trim();if(!v){toast('Colle ton jeton GitHub');return}
+  SYNC.tok=v;SYNC.gist='';SYNC.err='';
+  try{const u=await gh('/user');store.set('gh_tok',v);store.set('gh_user',u.login);await syncNow();if(!SYNC.err)toast('Connecté à GitHub ✓');}
+  catch(e){SYNC.tok='';SYNC.err=e.message;toast(e.message)}
+  renderSync();
+}
+function renderSync(){
+  const on=!!SYNC.tok,user=store.get('gh_user','');
+  $('#panel').innerHTML=`<button class="close" data-act="close" aria-label="Fermer">${IC.x}</button>
+  <div class="dl" style="--c:#7aa8ff"><div style="font-size:90px;line-height:1;margin-top:20px">☁️</div>
+    <div class="eyebrow" style="margin-top:14px">GitHub</div><h2>Sauvegarde<br>& synchro</h2>
+    <p>Ton bar, tes favoris et tes créations sont copiés dans un <b>Gist privé</b> sur ton compte GitHub et synchronisés automatiquement entre ton Mac, ton iPad et ton iPhone.</p></div>
+  <div class="dr" id="syncbox">
+  ${on?`<h3>Statut</h3>
+    <div class="okline ${SYNC.err?'e':''}"><i class="sd ${SYNC.busy?'busy':SYNC.err?'err':'ok'}"></i>${SYNC.err?esc(SYNC.err):SYNC.busy?'Synchronisation…':'Synchronisé '+esc(syncAgo())}${user?`<span class="mut" style="margin-left:auto;font-weight:600">@${esc(user)}</span>`:''}</div>
+    <p class="note" style="margin-top:12px">Chaque modification est envoyée automatiquement. À l’ouverture de l’appli (ou quand tu y reviens), les changements faits sur tes autres appareils sont récupérés.</p>
+    <div class="stack"><button class="btn" data-act="gh-now">↻ Synchroniser maintenant</button>
+    ${SYNC.gist?`<a class="btn ghost" href="https://gist.github.com/${encodeURIComponent(SYNC.gist)}" target="_blank" rel="noopener">Voir la sauvegarde sur GitHub ↗</a>`:''}
+    <button class="btn ghost" data-act="gh-off">Déconnecter cet appareil</button></div>
+    <h3>Sur tes autres appareils</h3><p class="note">Ouvre Shaker, touche le badge <b>☁ v1.1</b> en haut à droite et colle <b>le même jeton</b> (envoie-le-toi par AirDrop ou Notes). L’appli retrouve toute seule la sauvegarde et fusionne avec ce qui est déjà sur l’appareil.</p>`
+  :`<h3>1 · Crée un jeton GitHub</h3>
+    <p class="note">Un jeton limité au seul droit <b>« gist »</b> : il ne donne accès ni à tes dépôts ni au reste de ton compte. Choisis une expiration (ex. 1 an ou « No expiration »), puis <b>Generate token</b> et copie le code qui commence par <b>ghp_</b>.</p>
+    <div class="stack"><a class="btn ghost" href="https://github.com/settings/tokens/new?scopes=gist&description=Shaker%20cocktails" target="_blank" rel="noopener">Créer le jeton sur GitHub ↗</a></div>
+    <h3>2 · Colle-le ici</h3>
+    <div class="field"><input id="ghtok" type="password" placeholder="ghp_…" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" data-act="gh-connect">Connecter</button></div>
+    ${SYNC.err?`<div class="okline e" style="margin-top:12px"><i class="sd err"></i>${esc(SYNC.err)}</div>`:''}
+    <p class="note" style="margin-top:12px">Fais la même chose sur chaque appareil avec le même jeton. Le jeton reste uniquement sur l’appareil.</p>`}
+    <h3>Copie de secours (fichier)</h3>
+    <div class="row"><button class="btn ghost" data-act="export">⬇ Exporter</button><button class="btn ghost" data-act="import">⬆ Importer</button><input type="file" id="impfile" accept="application/json,.json" hidden></div>
+  </div>`;
+}
+function exportJSON(){
+  const b=new Blob([JSON.stringify(snapshot(),null,1)],{type:'application/json'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='shaker-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function importJSON(file){
+  const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.app!=='shaker')throw 0;
+    P=new Set(d.bar||[]);FAV=new Set(d.fav||[]);MINE=d.mine||[];const now=Date.now();TS={bar:now,fav:now,mine:now};applyLocal();schedulePush();toast('Sauvegarde importée ✓');closeDetail();render(true)}catch(e){toast('Fichier invalide')}};r.readAsText(file);
+}
+document.addEventListener('visibilitychange',()=>{if(!SYNC.tok)return;if(document.visibilityState==='visible')syncNow();else if(pushT){clearTimeout(pushT);syncNow()}});
+window.addEventListener('online',()=>SYNC.tok&&syncNow());
+
 /* ---------- démarrage ---------- */
-render();
+render();setSyncUI();if(SYNC.tok)syncNow();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
