@@ -23,7 +23,7 @@ struct SimilarImagesView: View {
                         Button { if let u = pickFolder() { if !roots.contains(u) { roots.append(u) } } } label: { Label("Ajouter un dossier", systemImage: "plus") }
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Ressemblance : \(finder.strictness < 3 ? "quasi identiques" : finder.strictness < 8 ? "très proches" : "proches")")
-                                .font(.caption)
+                                .font(.auraCaption)
                             Slider(value: $finder.strictness, in: 0...14, step: 1).frame(width: 200)
                         }
                         Spacer()
@@ -36,18 +36,18 @@ struct SimilarImagesView: View {
                         roots.removeAll { $0 == u }
                     }
                     Text("La photothèque Photos n'est jamais modifiée : utilise l'album « Doublons » intégré à Photos pour elle.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                 }
             }
             if finder.isBusy {
-                ProgressView(value: finder.progress) { Text(finder.status).font(.caption) }
+                ProgressView(value: finder.progress) { Text(finder.status).font(.auraCaption) }
             }
             HStack {
                 Text(finder.isBusy ? "" : finder.status).foregroundStyle(.secondary)
-                if !message.isEmpty { Text(message).foregroundStyle(.green) }
+                if !message.isEmpty { Text(message).foregroundStyle(AuraTheme.green) }
                 Spacer()
                 Button("Envoyer \(Fmt.bytes(selectedSize)) à la Corbeille") { confirm = true }
-                    .buttonStyle(.borderedProminent).tint(.pink).disabled(selectedSize == 0)
+                    .buttonStyle(AuraButton(.primary)).disabled(selectedSize == 0)
             }
             if finder.groups.isEmpty && !finder.isBusy {
                 GlassCard { EmptyState(icon: "photo.stack", title: "Aucune série pour l'instant", message: "Aura compare le contenu visuel des images, même renommées ou redimensionnées.") }
@@ -58,7 +58,7 @@ struct SimilarImagesView: View {
                             GlassCard(padding: 12) {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("\(g.images.count) images similaires · \(Fmt.bytes(g.reclaimable)) à récupérer")
-                                        .font(.caption.weight(.semibold)).foregroundStyle(.pink)
+                                        .font(.auraCaption.weight(.semibold)).foregroundStyle(AuraTheme.signal)
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 10) {
                                             ForEach(g.images) { img in imageTile(img, group: g.id) }
@@ -87,19 +87,19 @@ struct SimilarImagesView: View {
                     .frame(width: 150, height: 110)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(img.selected ? Color.pink : Color.green, lineWidth: 2))
-                Button { finder.toggle(group: group, image: img.id) } label: { CheckCircle(on: img.selected, tint: .pink) }
+                Button { finder.toggle(group: group, image: img.id) } label: { CheckCircle(on: img.selected, tint: AuraTheme.signal) }
                     .buttonStyle(.plain).padding(6)
                 if !img.selected {
-                    Text("conservée").font(.caption2.bold()).padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(.green, in: Capsule()).foregroundStyle(.white)
+                    Text("conservée").font(.auraCaption2.bold()).padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(AuraTheme.green, in: Capsule()).foregroundStyle(.white)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing).padding(6)
                 }
             }
             .frame(width: 150, height: 110)
             .onTapGesture(count: 2) { NSWorkspace.shared.open(img.url) }
-            Text(img.name).font(.caption2).lineLimit(1).truncationMode(.middle).frame(width: 150)
+            Text(img.name).font(.auraCaption2).lineLimit(1).truncationMode(.middle).frame(width: 150)
             Text("\(img.pixels / 1_000_000 > 0 ? "\(img.pixels / 1_000_000) Mpx" : "\(img.pixels / 1000) kpx") · \(Fmt.bytes(img.size))")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.auraCaption2).foregroundStyle(.secondary)
         }
         .contextMenu {
             Button("Ouvrir") { NSWorkspace.shared.open(img.url) }
@@ -146,7 +146,7 @@ struct CloudView: View {
         VStack(spacing: 18) {
             ModuleHeader(module: .cloud, subtitle: "iCloud Drive, Google Drive, OneDrive, Dropbox : libère le Mac sans rien perdre en ligne.")
             HStack {
-                if !cloud.message.isEmpty { Text(cloud.message).foregroundStyle(.green).lineLimit(2) }
+                if !cloud.message.isEmpty { Text(cloud.message).foregroundStyle(AuraTheme.green).lineLimit(2) }
                 Spacer()
                 Button { Task { await cloud.scan() } } label: { Label("Analyser", systemImage: "arrow.clockwise") }
                     .disabled(cloud.isScanning)
@@ -161,10 +161,10 @@ struct CloudView: View {
                         Button { selected = p.id } label: {
                             GlassCard(padding: 14) {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    HStack { Image(systemName: p.icon).foregroundStyle(.blue); Text(p.name).fontWeight(.semibold).lineLimit(1) }
-                                    Text("\(Fmt.bytes(p.local)) sur le Mac").font(.title3.bold())
-                                    Text("sur \(Fmt.bytes(p.logical)) dans le cloud").font(.caption).foregroundStyle(.secondary)
-                                    ProgressView(value: Double(p.local), total: Double(max(1, p.logical))).tint(.blue)
+                                    HStack { Image(systemName: p.icon).foregroundStyle(AuraTheme.legendDim); Text(p.name).fontWeight(.semibold).lineLimit(1) }
+                                    Text("\(Fmt.bytes(p.local)) sur le Mac").font(.auraTitle3.bold())
+                                    Text("sur \(Fmt.bytes(p.logical)) dans le cloud").font(.auraCaption).foregroundStyle(.secondary)
+                                    ProgressView(value: Double(p.local), total: Double(max(1, p.logical))).tint(AuraTheme.signal)
                                 }
                             }
                             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(provider?.id == p.id ? Color.blue : .clear, lineWidth: 2))
@@ -196,7 +196,7 @@ struct CloudView: View {
                     Button("Libérer \(Fmt.bytes(sel.reduce(Int64(0)) { $0 + $1.localSize })) sur le Mac") {
                         Task { await cloud.evictSelected(provider: p.id) }
                     }
-                    .buttonStyle(.borderedProminent).tint(.blue).disabled(sel.isEmpty)
+                    .buttonStyle(AuraButton(.primary)).disabled(sel.isEmpty)
                 }
                 if p.files.isEmpty {
                     EmptyState(icon: "checkmark.icloud", title: "Rien de lourd en local", message: "Les fichiers de ce cloud ne prennent presque pas de place sur le Mac.")
@@ -205,12 +205,12 @@ struct CloudView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(p.files) { f in
                                 HStack(spacing: 10) {
-                                    Button { cloud.toggle(provider: p.id, file: f.id) } label: { CheckCircle(on: f.selected, tint: .blue) }.buttonStyle(.plain)
+                                    Button { cloud.toggle(provider: p.id, file: f.id) } label: { CheckCircle(on: f.selected, tint: AuraTheme.signal) }.buttonStyle(.plain)
                                     Image(nsImage: NSWorkspace.shared.icon(forFile: f.url.path)).resizable().frame(width: 22, height: 22)
                                     Text(f.url.path.replacingOccurrences(of: p.root.path + "/", with: "")).lineLimit(1).truncationMode(.middle)
                                     Spacer()
-                                    Text("ouvert \(Fmt.relativeDate(f.accessed))").font(.caption).foregroundStyle(.secondary)
-                                    Text(Fmt.bytes(f.localSize)).font(.callout.monospacedDigit()).frame(width: 80, alignment: .trailing)
+                                    Text("ouvert \(Fmt.relativeDate(f.accessed))").font(.auraCaption).foregroundStyle(.secondary)
+                                    Text(Fmt.bytes(f.localSize)).font(.auraCallout.monospacedDigit()).frame(width: 80, alignment: .trailing)
                                 }
                                 .padding(.vertical, 5)
                                 Divider().opacity(0.1)
@@ -238,9 +238,9 @@ struct ShredderView: View {
             ModuleHeader(module: .shredder, subtitle: "Supprime définitivement des fichiers sensibles, sans passer par la Corbeille.")
             GlassCard(padding: 28) {
                 VStack(spacing: 14) {
-                    Image(systemName: "scissors").font(.system(size: 50)).foregroundStyle(AuraTheme.danger)
+                    Image(systemName: "scissors").font(.aura(50, .light)).foregroundStyle(AuraTheme.danger)
                         .symbolEffect(.bounce, value: files.count)
-                    Text("Dépose ici les fichiers ou dossiers à broyer").font(.title3.weight(.semibold))
+                    Text("Dépose ici les fichiers ou dossiers à broyer").font(.auraTitle3.weight(.semibold))
                     Button("Choisir…") {
                         let panel = NSOpenPanel()
                         panel.canChooseDirectories = true
@@ -283,14 +283,14 @@ struct ShredderView: View {
                     Text("7 passes").tag(7)
                 }
                 .frame(width: 280)
-                if !message.isEmpty { Text(message).foregroundStyle(.green) }
+                if !message.isEmpty { Text(message).foregroundStyle(AuraTheme.green) }
                 Spacer()
                 BigButton(title: isShredding ? "Broyage…" : "Broyer \(files.count) élément(s)", icon: "scissors",
                           gradient: AuraTheme.danger, busy: isShredding) { confirm = true }
                     .disabled(files.isEmpty)
             }
             Text("Sur un SSD, macOS répartit les écritures : l'écrasement rend la récupération très difficile mais pas impossible. Pour une protection totale, active FileVault.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.auraCaption).foregroundStyle(.secondary)
             Spacer()
         }
         .padding(28)

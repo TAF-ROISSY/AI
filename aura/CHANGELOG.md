@@ -1,5 +1,11 @@
 # Nouveautés d'Aura
 
+## 2.7.0
+- Nouveau design « tableau de bord de vol » : panneau gris-bleu, cadrans d'instruments à graduations, voyants vert, ambre et rouge.
+- Typographie Avenir Next (Adrian Frutiger, auteur de la signalétique de Roissy-CDG) ; chiffres de mesure en Avenir Next Condensed.
+- Un seul accent, le jaune de la signalétique CDG, réservé aux actions et à la sélection. Plus de dégradés ni d'icônes multicolores.
+- Barre latérale redessinée, boutons et bandeaux d'alerte harmonisés, carte de l'espace aux teintes plus lisibles.
+
 ## 2.6.0
 - Nouveau module « Applications actives » (Performances, ⌘6) : consommation de chaque application ouverte, sous-processus et onglets compris (processeur, mémoire réelle, énergie, disque), avec courbe d'activité en direct.
 - Analyse automatique : repère les apps gourmandes en processeur, en mémoire ou en énergie, et celles ouvertes mais inutilisées depuis plus d'une heure.

@@ -60,9 +60,9 @@ struct LargeFilesView: View {
                 }
                 .frame(width: 170)
                 Spacer()
-                if !message.isEmpty { Text(message).foregroundStyle(.green) }
+                if !message.isEmpty { Text(message).foregroundStyle(AuraTheme.green) }
                 Button("Envoyer \(Fmt.bytes(selectedSize)) à la Corbeille") { confirm = true }
-                    .buttonStyle(.borderedProminent).tint(.red).disabled(selectedSize == 0)
+                    .buttonStyle(AuraButton(.danger)).disabled(selectedSize == 0)
             }
             GlassCard(padding: 10) {
                 if tools.largeFiles.isEmpty {
@@ -81,12 +81,12 @@ struct LargeFilesView: View {
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(f.name).lineLimit(1).truncationMode(.middle)
                                         Text(f.url.deletingLastPathComponent().path.replacingOccurrences(of: FS.home.path, with: "~"))
-                                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                                            .font(.auraCaption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
                                     }
                                     Spacer()
-                                    Text(f.kind).font(.caption).foregroundStyle(.secondary).frame(width: 70)
-                                    Text(Fmt.relativeDate(f.modified)).font(.caption).foregroundStyle(.secondary).frame(width: 110)
-                                    Text(Fmt.bytes(f.size)).font(.callout.monospacedDigit().weight(.semibold)).frame(width: 90, alignment: .trailing)
+                                    Text(f.kind).font(.auraCaption).foregroundStyle(.secondary).frame(width: 70)
+                                    Text(Fmt.relativeDate(f.modified)).font(.auraCaption).foregroundStyle(.secondary).frame(width: 110)
+                                    Text(Fmt.bytes(f.size)).font(.auraCallout.monospacedDigit().weight(.semibold)).frame(width: 90, alignment: .trailing)
                                     Button { FS.reveal(f.url) } label: { Image(systemName: "magnifyingglass") }.buttonStyle(.borderless)
                                 }
                                 .padding(.vertical, 6).padding(.horizontal, 6)

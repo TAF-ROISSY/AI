@@ -13,7 +13,7 @@ struct CleanupView: View {
             HStack {
                 if cleanup.isScanning || cleanup.isCleaning {
                     ProgressView(value: cleanup.progress).frame(width: 220)
-                    Text(cleanup.progressLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(cleanup.progressLabel).font(.auraCaption).foregroundStyle(.secondary).lineLimit(1)
                 } else if let d = cleanup.lastScanDate {
                     Text("Dernière analyse \(Fmt.relativeDate(d))").foregroundStyle(.secondary)
                 }
@@ -52,21 +52,21 @@ struct CleanupView: View {
                 HStack(spacing: 14) {
                     Button { cleanup.toggleCategory(cat.id) } label: { CheckCircle(on: cat.isSelected, tint: cat.tint) }
                         .buttonStyle(.plain).disabled(cat.items.isEmpty)
-                    Image(systemName: cat.icon).font(.title2).foregroundStyle(cat.tint).frame(width: 30)
+                    Image(systemName: cat.icon).font(.auraTitle2).foregroundStyle(AuraTheme.legendDim).frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Text(cat.name).fontWeight(.semibold)
                             if cat.mode == .permanent {
-                                Text("définitif").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(.red.opacity(0.2), in: Capsule())
+                                Text("définitif").font(.auraCaption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(AuraTheme.red.opacity(0.2), in: Capsule())
                             }
                         }
-                        Text(cat.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(cat.detail).font(.auraCaption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(Fmt.bytes(cat.totalSize)).font(.system(.body, design: .rounded).weight(.semibold))
-                        Text("\(cat.items.count) éléments").font(.caption2).foregroundStyle(.secondary)
+                        Text(Fmt.bytes(cat.totalSize)).font(.auraReadout(18))
+                        Text("\(cat.items.count) éléments").font(.auraCaption2).foregroundStyle(.secondary)
                     }
                     Button {
                         withAnimation { if expanded.contains(cat.id) { expanded.remove(cat.id) } else { expanded.insert(cat.id) } }
@@ -84,18 +84,18 @@ struct CleanupView: View {
                         ForEach(cat.items.prefix(300)) { item in
                             HStack(spacing: 10) {
                                 Button { cleanup.toggleItem(category: cat.id, item: item.id) } label: {
-                                    CheckCircle(on: item.selected, tint: cat.tint).font(.body)
+                                    CheckCircle(on: item.selected, tint: cat.tint).font(.auraBody)
                                 }.buttonStyle(.plain)
                                 Text(item.name).lineLimit(1).truncationMode(.middle)
                                 Spacer()
-                                Text(Fmt.bytes(item.size)).font(.caption).foregroundStyle(.secondary)
+                                Text(Fmt.bytes(item.size)).font(.auraCaption).foregroundStyle(.secondary)
                                 Button { FS.reveal(item.url) } label: { Image(systemName: "magnifyingglass") }
                                     .buttonStyle(.borderless).help("Afficher dans le Finder")
                             }
                             .padding(.horizontal, 20).padding(.vertical, 6)
                         }
                         if cat.items.count > 300 {
-                            Text("+ \(cat.items.count - 300) autres éléments").font(.caption).foregroundStyle(.secondary).padding(8)
+                            Text("+ \(cat.items.count - 300) autres éléments").font(.auraCaption).foregroundStyle(.secondary).padding(8)
                         }
                     }
                     .padding(.vertical, 6)

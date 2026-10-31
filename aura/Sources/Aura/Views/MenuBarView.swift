@@ -13,10 +13,10 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Image(systemName: "sparkles").foregroundStyle(AuraTheme.accent)
-                Text("Aura").font(.headline)
+                Text("Aura").font(.auraHeadline)
                 Spacer()
                 Text("Santé \(monitor.healthScore)/100")
-                    .font(.caption.weight(.semibold))
+                    .font(.auraCaption.weight(.semibold))
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(AuraTheme.scoreColor(monitor.healthScore).opacity(0.25), in: Capsule())
             }
@@ -45,13 +45,13 @@ struct MenuBarView: View {
 
             if !volumes.externalVolumes.isEmpty {
                 Divider()
-                Text("Appareils connectés").font(.caption).foregroundStyle(.secondary)
+                Text("Appareils connectés").font(.auraCaption).foregroundStyle(.secondary)
                 ForEach(volumes.externalVolumes) { v in
                     HStack {
-                        Image(systemName: v.symbol).foregroundStyle(.cyan).frame(width: 18)
-                        Text(v.name).font(.callout).lineLimit(1)
+                        Image(systemName: v.symbol).foregroundStyle(AuraTheme.legendDim).frame(width: 18)
+                        Text(v.name).font(.auraCallout).lineLimit(1)
                         Spacer()
-                        Text("\(Fmt.bytes(v.free)) libres").font(.caption).foregroundStyle(.secondary)
+                        Text("\(Fmt.bytes(v.free)) libres").font(.auraCaption).foregroundStyle(.secondary)
                         if v.isEjectable || v.isRemovable || v.isNetwork {
                             Button { volumes.eject(v) } label: { Image(systemName: "eject.fill") }.buttonStyle(.borderless)
                         }
@@ -62,21 +62,21 @@ struct MenuBarView: View {
             Divider()
 
             HStack {
-                Text("Applications les plus gourmandes").font(.caption).foregroundStyle(.secondary)
+                Text("Applications les plus gourmandes").font(.auraCaption).foregroundStyle(.secondary)
                 Spacer()
                 if !activity.idleApps.isEmpty {
                     Button("Fermer \(activity.idleApps.count) inutilisée(s)") { activity.quitIdleApps() }
-                        .buttonStyle(.borderless).font(.caption)
+                        .buttonStyle(.borderless).font(.auraCaption)
                 }
             }
             ForEach(activity.apps.filter { !$0.isBackground || $0.isGreedy }.prefix(4)) { a in
                 HStack(spacing: 8) {
                     Image(nsImage: a.icon).resizable().frame(width: 18, height: 18)
-                    Text(a.name).lineLimit(1).font(.callout)
-                    if a.isGreedy { Image(systemName: "flame.fill").font(.caption2).foregroundStyle(.orange) }
+                    Text(a.name).lineLimit(1).font(.auraCallout)
+                    if a.isGreedy { Image(systemName: "flame.fill").font(.auraCaption2).foregroundStyle(AuraTheme.amber) }
                     Spacer()
-                    Text(String(format: "%.0f %%", a.cpu)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                    Text(Fmt.bytes(a.memory)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(String(format: "%.0f %%", a.cpu)).font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(Fmt.bytes(a.memory)).font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
                         .frame(width: 62, alignment: .trailing)
                     if a.canQuit {
                         Button { activity.quit(a) } label: { Image(systemName: "xmark.circle.fill") }
@@ -97,7 +97,7 @@ struct MenuBarView: View {
                     if cleanup.isScanning || cleanup.isCleaning { ProgressView().controlSize(.small) }
                     else { Label("Nettoyage express", systemImage: "wand.and.stars") }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(AuraButton(.primary))
                 .disabled(cleanup.isScanning || cleanup.isCleaning)
                 Button("Libérer la RAM") { monitor.purgeMemory() }
                 Spacer()
@@ -105,13 +105,13 @@ struct MenuBarView: View {
                     if awake.isActive { awake.deactivate() } else { awake.activate(minutes: 60) }
                 } label: {
                     Image(systemName: awake.isActive ? "cup.and.saucer.fill" : "cup.and.saucer")
-                        .foregroundStyle(awake.isActive ? .orange : .secondary)
+                        .foregroundStyle(awake.isActive ? AuraTheme.amber : .secondary)
                 }
                 .buttonStyle(.borderless)
                 .help(awake.isActive ? "Rester éveillé : actif (cliquer pour arrêter)" : "Rester éveillé pendant 1 heure")
             }
             if cleanup.lastFreed > 0 {
-                Text("Dernier nettoyage : \(Fmt.bytes(cleanup.lastFreed)) libérés").font(.caption).foregroundStyle(.green)
+                Text("Dernier nettoyage : \(Fmt.bytes(cleanup.lastFreed)) libérés").font(.auraCaption).foregroundStyle(AuraTheme.green)
             }
 
             HStack {
@@ -133,9 +133,9 @@ struct MenuBarView: View {
     private func row(_ icon: String, _ label: String, _ value: String) -> some View {
         HStack {
             Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary)
-            Text(label).font(.callout)
+            Text(label).font(.auraCallout)
             Spacer()
-            Text(value).font(.callout.monospacedDigit())
+            Text(value).font(.auraCallout.monospacedDigit())
         }
     }
 }

@@ -56,7 +56,7 @@ struct SpaceMapView: View {
     @Etat private var history: [URL] = []
     @Etat private var hovered: UUID? = nil
 
-    private let palette: [Color] = [.purple, .blue, .teal, .green, .orange, .pink, .indigo, .cyan, .mint, .red]
+    private let palette: [Color] = AuraTheme.categorical
 
     private var visible: [SpaceNode] { Array(tools.spaceNodes.prefix(60)) }
 
@@ -106,8 +106,8 @@ struct SpaceMapView: View {
             .overlay(alignment: .topLeading) {
                 if rect.width > 70 && rect.height > 34 {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(node.name).font(.caption.weight(.semibold)).lineLimit(1)
-                        Text(Fmt.bytes(node.size)).font(.caption2).opacity(0.8)
+                        Text(node.name).font(.auraCaption.weight(.semibold)).lineLimit(1)
+                        Text(Fmt.bytes(node.size)).font(.auraCaption2).opacity(0.8)
                     }
                     .padding(6).foregroundStyle(.white)
                 }
@@ -128,12 +128,12 @@ struct SpaceMapView: View {
                         let n = pair.element
                         HStack(spacing: 8) {
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(pair.offset < 60 ? palette[pair.offset % palette.count] : .gray)
+                                .fill(pair.offset < 60 ? palette[pair.offset % palette.count] : AuraTheme.hairline)
                                 .frame(width: 10, height: 10)
                             Image(systemName: n.isDirectory ? "folder.fill" : "doc.fill").foregroundStyle(.secondary)
                             Text(n.name).lineLimit(1).truncationMode(.middle)
                             Spacer()
-                            Text(Fmt.bytes(n.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            Text(Fmt.bytes(n.size)).font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
                         }
                         .padding(6)
                         .background(hovered == n.id ? Color.white.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))

@@ -86,7 +86,7 @@ final class HealthCenter: ObservableObject {
         if days >= 7 {
             raise(HealthAlert(id: "backup", title: "Pas de sauvegarde depuis \(days) jours",
                               message: "Branche ton disque Time Machine pour protéger tes fichiers.",
-                              icon: "clock.arrow.circlepath", color: .orange, module: .security), silenceDays: 2)
+                              icon: "clock.arrow.circlepath", color: AuraTheme.amber, module: .security), silenceDays: 2)
         }
     }
 
@@ -98,23 +98,23 @@ final class HealthCenter: ObservableObject {
             if freePct < diskThreshold {
                 raise(HealthAlert(id: "disk", title: "Disque presque plein",
                                   message: "Il ne reste que \(Fmt.bytes(m.diskFree)) (\(Int(freePct)) %). Un nettoyage s'impose.",
-                                  icon: "internaldrive.fill", color: .red, module: .smartScan))
+                                  icon: "internaldrive.fill", color: AuraTheme.red, module: .smartScan))
             }
         }
         if m.memPressure > 0.92 && m.swapUsed > 3_000_000_000 {
             raise(HealthAlert(id: "ram", title: "Mémoire saturée",
                               message: "macOS utilise \(Fmt.bytes(m.swapUsed)) de swap : ferme des apps ou libère la RAM.",
-                              icon: "memorychip", color: .orange, module: .monitor))
+                              icon: "memorychip", color: AuraTheme.amber, module: .monitor))
         }
         if let t = m.temps.hottest, t > tempThreshold {
             raise(HealthAlert(id: "temp", title: "Mac très chaud",
                               message: "Un capteur atteint \(Int(t)) °C. Vérifie les apps gourmandes et l'aération.",
-                              icon: "thermometer.high", color: .red, module: .monitor))
+                              icon: "thermometer.high", color: AuraTheme.red, module: .monitor))
         }
         if let h = m.battery.health, h < 0.8 {
             raise(HealthAlert(id: "battery", title: "Batterie usée",
                               message: "Capacité maximale à \(Int(h * 100)) % après \(m.battery.cycleCount ?? 0) cycles. Pense à la faire contrôler.",
-                              icon: "battery.25", color: .orange, module: .monitor), silenceDays: 30)
+                              icon: "battery.25", color: AuraTheme.amber, module: .monitor), silenceDays: 30)
         }
         // App qui monopolise le processeur pendant plusieurs relevés consécutifs
         var strikes: [Int32: Int] = [:]
@@ -123,7 +123,7 @@ final class HealthCenter: ObservableObject {
             if strikes[p.pid]! >= 4 {
                 raise(HealthAlert(id: "hog-\(p.name)", title: "\(p.name) monopolise le processeur",
                                   message: "\(Int(p.cpu)) % de CPU depuis plus de 2 minutes.",
-                                  icon: "flame.fill", color: .orange, module: .monitor))
+                                  icon: "flame.fill", color: AuraTheme.amber, module: .monitor))
             }
         }
         hogStrikes = strikes

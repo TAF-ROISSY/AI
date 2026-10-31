@@ -33,7 +33,7 @@ struct AppsView: View {
                 }
                 .pickerStyle(.segmented).frame(width: 300)
                 Spacer()
-                if !lastMessage.isEmpty { Text(lastMessage).font(.callout).foregroundStyle(.green) }
+                if !lastMessage.isEmpty { Text(lastMessage).font(.auraCallout).foregroundStyle(AuraTheme.green) }
             }
             if tab == 0 { uninstaller } else { orphansView }
         }
@@ -66,7 +66,7 @@ struct AppsView: View {
                         }
                     }
                     Text("\(filtered.count) apps · \(Fmt.bytes(filtered.reduce(0) { $0 + $1.size }))")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                 }
             }
             .frame(width: 400)
@@ -104,13 +104,13 @@ struct AppsView: View {
                 Image(nsImage: app.icon).resizable().frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(app.name).lineLimit(1)
-                    Text("Utilisée \(Fmt.relativeDate(app.lastUsed))").font(.caption2).foregroundStyle(.secondary)
+                    Text("Utilisée \(Fmt.relativeDate(app.lastUsed))").font(.auraCaption2).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(Fmt.bytes(app.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                Text(Fmt.bytes(app.size)).font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
             }
             .padding(8)
-            .background(selectedApp?.id == app.id ? Color.orange.opacity(0.2) : .clear,
+            .background(selectedApp?.id == app.id ? AuraTheme.amber.opacity(0.2) : .clear,
                         in: RoundedRectangle(cornerRadius: 10))
             .contentShape(Rectangle())
         }
@@ -122,16 +122,16 @@ struct AppsView: View {
             HStack(spacing: 16) {
                 Image(nsImage: app.icon).resizable().frame(width: 72, height: 72)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(app.name).font(.title2.bold())
+                    Text(app.name).font(.auraTitle2.bold())
                     Text([app.version.map { "Version \($0)" }, app.bundleID].compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text("Application : \(Fmt.bytes(app.size))").font(.callout)
+                        .font(.auraCaption).foregroundStyle(.secondary)
+                    Text("Application : \(Fmt.bytes(app.size))").font(.auraCallout)
                 }
                 Spacer()
             }
             if app.isApple {
                 Label("App système Apple : macOS empêche sa suppression.", systemImage: "exclamationmark.shield")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AuraTheme.amber)
             }
             Text("Fichiers associés").fontWeight(.semibold)
             if manager.isSearchingLeftovers {
@@ -146,10 +146,10 @@ struct AppsView: View {
                                 Toggle("", isOn: $l.selected).labelsHidden().toggleStyle(.checkbox)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(l.url.lastPathComponent).lineLimit(1).truncationMode(.middle)
-                                    Text(l.kind).font(.caption2).foregroundStyle(.secondary)
+                                    Text(l.kind).font(.auraCaption2).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Text(Fmt.bytes(l.size)).font(.caption).foregroundStyle(.secondary)
+                                Text(Fmt.bytes(l.size)).font(.auraCaption).foregroundStyle(.secondary)
                                 Button { FS.reveal(l.url) } label: { Image(systemName: "magnifyingglass") }
                                     .buttonStyle(.borderless)
                             }
@@ -160,7 +160,7 @@ struct AppsView: View {
             Spacer()
             HStack {
                 let total = app.size + manager.leftovers.filter(\.selected).reduce(0) { $0 + $1.size }
-                Text("Total : \(Fmt.bytes(total))").font(.title3.bold())
+                Text("Total : \(Fmt.bytes(total))").font(.auraTitle3.bold())
                 Spacer()
                 Button("Afficher dans le Finder") { FS.reveal(app.url) }
                 Button("Réinitialiser") {
@@ -192,11 +192,11 @@ struct AppsView: View {
                             lastMessage = "\(Fmt.bytes(f)) envoyés à la Corbeille"
                         }
                     }
-                    .buttonStyle(.borderedProminent).tint(.orange)
+                    .buttonStyle(AuraButton(.primary))
                     .disabled(!manager.orphans.contains(where: \.selected))
                 }
                 Text("Vérifie chaque ligne : certains dossiers servent à des outils sans app visible.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.auraCaption).foregroundStyle(.secondary)
                 if manager.isSearchingLeftovers {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if manager.orphans.isEmpty {
@@ -209,9 +209,9 @@ struct AppsView: View {
                                 HStack(spacing: 10) {
                                     Toggle("", isOn: $o.selected).labelsHidden().toggleStyle(.checkbox)
                                     Text(o.url.lastPathComponent).lineLimit(1)
-                                    Text(o.kind).font(.caption2).foregroundStyle(.secondary)
+                                    Text(o.kind).font(.auraCaption2).foregroundStyle(.secondary)
                                     Spacer()
-                                    Text(Fmt.bytes(o.size)).font(.caption).foregroundStyle(.secondary)
+                                    Text(Fmt.bytes(o.size)).font(.auraCaption).foregroundStyle(.secondary)
                                     Button { FS.reveal(o.url) } label: { Image(systemName: "magnifyingglass") }
                                         .buttonStyle(.borderless)
                                 }

@@ -53,12 +53,12 @@ struct AppActivityView: View {
                 ModuleHeader(module: .activity, subtitle: "Ce que consomme chaque application ouverte, onglets et sous-processus compris.")
 
                 HStack(spacing: 14) {
-                    StatTile(title: "Applications ouvertes", value: "\(activity.regularApps.count)", icon: "square.stack.3d.up.fill", tint: .indigo)
-                    StatTile(title: "Mémoire des apps", value: Fmt.bytes(activity.totalMemory), icon: "memorychip", tint: .purple)
+                    StatTile(title: "Applications ouvertes", value: "\(activity.regularApps.count)", icon: "square.stack.3d.up.fill", tint: AuraTheme.signal)
+                    StatTile(title: "Mémoire des apps", value: Fmt.bytes(activity.totalMemory), icon: "memorychip", tint: AuraTheme.signal)
                     StatTile(title: "Gourmandes", value: "\(activity.greedyApps.count)", icon: "flame.fill",
-                             tint: activity.greedyApps.isEmpty ? .green : .orange)
+                             tint: activity.greedyApps.isEmpty ? AuraTheme.green : AuraTheme.amber)
                     StatTile(title: "Inutilisées", value: activity.idleApps.isEmpty ? "0" : "\(activity.idleApps.count) · \(Fmt.bytes(activity.idleMemory))",
-                             icon: "moon.zzz.fill", tint: .gray)
+                             icon: "moon.zzz.fill", tint: AuraTheme.legendDim)
                 }
 
                 analysisCard
@@ -74,11 +74,11 @@ struct AppActivityView: View {
                             activity.quit(ids: selection)
                             selection = []
                         }
-                        .buttonStyle(.borderedProminent).tint(.red)
+                        .buttonStyle(AuraButton(.danger))
                     }
                 }
                 if !activity.message.isEmpty {
-                    Text(activity.message).font(.callout).foregroundStyle(.green).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(activity.message).font(.auraCallout).foregroundStyle(AuraTheme.green).frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 GlassCard(padding: 8) {
@@ -98,7 +98,7 @@ struct AppActivityView: View {
                     }
                 }
                 Text("Mesures en direct toutes les 2 secondes. Le processeur est exprimé en % d'un cœur : une app peut dépasser 100 % sur plusieurs cœurs.")
-                    .font(.caption2).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.auraCaption2).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(28)
         }
@@ -131,23 +131,23 @@ struct AppActivityView: View {
         return GlassCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Analyse", systemImage: "stethoscope").font(.headline)
+                    Label("Analyse", systemImage: "stethoscope").font(.auraHeadline)
                     Spacer()
                     if !activity.idleApps.isEmpty {
                         Button("Fermer les apps inutilisées (\(Fmt.bytes(activity.idleMemory)) libérés)") { confirmIdle = true }
-                            .buttonStyle(.borderedProminent).tint(.indigo)
+                            .buttonStyle(AuraButton(.primary))
                     }
                 }
                 if flagged.isEmpty {
                     Label(activity.lastUpdate == nil ? "Analyse en cours…" : "Aucune application gourmande en ce moment.",
-                          systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                          systemImage: "checkmark.seal.fill").foregroundStyle(AuraTheme.green)
                 } else {
                     ForEach(flagged.prefix(6)) { a in
                         HStack(spacing: 10) {
                             Image(nsImage: a.icon).resizable().frame(width: 24, height: 24)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(a.name).fontWeight(.semibold)
-                                Text(activity.explanation(a)).font(.caption).foregroundStyle(.secondary)
+                                Text(activity.explanation(a)).font(.auraCaption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             ForEach(a.flags, id: \.self) { flagChip($0) }
@@ -171,7 +171,7 @@ struct AppActivityView: View {
             Text("Énergie").frame(width: 65, alignment: .trailing)
             Color.clear.frame(width: 190)
         }
-        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        .font(.auraCaption.weight(.semibold)).foregroundStyle(.secondary)
         .padding(.horizontal, 8).padding(.vertical, 6)
     }
 
@@ -180,7 +180,7 @@ struct AppActivityView: View {
             if a.canQuit {
                 Button {
                     if selection.contains(a.id) { selection.remove(a.id) } else { selection.insert(a.id) }
-                } label: { CheckCircle(on: selection.contains(a.id), tint: .red).font(.body) }
+                } label: { CheckCircle(on: selection.contains(a.id), tint: AuraTheme.red).font(.auraBody) }
                 .buttonStyle(.plain).frame(width: 22)
             } else {
                 Color.clear.frame(width: 22)
@@ -190,10 +190,10 @@ struct AppActivityView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(a.name).fontWeight(.medium).lineLimit(1)
-                        if a.isFrontmost { Text("au premier plan").font(.caption2).foregroundStyle(.green) }
+                        if a.isFrontmost { Text("au premier plan").font(.auraCaption2).foregroundStyle(AuraTheme.green) }
                         ForEach(a.flags, id: \.self) { flagChip($0) }
                     }
-                    Text(subtitle(a)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    Text(subtitle(a)).font(.auraCaption2).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,9 +206,9 @@ struct AppActivityView: View {
             Text(String(format: "%.0f %%", a.cpu)).monospacedDigit()
                 .foregroundStyle(cpuColor(a.cpuAvg)).frame(width: 80, alignment: .trailing)
             Text(Fmt.bytes(a.memory)).monospacedDigit()
-                .foregroundStyle(a.flags.contains(.memory) ? .purple : .primary).frame(width: 85, alignment: .trailing)
-            Text(AppActivityMonitor.watts(a.energy)).monospacedDigit().font(.callout)
-                .foregroundStyle(a.flags.contains(.energy) ? .yellow : .secondary).frame(width: 65, alignment: .trailing)
+                .foregroundStyle(a.flags.contains(.memory) ? AuraTheme.signal : .primary).frame(width: 85, alignment: .trailing)
+            Text(AppActivityMonitor.watts(a.energy)).monospacedDigit().font(.auraCallout)
+                .foregroundStyle(a.flags.contains(.energy) ? AuraTheme.amber : .secondary).frame(width: 65, alignment: .trailing)
             HStack(spacing: 6) {
                 if a.app != nil && !a.isBackground && !a.isHidden && !a.isFrontmost {
                     Button { activity.hide(a) } label: { Image(systemName: "eye.slash") }
@@ -222,9 +222,9 @@ struct AppActivityView: View {
             }
             .frame(width: 190, alignment: .trailing)
         }
-        .font(.callout)
+        .font(.auraCallout)
         .padding(.horizontal, 8).padding(.vertical, 7)
-        .background(a.isGreedy ? Color.orange.opacity(0.07) : .clear)
+        .background(a.isGreedy ? AuraTheme.amber.opacity(0.07) : .clear)
     }
 
     @ViewBuilder
@@ -232,7 +232,7 @@ struct AppActivityView: View {
         if !a.canQuit {
             EmptyView()
         } else if activity.isStuck(a) {
-            Button("Forcer") { toForce = a }.buttonStyle(.borderedProminent).tint(.red).controlSize(.small)
+            Button("Forcer") { toForce = a }.buttonStyle(AuraButton(.danger)).controlSize(.small)
                 .help("L'application ne répond pas à la demande de fermeture")
         } else if activity.isQuitting(a) {
             ProgressView().controlSize(.small)
@@ -264,17 +264,17 @@ struct AppActivityView: View {
                 }
                 .buttonStyle(.borderless)
             }
-            .font(.caption).foregroundStyle(.secondary)
+            .font(.auraCaption).foregroundStyle(.secondary)
 
-            Text("\(a.processes.count) processus").font(.caption.weight(.semibold))
+            Text("\(a.processes.count) processus").font(.auraCaption.weight(.semibold))
             ForEach(a.processes.prefix(20)) { p in
                 HStack(spacing: 10) {
-                    Image(systemName: "gearshape").font(.caption).foregroundStyle(.tertiary)
-                    Text(p.name).font(.caption).lineLimit(1).truncationMode(.middle)
-                    Text("PID \(p.pid)").font(.caption2).foregroundStyle(.tertiary)
+                    Image(systemName: "gearshape").font(.auraCaption).foregroundStyle(.tertiary)
+                    Text(p.name).font(.auraCaption).lineLimit(1).truncationMode(.middle)
+                    Text("PID \(p.pid)").font(.auraCaption2).foregroundStyle(.tertiary)
                     Spacer()
-                    Text(String(format: "%.1f %%", p.cpu)).font(.caption.monospacedDigit()).frame(width: 60, alignment: .trailing)
-                    Text(Fmt.bytes(p.memory)).font(.caption.monospacedDigit()).frame(width: 80, alignment: .trailing)
+                    Text(String(format: "%.1f %%", p.cpu)).font(.auraCaption.monospacedDigit()).frame(width: 60, alignment: .trailing)
+                    Text(Fmt.bytes(p.memory)).font(.auraCaption.monospacedDigit()).frame(width: 80, alignment: .trailing)
                     if p.pid != a.pid && p.pid != getpid() {
                         Button { procToStop = p } label: { Image(systemName: "xmark.circle") }
                             .buttonStyle(.borderless).help("Arrêter ce processus")
@@ -284,7 +284,7 @@ struct AppActivityView: View {
                 }
             }
             if a.processes.count > 20 {
-                Text("+ \(a.processes.count - 20) autres processus").font(.caption2).foregroundStyle(.tertiary)
+                Text("+ \(a.processes.count - 20) autres processus").font(.auraCaption2).foregroundStyle(.tertiary)
             }
         }
         .padding(.leading, 74).padding(.trailing, 12).padding(.vertical, 8)
@@ -295,7 +295,7 @@ struct AppActivityView: View {
 
     private func flagChip(_ f: AppFlag) -> some View {
         Label(f.label, systemImage: f.icon)
-            .font(.caption2.weight(.semibold))
+            .font(.auraCaption2.weight(.semibold))
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(f.color.opacity(0.25), in: Capsule())
             .foregroundStyle(f.color)
@@ -313,7 +313,7 @@ struct AppActivityView: View {
     }
 
     private func cpuColor(_ v: Double) -> Color {
-        v > 80 ? .red : v > 40 ? .orange : v > 10 ? .yellow : .green
+        v > 80 ? AuraTheme.red : v > 40 ? AuraTheme.amber : v > 10 ? AuraTheme.amber : AuraTheme.green
     }
 
     private func toggleExpand(_ a: AppUsage) {

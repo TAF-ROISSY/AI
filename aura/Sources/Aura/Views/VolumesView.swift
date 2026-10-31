@@ -26,7 +26,7 @@ struct VolumesView: View {
                     Toggle("Afficher aussi les disques internes", isOn: $showInternal)
                     Spacer()
                     if !volumes.message.isEmpty {
-                        Text(volumes.message).font(.callout).foregroundStyle(.green).lineLimit(2)
+                        Text(volumes.message).font(.auraCallout).foregroundStyle(AuraTheme.green).lineLimit(2)
                     }
                     Button { volumes.refresh() } label: { Label("Actualiser", systemImage: "arrow.clockwise") }
                 }
@@ -64,12 +64,12 @@ struct VolumesView: View {
     private func newDriveBanner(_ v: VolumeInfo) -> some View {
         GlassCard(padding: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "bolt.horizontal.circle.fill").font(.title2).foregroundStyle(.cyan)
+                Image(systemName: "bolt.horizontal.circle.fill").font(.auraTitle2).foregroundStyle(AuraTheme.legendDim)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nouveau support détecté : \(v.name)").fontWeight(.semibold)
                     Text(volumes.scanning.contains(v.id) ? "Analyse en cours…"
                          : "\(Fmt.bytes(volumes.junkSize(v))) de fichiers parasites · \(Fmt.bytes(v.free)) libres")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("OK") { volumes.lastMounted = nil }.buttonStyle(.borderless)
@@ -86,14 +86,14 @@ struct VolumesView: View {
                     Image(nsImage: v.icon).resizable().frame(width: 52, height: 52)
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 8) {
-                            Text(v.name).font(.title3.bold())
-                            tag(v.kindLabel, .cyan)
-                            tag(v.format, .gray)
-                            if v.isReadOnly { tag("Lecture seule", .orange) }
-                            if volumes.isProtected(v) { tag("Protégé", .green) }
+                            Text(v.name).font(.auraTitle3.bold())
+                            tag(v.kindLabel, AuraTheme.cool)
+                            tag(v.format, AuraTheme.legendDim)
+                            if v.isReadOnly { tag("Lecture seule", AuraTheme.amber) }
+                            if volumes.isProtected(v) { tag("Protégé", AuraTheme.green) }
                         }
                         Text("\(Fmt.bytes(v.used)) utilisés sur \(Fmt.bytes(v.total)) · \(Fmt.bytes(v.free)) libres")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.auraCallout).foregroundStyle(.secondary)
                     }
                     Spacer()
                     RingGauge(value: v.usedRatio, label: Fmt.percent(v.usedRatio),
@@ -124,7 +124,7 @@ struct VolumesView: View {
                     }
                     if v.isEjectable || v.isRemovable || v.isNetwork {
                         Button { confirmEject = v } label: { Label("Éjecter", systemImage: "eject.fill") }
-                            .buttonStyle(.borderedProminent).tint(.cyan)
+                            .buttonStyle(AuraButton(.primary))
                     }
                 }
             }
@@ -138,7 +138,7 @@ struct VolumesView: View {
             HStack { ProgressView().controlSize(.small); Text("Recherche des fichiers parasites…").foregroundStyle(.secondary) }
         } else if let list {
             if list.isEmpty {
-                Label("Aucun fichier parasite, support impeccable.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                Label("Aucun fichier parasite, support impeccable.", systemImage: "checkmark.seal.fill").foregroundStyle(AuraTheme.green)
             } else {
                 VStack(spacing: 6) {
                     ForEach(JunkKind.allCases.filter { k in list.contains { $0.kind == k } }) { kind in
@@ -146,12 +146,12 @@ struct VolumesView: View {
                         let on = items.allSatisfy(\.selected)
                         Button { volumes.toggle(volume: v, kind: kind) } label: {
                             HStack(spacing: 10) {
-                                CheckCircle(on: on, tint: .cyan)
+                                CheckCircle(on: on, tint: AuraTheme.cool)
                                 Image(systemName: kind.icon).frame(width: 20).foregroundStyle(.secondary)
                                 Text(kind.rawValue)
                                 Spacer()
                                 Text("\(items.count) · \(Fmt.bytes(items.reduce(Int64(0)) { $0 + $1.size }))")
-                                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                    .font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
                             }
                         }
                         .buttonStyle(.plain)
@@ -164,7 +164,7 @@ struct VolumesView: View {
                         Spacer()
                         Button("Analyser à nouveau") { Task { await volumes.scanJunk(v) } }
                         Button("Nettoyer \(Fmt.bytes(volumes.junkSize(v, selectedOnly: true)))") { confirmClean = v }
-                            .buttonStyle(.borderedProminent).tint(.green)
+                            .buttonStyle(AuraButton(.primary))
                             .disabled(volumes.junkSize(v, selectedOnly: true) == 0 || v.isReadOnly)
                     }
                 }
@@ -179,7 +179,7 @@ struct VolumesView: View {
     }
 
     private func tag(_ text: String, _ color: Color) -> some View {
-        Text(text).font(.caption2.weight(.medium))
+        Text(text).font(.auraCaption2.weight(.medium))
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(color.opacity(0.2), in: Capsule())
     }
@@ -194,7 +194,7 @@ struct VolumesView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Ne plus créer de .DS_Store sur les clés USB et partages réseau")
                         Text("Réglage officiel macOS. Utile pour les clés lues par une TV, un autoradio ou un PC.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.auraCaption).foregroundStyle(.secondary)
                     }
                 }
                 .toggleStyle(.switch)

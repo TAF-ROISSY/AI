@@ -19,11 +19,11 @@ struct SecurityView: View {
                     HStack(spacing: 30) {
                         ZStack {
                             Circle().fill(statusColor.opacity(0.18)).frame(width: 130, height: 130)
-                            Image(systemName: statusIcon).font(.system(size: 54, weight: .semibold)).foregroundStyle(statusColor)
+                            Image(systemName: statusIcon).font(.aura(54, .semibold)).foregroundStyle(statusColor)
                                 .symbolEffect(.pulse, isActive: security.isScanning)
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(headline).font(.system(size: 26, weight: .bold, design: .rounded))
+                            Text(headline).font(.auraDisplay(26))
                             Text(security.isScanning ? security.progressLabel
                                  : security.lastScan.map { "Dernière analyse \(Fmt.relativeDate($0))" } ?? "Aucune analyse pour l'instant")
                                 .foregroundStyle(.secondary)
@@ -48,7 +48,7 @@ struct SecurityView: View {
 
                 if !security.threats.isEmpty { threatsCard }
 
-                if !message.isEmpty { Text(message).foregroundStyle(.green) }
+                if !message.isEmpty { Text(message).foregroundStyle(AuraTheme.green) }
             }
             .padding(28)
         }
@@ -66,10 +66,10 @@ struct SecurityView: View {
     }
 
     private var statusColor: Color {
-        if security.isScanning { return .cyan }
-        if issues > 0 { return .red }
-        if security.checks.contains(where: { $0.ok == false }) { return .orange }
-        return .green
+        if security.isScanning { return AuraTheme.cool }
+        if issues > 0 { return AuraTheme.red }
+        if security.checks.contains(where: { $0.ok == false }) { return AuraTheme.amber }
+        return AuraTheme.green
     }
     private var statusIcon: String {
         if security.isScanning { return "shield.lefthalf.filled" }
@@ -87,12 +87,12 @@ struct SecurityView: View {
                 GlassCard(padding: 14) {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: c.ok == true ? "checkmark.circle.fill" : c.ok == false ? "xmark.octagon.fill" : "questionmark.circle")
-                            .font(.title2).foregroundStyle(c.ok == true ? .green : c.ok == false ? .red : .secondary)
+                            .font(.auraTitle2).foregroundStyle(c.ok == true ? AuraTheme.green : c.ok == false ? AuraTheme.red : .secondary)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(c.title).fontWeight(.semibold)
-                            Text(c.detail).font(.caption).foregroundStyle(.secondary)
+                            Text(c.detail).font(.auraCaption).foregroundStyle(.secondary)
                             if c.ok == false {
-                                Text(c.fixHint).font(.caption).foregroundStyle(.orange)
+                                Text(c.fixHint).font(.auraCaption).foregroundStyle(AuraTheme.amber)
                                 if let s = c.settingsURL, let u = URL(string: s) {
                                     Button("Corriger…") { NSWorkspace.shared.open(u) }.controlSize(.small)
                                 }
@@ -112,31 +112,31 @@ struct SecurityView: View {
                     Text("Éléments détectés").fontWeight(.semibold)
                     Spacer()
                     Button("Supprimer la sélection") { confirm = true }
-                        .buttonStyle(.borderedProminent).tint(.red)
+                        .buttonStyle(AuraButton(.danger))
                         .disabled(!security.threats.contains { $0.selected && $0.removable })
                 }
                 ForEach(security.threats) { t in
                     HStack(alignment: .top, spacing: 10) {
                         if t.removable {
-                            Button { security.toggle(t.id) } label: { CheckCircle(on: t.selected, tint: .red) }.buttonStyle(.plain)
+                            Button { security.toggle(t.id) } label: { CheckCircle(on: t.selected, tint: AuraTheme.red) }.buttonStyle(.plain)
                         } else {
-                            Image(systemName: "info.circle").foregroundStyle(.secondary).font(.title3)
+                            Image(systemName: "info.circle").foregroundStyle(.secondary).font(.auraTitle3)
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 6) {
                                 Text(t.title).fontWeight(.medium).lineLimit(1)
-                                Text(t.level.label).font(.caption2.bold())
+                                Text(t.level.label).font(.auraCaption2.bold())
                                     .padding(.horizontal, 6).padding(.vertical, 1)
                                     .background(Color(nsColor: t.level.color).opacity(0.3), in: Capsule())
-                                Text(t.kind.rawValue).font(.caption2).foregroundStyle(.secondary)
+                                Text(t.kind.rawValue).font(.auraCaption2).foregroundStyle(.secondary)
                             }
-                            Text(t.detail).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                            Text(t.detail).font(.auraCaption).foregroundStyle(.secondary).lineLimit(3)
                         }
                         Spacer()
                         if t.url.path != "/" {
                             Button { FS.reveal(t.url) } label: { Image(systemName: "magnifyingglass") }.buttonStyle(.borderless)
                         }
-                        Button("Ignorer") { security.ignore(t) }.buttonStyle(.borderless).font(.caption)
+                        Button("Ignorer") { security.ignore(t) }.buttonStyle(.borderless).font(.auraCaption)
                     }
                     Divider().opacity(0.15)
                 }
@@ -159,7 +159,7 @@ struct PrivacyView: View {
             VStack(spacing: 18) {
                 ModuleHeader(module: .privacy, subtitle: "Efface les traces de navigation et d'activité, sans toucher à tes fichiers.")
                 HStack {
-                    if !privacy.message.isEmpty { Text(privacy.message).foregroundStyle(.green) }
+                    if !privacy.message.isEmpty { Text(privacy.message).foregroundStyle(AuraTheme.green) }
                     Spacer()
                     Button { Task { await privacy.scan() } } label: { Label("Analyser", systemImage: "arrow.clockwise") }
                     BigButton(title: "Effacer \(selectedCount) éléments", icon: "hand.raised.fill", gradient: AuraTheme.good) {
@@ -191,11 +191,11 @@ struct PrivacyView: View {
         GlassCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: g.icon).font(.title3).foregroundStyle(.mint).frame(width: 26)
-                    Text(g.name).font(.headline)
+                    Image(systemName: g.icon).font(.auraTitle3).foregroundStyle(AuraTheme.legendDim).frame(width: 26)
+                    Text(g.name).font(.auraHeadline)
                     if g.isRunning {
-                        Text("ouvert").font(.caption2).padding(.horizontal, 6).padding(.vertical, 1)
-                            .background(.orange.opacity(0.3), in: Capsule())
+                        Text("ouvert").font(.auraCaption2).padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(AuraTheme.amber.opacity(0.3), in: Capsule())
                         Button("Quitter") { privacy.quit(g) }.controlSize(.small)
                     }
                     Spacer()
@@ -203,14 +203,14 @@ struct PrivacyView: View {
                 ForEach(g.items) { item in
                     Button { privacy.toggle(group: g.id, item: item.id) } label: {
                         HStack(spacing: 10) {
-                            CheckCircle(on: item.selected, tint: .mint)
+                            CheckCircle(on: item.selected, tint: AuraTheme.signal)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(item.name)
-                                Text(item.detail).font(.caption).foregroundStyle(.secondary)
+                                Text(item.detail).font(.auraCaption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            if let c = item.count { Text("\(c) entrées").font(.caption).foregroundStyle(.secondary) }
-                            if item.size > 0 { Text(Fmt.bytes(item.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
+                            if let c = item.count { Text("\(c) entrées").font(.auraCaption).foregroundStyle(.secondary) }
+                            if item.size > 0 { Text(Fmt.bytes(item.size)).font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary) }
                         }
                         .contentShape(Rectangle())
                     }
@@ -224,8 +224,8 @@ struct PrivacyView: View {
         GlassCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "wifi").font(.title3).foregroundStyle(.mint).frame(width: 26)
-                    Text("Réseaux Wi-Fi mémorisés (\(privacy.wifiNetworks.count))").font(.headline)
+                    Image(systemName: "wifi").font(.auraTitle3).foregroundStyle(AuraTheme.legendDim).frame(width: 26)
+                    Text("Réseaux Wi-Fi mémorisés (\(privacy.wifiNetworks.count))").font(.auraHeadline)
                     Spacer()
                     Button("Oublier \(wifiSelection.count) réseau(x)") {
                         Task { await privacy.forgetWifi(Array(wifiSelection)); wifiSelection = [] }
@@ -233,13 +233,13 @@ struct PrivacyView: View {
                     .disabled(wifiSelection.isEmpty)
                 }
                 Text("Ton Mac se reconnecte automatiquement à ces réseaux, y compris des Wi-Fi publics oubliés depuis longtemps.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.auraCaption).foregroundStyle(.secondary)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 220))], alignment: .leading, spacing: 6) {
                     ForEach(privacy.wifiNetworks, id: \.self) { ssid in
                         Button {
                             if wifiSelection.contains(ssid) { wifiSelection.remove(ssid) } else { wifiSelection.insert(ssid) }
                         } label: {
-                            HStack { CheckCircle(on: wifiSelection.contains(ssid), tint: .mint); Text(ssid).lineLimit(1) }
+                            HStack { CheckCircle(on: wifiSelection.contains(ssid), tint: AuraTheme.signal); Text(ssid).lineLimit(1) }
                         }
                         .buttonStyle(.plain)
                     }
@@ -260,7 +260,7 @@ struct PermissionsView: View {
             ModuleHeader(module: .permissions, subtitle: "Quelles apps peuvent voir ton écran, t'écouter ou lire tes fichiers.")
             if !perms.readable && !perms.isLoading {
                 Label("Accorde l'Accès complet au disque à Aura pour lire les autorisations.", systemImage: "lock.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AuraTheme.amber)
             }
             HStack(alignment: .top, spacing: 14) {
                 GlassCard(padding: 8) {
@@ -270,13 +270,13 @@ struct PermissionsView: View {
                                 let n = perms.apps(for: s).count
                                 Button { service = s } label: {
                                     HStack(spacing: 10) {
-                                        Image(systemName: s.icon).frame(width: 22).foregroundStyle(s.isSensitive ? .orange : .indigo)
+                                        Image(systemName: s.icon).frame(width: 22).foregroundStyle(s.isSensitive ? AuraTheme.amber : AuraTheme.signal)
                                         Text(s.title).lineLimit(1)
                                         Spacer()
-                                        if n > 0 { Text("\(n)").font(.caption.bold()).foregroundStyle(.secondary) }
+                                        if n > 0 { Text("\(n)").font(.auraCaption.bold()).foregroundStyle(.secondary) }
                                     }
                                     .padding(8)
-                                    .background(service == s ? Color.indigo.opacity(0.3) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                    .background(service == s ? AuraTheme.signal.opacity(0.3) : .clear, in: RoundedRectangle(cornerRadius: 8))
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -289,12 +289,12 @@ struct PermissionsView: View {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Image(systemName: service.icon).font(.title2).foregroundStyle(.indigo)
-                            Text(service.title).font(.title3.bold())
+                            Image(systemName: service.icon).font(.auraTitle2).foregroundStyle(AuraTheme.legendDim)
+                            Text(service.title).font(.auraTitle3.bold())
                             Spacer()
                             Button("Ouvrir dans Réglages") { perms.openSettings(service) }
                         }
-                        if !perms.message.isEmpty { Text(perms.message).font(.caption).foregroundStyle(.green) }
+                        if !perms.message.isEmpty { Text(perms.message).font(.auraCaption).foregroundStyle(AuraTheme.green) }
                         let list = perms.apps(for: service)
                         if perms.isLoading {
                             ProgressView().frame(maxWidth: .infinity)
@@ -312,11 +312,11 @@ struct PermissionsView: View {
                                             }
                                             VStack(alignment: .leading, spacing: 1) {
                                                 Text(p.appName)
-                                                Text(p.client).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                                Text(p.client).font(.auraCaption2).foregroundStyle(.secondary).lineLimit(1)
                                             }
                                             Spacer()
-                                            Text(p.allowed ? "Autorisée" : "Refusée").font(.caption)
-                                                .foregroundStyle(p.allowed ? .orange : .secondary)
+                                            Text(p.allowed ? "Autorisée" : "Refusée").font(.auraCaption)
+                                                .foregroundStyle(p.allowed ? AuraTheme.amber : .secondary)
                                             Button("Retirer") { Task { await perms.revoke(p) } }.controlSize(.small)
                                         }
                                         Divider().opacity(0.15)

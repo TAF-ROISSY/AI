@@ -15,12 +15,12 @@ struct GuardianCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: guardian.isActive ? "eye.circle.fill" : "eye.slash.circle")
-                        .font(.title2).foregroundStyle(guardian.isActive ? .green : .secondary)
+                        .font(.auraTitle2).foregroundStyle(guardian.isActive ? AuraTheme.green : .secondary)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Protection en temps réel").font(.headline)
+                        Text("Protection en temps réel").font(.auraHeadline)
                         Text(guardian.isActive ? "Active : lancements automatiques\(downloads ? " et téléchargements" : "") surveillés"
                                                : "Désactivée")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.auraCaption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Toggle("Téléchargements", isOn: Binding(get: { downloads }, set: {
@@ -32,7 +32,7 @@ struct GuardianCard: View {
                     })).toggleStyle(.switch).labelsHidden()
                 }
                 if guardian.events.isEmpty {
-                    Text("Aucun événement depuis l'ouverture d'Aura.").font(.caption).foregroundStyle(.tertiary)
+                    Text("Aucun événement depuis l'ouverture d'Aura.").font(.auraCaption).foregroundStyle(.tertiary)
                 } else {
                     ForEach(guardian.events.prefix(8)) { e in eventRow(e) }
                 }
@@ -47,16 +47,16 @@ struct GuardianCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(e.title).fontWeight(.medium).lineLimit(1)
-                    Text(Fmt.relativeDate(e.date)).font(.caption2).foregroundStyle(.tertiary)
+                    Text(Fmt.relativeDate(e.date)).font(.auraCaption2).foregroundStyle(.tertiary)
                 }
-                Text(e.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(e.detail).font(.auraCaption).foregroundStyle(.secondary).lineLimit(2)
                 if let o = e.origin {
-                    Text("Provenance : \(URL(string: o)?.host ?? o)").font(.caption2).foregroundStyle(.tertiary)
+                    Text("Provenance : \(URL(string: o)?.host ?? o)").font(.auraCaption2).foregroundStyle(.tertiary)
                 }
             }
             Spacer()
             if e.handled {
-                Text("traité").font(.caption2).foregroundStyle(.secondary)
+                Text("traité").font(.auraCaption2).foregroundStyle(.secondary)
             } else {
                 Button { FS.reveal(e.url) } label: { Image(systemName: "magnifyingglass") }.buttonStyle(.borderless)
                 if e.level.rawValue >= GuardEvent.Level.warning.rawValue || e.kind == .launchItem {
@@ -74,10 +74,10 @@ struct GuardianCard: View {
 
     private func color(_ l: GuardEvent.Level) -> Color {
         switch l {
-        case .ok: return .green
-        case .info: return .blue
-        case .warning: return .orange
-        case .danger: return .red
+        case .ok: return AuraTheme.green
+        case .info: return AuraTheme.signal
+        case .warning: return AuraTheme.amber
+        case .danger: return AuraTheme.red
         }
     }
 }
@@ -95,19 +95,19 @@ struct NetworkView: View {
 
                 GlassCard(padding: 24) {
                     HStack(spacing: 30) {
-                        speedGauge("Réception", net.lastTest?.download, .cyan)
-                        speedGauge("Envoi", net.lastTest?.upload, .pink)
+                        speedGauge("Réception", net.lastTest?.download, AuraTheme.cool)
+                        speedGauge("Envoi", net.lastTest?.upload, AuraTheme.signal)
                         VStack(alignment: .leading, spacing: 8) {
                             if let t = net.lastTest {
                                 if let l = t.latency { Label(String(format: "Latence %.0f ms", l), systemImage: "timer") }
                                 if let r = t.responsiveness { Label("Réactivité \(r.lowercased())", systemImage: "bolt.horizontal") }
                                 if let i = t.interface { Label("Interface \(i)", systemImage: "network") }
-                                Text("Mesuré \(Fmt.relativeDate(t.date))").font(.caption).foregroundStyle(.secondary)
+                                Text("Mesuré \(Fmt.relativeDate(t.date))").font(.auraCaption).foregroundStyle(.secondary)
                             } else {
                                 Text("Mesure le vrai débit de ta connexion avec l'outil d'Apple (environ 20 secondes).")
                                     .foregroundStyle(.secondary)
                             }
-                            if !net.error.isEmpty { Text(net.error).foregroundStyle(.red).font(.caption) }
+                            if !net.error.isEmpty { Text(net.error).foregroundStyle(AuraTheme.red).font(.auraCaption) }
                             BigButton(title: net.isTesting ? "Test en cours…" : "Tester le débit", icon: "speedometer",
                                       busy: net.isTesting) { Task { await net.runSpeedTest() } }
                         }
@@ -124,18 +124,18 @@ struct NetworkView: View {
                                 Button { Task { await net.readWifi() } } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.borderless)
                             }
                             if net.wifi.isEmpty {
-                                Text("Non connecté en Wi-Fi, ou informations indisponibles.").font(.caption).foregroundStyle(.secondary)
+                                Text("Non connecté en Wi-Fi, ou informations indisponibles.").font(.auraCaption).foregroundStyle(.secondary)
                             }
                             ForEach(net.wifi.keys.sorted(), id: \.self) { k in
-                                HStack { Text(k).foregroundStyle(.secondary); Spacer(); Text(net.wifi[k] ?? "") }.font(.callout)
+                                HStack { Text(k).foregroundStyle(.secondary); Spacer(); Text(net.wifi[k] ?? "") }.font(.auraCallout)
                             }
                             Divider().opacity(0.2)
                             HStack {
-                                Label(Fmt.rate(monitor.netIn), systemImage: "arrow.down").foregroundStyle(.cyan)
+                                Label(Fmt.rate(monitor.netIn), systemImage: "arrow.down").foregroundStyle(AuraTheme.cool)
                                 Spacer()
-                                Label(Fmt.rate(monitor.netOut), systemImage: "arrow.up").foregroundStyle(.pink)
+                                Label(Fmt.rate(monitor.netOut), systemImage: "arrow.up").foregroundStyle(AuraTheme.signal)
                             }
-                            .font(.callout)
+                            .font(.auraCallout)
                         }
                     }
                     .frame(width: 340)
@@ -148,7 +148,7 @@ struct NetworkView: View {
                                 if net.isMeasuring { ProgressView().controlSize(.small) }
                                 Button("Mesurer") { Task { await net.measureUsage() } }.disabled(net.isMeasuring)
                             }
-                            Text("Données échangées depuis le lancement de chaque app.").font(.caption).foregroundStyle(.secondary)
+                            Text("Données échangées depuis le lancement de chaque app.").font(.auraCaption).foregroundStyle(.secondary)
                             let maxTotal = Double(net.usage.first?.total ?? 1)
                             ForEach(net.usage) { u in
                                 VStack(alignment: .leading, spacing: 3) {
@@ -156,7 +156,7 @@ struct NetworkView: View {
                                         Text(u.name).lineLimit(1)
                                         Spacer()
                                         Text("↓ \(Fmt.bytes(u.received))  ↑ \(Fmt.bytes(u.sent))")
-                                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                            .font(.auraCaption.monospacedDigit()).foregroundStyle(.secondary)
                                     }
                                     GeometryReader { g in
                                         Capsule().fill(Color.cyan.gradient)
@@ -175,9 +175,9 @@ struct NetworkView: View {
                             Text("Historique des tests").fontWeight(.semibold)
                             Chart(net.history.reversed(), id: \.date) { t in
                                 LineMark(x: .value("Date", t.date), y: .value("Mb/s", t.download / 1_000_000), series: .value("Sens", "Réception"))
-                                    .foregroundStyle(.cyan)
+                                    .foregroundStyle(AuraTheme.cool)
                                 LineMark(x: .value("Date", t.date), y: .value("Mb/s", t.upload / 1_000_000), series: .value("Sens", "Envoi"))
-                                    .foregroundStyle(.pink)
+                                    .foregroundStyle(AuraTheme.signal)
                             }
                             .frame(height: 140)
                         }
@@ -206,7 +206,7 @@ struct DisksView: View {
             VStack(spacing: 18) {
                 ModuleHeader(module: .disks, subtitle: "État de santé (SMART) et vitesse réelle de tes disques internes et externes.")
                 HStack {
-                    if !disks.message.isEmpty { Text(disks.message).foregroundStyle(.orange) }
+                    if !disks.message.isEmpty { Text(disks.message).foregroundStyle(AuraTheme.amber) }
                     Spacer()
                     Button { Task { await disks.load() } } label: { Label("Actualiser", systemImage: "arrow.clockwise") }
                 }
@@ -225,31 +225,31 @@ struct DisksView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 14) {
                     Image(systemName: d.isInternal ? "internaldrive.fill" : "externaldrive.fill")
-                        .font(.system(size: 34)).foregroundStyle(d.isInternal ? .blue : .cyan)
+                        .font(.aura(34, .light)).foregroundStyle(d.isInternal ? AuraTheme.signal : AuraTheme.cool)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(d.name).font(.title3.bold())
+                        Text(d.name).font(.auraTitle3.bold())
                         Text("\(Fmt.bytes(d.size)) · \(d.isSSD ? "SSD" : "Disque mécanique") · \(d.protocolName) · \(d.id)")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.auraCaption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Label(d.smartOK == true ? "En bonne santé" : d.smartOK == false ? "DÉFAILLANT : sauvegarde vite !" : "SMART non disponible",
                               systemImage: d.smartOK == true ? "checkmark.seal.fill" : d.smartOK == false ? "exclamationmark.octagon.fill" : "questionmark.circle")
-                            .foregroundStyle(d.smartOK == true ? .green : d.smartOK == false ? .red : .secondary)
+                            .foregroundStyle(d.smartOK == true ? AuraTheme.green : d.smartOK == false ? AuraTheme.red : .secondary)
                             .fontWeight(.semibold)
-                        Text("Statut SMART : \(d.smart)").font(.caption2).foregroundStyle(.tertiary)
+                        Text("Statut SMART : \(d.smart)").font(.auraCaption2).foregroundStyle(.tertiary)
                     }
                 }
                 ForEach(d.volumes) { v in
                     HStack(spacing: 12) {
                         Text(v.name).frame(width: 180, alignment: .leading).lineLimit(1)
                         ProgressView(value: v.usedRatio).tint(AuraTheme.loadColor(v.usedRatio))
-                        Text("\(Fmt.bytes(v.free)) libres").font(.caption).foregroundStyle(.secondary).frame(width: 110, alignment: .trailing)
+                        Text("\(Fmt.bytes(v.free)) libres").font(.auraCaption).foregroundStyle(.secondary).frame(width: 110, alignment: .trailing)
                         if disks.benchmarking == v.id {
                             ProgressView().controlSize(.small).frame(width: 190)
                         } else if let b = disks.benchmarks[v.id] {
                             Text("✍︎ \(Fmt.rate(b.write))  ·  👁 \(Fmt.rate(b.read))")
-                                .font(.caption.monospacedDigit()).frame(width: 190)
+                                .font(.auraCaption.monospacedDigit()).frame(width: 190)
                         } else {
                             Button("Tester la vitesse") { Task { await disks.benchmark(v) } }
                                 .controlSize(.small).frame(width: 190)
@@ -259,7 +259,7 @@ struct DisksView: View {
                 }
                 if d.volumes.contains(where: { disks.benchmarks[$0.id] != nil }) {
                     Text("Test : écriture puis lecture d'un fichier de 1 Go sans cache, supprimé ensuite.")
-                        .font(.caption2).foregroundStyle(.tertiary)
+                        .font(.auraCaption2).foregroundStyle(.tertiary)
                 }
             }
         }
@@ -282,10 +282,10 @@ struct BatteryView: View {
                     HStack(spacing: 14) {
                         GlassCard {
                             VStack(spacing: 8) {
-                                RingGauge(value: b.level, label: Fmt.percent(b.level), color: b.level > 0.2 ? .green : .red, size: 110, lineWidth: 11)
+                                RingGauge(value: b.level, label: Fmt.percent(b.level), color: b.level > 0.2 ? AuraTheme.green : AuraTheme.red, size: 110, lineWidth: 11)
                                 Text(b.isCharging ? "En charge" : b.onAC ? "Sur secteur" : "Sur batterie").fontWeight(.semibold)
                                 if let t = b.timeRemaining, !b.onAC {
-                                    Text("\(t / 60) h \(t % 60) min restantes").font(.caption).foregroundStyle(.secondary)
+                                    Text("\(t / 60) h \(t % 60) min restantes").font(.auraCaption).foregroundStyle(.secondary)
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -293,9 +293,9 @@ struct BatteryView: View {
                         GlassCard {
                             VStack(spacing: 8) {
                                 RingGauge(value: b.health ?? 0, label: b.health.map(Fmt.percent) ?? "—",
-                                          color: (b.health ?? 1) > 0.8 ? .green : .orange, size: 110, lineWidth: 11)
+                                          color: (b.health ?? 1) > 0.8 ? AuraTheme.green : AuraTheme.amber, size: 110, lineWidth: 11)
                                 Text("Capacité maximale").fontWeight(.semibold)
-                                Text("par rapport à une batterie neuve").font(.caption).foregroundStyle(.secondary)
+                                Text("par rapport à une batterie neuve").font(.auraCaption).foregroundStyle(.secondary)
                             }
                             .frame(maxWidth: .infinity)
                         }
@@ -306,7 +306,7 @@ struct BatteryView: View {
                                 if let loss = history.monthlyLoss {
                                     Label(String(format: "Usure : %.1f %% par mois", loss * 100), systemImage: "chart.line.downtrend.xyaxis")
                                 }
-                                Text(advice(b)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                                Text(advice(b)).font(.auraCaption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -316,13 +316,13 @@ struct BatteryView: View {
                             Text("Santé dans le temps").fontWeight(.semibold)
                             if history.snapshots.count < 2 {
                                 Text("Aura enregistre un relevé par jour : la courbe se dessinera au fil des semaines.")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.auraCaption).foregroundStyle(.secondary)
                             } else {
                                 Chart(history.snapshots) { s in
                                     LineMark(x: .value("Date", s.date), y: .value("Santé", s.health * 100))
-                                        .foregroundStyle(.green).interpolationMethod(.catmullRom)
+                                        .foregroundStyle(AuraTheme.green).interpolationMethod(.catmullRom)
                                     AreaMark(x: .value("Date", s.date), y: .value("Santé", s.health * 100))
-                                        .foregroundStyle(LinearGradient(colors: [.green.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom))
+                                        .foregroundStyle(LinearGradient(colors: [AuraTheme.green.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom))
                                 }
                                 .chartYScale(domain: 60...100)
                                 .frame(height: 160)
@@ -358,16 +358,16 @@ struct KeepAwakeCard: View {
         GlassCard {
             HStack(spacing: 14) {
                 Image(systemName: awake.isActive ? "cup.and.saucer.fill" : "moon.zzz.fill")
-                    .font(.system(size: 30)).foregroundStyle(awake.isActive ? .orange : .secondary)
+                    .font(.aura(30, .light)).foregroundStyle(awake.isActive ? AuraTheme.amber : .secondary)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Rester éveillé").font(.headline)
+                    Text("Rester éveillé").font(.auraHeadline)
                     Text(awake.isActive ? (awake.until.map { "Actif jusqu'à \($0.formatted(date: .omitted, time: .shortened))" } ?? "Actif jusqu'à désactivation")
                                         : "Empêche la mise en veille pendant un téléchargement, une présentation ou une copie.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if awake.isActive {
-                    Button("Arrêter") { awake.deactivate() }.buttonStyle(.borderedProminent).tint(.orange)
+                    Button("Arrêter") { awake.deactivate() }.buttonStyle(AuraButton(.primary))
                 } else {
                     ForEach([(30, "30 min"), (60, "1 h"), (180, "3 h")], id: \.0) { m in
                         Button(m.1) { awake.activate(minutes: m.0) }
@@ -417,7 +417,7 @@ struct TidyView: View {
                     }
                     HStack {
                         Text("Les fichiers ouverts ces 10 dernières minutes et les dossiers sont laissés en place.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.auraCaption).foregroundStyle(.secondary)
                         Spacer()
                         if !tidy.lastBatch.isEmpty {
                             Button("Annuler le dernier rangement (\(tidy.lastBatch.count))") { Task { await tidy.undo() } }
@@ -430,7 +430,7 @@ struct TidyView: View {
                     }
                 }
             }
-            if !tidy.message.isEmpty { Text(tidy.message).foregroundStyle(.green).frame(maxWidth: .infinity, alignment: .leading) }
+            if !tidy.message.isEmpty { Text(tidy.message).foregroundStyle(AuraTheme.green).frame(maxWidth: .infinity, alignment: .leading) }
             GlassCard(padding: 10) {
                 if tidy.plan.isEmpty {
                     EmptyState(icon: "tray.2", title: "Clique sur « Aperçu »",
@@ -443,8 +443,8 @@ struct TidyView: View {
                                     Image(nsImage: NSWorkspace.shared.icon(forFile: m.from)).resizable().frame(width: 22, height: 22)
                                     Text(m.fileName).lineLimit(1).truncationMode(.middle)
                                     Spacer()
-                                    Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
-                                    Label(m.destinationFolder, systemImage: "folder.fill").font(.callout).foregroundStyle(.teal)
+                                    Image(systemName: "arrow.right").font(.auraCaption).foregroundStyle(.secondary)
+                                    Label(m.destinationFolder, systemImage: "folder.fill").font(.auraCallout).foregroundStyle(AuraTheme.signal)
                                         .frame(width: 170, alignment: .leading)
                                     Button { tidy.remove(m) } label: { Image(systemName: "xmark.circle") }
                                         .buttonStyle(.borderless).help("Laisser ce fichier en place")

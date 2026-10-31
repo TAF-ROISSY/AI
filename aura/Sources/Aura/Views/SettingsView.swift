@@ -28,7 +28,7 @@ struct SettingsView: View {
                     LabeledContent("Accès complet au disque") {
                         HStack {
                             Text(FS.hasFullDiskAccess ? "Accordé" : "Non accordé")
-                                .foregroundStyle(FS.hasFullDiskAccess ? .green : .orange)
+                                .foregroundStyle(FS.hasFullDiskAccess ? AuraTheme.green : AuraTheme.amber)
                             Button("Réglages…") { FS.openFullDiskAccessSettings() }
                         }
                     }
@@ -46,7 +46,7 @@ struct SettingsView: View {
                         ForEach(CleanSchedule.allCases) { Text($0.rawValue).tag($0) }
                     }
                     Text("Ne supprime que ce qui se recrée tout seul : caches, journaux, navigateurs, Xcode, caches de développement. Jamais tes fichiers.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                     if let next = health.nextAutoClean {
                         LabeledContent("Prochain passage") { Text(next.formatted(date: .abbreviated, time: .shortened)) }
                     }
@@ -75,7 +75,7 @@ struct SettingsView: View {
                                 Image(systemName: pair.element.1.icon).foregroundStyle(pair.element.1.color)
                                 Text(pair.element.1.title)
                                 Spacer()
-                                Text(Fmt.relativeDate(pair.element.0)).font(.caption).foregroundStyle(.secondary)
+                                Text(Fmt.relativeDate(pair.element.0)).font(.auraCaption).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -95,21 +95,21 @@ struct SettingsView: View {
                         .disabled(selfUpdate.isChecking)
                         if selfUpdate.available != nil {
                             Button("Installer \(selfUpdate.available?.version ?? "")") { Task { await selfUpdate.install() } }
-                                .buttonStyle(.borderedProminent)
+                                .buttonStyle(AuraButton(.primary))
                         }
                     }
                     if !selfUpdate.lastResult.isEmpty {
-                        Text(selfUpdate.lastResult).font(.caption).foregroundStyle(.secondary)
+                        Text(selfUpdate.lastResult).font(.auraCaption).foregroundStyle(.secondary)
                     }
                     Text("Aura vérifie au démarrage puis toutes les 6 heures sur github.com/\(SelfUpdater.repo).")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
             .tabItem { Label("Mises à jour", systemImage: "arrow.down.app") }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Dossiers jamais touchés par le nettoyage").font(.headline)
+                Text("Dossiers jamais touchés par le nettoyage").font(.auraHeadline)
                 List(exclusions, id: \.self, selection: $exclusionSelection) { path in
                     HStack {
                         Image(systemName: "folder")

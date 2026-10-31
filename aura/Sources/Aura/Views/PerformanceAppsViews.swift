@@ -20,7 +20,7 @@ struct MaintenanceView: View {
                     } else if !maint.summary.isEmpty {
                         Text(maint.summary).fontWeight(.semibold)
                     } else if maint.recommendedCount > 0 {
-                        Label("\(maint.recommendedCount) tâche(s) recommandée(s)", systemImage: "star.fill").foregroundStyle(.orange)
+                        Label("\(maint.recommendedCount) tâche(s) recommandée(s)", systemImage: "star.fill").foregroundStyle(AuraTheme.amber)
                     }
                     Spacer()
                     Button("Sélectionner les recommandées") { maint.selectRecommended() }.disabled(maint.isRunning)
@@ -32,7 +32,7 @@ struct MaintenanceView: View {
                 }
                 if needsPassword && !maint.isRunning {
                     Label("Certaines tâches demanderont ton mot de passe du Mac (une seule fois).", systemImage: "lock.fill")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.auraCaption).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 12)], spacing: 12) {
@@ -42,7 +42,7 @@ struct MaintenanceView: View {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("\(maint.snapshots.count) instantané(s) Time Machine locaux").fontWeight(.semibold)
-                            ForEach(maint.snapshots, id: \.self) { Text($0).font(.caption.monospaced()).foregroundStyle(.secondary) }
+                            ForEach(maint.snapshots, id: \.self) { Text($0).font(.auraCaption.monospaced()).foregroundStyle(.secondary) }
                         }
                     }
                 }
@@ -58,27 +58,27 @@ struct MaintenanceView: View {
             GlassCard(padding: 14) {
                 HStack(alignment: .top, spacing: 12) {
                     stateIcon(state, selected: t.selected)
-                    Image(systemName: t.icon).font(.title2).foregroundStyle(.orange).frame(width: 30)
+                    Image(systemName: t.icon).font(.auraTitle2).foregroundStyle(AuraTheme.amber).frame(width: 30)
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
                             Text(t.name).fontWeight(.semibold)
                             if maint.isRecommended(t) {
-                                Text("recommandée").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(.orange.opacity(0.3), in: Capsule())
+                                Text("recommandée").font(.auraCaption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(AuraTheme.amber.opacity(0.3), in: Capsule())
                             }
-                            if t.needsAdmin { Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary) }
+                            if t.needsAdmin { Image(systemName: "lock.fill").font(.auraCaption2).foregroundStyle(.secondary) }
                         }
-                        Text(t.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        Text(t.detail).font(.auraCaption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         switch state {
                         case .running:
-                            Text("En cours…").font(.caption2.bold()).foregroundStyle(.orange)
+                            Text("En cours…").font(.auraCaption2.bold()).foregroundStyle(AuraTheme.amber)
                         case .done(let m):
-                            Text(m).font(.caption2.bold()).foregroundStyle(.green)
+                            Text(m).font(.auraCaption2.bold()).foregroundStyle(AuraTheme.green)
                         case .failed(let m):
-                            Text(m).font(.caption2.bold()).foregroundStyle(.red).lineLimit(3)
+                            Text(m).font(.auraCaption2.bold()).foregroundStyle(AuraTheme.red).lineLimit(3)
                         case .idle:
                             Text(maint.lastRun(t).map { "Dernière fois \(Fmt.relativeDate($0))" } ?? "Jamais lancée")
-                                .font(.caption2).foregroundStyle(.tertiary)
+                                .font(.auraCaption2).foregroundStyle(.tertiary)
                         }
                     }
                     Spacer()
@@ -92,9 +92,9 @@ struct MaintenanceView: View {
     private func stateIcon(_ s: TaskState, selected: Bool) -> some View {
         switch s {
         case .running: ProgressView().controlSize(.small).frame(width: 22)
-        case .done: Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
-        case .failed: Image(systemName: "exclamationmark.triangle.fill").font(.title3).foregroundStyle(.red)
-        case .idle: CheckCircle(on: selected, tint: .orange)
+        case .done: Image(systemName: "checkmark.circle.fill").font(.auraTitle3).foregroundStyle(AuraTheme.green)
+        case .failed: Image(systemName: "exclamationmark.triangle.fill").font(.auraTitle3).foregroundStyle(AuraTheme.red)
+        case .idle: CheckCircle(on: selected, tint: AuraTheme.amber)
         }
     }
 }
@@ -110,11 +110,11 @@ struct UpdaterView: View {
             HStack {
                 if updater.isChecking {
                     ProgressView(value: Double(updater.checked), total: Double(max(1, updater.total))).frame(width: 220)
-                    Text("\(updater.checked)/\(updater.total) apps vérifiées").font(.caption).foregroundStyle(.secondary)
+                    Text("\(updater.checked)/\(updater.total) apps vérifiées").font(.auraCaption).foregroundStyle(.secondary)
                 } else if let d = updater.lastCheck {
                     Text("Vérifié \(Fmt.relativeDate(d))").foregroundStyle(.secondary)
                 }
-                if !updater.message.isEmpty { Text(updater.message).foregroundStyle(.green).lineLimit(2) }
+                if !updater.message.isEmpty { Text(updater.message).foregroundStyle(AuraTheme.green).lineLimit(2) }
                 Spacer()
                 Button { Task { await updater.check() } } label: { Label("Vérifier", systemImage: "arrow.clockwise") }
                     .disabled(updater.isChecking)
@@ -127,10 +127,10 @@ struct UpdaterView: View {
             if !updater.macOSUpdates.isEmpty {
                 GlassCard(padding: 14) {
                     HStack {
-                        Image(systemName: "apple.logo").font(.title2)
+                        Image(systemName: "apple.logo").font(.auraTitle2)
                         VStack(alignment: .leading) {
                             Text("Mises à jour macOS disponibles").fontWeight(.semibold)
-                            ForEach(updater.macOSUpdates, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
+                            ForEach(updater.macOSUpdates, id: \.self) { Text($0).font(.auraCaption).foregroundStyle(.secondary) }
                         }
                         Spacer()
                         Button("Ouvrir Mise à jour de logiciels") { updater.openMacOSUpdates() }
@@ -148,21 +148,21 @@ struct UpdaterView: View {
                         VStack(spacing: 0) {
                             ForEach(updater.updates) { u in
                                 HStack(spacing: 12) {
-                                    Button { updater.toggle(u.id) } label: { CheckCircle(on: u.selected, tint: .cyan) }.buttonStyle(.plain)
+                                    Button { updater.toggle(u.id) } label: { CheckCircle(on: u.selected, tint: AuraTheme.cool) }.buttonStyle(.plain)
                                     if let a = u.appURL {
                                         Image(nsImage: NSWorkspace.shared.icon(forFile: a.path)).resizable().frame(width: 34, height: 34)
                                     } else {
-                                        Image(systemName: "terminal.fill").font(.title2).frame(width: 34).foregroundStyle(.secondary)
+                                        Image(systemName: "terminal.fill").font(.auraTitle2).frame(width: 34).foregroundStyle(.secondary)
                                     }
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(u.name).fontWeight(.medium)
                                         HStack(spacing: 6) {
                                             Text(u.installed).foregroundStyle(.secondary)
-                                            Image(systemName: "arrow.right").font(.caption2)
-                                            Text(u.available).foregroundStyle(.cyan).fontWeight(.semibold)
+                                            Image(systemName: "arrow.right").font(.auraCaption2)
+                                            Text(u.available).foregroundStyle(AuraTheme.cool).fontWeight(.semibold)
                                             Text("· \(u.source.rawValue)").foregroundStyle(.secondary)
                                         }
-                                        .font(.caption)
+                                        .font(.auraCaption)
                                     }
                                     Spacer()
                                     if let n = u.notesURL {
@@ -202,7 +202,7 @@ struct ExtensionsView: View {
         VStack(spacing: 18) {
             ModuleHeader(module: .extensions, subtitle: "Modules ajoutés aux navigateurs, au Finder et à macOS.")
             HStack {
-                if !ext.message.isEmpty { Text(ext.message).foregroundStyle(.green) }
+                if !ext.message.isEmpty { Text(ext.message).foregroundStyle(AuraTheme.green) }
                 Spacer()
                 Button { Task { await ext.load() } } label: { Label("Actualiser", systemImage: "arrow.clockwise") }
             }
@@ -212,13 +212,13 @@ struct ExtensionsView: View {
                         ForEach(ExtensionCategory.allCases) { c in
                             Button { category = c } label: {
                                 HStack(spacing: 10) {
-                                    Image(systemName: c.icon).frame(width: 22).foregroundStyle(.purple)
+                                    Image(systemName: c.icon).frame(width: 22).foregroundStyle(AuraTheme.legendDim)
                                     Text(c.rawValue).lineLimit(1)
                                     Spacer()
-                                    Text("\(count(c))").font(.caption.bold()).foregroundStyle(.secondary)
+                                    Text("\(count(c))").font(.auraCaption.bold()).foregroundStyle(.secondary)
                                 }
                                 .padding(8)
-                                .background(category == c ? Color.purple.opacity(0.3) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                .background(category == c ? AuraTheme.signal.opacity(0.3) : .clear, in: RoundedRectangle(cornerRadius: 8))
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -252,22 +252,22 @@ struct ExtensionsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(Set(ext.browserExtensions.map(\.browser))).sorted(), id: \.self) { b in
                     HStack {
-                        Text(b).font(.headline)
+                        Text(b).font(.auraHeadline)
                         Spacer()
                         Button("Gérer dans \(b)") { ext.openBrowserExtensionsPage(b) }.buttonStyle(.borderless)
                     }
                     .padding(.top, 10).padding(.horizontal, 8)
                     ForEach(ext.browserExtensions.filter { $0.browser == b }) { e in
                         HStack(spacing: 10) {
-                            Image(systemName: "puzzlepiece.extension.fill").foregroundStyle(.purple)
+                            Image(systemName: "puzzlepiece.extension.fill").foregroundStyle(AuraTheme.legendDim)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(e.name).lineLimit(1)
-                                Text("v\(e.version) · \(e.identifier)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                Text("v\(e.version) · \(e.identifier)").font(.auraCaption2).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer()
                             if e.permissions.contains("<all_urls>") {
-                                Text("accès à tous les sites").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(.orange.opacity(0.25), in: Capsule())
+                                Text("accès à tous les sites").font(.auraCaption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(AuraTheme.amber.opacity(0.25), in: Capsule())
                             }
                             Button { FS.reveal(e.url) } label: { Image(systemName: "magnifyingglass") }.buttonStyle(.borderless)
                             Button("Retirer") { ext.remove(e) }.controlSize(.small)
@@ -289,10 +289,10 @@ struct ExtensionsView: View {
                     VStack(spacing: 0) {
                         ForEach(list) { item in
                             HStack(spacing: 10) {
-                                Image(systemName: category.icon).foregroundStyle(.purple).frame(width: 22)
+                                Image(systemName: category.icon).foregroundStyle(AuraTheme.legendDim).frame(width: 22)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(item.name).lineLimit(1)
-                                    Text(item.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(item.detail).font(.auraCaption2).foregroundStyle(.secondary).lineLimit(1)
                                 }
                                 Spacer()
                                 if item.pluginID != nil {

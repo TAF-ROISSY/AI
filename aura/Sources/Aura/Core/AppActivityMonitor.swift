@@ -45,10 +45,8 @@ enum AppFlag: Hashable {
 
     var color: Color {
         switch self {
-        case .cpu: return .orange
-        case .memory: return .purple
-        case .energy: return .yellow
-        case .idle: return .gray
+        case .cpu, .memory, .energy: return AuraTheme.amber
+        case .idle: return AuraTheme.legendDim
         }
     }
 

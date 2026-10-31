@@ -23,8 +23,8 @@ struct MonitorView: View {
                 }
 
                 HStack(alignment: .top, spacing: 14) {
-                    chartCard(title: "Processeur (%)", data: monitor.cpuHistory, color: .purple, maxY: 100)
-                    chartCard(title: "Mémoire (%)", data: monitor.memHistory, color: .blue, maxY: 100)
+                    chartCard(title: "Processeur (%)", data: monitor.cpuHistory, color: AuraTheme.signal, maxY: 100)
+                    chartCard(title: "Mémoire (%)", data: monitor.memHistory, color: AuraTheme.cool, maxY: 100)
                 }
 
                 HStack(alignment: .top, spacing: 14) {
@@ -50,11 +50,11 @@ struct MonitorView: View {
     }
 
     private func gaugeCard(_ title: String, _ v: Double, _ label: String, _ caption: String) -> some View {
-        GlassCard {
+        GlassCard(style: .well) {
             VStack(spacing: 10) {
                 RingGauge(value: v, label: label, color: AuraTheme.loadColor(v), size: 96, lineWidth: 10)
                 Text(title).fontWeight(.semibold)
-                Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(caption).font(.auraCaption).foregroundStyle(.secondary).lineLimit(1)
             }
             .frame(maxWidth: .infinity)
         }
@@ -62,21 +62,21 @@ struct MonitorView: View {
 
     private var batteryCard: some View {
         let b = monitor.battery
-        return GlassCard {
+        return GlassCard(style: .well) {
             VStack(spacing: 10) {
                 if b.present {
                     RingGauge(value: b.level, label: Fmt.percent(b.level),
-                              color: b.level > 0.2 ? .green : .red, size: 96, lineWidth: 10)
+                              color: b.level > 0.2 ? AuraTheme.green : AuraTheme.red, size: 96, lineWidth: 10)
                     Text(b.isCharging ? "En charge" : b.onAC ? "Sur secteur" : "Sur batterie").fontWeight(.semibold)
                     HStack(spacing: 8) {
                         if let c = b.cycleCount { Text("\(c) cycles") }
                         if let h = b.health { Text("santé \(Fmt.percent(h))") }
                     }
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.auraCaption).foregroundStyle(.secondary)
                 } else {
                     RingGauge(value: thermalValue, label: thermalLabel, color: thermalColor, size: 96, lineWidth: 10)
                     Text("Thermique").fontWeight(.semibold)
-                    Text("Mac de bureau").font(.caption).foregroundStyle(.secondary)
+                    Text("Mac de bureau").font(.auraCaption).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -101,10 +101,10 @@ struct MonitorView: View {
     }
     private var thermalColor: Color {
         switch monitor.thermal {
-        case .nominal: return .green
-        case .fair: return .yellow
-        case .serious: return .orange
-        default: return .red
+        case .nominal: return AuraTheme.green
+        case .fair: return AuraTheme.amber
+        case .serious: return AuraTheme.amber
+        default: return AuraTheme.red
         }
     }
 
@@ -134,17 +134,17 @@ struct MonitorView: View {
                 HStack {
                     Text("Réseau").fontWeight(.semibold)
                     Spacer()
-                    Label(Fmt.rate(monitor.netIn), systemImage: "arrow.down").foregroundStyle(.cyan).font(.caption)
-                    Label(Fmt.rate(monitor.netOut), systemImage: "arrow.up").foregroundStyle(.pink).font(.caption)
+                    Label(Fmt.rate(monitor.netIn), systemImage: "arrow.down").foregroundStyle(AuraTheme.cool).font(.auraCaption)
+                    Label(Fmt.rate(monitor.netOut), systemImage: "arrow.up").foregroundStyle(AuraTheme.signal).font(.auraCaption)
                 }
                 Chart {
                     ForEach(monitor.netInHistory) { s in
                         LineMark(x: .value("t", s.t), y: .value("o/s", s.value), series: .value("sens", "Réception"))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(AuraTheme.cool)
                     }
                     ForEach(monitor.netOutHistory) { s in
                         LineMark(x: .value("t", s.t), y: .value("o/s", s.value), series: .value("sens", "Envoi"))
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(AuraTheme.signal)
                     }
                 }
                 .chartXAxis(.hidden)
@@ -168,11 +168,11 @@ struct MonitorView: View {
                     Button("Libérer la RAM") { monitor.purgeMemory() }.controlSize(.small)
                     Button("Vider le cache DNS") { monitor.flushDNS() }.controlSize(.small)
                 }
-                memRow("Applications", monitor.memApp, .blue)
-                memRow("Mémoire résidente", monitor.memWired, .orange)
-                memRow("Compressée", monitor.memCompressed, .purple)
-                memRow("Fichiers en cache", monitor.memCached, .gray)
-                memRow("Swap utilisé", monitor.swapUsed, .red)
+                memRow("Applications", monitor.memApp, AuraTheme.cool)
+                memRow("Mémoire résidente", monitor.memWired, AuraTheme.signal)
+                memRow("Compressée", monitor.memCompressed, AuraTheme.amber)
+                memRow("Fichiers en cache", monitor.memCached, AuraTheme.legendDim)
+                memRow("Swap utilisé", monitor.swapUsed, AuraTheme.red)
             }
         }
     }
@@ -180,9 +180,9 @@ struct MonitorView: View {
     private func memRow(_ label: String, _ value: Int64, _ color: Color) -> some View {
         HStack {
             Circle().fill(color).frame(width: 8, height: 8)
-            Text(label).font(.callout)
+            Text(label).font(.auraCallout)
             Spacer()
-            Text(Fmt.bytes(value)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+            Text(Fmt.bytes(value)).font(.auraCallout.monospacedDigit()).foregroundStyle(.secondary)
         }
         .overlay(alignment: .bottom) {
             GeometryReader { g in
@@ -208,7 +208,7 @@ struct MonitorView: View {
                                     .animation(.easeOut(duration: 0.5), value: pair.element)
                             }
                             .frame(height: 80)
-                            Text("\(pair.offset + 1)").font(.caption2).foregroundStyle(.secondary)
+                            Text("\(pair.offset + 1)").font(.auraCaption2).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -222,7 +222,7 @@ struct MonitorView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Températures").fontWeight(.semibold)
                 if t.all.isEmpty {
-                    Text("Capteurs non disponibles sur ce Mac.").font(.caption).foregroundStyle(.secondary)
+                    Text("Capteurs non disponibles sur ce Mac.").font(.auraCaption).foregroundStyle(.secondary)
                 } else {
                     HStack(spacing: 16) {
                         tempGauge("CPU", t.cpu)
@@ -233,20 +233,20 @@ struct MonitorView: View {
                     DisclosureGroup("\(t.all.count) capteurs") {
                         ForEach(t.all.prefix(30)) { r in
                             HStack {
-                                Text(r.name).font(.caption).lineLimit(1)
+                                Text(r.name).font(.auraCaption).lineLimit(1)
                                 Spacer()
-                                Text(String(format: "%.0f °C", r.celsius)).font(.caption.monospacedDigit())
+                                Text(String(format: "%.0f °C", r.celsius)).font(.auraCaption.monospacedDigit())
                                     .foregroundStyle(tempColor(r.celsius))
                             }
                         }
                     }
-                    .font(.caption)
+                    .font(.auraCaption)
                 }
             }
         }
     }
 
-    private func tempColor(_ c: Double) -> Color { c < 60 ? .green : c < 85 ? .orange : .red }
+    private func tempColor(_ c: Double) -> Color { c < 60 ? AuraTheme.green : c < 85 ? AuraTheme.amber : AuraTheme.red }
 
     @ViewBuilder
     private func tempGauge(_ label: String, _ value: Double?) -> some View {
@@ -280,13 +280,13 @@ struct MonitorView: View {
                         Text(p.name).lineLimit(1)
                         Spacer()
                         Text(String(format: "%.1f %%", p.cpu)).monospacedDigit().frame(width: 70, alignment: .trailing)
-                            .foregroundStyle(p.cpu > 50 ? .orange : .secondary)
+                            .foregroundStyle(p.cpu > 50 ? AuraTheme.amber : .secondary)
                         Text(Fmt.bytes(p.memory)).monospacedDigit().frame(width: 90, alignment: .trailing)
                             .foregroundStyle(.secondary)
                         Button { processToKill = p } label: { Image(systemName: "xmark.circle") }
                             .buttonStyle(.borderless).help("Quitter ce processus")
                     }
-                    .font(.callout)
+                    .font(.auraCallout)
                     Divider().opacity(0.15)
                 }
             }

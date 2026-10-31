@@ -130,6 +130,8 @@ struct AuraApp: App {
         MenuBarExtra(isInserted: .constant(model.showMenuBar)) {
             MenuBarView()
                 .withAuraModel(model)
+                .auraChrome()
+                .background(AuraTheme.fuselage)
                 .preferredColorScheme(.dark)
                 .onAppear { model.startServices() }
         } label: {
@@ -140,6 +142,7 @@ struct AuraApp: App {
         Settings {
             SettingsView()
                 .withAuraModel(model)
+                .auraChrome()
                 .preferredColorScheme(.dark)
         }
     }

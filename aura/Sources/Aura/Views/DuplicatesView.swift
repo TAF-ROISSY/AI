@@ -158,7 +158,7 @@ struct DuplicatesView: View {
     private var summary: some View {
         HStack(spacing: 12) {
             Text(tools.status).foregroundStyle(.secondary).lineLimit(1)
-            if !message.isEmpty { Text(message).foregroundStyle(.green) }
+            if !message.isEmpty { Text(message).foregroundStyle(AuraTheme.green) }
             Spacer()
             Button("Tout décocher") { tools.selectAllDuplicates(false) }
             Button("Réappliquer la règle") { tools.applyKeepRule() }
@@ -166,7 +166,7 @@ struct DuplicatesView: View {
                 .toggleStyle(.checkbox)
                 .help("Recommandé sur une clé USB ou un disque externe : la Corbeille n'y libère pas d'espace")
             Button("Supprimer \(selectedCount) copies (\(Fmt.bytes(selectedSize)))") { confirm = true }
-                .buttonStyle(.borderedProminent).tint(.teal).disabled(selectedSize == 0)
+                .buttonStyle(AuraButton(.primary)).disabled(selectedSize == 0)
         }
         .onChange(of: touchesExternal) { _, ext in if ext { permanent = true } }
     }
@@ -180,34 +180,34 @@ struct DuplicatesView: View {
                     thumbnail(g.files[0].url)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(g.files[0].name).fontWeight(.semibold).lineLimit(1)
-                        Text("\(g.files[0].kind) · \(Fmt.bytes(g.size)) chacun").font(.caption).foregroundStyle(.secondary)
+                        Text("\(g.files[0].kind) · \(Fmt.bytes(g.size)) chacun").font(.auraCaption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if g.files.allSatisfy(\.selected) {
                         Label("Toutes cochées : rien ne sera supprimé", systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption).foregroundStyle(.orange)
+                            .font(.auraCaption).foregroundStyle(AuraTheme.amber)
                     }
                     Text("\(g.files.count) copies · \(Fmt.bytes(g.wasted)) en trop")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.teal)
+                        .font(.auraCaption.weight(.semibold)).foregroundStyle(AuraTheme.signal)
                 }
                 ForEach(g.files) { f in
                     HStack(spacing: 10) {
                         Button { tools.toggleDuplicate(group: g.id, file: f.id) } label: {
-                            CheckCircle(on: f.selected, tint: .teal)
+                            CheckCircle(on: f.selected, tint: AuraTheme.signal)
                         }.buttonStyle(.plain)
                         if !f.selected {
-                            Text("conservé").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(.green.opacity(0.25), in: Capsule())
+                            Text("conservé").font(.auraCaption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(AuraTheme.green.opacity(0.25), in: Capsule())
                         }
                         if !isOnMac(f.url) {
                             Label(volumeName(f.url), systemImage: "externaldrive.fill")
-                                .font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(.cyan.opacity(0.2), in: Capsule())
+                                .font(.auraCaption2).padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(AuraTheme.cool.opacity(0.2), in: Capsule())
                         }
                         Text(f.url.path.replacingOccurrences(of: FS.home.path, with: "~"))
-                            .font(.callout).lineLimit(1).truncationMode(.middle)
+                            .font(.auraCallout).lineLimit(1).truncationMode(.middle)
                         Spacer()
-                        Text(Fmt.relativeDate(f.modified)).font(.caption).foregroundStyle(.secondary)
+                        Text(Fmt.relativeDate(f.modified)).font(.auraCaption).foregroundStyle(.secondary)
                         Button { NSWorkspace.shared.open(f.url) } label: { Image(systemName: "eye") }
                             .buttonStyle(.borderless).help("Ouvrir")
                         Button { FS.reveal(f.url) } label: { Image(systemName: "magnifyingglass") }
@@ -252,7 +252,7 @@ struct FlowChips: View {
             HStack(spacing: 8) {
                 ForEach(items) { item in
                     HStack(spacing: 6) {
-                        Text(item.label).font(.callout).lineLimit(1)
+                        Text(item.label).font(.auraCallout).lineLimit(1)
                         Button { onRemove(item.url) } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.plain).foregroundStyle(.secondary)
                     }

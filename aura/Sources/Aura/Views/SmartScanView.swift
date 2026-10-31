@@ -14,7 +14,6 @@ struct SmartScanView: View {
 
     @Etat private var phase: Phase = .idle
     @Etat private var step = ""
-    @Etat private var pulse = false
     @Etat private var showConfirm = false
     @Etat private var doClean = true
     @Etat private var doProtect = true
@@ -61,20 +60,18 @@ struct SmartScanView: View {
 
     private var hero: some View {
         GlassCard(padding: 28) {
-            HStack(spacing: 40) {
-                ZStack {
-                    Circle().fill(AuraTheme.accent).frame(width: 190, height: 190)
-                        .blur(radius: pulse ? 42 : 24).opacity(pulse ? 0.55 : 0.3)
+            HStack(spacing: 36) {
+                GlassCard(padding: 14, style: .well) {
                     RingGauge(value: busy ? cleanup.progress : Double(monitor.healthScore) / 100,
                               label: busy ? Fmt.percent(cleanup.progress) : "\(monitor.healthScore)",
                               caption: busy ? "en cours" : "santé",
-                              color: busy ? .purple : AuraTheme.scoreColor(monitor.healthScore),
-                              size: 170, lineWidth: 14)
+                              color: busy ? AuraTheme.signal : AuraTheme.scoreColor(monitor.healthScore),
+                              size: 180, lineWidth: 14)
                 }
-                .onAppear { withAnimation(.easeInOut(duration: 2.2).repeatForever()) { pulse = true } }
+                .fixedSize()
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(headline).font(.system(size: 28, weight: .bold, design: .rounded))
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(headline).font(.auraDisplay(30))
                     Text(busy ? step : subline).foregroundStyle(.secondary).lineLimit(2)
                     HStack(spacing: 12) { actionButtons }
                 }
@@ -92,7 +89,7 @@ struct SmartScanView: View {
             BigButton(title: phase == .scanning ? "Analyse…" : "Entretien…", icon: "sparkles", busy: true) {}
         case .ready:
             BigButton(title: "Lancer l'entretien", icon: "wand.and.stars", gradient: AuraTheme.good) { showConfirm = true }
-            Button("Relancer l'analyse") { Task { await scanAll() } }.buttonStyle(.bordered)
+            Button("Relancer l'analyse") { Task { await scanAll() } }.buttonStyle(AuraButton())
         }
     }
 
@@ -119,15 +116,15 @@ struct SmartScanView: View {
     private var pillars: some View {
         let failedChecks = security.checks.filter { $0.ok == false }.count
         return HStack(alignment: .top, spacing: 14) {
-            pillar(title: "Nettoyage", icon: "wand.and.stars", color: .blue, on: $doClean,
+            pillar(title: "Nettoyage", icon: "wand.and.stars", color: AuraTheme.signal, on: $doClean,
                    value: Fmt.bytes(cleanup.totalSelected),
                    detail: "\(cleanup.categories.filter { $0.selectedSize > 0 }.count) catégories", module: .cleanup)
-            pillar(title: "Protection", icon: "shield.lefthalf.filled", color: threatsToRemove > 0 ? .red : .green, on: $doProtect,
+            pillar(title: "Protection", icon: "shield.lefthalf.filled", color: threatsToRemove > 0 ? AuraTheme.red : AuraTheme.green, on: $doProtect,
                    value: threatsToRemove > 0 ? "\(threatsToRemove) menace(s)" : "Aucune menace",
                    detail: failedChecks == 0 ? "Réglages de sécurité OK" : "\(failedChecks) réglage(s) à corriger", module: .security)
-            pillar(title: "Vitesse", icon: "bolt.fill", color: .orange, on: $doSpeed,
+            pillar(title: "Vitesse", icon: "bolt.fill", color: AuraTheme.amber, on: $doSpeed,
                    value: "\(maintCount) tâche(s)", detail: "\(apps.loginItems.count) app(s) au démarrage", module: .maintenance)
-            pillar(title: "Applications", icon: "square.grid.2x2.fill", color: .cyan, on: nil,
+            pillar(title: "Applications", icon: "square.grid.2x2.fill", color: AuraTheme.cool, on: nil,
                    value: "\(updater.updates.count) mise(s) à jour",
                    detail: "\(unusedApps.count) app(s) inutilisée(s) depuis 6 mois", module: .updater)
         }
@@ -138,14 +135,14 @@ struct SmartScanView: View {
         GlassCard(padding: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: icon).font(.title2).foregroundStyle(color)
+                    Image(systemName: icon).font(.auraTitle2).foregroundStyle(color)
                     Spacer()
                     if let on { Toggle("", isOn: on).toggleStyle(.switch).labelsHidden().controlSize(.small) }
                 }
-                Text(title).font(.headline)
-                Text(value).font(.title3.bold()).foregroundStyle(color)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
-                Button("Voir le détail") { goTo(module) }.buttonStyle(.borderless).font(.caption)
+                Text(title).font(.auraHeadline)
+                Text(value).font(.auraTitle3.bold()).foregroundStyle(color)
+                Text(detail).font(.auraCaption).foregroundStyle(.secondary)
+                Button("Voir le détail") { goTo(module) }.buttonStyle(.borderless).font(.auraCaption)
             }
         }
     }
@@ -162,7 +159,7 @@ struct SmartScanView: View {
         let tips = recommendations
         return GlassCard {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Assistant", systemImage: "lightbulb.fill").font(.headline).foregroundStyle(.yellow)
+                Label("Assistant", systemImage: "lightbulb.fill").font(.auraHeadline).foregroundStyle(AuraTheme.amber)
                 if tips.isEmpty {
                     Text("Rien à signaler pour l'instant. Lance une analyse pour des conseils personnalisés.")
                         .foregroundStyle(.secondary)
@@ -170,10 +167,10 @@ struct SmartScanView: View {
                 ForEach(tips) { tip in
                     Button { goTo(tip.module) } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: tip.module.icon).foregroundStyle(tip.module.tint).frame(width: 22)
-                            Text(tip.text).font(.callout).multilineTextAlignment(.leading)
+                            Image(systemName: tip.module.icon).foregroundStyle(AuraTheme.legendDim).frame(width: 22)
+                            Text(tip.text).font(.auraCallout).multilineTextAlignment(.leading)
                             Spacer()
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right").font(.auraCaption).foregroundStyle(.secondary)
                         }
                         .contentShape(Rectangle())
                     }

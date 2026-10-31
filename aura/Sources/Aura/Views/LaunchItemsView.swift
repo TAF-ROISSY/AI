@@ -15,7 +15,7 @@ struct LaunchItemsView: View {
                     Text("Agents en arrière-plan (\(manager.launchItems.count))").tag(1)
                 }
                 .pickerStyle(.segmented).frame(width: 460)
-                if !manager.message.isEmpty { Text(manager.message).font(.callout).foregroundStyle(.green).lineLimit(2) }
+                if !manager.message.isEmpty { Text(manager.message).font(.auraCallout).foregroundStyle(AuraTheme.green).lineLimit(2) }
                 Spacer()
                 Button("Réglages macOS…") { manager.openLoginItemsSettings() }
                 Button { Task { await manager.load(); await manager.loadLoginItems() } } label: {
@@ -58,7 +58,7 @@ struct LaunchItemsView: View {
                                 if let img = appIcon(name) {
                                     Image(nsImage: img).resizable().frame(width: 30, height: 30)
                                 } else {
-                                    Image(systemName: "app.fill").font(.title2).frame(width: 30)
+                                    Image(systemName: "app.fill").font(.auraTitle2).frame(width: 30)
                                 }
                                 Text(name)
                                 Spacer()
@@ -81,15 +81,15 @@ struct LaunchItemsView: View {
                         Image(systemName: icon(item.scope)).foregroundStyle(color(item.scope)).frame(width: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.label).lineLimit(1).foregroundStyle(item.disabled ? .secondary : .primary)
-                            Text(item.program).font(.caption).foregroundStyle(.secondary)
+                            Text(item.program).font(.auraCaption).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.middle)
                         }
                         Spacer()
                         if item.runAtLoad {
-                            Text("au démarrage").font(.caption2).padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(.blue.opacity(0.2), in: Capsule())
+                            Text("au démarrage").font(.auraCaption2).padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(AuraTheme.signal.opacity(0.2), in: Capsule())
                         }
-                        Text(item.scope.rawValue).font(.caption).foregroundStyle(.secondary).frame(width: 140, alignment: .trailing)
+                        Text(item.scope.rawValue).font(.auraCaption).foregroundStyle(.secondary).frame(width: 140, alignment: .trailing)
                         if item.isRemovable {
                             Toggle("", isOn: Binding(get: { !item.disabled }, set: { manager.setLaunchItem(item, enabled: $0) }))
                                 .toggleStyle(.switch).labelsHidden().controlSize(.small)
@@ -98,7 +98,7 @@ struct LaunchItemsView: View {
                         Button { FS.reveal(item.url) } label: { Image(systemName: "magnifyingglass") }
                             .buttonStyle(.borderless)
                         Button { toRemove = item } label: { Image(systemName: "minus.circle.fill") }
-                            .buttonStyle(.borderless).foregroundStyle(item.isRemovable ? .red : .secondary)
+                            .buttonStyle(.borderless).foregroundStyle(item.isRemovable ? AuraTheme.red : .secondary)
                             .disabled(!item.isRemovable)
                             .help(item.isRemovable ? "Arrêter et supprimer" : "Élément système : utilise le module Sécurité s'il est suspect")
                     }
@@ -119,9 +119,9 @@ struct LaunchItemsView: View {
 
     private func color(_ s: LaunchItem.Scope) -> Color {
         switch s {
-        case .user: return .blue
-        case .global: return .orange
-        case .daemon: return .red
+        case .user: return AuraTheme.signal
+        case .global: return AuraTheme.amber
+        case .daemon: return AuraTheme.red
         }
     }
 }
