@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>Shaker · Atelier cocktails</title>
+<meta name="description" content="Catalogue de cocktails, ton bar perso et un atelier qui invente des variantes avec tes ingrédients.">
+<meta name="theme-color" content="#09080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shaker">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#09080f;--bg2:#13111c;--ink:#f6f1e9;--mut:#a59fb5;--mut2:#6f6a80;
+  --line:rgba(255,255,255,.085);--glass:rgba(255,255,255,.05);--glass2:rgba(255,255,255,.08);
+  --a1:#ffb36b;--a2:#ff5c8a;--a3:#9b6bff;--ok:#7be0a7;--sub:#ffd36b;--no:#ff7b8a;
+  --grad:linear-gradient(135deg,var(--a1),var(--a2) 55%,var(--a3));
+  --serif:'Fraunces',ui-serif,Georgia,serif;--sans:'Manrope',ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --sat:env(safe-area-inset-top);--sab:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{min-height:100vh;overflow-x:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+::selection{background:#ff5c8a55}
+
+/* ambiance */
+.sky{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.38;animation:drift 22s ease-in-out infinite alternate}
+.orb.o1{width:520px;height:520px;background:#ff6a3d;top:-180px;left:-140px}
+.orb.o2{width:460px;height:460px;background:#8d4bff;top:30%;right:-200px;animation-delay:-7s}
+.orb.o3{width:420px;height:420px;background:#ff2f7d;bottom:-200px;left:20%;animation-delay:-13s;opacity:.26}
+.grain{position:absolute;inset:0;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes drift{to{transform:translate(60px,40px) scale(1.12)}}
+
+/* layout */
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:calc(18px + var(--sat)) 16px calc(120px + var(--sab))}
+.view{animation:fade .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}}
+
+/* nav */
+.nav{position:fixed;z-index:40;left:50%;bottom:calc(12px + var(--sab));transform:translateX(-50%);display:flex;gap:2px;padding:7px;border-radius:999px;background:rgba(22,19,32,.72);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:0 20px 50px -15px rgba(0,0,0,.7)}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 11px;white-space:nowrap;border-radius:999px;color:var(--mut);font-size:10.5px;font-weight:700;letter-spacing:.02em;transition:.25s}
+.nav button svg{width:22px;height:22px}
+.nav button.on{color:#1b0f14;background:var(--grad)}
+.brand{display:none}
+@media (min-width:900px){
+  .nav{left:0;top:0;bottom:0;transform:none;flex-direction:column;gap:6px;width:236px;border-radius:0;padding:calc(28px + var(--sat)) 16px 24px;border-width:0 1px 0 0;background:rgba(14,12,22,.6)}
+  .nav button{flex-direction:row;gap:14px;font-size:15px;padding:13px 16px;border-radius:16px;justify-content:flex-start;letter-spacing:0}
+  .brand{display:block;padding:0 12px 26px}
+  main{margin-left:236px;padding:calc(40px + var(--sat)) 44px 60px}
+}
+@media (min-width:1500px){main{margin-left:max(236px,calc((100vw - 1180px)/2))}}
+.brand b{font-family:var(--serif);font-style:italic;font-weight:600;font-size:34px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{display:block;color:var(--mut2);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
+
+/* typo */
+.eyebrow{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);font-weight:700}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,6vw,56px);line-height:1.02;margin:8px 0 22px;letter-spacing:-.02em}
+h1 em,h2 em{font-style:italic;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.08em}
+h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:38px 0 14px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px}
+h2 small{font-family:var(--sans);font-size:13px;color:var(--mut);font-weight:600}
+.mut{color:var(--mut)}
+
+/* hero du jour */
+.hero{position:relative;display:grid;grid-template-columns:1fr;gap:6px;padding:22px;border-radius:32px;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid var(--line);isolation:isolate}
+.hero::before{content:"";position:absolute;inset:-30%;z-index:-1;background:radial-gradient(circle at 70% 45%,color-mix(in srgb,var(--c) 60%,transparent),transparent 55%)}
+.hero .gl{width:170px;height:230px;justify-self:center;filter:drop-shadow(0 25px 30px rgba(0,0,0,.45))}
+.hero h3{font-family:var(--serif);font-size:clamp(38px,7vw,60px);font-weight:400;font-style:italic;margin:0;line-height:1}
+.hero p{color:#d9d3e4;max-width:46ch;line-height:1.55;margin:10px 0 18px}
+@media (max-width:639px){.hero{padding:22px 20px 24px}.hero .gl{position:absolute;right:-4px;top:6px;width:112px;height:150px}.hero h3,.hero .eyebrow{padding-right:100px}.hero p{padding-right:84px;font-size:14.5px}.hero .btn{padding:12px 16px;font-size:14px}}
+@media (min-width:640px){.hero{grid-template-columns:1.3fr 1fr;align-items:center;padding:36px 40px}.hero .gl{width:220px;height:290px;grid-column:2;grid-row:1/3}}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{text-decoration:none;display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;font-weight:800;font-size:15px;background:var(--grad);color:#1b0f14;box-shadow:0 12px 30px -10px #ff5c8a99;transition:.2s}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:var(--glass2);color:var(--ink);box-shadow:none;border:1px solid var(--line)}
+.btn svg{width:18px;height:18px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.stat{padding:16px;border-radius:22px;background:var(--glass);border:1px solid var(--line)}
+.stat b{display:block;font-family:var(--serif);font-size:34px;font-weight:400;line-height:1}
+.stat span{font-size:12.5px;color:var(--mut);font-weight:600}
+
+/* chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:2px 16px}
+.chips.scroll::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:9px 15px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-weight:700;font-size:14px;color:#e7e1ef;transition:.2s;white-space:nowrap}
+.chip:hover{background:rgba(255,255,255,.08)}
+.chip.on{background:var(--grad);color:#1b0f14;border-color:transparent}
+.chip.sm{padding:7px 12px;font-size:13px}
+.chip .x{opacity:.6;margin-left:4px}
+
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:14px}
+@media (min-width:900px){.grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px}}
+.ck{position:relative;text-align:left;border-radius:26px;overflow:hidden;background:var(--glass);border:1px solid var(--line);transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .3s,background .3s;display:flex;flex-direction:column}
+.ck:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.18);background:var(--glass2)}
+.ck:hover .gl{transform:rotate(-4deg) scale(1.04)}
+.ck .vis{height:168px;display:grid;place-items:center;background:radial-gradient(circle at 50% 62%,color-mix(in srgb,var(--c) 42%,transparent),transparent 68%)}
+.ck .gl{width:104px;height:140px;transition:transform .5s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 14px 16px rgba(0,0,0,.4))}
+.ck .meta{padding:2px 16px 16px}
+.ck h4{font-family:var(--serif);font-weight:400;font-size:21px;margin:0 0 4px;line-height:1.1}
+.ck p{margin:0;font-size:12.5px;color:var(--mut);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.badge{position:absolute;top:12px;left:12px;font-size:11px;font-weight:800;padding:5px 9px;border-radius:999px;background:rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line)}
+.badge.ok{color:var(--ok)}.badge.sub{color:var(--sub)}.badge.no{color:#ffb3bc}.badge.new{color:#1b0f14;background:var(--grad);border:0}
+.heart{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.3);border:1px solid var(--line)}
+.heart svg{width:17px;height:17px}
+
+.rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,210px);gap:14px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px 8px;scroll-snap-type:x mandatory}
+.rail::-webkit-scrollbar{display:none}
+.rail .ck{scroll-snap-align:start}
+
+/* search */
+.search{position:sticky;top:calc(8px + var(--sat));z-index:20;display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:20px;background:rgba(22,19,32,.75);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid var(--line);margin-bottom:14px}
+.search svg{width:20px;height:20px;color:var(--mut);flex:none}
+.search input{flex:1;background:none;border:0;outline:0;font-size:16px;min-width:0}
+.search input::placeholder{color:var(--mut2)}
+
+/* bar */
+.cat{margin-top:26px}
+.cat h3{font-size:14px;margin:0 0 10px;font-weight:800;color:#e8e2f1;display:flex;gap:8px;align-items:center}
+.cat h3 span{color:var(--mut2);font-weight:700}
+.unlock{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.unlock button{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;background:var(--glass);border:1px solid var(--line);text-align:left;font-weight:700;font-size:14px}
+.unlock button em{font-style:normal;color:var(--a1);font-size:13px;white-space:nowrap}
+.panelbox{padding:20px;border-radius:26px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line)}
+
+/* atelier */
+.forge{position:relative;padding:2px;border-radius:28px;background:var(--grad);box-shadow:0 25px 60px -25px #ff5c8aaa}
+.forge>div{display:flex;gap:8px;align-items:center;padding:8px 8px 8px 20px;border-radius:26px;background:#14111d}
+.forge input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:17px;padding:10px 0}
+.forge input::placeholder{color:var(--mut2)}
+.forge .btn{padding:12px 18px}
+.hint{font-size:13.5px;color:var(--mut);margin:14px 2px 10px}
+.understood{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:18px 0 0;font-size:13px;color:var(--mut)}
+.tag{padding:5px 10px;border-radius:999px;background:var(--glass2);border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:12.5px}
+.empty{padding:40px 20px;text-align:center;color:var(--mut);border:1px dashed var(--line);border-radius:26px}
+.empty b{display:block;font-family:var(--serif);font-weight:400;font-size:24px;color:var(--ink);margin-bottom:6px}
+
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,4,10,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet.on{opacity:1;pointer-events:auto}
+.panel{position:relative;width:100%;max-width:1000px;max-height:94vh;overflow:auto;overscroll-behavior:contain;border-radius:32px 32px 0 0;background:var(--bg2);border:1px solid var(--line);transform:translateY(60px);transition:transform .45s cubic-bezier(.2,.8,.2,1);padding-bottom:var(--sab)}
+.sheet.on .panel{transform:none}
+@media (min-width:900px){.sheet{align-items:center;padding:30px}.panel{border-radius:32px;display:grid;grid-template-columns:400px 1fr;max-height:88vh;overflow:hidden}.panel .dl,.panel .dr{overflow:auto;max-height:88vh}}
+.close{position:absolute;top:14px;right:14px;z-index:3;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.35);border:1px solid var(--line);backdrop-filter:blur(10px)}
+.close svg{width:18px;height:18px}
+.dl{position:relative;padding:34px 24px 26px;text-align:center;isolation:isolate;overflow:hidden}
+.dl::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 55%,transparent),transparent 62%),linear-gradient(180deg,rgba(255,255,255,.04),transparent)}
+.dl .gl{width:190px;height:255px;filter:drop-shadow(0 30px 30px rgba(0,0,0,.5));animation:float 6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-8px) rotate(1.5deg)}}
+.dl h2{justify-content:center;font-size:clamp(34px,5vw,44px);margin:14px 0 6px;font-style:italic;line-height:1.02}
+.dl p{color:#d9d3e4;line-height:1.55;margin:0 auto 16px;max-width:38ch;font-size:14.5px}
+.dl .row{justify-content:center}
+.dr{padding:26px 24px 34px}
+@media (min-width:900px){.dr{padding:76px 36px 40px}}
+.dr h3{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin:26px 0 12px;display:flex;justify-content:space-between;align-items:center}
+.dr h3:first-child{margin-top:0}
+.serv{display:flex;align-items:center;gap:4px;background:var(--glass2);border:1px solid var(--line);border-radius:999px;padding:3px;letter-spacing:0;text-transform:none;color:var(--ink);font-size:13px}
+.serv button{width:28px;height:28px;border-radius:50%;font-size:17px;font-weight:700;display:grid;place-items:center}
+.serv button:hover{background:rgba(255,255,255,.1)}
+.serv b{min-width:62px;text-align:center}
+.ings{list-style:none;margin:0;padding:0;border-radius:20px;background:var(--glass);border:1px solid var(--line);overflow:hidden}
+.ings li{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line);font-size:15px}
+.ings li:first-child{border-top:0}
+.ings .q{min-width:92px;font-weight:800;color:#fff}
+.ings .n{flex:1}
+.ings .o{color:var(--mut2);font-size:12px;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--mut2)}
+.dot.ok{background:var(--ok);box-shadow:0 0 10px var(--ok)}.dot.sub{background:var(--sub)}.dot.no{background:var(--no)}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{position:relative;padding:4px 0 16px 46px;line-height:1.55;font-size:15px;counter-increment:s}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--glass2);border:1px solid var(--line)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fact{padding:14px;border-radius:18px;background:var(--glass);border:1px solid var(--line);font-size:14px;line-height:1.4}
+.fact small{display:block;color:var(--mut);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-top:10px;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.dr .rail{margin:0 -24px;padding:4px 24px 8px;grid-auto-columns:160px}
+@media (min-width:900px){.dr .rail{margin:0 -36px;padding:4px 36px 8px}}
+.dr .rail .ck .vis{height:130px}.dr .rail .ck .gl{width:80px;height:108px}.dr .rail .ck h4{font-size:17px}
+
+.toast{position:fixed;z-index:80;left:50%;bottom:calc(100px + var(--sab));transform:translate(-50%,20px);padding:12px 18px;border-radius:999px;background:#f6f1e9;color:#1b0f14;font-weight:800;font-size:14px;opacity:0;transition:.35s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.ver{position:fixed;z-index:30;right:10px;top:calc(8px + var(--sat));display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;color:var(--mut);padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.3);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sd{width:7px;height:7px;border-radius:50%;background:var(--mut2)}.sd.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}.sd.busy{background:var(--sub);animation:pulse 1s infinite}.sd.err{background:var(--no)}
+@keyframes pulse{50%{opacity:.3}}
+.field{display:flex;gap:8px;margin-top:10px}.field input{flex:1;min-width:0;padding:13px 16px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.05);outline:0;font-size:15px}
+.field input:focus{border-color:var(--a2)}
+.note{font-size:13.5px;color:var(--mut);line-height:1.55}.note b{color:var(--ink)}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:12px}.stack .btn{justify-content:center}
+.okline{display:flex;gap:10px;align-items:center;padding:14px 16px;border-radius:18px;background:var(--glass);border:1px solid var(--line);font-weight:700;font-size:14.5px}
+.okline.e{border-color:#ff7b8a66;color:#ffc2c9}
+
+/* svg glass anims */
+.bub{animation:rise 3.4s linear infinite;transform-box:fill-box}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:.85}100%{transform:translateY(-70px);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="sky"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="grain"></div></div>
+
+<nav class="nav" id="nav">
+  <div class="brand"><b>Shaker</b><small>Atelier cocktails</small></div>
+</nav>
+<main id="app"></main>
+
+<div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
+<div class="toast" id="toast"></div>
+<button class="ver" data-act="sync" id="ver"><i class="sd"></i>v1.1</button>
+
+<script>
+'use strict';
+/* =========================================================
+   SHAKER v1.0 — Atelier cocktails (PWA mono-fichier)
+   ========================================================= */
+const VERSION='1.1';
+
+/* ---------- Ingrédients ---------- */
+const CATS=[
+  ['spirit','Spiritueux','🥃'],['liqueur','Liqueurs & apéritifs','🍊'],['bulles','Vins & bulles','🍾'],
+  ['soda','Sodas & allongeurs','🫧'],['agrume','Agrumes & jus','🍋'],['fruit','Fruits','🍓'],
+  ['herbe','Herbes & épices','🌿'],['sucre','Sucrants & sirops','🍯'],['autre','Garde-manger','🥚']
+];
+// id: [nom, catégorie, alias[], couleur]
+const I={
+  rhum_blanc:['Rhum blanc','spirit',['rhum','rum','rhum agricole'],'#f4f1e6'],
+  rhum_ambre:['Rhum ambré','spirit',['rhum ambre','rhum vieux'],'#d08a3a'],
+  rhum_brun:['Rhum brun','spirit',['rhum noir','dark rum'],'#7a3b1a'],
+  cachaca:['Cachaça','spirit',['cachaca'],'#f4f1e6'],
+  vodka:['Vodka','spirit',[],'#f3f6fa'],
+  vodka_vanille:['Vodka vanille','spirit',[],'#f6ecd6'],
+  gin:['Gin','spirit',[],'#eef6f6'],
+  tequila:['Tequila','spirit',['tequilla'],'#f4efd8'],
+  mezcal:['Mezcal','spirit',[],'#efe4c4'],
+  bourbon:['Bourbon','spirit',['whiskey americain'],'#c26a24'],
+  scotch:['Whisky','spirit',['scotch','whisky ecossais'],'#c98a32'],
+  irish:['Whiskey irlandais','spirit',['irish whiskey','irish'],'#c98a32'],
+  cognac:['Cognac','spirit',['brandy','armagnac'],'#b8641f'],
+  pisco:['Pisco','spirit',[],'#f4f1e6'],
+  aperol:['Aperol','liqueur',[],'#ff6a13'],
+  campari:['Campari','liqueur',[],'#d0121f'],
+  vermouth_rouge:['Vermouth rouge','liqueur',['martini rosso','vermouth'],'#7d1b1b'],
+  vermouth_sec:['Vermouth sec','liqueur',['noilly prat','martini dry'],'#f2f0d6'],
+  triple_sec:['Triple sec','liqueur',['cointreau','grand marnier','curacao orange'],'#f7e6c4'],
+  curacao:['Curaçao bleu','liqueur',['blue curacao','curacao bleu'],'#1e90ff'],
+  amaretto:['Amaretto','liqueur',['disaronno'],'#b5651d'],
+  kahlua:['Liqueur de café','liqueur',['kahlua','liqueur de cafe'],'#3b2418'],
+  creme_cassis:['Crème de cassis','liqueur',['cassis'],'#5c0e3a'],
+  creme_peche:['Liqueur de pêche','liqueur',['schnapps peche','liqueur de peche'],'#ffb38a'],
+  liqueur_mure:['Crème de mûre','liqueur',['creme de mure'],'#4a0d43'],
+  sureau:['Liqueur de sureau','liqueur',['st germain','saint germain','fleur de sureau','sureau'],'#f3efc0'],
+  maraschino:['Marasquin','liqueur',['maraschino'],'#f4f1e6'],
+  violette:['Crème de violette','liqueur',['violette'],'#9d8cff'],
+  malibu:['Liqueur de coco','liqueur',['malibu'],'#fff8e7'],
+  passoa:['Liqueur de passion','liqueur',['passoa'],'#ff8a1f'],
+  angostura:['Angostura','liqueur',['bitters','bitter'],'#7a1f12'],
+  prosecco:['Prosecco','bulles',['spumante','vin petillant'],'#f6e9b0'],
+  champagne:['Champagne','bulles',['cremant'],'#f6e6a5'],
+  vin_blanc:['Vin blanc','bulles',[],'#f2e7a6'],
+  eau_gazeuse:['Eau gazeuse','soda',['perrier','soda water','eau petillante','soda'],'#eaf6ff'],
+  tonic:['Tonic','soda',['schweppes','tonic water'],'#eef7ff'],
+  ginger_beer:['Ginger beer','soda',['ginger beer'],'#f2e3b3'],
+  ginger_ale:['Ginger ale','soda',['canada dry'],'#f0d9a0'],
+  cola:['Cola','soda',['coca','coca cola','pepsi'],'#4a1e10'],
+  limonade:['Limonade','soda',['sprite','7up'],'#f1f8e2'],
+  citron_vert:['Citron vert','agrume',['lime','citrons verts'],'#a8d84e'],
+  citron:['Citron jaune','agrume',['citron','citrons'],'#f7dd4a'],
+  orange:['Orange','agrume',['oranges'],'#ff9a2b'],
+  pamplemousse:['Pamplemousse','agrume',['pomelo'],'#ff8a7a'],
+  jus_orange:['Jus d’orange','agrume',['jus d orange'],'#ffa62b'],
+  jus_pamplemousse:['Jus de pamplemousse','agrume',[],'#ffad9e'],
+  jus_cranberry:['Jus de cranberry','agrume',['canneberge','cranberry'],'#d1173d'],
+  jus_ananas:['Jus d’ananas','agrume',['jus d ananas'],'#ffe066'],
+  jus_tomate:['Jus de tomate','agrume',[],'#c1121f'],
+  fruit_passion:['Fruit de la passion','fruit',['passion','maracuja','fruits de la passion'],'#f7a823'],
+  fraise:['Fraise','fruit',['fraises'],'#ff3557'],
+  framboise:['Framboise','fruit',['framboises'],'#e8336d'],
+  mangue:['Mangue','fruit',['mangues'],'#ffb000'],
+  ananas:['Ananas','fruit',[],'#ffd23f'],
+  peche:['Pêche','fruit',['peches','peche blanche'],'#ffb38a'],
+  litchi:['Litchi','fruit',['litchis','lychee'],'#fbd5df'],
+  pasteque:['Pastèque','fruit',['pasteque'],'#ff5d6c'],
+  melon:['Melon','fruit',[],'#ffb066'],
+  myrtille:['Myrtille','fruit',['myrtilles'],'#5b5fc7'],
+  mure:['Mûre','fruit',['mures','mure'],'#5a189a'],
+  kiwi:['Kiwi','fruit',[],'#8cc63f'],
+  banane:['Banane','fruit',['bananes'],'#ffe66d'],
+  coco:['Crème de coco','fruit',['lait de coco','noix de coco','coco'],'#fff8e7'],
+  grenade:['Grenade','fruit',[],'#c9184a'],
+  pomme:['Pomme verte','fruit',['pomme','pommes'],'#b5e48c'],
+  cerise:['Cerise','fruit',['cerises','griotte'],'#9d0208'],
+  yuzu:['Yuzu','fruit',[],'#fff176'],
+  concombre:['Concombre','fruit',[],'#a7d676'],
+  menthe:['Menthe','herbe',['menthe fraiche'],'#5fbf5a'],
+  basilic:['Basilic','herbe',[],'#4caf50'],
+  romarin:['Romarin','herbe',[],'#6b8f5e'],
+  thym:['Thym','herbe',[],'#7a9a62'],
+  coriandre:['Coriandre','herbe',[],'#5cae4f'],
+  gingembre:['Gingembre','herbe',['gingembre frais'],'#f2d48a'],
+  piment:['Piment','herbe',['jalapeno','piment rouge','spicy','epice'],'#e63946'],
+  cannelle:['Cannelle','herbe',[],'#a0522d'],
+  vanille:['Vanille','herbe',['gousse de vanille'],'#f3e5c0'],
+  lavande:['Lavande','herbe',[],'#b9a3ff'],
+  sirop_sucre:['Sirop de sucre de canne','sucre',['sirop de sucre','sucre de canne','sirop de canne'],'#fff6e0'],
+  sucre:['Sucre','sucre',['cassonade','sucre roux','sucre blanc'],'#fff6e0'],
+  miel:['Miel','sucre',[],'#f0b429'],
+  agave:['Sirop d’agave','sucre',['agave','sirop d agave'],'#f6d98b'],
+  grenadine:['Grenadine','sucre',[],'#e0102f'],
+  orgeat:['Sirop d’orgeat','sucre',['orgeat','sirop d orgeat'],'#fff3df'],
+  blanc_oeuf:['Blanc d’œuf','autre',['blanc d oeuf','oeuf','aquafaba'],'#fffaf0'],
+  creme:['Crème liquide','autre',['creme','creme fraiche liquide'],'#fffaf0'],
+  espresso:['Café / espresso','autre',['cafe','espresso','expresso'],'#3b2418'],
+  sel:['Sel','autre',['fleur de sel'],'#ffffff'],
+  tabasco:['Tabasco','autre',[],'#c1121f'],
+  worcestershire:['Sauce Worcestershire','autre',['worcestershire','worcester'],'#4a1e10'],
+  olive:['Olive','autre',['olives'],'#9aaa3a'],
+  celeri:['Céleri','autre',['celeri'],'#a7d676']
+};
+const SUBS=[['rhum_blanc','rhum_ambre','cachaca'],['champagne','prosecco'],['sucre','sirop_sucre'],['bourbon','scotch','irish'],['ginger_beer','ginger_ale'],['vodka','vodka_vanille'],['tonic','eau_gazeuse'],['citron','citron_vert']];
+
+/* ---------- Cocktails ---------- */
+const CK=[];
+// C(id, nom, base, verre, couleur, famille, tags, ingrédients[[id,q,unité,opt]], étapes, garniture, description, extra)
+function C(id,n,base,g,col,fam,tags,ing,steps,gar,desc,extra){CK.push(Object.assign({id,n,base,g,col,fam,tags,ing,steps,gar,desc},extra||{}))}
+
+C('mojito','Mojito','rhum','highball','#a7e36b','smash',['frais','classique'],
+ [['rhum_blanc',5,'cl'],['citron_vert',.5,'pièce'],['sirop_sucre',2,'cl'],['menthe',10,'feuilles'],['eau_gazeuse','top']],
+ ['Piler délicatement la menthe avec le citron vert coupé en quartiers et le sirop, au fond du verre.','Ajouter le rhum et remplir de glace pilée.','Allonger d’eau gazeuse et remonter le tout à la cuillère, de bas en haut.'],
+ 'Brin de menthe, quartier de citron vert','La Havane dans un verre : menthe fraîche, citron vert et rhum blanc. L’indémodable.');
+C('caipirinha','Caïpirinha','rhum','rocks','#c8f169','smash',['frais','classique'],
+ [['cachaca',5,'cl'],['citron_vert',1,'pièce'],['sucre',2,'c.à.c']],
+ ['Couper le citron vert en quartiers et le piler avec le sucre dans le verre.','Remplir de glace pilée et verser la cachaça.','Mélanger longuement pour dissoudre le sucre.'],
+ 'Quartier de citron vert','Le cocktail national du Brésil : cachaça, citron vert pilé et sucre. Brut et lumineux.');
+C('caipiroska','Caïpiroska','vodka','rocks','#d8f39a','smash',['frais'],
+ [['vodka',5,'cl'],['citron_vert',1,'pièce'],['sucre',2,'c.à.c']],
+ ['Couper le citron vert en quartiers et le piler avec le sucre dans le verre.','Remplir de glace pilée et verser la vodka.','Mélanger longuement.'],
+ 'Quartier de citron vert','La cousine vodka de la caïpirinha, plus nette et plus fraîche.');
+C('daiquiri','Daiquiri','rhum','coupe','#e9f5c9','sour',['classique','frais'],
+ [['rhum_blanc',6,'cl'],['citron_vert',2.5,'cl'],['sirop_sucre',1.5,'cl']],
+ ['Verser tous les ingrédients dans un shaker rempli de glace.','Secouer énergiquement 12 secondes.','Filtrer dans une coupe bien froide.'],
+ 'Rondelle de citron vert','Trois ingrédients, un équilibre parfait. Le favori d’Hemingway.');
+C('fraise_daiquiri','Strawberry Daiquiri','rhum','coupe','#ff3b5c','sour',['fruite'],
+ [['rhum_blanc',5,'cl'],['fraise',5,'pièce'],['citron_vert',2,'cl'],['sirop_sucre',1.5,'cl']],
+ ['Écraser les fraises au fond du shaker.','Ajouter le reste des ingrédients et de la glace, puis secouer fort.','Filtrer finement dans une coupe glacée (ou mixer avec de la glace pour une version frozen).'],
+ 'Fraise sur le bord','Le daiquiri version été : fraises fraîches, rhum et citron vert.');
+C('pina_colada','Piña Colada','rhum','hurricane','#fff1bf','tiki',['tiki','dessert','classique'],
+ [['rhum_blanc',5,'cl'],['coco',3,'cl'],['jus_ananas',9,'cl'],['ananas',1,'morceau','o']],
+ ['Mixer ou secouer vigoureusement tous les ingrédients avec de la glace.','Verser sur glace pilée dans un grand verre.'],
+ 'Morceau d’ananas, cerise','Porto Rico en version crémeuse : coco, ananas et rhum. Vacances immédiates.');
+C('mai_tai','Mai Tai','rhum','rocks','#e3812f','tiki',['tiki','classique'],
+ [['rhum_ambre',3,'cl'],['rhum_brun',3,'cl'],['triple_sec',1.5,'cl'],['orgeat',1.5,'cl'],['citron_vert',3,'cl'],['menthe',1,'brin','o']],
+ ['Secouer tous les ingrédients (sauf la menthe) avec de la glace.','Verser sur glace pilée.','Garnir d’un brin de menthe généreux.'],
+ 'Brin de menthe, demi-citron vert','Le roi du tiki : deux rhums, orgeat amande et citron vert.');
+C('dark_stormy','Dark ’n’ Stormy','rhum','highball','#8a4b2a','mule',['epice'],
+ [['rhum_brun',6,'cl'],['citron_vert',1,'cl','o'],['ginger_beer','top']],
+ ['Remplir le verre de glace et verser la ginger beer.','Faire flotter le rhum brun par-dessus, sur le dos d’une cuillère.'],
+ 'Quartier de citron vert','Orage tropical : rhum brun sombre sur ginger beer piquante.');
+C('cuba_libre','Cuba Libre','rhum','highball','#5a2a1a','highball',['classique'],
+ [['rhum_blanc',5,'cl'],['citron_vert',.5,'pièce'],['cola','top']],
+ ['Presser le demi-citron vert dans le verre rempli de glace et l’y laisser tomber.','Verser le rhum puis compléter de cola.'],
+ 'Quartier de citron vert','Le rhum-coca qui a du style, avec son trait de citron vert.');
+C('planteur','Planter’s Punch','rhum','hurricane','#ff6b35','tiki',['tiki','fruite'],
+ [['rhum_brun',4.5,'cl'],['jus_orange',3.5,'cl'],['jus_ananas',3.5,'cl'],['citron_vert',2,'cl'],['grenadine',1,'cl'],['angostura',2,'trait','o']],
+ ['Secouer tous les ingrédients avec de la glace.','Verser dans un grand verre rempli de glace.','Terminer par les traits d’angostura.'],
+ 'Tranche d’orange, cerise','Le punch des planteurs jamaïcains, fruité et ensoleillé.');
+C('hurricane','Hurricane','rhum','hurricane','#ff4f3a','tiki',['tiki','fruite'],
+ [['rhum_blanc',4,'cl'],['rhum_brun',4,'cl'],['fruit_passion',4,'cl purée'],['jus_orange',3,'cl'],['citron_vert',1.5,'cl'],['grenadine',1,'cl']],
+ ['Verser tous les ingrédients dans un shaker avec de la glace.','Secouer fort et verser sur glace pilée.'],
+ 'Tranche d’orange, cerise','La Nouvelle-Orléans en tempête : passion, deux rhums et grenadine.');
+C('ti_punch','Ti’ Punch','rhum','rocks','#f1f5c6','smash',['classique'],
+ [['rhum_blanc',5,'cl'],['citron_vert',1,'quartier'],['sirop_sucre',1,'c.à.c']],
+ ['Presser le quartier de citron vert dans le verre et l’y laisser.','Ajouter le sirop puis le rhum agricole.','Mélanger avec un bâton lélé (glace facultative).'],
+ 'Zeste de citron vert','Chacun prépare sa propre mort : rhum agricole, citron vert et sucre.');
+C('margarita','Margarita','tequila','coupe','#e8f7a0','sour',['classique','frais'],
+ [['tequila',5,'cl'],['triple_sec',2,'cl'],['citron_vert',2,'cl'],['sel',1,'pincée','o']],
+ ['Givrer le bord du verre avec du sel.','Secouer la tequila, le triple sec et le citron vert avec de la glace.','Filtrer dans le verre givré.'],
+ 'Croûte de sel, rondelle de citron vert','Mexique éternel : tequila, triple sec et citron vert, avec sa croûte de sel.');
+C('tommys','Tommy’s Margarita','tequila','rocks','#eef3a6','sour',['frais'],
+ [['tequila',6,'cl'],['citron_vert',3,'cl'],['agave',1.5,'cl']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer sur un gros glaçon.'],
+ 'Rondelle de citron vert, croûte de sel','La margarita moderne de San Francisco, au sirop d’agave.');
+C('paloma','Paloma','tequila','highball','#ffb4a2','highball',['frais','fruite'],
+ [['tequila',5,'cl'],['jus_pamplemousse',6,'cl'],['citron_vert',1.5,'cl'],['agave',1,'cl'],['eau_gazeuse','top'],['sel',1,'pincée','o']],
+ ['Givrer le verre de sel puis le remplir de glace.','Verser la tequila, le pamplemousse, le citron vert et l’agave, mélanger.','Compléter d’eau gazeuse.'],
+ 'Quartier de pamplemousse','Le vrai chouchou du Mexique : tequila et pamplemousse pétillant.');
+C('sunrise','Tequila Sunrise','tequila','highball','#ff8a3d','highball',['fruite','classique'],
+ [['tequila',4.5,'cl'],['jus_orange',9,'cl'],['grenadine',1.5,'cl']],
+ ['Verser la tequila et le jus d’orange sur glace, mélanger.','Faire couler la grenadine le long du verre pour créer le lever de soleil.'],
+ 'Tranche d’orange, cerise','Un lever de soleil en dégradé, orange et grenadine.');
+C('oaxaca','Oaxaca Old Fashioned','tequila','rocks','#d9a441','stirred',['classique'],
+ [['tequila',4.5,'cl'],['mezcal',1.5,'cl'],['agave',.5,'cl'],['angostura',2,'trait']],
+ ['Verser tous les ingrédients dans un verre à mélange avec de la glace.','Remuer 30 secondes et filtrer sur un gros glaçon.','Exprimer un zeste d’orange au-dessus.'],
+ 'Zeste d’orange flambé','L’old fashioned version agave, fumé par le mezcal.');
+C('cosmo','Cosmopolitan','vodka','martini','#ff4d7a','sour',['fruite','classique'],
+ [['vodka',4,'cl'],['triple_sec',1.5,'cl'],['jus_cranberry',3,'cl'],['citron_vert',1.5,'cl']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer dans un verre à martini glacé.'],
+ 'Zeste d’orange','Rose, chic et acidulé : l’icône new-yorkaise.');
+C('moscow_mule','Moscow Mule','vodka','copper','#f2e3b3','mule',['frais','epice','classique'],
+ [['vodka',5,'cl'],['citron_vert',1.5,'cl'],['ginger_beer','top']],
+ ['Remplir la tasse en cuivre de glace.','Verser la vodka et le citron vert.','Compléter de ginger beer et mélanger doucement.'],
+ 'Rondelle de citron vert, menthe','Le coup de fouet du gingembre dans sa tasse en cuivre glacée.');
+C('bloody_mary','Bloody Mary','vodka','highball','#c1121f','savory',['epice'],
+ [['vodka',4.5,'cl'],['jus_tomate',9,'cl'],['citron',1.5,'cl'],['worcestershire',2,'trait'],['tabasco',2,'trait'],['sel',1,'pincée','o'],['celeri',1,'branche','o']],
+ ['Verser tous les ingrédients dans un verre à mélange avec de la glace.','Faire « rouler » le mélange entre deux verres pour l’aérer sans le diluer.','Servir sur glace avec la branche de céleri.'],
+ 'Branche de céleri, poivre','Le brunch dominical en cocktail, relevé à souhait.');
+C('espresso_martini','Espresso Martini','vodka','martini','#3b2418','dessert',['dessert'],
+ [['vodka',4,'cl'],['kahlua',2,'cl'],['espresso',3,'cl'],['sirop_sucre',.5,'cl','o']],
+ ['Préparer un espresso et le laisser tiédir.','Secouer très énergiquement tous les ingrédients avec de la glace.','Filtrer dans un verre à martini : une belle mousse doit se former.'],
+ '3 grains de café','Le réveil élégant : vodka, café serré et liqueur de café, coiffé de mousse.',{foam:'#d8b48a'});
+C('sotb','Sex on the Beach','vodka','highball','#ff7b54','highball',['fruite'],
+ [['vodka',4,'cl'],['creme_peche',2,'cl'],['jus_orange',4,'cl'],['jus_cranberry',4,'cl']],
+ ['Verser la vodka, la pêche et le jus d’orange sur glace.','Faire couler le cranberry pour un joli dégradé.'],
+ 'Tranche d’orange','Le classique des années 80, pêche-orange-cranberry.');
+C('blue_lagoon','Blue Lagoon','vodka','highball','#1fa2ff','highball',['fruite'],
+ [['vodka',4,'cl'],['curacao',2,'cl'],['limonade','top']],
+ ['Verser la vodka et le curaçao sur glace.','Compléter de limonade et mélanger délicatement.'],
+ 'Rondelle de citron','Un lagon bleu électrique, frais et pétillant.');
+C('pornstar','Pornstar Martini','vodka','martini','#f9a826','sour',['fruite'],
+ [['vodka_vanille',4.5,'cl'],['fruit_passion',1,'fruit'],['passoa',1.5,'cl','o'],['citron_vert',1.5,'cl'],['sirop_sucre',1.5,'cl'],['prosecco',6,'cl','o']],
+ ['Récupérer la pulpe du fruit de la passion dans le shaker (garder une moitié pour la déco).','Ajouter les autres ingrédients (sauf le prosecco) avec de la glace et secouer fort.','Filtrer dans un verre à martini et servir le prosecco à côté, en shot.'],
+ 'Demi-fruit de la passion','Passion, vanille et bulles : le cocktail le plus commandé de Londres.');
+C('lychee_martini','Lychee Martini','vodka','martini','#fbe7ef','sour',['fruite'],
+ [['vodka',5,'cl'],['litchi',4,'cl jus'],['vermouth_sec',1,'cl'],['citron_vert',1,'cl']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer dans un verre à martini glacé.'],
+ 'Litchi piqué','Floral et délicat, tout en litchi.');
+C('white_russian','White Russian','vodka','rocks','#efe1cf','dessert',['dessert'],
+ [['vodka',5,'cl'],['kahlua',2,'cl'],['creme',3,'cl']],
+ ['Verser la vodka et la liqueur de café sur glace.','Faire flotter la crème par-dessus, puis mélanger (ou pas).'],
+ '','Le breuvage du Duc dans The Big Lebowski : café, vodka et crème.');
+C('gin_tonic','Gin Tonic','gin','wine','#e8f4ff','highball',['frais','classique'],
+ [['gin',5,'cl'],['tonic','top'],['citron_vert',1,'quartier','o']],
+ ['Remplir un grand verre ballon de glace.','Verser le gin, puis le tonic le long d’une cuillère pour garder les bulles.','Mélanger une fois, ajouter le citron.'],
+ 'Quartier de citron vert','Simple, net, parfait. Le grand classique du bar.');
+C('negroni','Negroni','gin','rocks','#c1272d','stirred',['amer','classique'],
+ [['gin',3,'cl'],['campari',3,'cl'],['vermouth_rouge',3,'cl']],
+ ['Verser les trois ingrédients dans un verre avec de la glace.','Remuer 20 secondes.','Exprimer un zeste d’orange au-dessus.'],
+ 'Tranche d’orange','Florence, 1919 : un tiers gin, un tiers Campari, un tiers vermouth.');
+C('french75','French 75','gin','flute','#fff2b5','fizz',['bulles','classique'],
+ [['gin',3,'cl'],['citron',1.5,'cl'],['sirop_sucre',1.5,'cl'],['champagne','top']],
+ ['Secouer le gin, le citron et le sirop avec de la glace.','Filtrer dans une flûte.','Compléter de champagne bien frais.'],
+ 'Zeste de citron','Aussi puissant qu’un canon de 75 : gin, citron et champagne.');
+C('tom_collins','Tom Collins','gin','highball','#f4f8d8','fizz',['frais','classique'],
+ [['gin',5,'cl'],['citron',2.5,'cl'],['sirop_sucre',2,'cl'],['eau_gazeuse','top']],
+ ['Verser le gin, le citron et le sirop dans un verre rempli de glace.','Mélanger puis compléter d’eau gazeuse.'],
+ 'Rondelle de citron, cerise','La limonade des grands : gin, citron et bulles.');
+C('gin_fizz','Gin Fizz','gin','highball','#f6f7e8','fizz',['frais'],
+ [['gin',5,'cl'],['citron',2.5,'cl'],['sirop_sucre',2,'cl'],['blanc_oeuf',1,'pièce','o'],['eau_gazeuse','top']],
+ ['Secouer à sec (sans glace) le gin, le citron, le sirop et le blanc d’œuf.','Ajouter de la glace et secouer de nouveau.','Filtrer dans un verre et allonger d’eau gazeuse.'],
+ 'Zeste de citron','Soyeux et pétillant grâce au blanc d’œuf.',{foam:'#fbf7ea'});
+C('bramble','Bramble','gin','rocks','#6a0d5f','sour',['fruite'],
+ [['gin',5,'cl'],['citron',2.5,'cl'],['sirop_sucre',1.5,'cl'],['liqueur_mure',1.5,'cl'],['mure',2,'pièce','o']],
+ ['Secouer le gin, le citron et le sirop avec de la glace.','Verser sur glace pilée.','Faire couler la crème de mûre en filet par-dessus.'],
+ 'Mûres, rondelle de citron','Londres années 80 : gin, citron et mûre qui saigne dans la glace.');
+C('gimlet','Gimlet','gin','coupe','#dff5b8','sour',['frais'],
+ [['gin',6,'cl'],['citron_vert',2,'cl'],['sirop_sucre',1.5,'cl']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer dans une coupe glacée.'],
+ 'Rondelle de citron vert','La simplicité des marins britanniques : gin et citron vert.');
+C('dry_martini','Dry Martini','gin','martini','#f3f6e6','stirred',['classique','amer'],
+ [['gin',6,'cl'],['vermouth_sec',1,'cl'],['olive',1,'pièce','o']],
+ ['Remuer le gin et le vermouth avec beaucoup de glace pendant 30 secondes.','Filtrer dans un verre à martini glacé.'],
+ 'Olive ou zeste de citron','Le cocktail le plus élégant du monde. Remué, pas secoué.');
+C('southside','Southside','gin','coupe','#cfeea0','smash',['frais'],
+ [['gin',6,'cl'],['citron_vert',2.5,'cl'],['sirop_sucre',2,'cl'],['menthe',8,'feuilles']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer finement dans une coupe.'],
+ 'Feuille de menthe','Le « mojito au gin » des speakeasies de Chicago.');
+C('basil_smash','Gin Basil Smash','gin','rocks','#8bd450','smash',['frais'],
+ [['gin',6,'cl'],['citron',2.5,'cl'],['sirop_sucre',2,'cl'],['basilic',10,'feuilles']],
+ ['Piler le basilic avec le citron dans le shaker.','Ajouter le gin, le sirop et la glace, secouer fort.','Filtrer finement sur glace.'],
+ 'Feuille de basilic','Vert éclatant et herbacé, né à Hambourg en 2008.');
+C('aviation','Aviation','gin','coupe','#b9b4ff','sour',['classique'],
+ [['gin',4.5,'cl'],['maraschino',1.5,'cl'],['violette',1,'cl'],['citron',1.5,'cl']],
+ ['Secouer tous les ingrédients avec de la glace.','Filtrer dans une coupe glacée.'],
+ 'Cerise','Couleur ciel d’altitude : gin, marasquin et violette. Pour les pilotes.');
+C('clover_club','Clover Club','gin','coupe','#f25c8a','sour',['fruite','classique'],
+ [['gin',4.5,'cl'],['framboise',5,'pièce'],['citron',1.5,'cl'],['sirop_sucre',1.5,'cl'],['blanc_oeuf',1,'pièce']],
+ ['Écraser les framboises dans le shaker.','Ajouter le reste et secouer à sec, puis avec de la glace.','Filtrer finement dans une coupe.'],
+ 'Framboises','Rose soyeux, framboise et gin : un classique de Philadelphie.',{foam:'#ffe7ee'});
+C('old_fashioned','Old Fashioned','whisky','rocks','#c8742f','stirred',['classique','amer'],
+ [['bourbon',6,'cl'],['sucre',1,'morceau'],['angostura',2,'trait'],['orange',1,'zeste','o']],
+ ['Imbiber le sucre d’angostura et l’écraser avec une goutte d’eau.','Ajouter le bourbon et un gros glaçon, remuer longuement.','Exprimer le zeste d’orange au-dessus.'],
+ 'Zeste d’orange, cerise','La définition même du cocktail : spiritueux, sucre, bitter.');
+C('whisky_sour','Whisky Sour','whisky','rocks','#e9b44c','sour',['classique'],
+ [['bourbon',5,'cl'],['citron',2.5,'cl'],['sirop_sucre',1.5,'cl'],['blanc_oeuf',1,'pièce','o'],['angostura',2,'trait','o']],
+ ['Secouer à sec (sans glace) tous les ingrédients.','Secouer de nouveau avec de la glace.','Filtrer sur glace et déposer les gouttes d’angostura sur la mousse.'],
+ 'Cerise, zeste d’orange','L’acidulé réconfortant, couronné de mousse soyeuse.',{foam:'#fbf6ea'});
+C('manhattan','Manhattan','whisky','martini','#8c2f1c','stirred',['classique','amer'],
+ [['bourbon',6,'cl'],['vermouth_rouge',3,'cl'],['angostura',2,'trait'],['cerise',1,'pièce','o']],
+ ['Remuer tous les ingrédients avec de la glace 30 secondes.','Filtrer dans un verre glacé.'],
+ 'Cerise','New York, années 1870 : whisky, vermouth rouge et bitter.');
+C('mint_julep','Mint Julep','whisky','rocks','#d7c17a','smash',['frais','classique'],
+ [['bourbon',6,'cl'],['sirop_sucre',1.5,'cl'],['menthe',10,'feuilles']],
+ ['Presser doucement la menthe avec le sirop au fond du verre.','Ajouter le bourbon et remplir de glace pilée en dôme.','Remuer jusqu’à ce que le verre givre.'],
+ 'Gros bouquet de menthe','Le cocktail du Kentucky Derby, frais comme la rosée.');
+C('boulevardier','Boulevardier','whisky','rocks','#9e2a2b','stirred',['amer'],
+ [['bourbon',4.5,'cl'],['campari',3,'cl'],['vermouth_rouge',3,'cl']],
+ ['Remuer tous les ingrédients avec de la glace.','Filtrer sur un gros glaçon.'],
+ 'Zeste d’orange','Le negroni du Paris des années folles, au bourbon.');
+C('penicillin','Penicillin','whisky','rocks','#e0a458','sour',['epice'],
+ [['scotch',5,'cl'],['citron',2.5,'cl'],['miel',2,'cl'],['gingembre',3,'tranche']],
+ ['Piler le gingembre dans le shaker.','Ajouter le whisky, le citron et le miel, secouer avec de la glace.','Filtrer sur glace.'],
+ 'Gingembre confit','Le remède : whisky, miel, citron et gingembre.');
+C('irish_coffee','Irish Coffee','whisky','mug','#4a2c1d','hot',['dessert'],
+ [['irish',4,'cl'],['espresso',9,'cl café chaud'],['sucre',2,'c.à.c'],['creme',3,'cl']],
+ ['Réchauffer le verre à l’eau chaude.','Dissoudre le sucre dans le café chaud, ajouter le whiskey.','Faire flotter la crème légèrement fouettée sur le dessus.'],
+ '','Le réconfort irlandais : café chaud, whiskey et crème.',{foam:'#f4ecdd',foamH:14});
+C('sidecar','Sidecar','cognac','coupe','#e8a33d','sour',['classique'],
+ [['cognac',5,'cl'],['triple_sec',2,'cl'],['citron',2,'cl'],['sucre',1,'pincée','o']],
+ ['Givrer le bord de la coupe de sucre (facultatif).','Secouer tous les ingrédients avec de la glace.','Filtrer dans la coupe.'],
+ 'Croûte de sucre, zeste d’orange','Paris, 1922 : cognac, triple sec et citron.');
+C('pisco_sour','Pisco Sour','cognac','coupe','#f4ecc2','sour',['classique'],
+ [['pisco',6,'cl'],['citron_vert',3,'cl'],['sirop_sucre',2,'cl'],['blanc_oeuf',1,'pièce'],['angostura',3,'trait','o']],
+ ['Secouer à sec tous les ingrédients.','Secouer de nouveau avec de la glace.','Filtrer et décorer la mousse de gouttes d’angostura.'],
+ 'Gouttes d’angostura','La fierté du Pérou, mousseux et acidulé.',{foam:'#fbf6ea'});
+C('long_island','Long Island Iced Tea','vodka','highball','#9b5a2b','highball',[],
+ [['vodka',1.5,'cl'],['gin',1.5,'cl'],['rhum_blanc',1.5,'cl'],['tequila',1.5,'cl'],['triple_sec',1.5,'cl'],['citron',2.5,'cl'],['sirop_sucre',1.5,'cl'],['cola','top']],
+ ['Verser tous les alcools, le citron et le sirop sur glace.','Compléter d’un trait de cola et mélanger.'],
+ 'Rondelle de citron','Cinq alcools, zéro thé. À manier avec précaution.');
+C('amaretto_sour','Amaretto Sour','liqueur','rocks','#e6a756','sour',['dessert'],
+ [['amaretto',5,'cl'],['citron',2.5,'cl'],['sirop_sucre',.5,'cl'],['blanc_oeuf',1,'pièce','o']],
+ ['Secouer à sec puis avec de la glace.','Filtrer sur glace.'],
+ 'Cerise, zeste d’orange','Amande douce et citron, tout en rondeur.',{foam:'#fbf6ea'});
+C('americano','Americano','liqueur','rocks','#d1495b','highball',['amer'],
+ [['campari',3,'cl'],['vermouth_rouge',3,'cl'],['eau_gazeuse','top']],
+ ['Verser le Campari et le vermouth sur glace.','Compléter d’eau gazeuse.'],
+ 'Tranche d’orange','L’ancêtre du negroni, léger et amer.');
+C('garibaldi','Garibaldi','liqueur','highball','#ff6f3c','highball',['amer','fruite'],
+ [['campari',4.5,'cl'],['jus_orange',12,'cl']],
+ ['Verser le Campari sur glace.','Compléter de jus d’orange fraîchement pressé et très aéré.'],
+ 'Tranche d’orange','Deux ingrédients, l’Italie unifiée : Campari et orange.');
+C('aperol_spritz','Aperol Spritz','bulles','wine','#ff7a1a','spritz',['amer','bulles','classique'],
+ [['prosecco',9,'cl'],['aperol',6,'cl'],['eau_gazeuse',3,'cl'],['orange',1,'tranche','o']],
+ ['Remplir un verre à vin de glace.','Verser le prosecco, puis l’Aperol, puis l’eau gazeuse (3-2-1).','Mélanger une fois et ajouter la tranche d’orange.'],
+ 'Tranche d’orange','L’apéritif orange de Venise, devenu culte en terrasse.');
+C('hugo','Hugo Spritz','bulles','wine','#e6f5c8','spritz',['bulles','frais'],
+ [['prosecco',9,'cl'],['sureau',3,'cl'],['eau_gazeuse',3,'cl'],['menthe',6,'feuilles'],['citron_vert',1,'quartier','o']],
+ ['Froisser la menthe dans le verre.','Ajouter la glace, la liqueur de sureau et le prosecco.','Compléter d’eau gazeuse.'],
+ 'Menthe, rondelle de citron vert','Fleur de sureau, menthe et bulles : le spritz des Alpes.');
+C('bellini','Bellini','bulles','flute','#ffc49b','spritz',['bulles','fruite'],
+ [['prosecco',10,'cl'],['peche',5,'cl purée']],
+ ['Verser la purée de pêche blanche dans une flûte.','Compléter doucement de prosecco et remuer délicatement.'],
+ '','Le Harry’s Bar de Venise : pêche blanche et prosecco.');
+C('mimosa','Mimosa','bulles','flute','#ffb703','spritz',['bulles','fruite'],
+ [['champagne',7.5,'cl'],['jus_orange',7.5,'cl']],
+ ['Verser le jus d’orange dans une flûte.','Compléter de champagne.'],
+ 'Zeste d’orange','Le brunch qui pétille : orange pressée et champagne.');
+C('kir_royal','Kir Royal','bulles','flute','#8e1b4b','spritz',['bulles','classique'],
+ [['champagne',12,'cl'],['creme_cassis',1.5,'cl']],
+ ['Verser la crème de cassis au fond de la flûte.','Compléter de champagne.'],
+ '','L’apéritif à la française par excellence.');
+C('kir','Kir','bulles','wine','#b0305e','spritz',['classique'],
+ [['vin_blanc',12,'cl'],['creme_cassis',1.5,'cl']],
+ ['Verser la crème de cassis dans le verre.','Compléter de vin blanc sec bien frais.'],
+ '','Le chanoine Kir de Dijon : aligoté et cassis.');
+C('virgin_mojito','Virgin Mojito','sans','highball','#b8ee8a','smash',['sans','frais'],
+ [['citron_vert',.5,'pièce'],['sirop_sucre',2,'cl'],['menthe',10,'feuilles'],['eau_gazeuse','top']],
+ ['Piler la menthe avec le citron vert et le sirop dans le verre.','Remplir de glace pilée.','Compléter d’eau gazeuse et mélanger.'],
+ 'Brin de menthe','Toute la fraîcheur du mojito, sans une goutte d’alcool.');
+C('virgin_colada','Virgin Colada','sans','hurricane','#fff4cc','tiki',['sans','dessert'],
+ [['coco',4,'cl'],['jus_ananas',12,'cl'],['ananas',1,'morceau','o']],
+ ['Mixer ou secouer avec de la glace.','Servir sur glace pilée.'],
+ 'Morceau d’ananas','Coco-ananas onctueux pour toute la famille.');
+C('passion_fizz','Passion Fizz','sans','highball','#ffbf3c','fizz',['sans','fruite'],
+ [['fruit_passion',2,'fruit'],['citron_vert',2,'cl'],['sirop_sucre',2,'cl'],['eau_gazeuse','top']],
+ ['Récupérer la pulpe des fruits de la passion dans un shaker.','Ajouter le citron vert, le sirop et la glace, secouer.','Verser dans le verre et compléter d’eau gazeuse.'],
+ 'Demi-fruit de la passion','Exotique et pétillant, sans alcool.');
+C('shirley','Shirley Temple','sans','highball','#ff5d73','highball',['sans','fruite'],
+ [['grenadine',2,'cl'],['ginger_ale','top'],['citron_vert',1,'cl','o'],['cerise',1,'pièce','o']],
+ ['Remplir le verre de glace et verser la grenadine.','Compléter de ginger ale et ajouter un trait de citron vert.'],
+ 'Cerise','Le premier « mocktail » de l’histoire, créé pour une enfant star.');
+C('florida','Florida','sans','highball','#ff9f43','highball',['sans','fruite'],
+ [['jus_orange',6,'cl'],['jus_pamplemousse',4,'cl'],['citron',2,'cl'],['grenadine',1,'cl'],['eau_gazeuse','top']],
+ ['Secouer les jus et la grenadine avec de la glace.','Verser dans le verre et allonger d’eau gazeuse.'],
+ 'Tranche d’orange','Le soleil de Floride en version sans alcool.');
+C('ginger_virgin','Gingembre Mule','sans','copper','#f4e2a8','mule',['sans','epice'],
+ [['gingembre',3,'tranche'],['citron_vert',2,'cl'],['sirop_sucre',1.5,'cl'],['ginger_beer','top'],['menthe',1,'brin','o']],
+ ['Piler le gingembre avec le citron vert et le sirop dans la tasse.','Remplir de glace et compléter de ginger beer.'],
+ 'Brin de menthe, citron vert','Le mule sans alcool, qui pique juste ce qu’il faut.');
+
+/* ---------- Twists (variantes) ---------- */
+const FRUITY=['sour','smash','highball','fizz','spritz','tiki','mule'];
+const ALLF=['sour','smash','highball','fizz','spritz','tiki','mule','stirred','dessert','hot'];
+// kind, adj, q, u, phrase, muddle, garniture, familles, note, pre
+const TW={
+  fruit_passion:{k:'f',adj:'Passion',q:1,u:'fruit',say:'la pulpe d’un fruit de la passion',gar:'Demi-fruit de la passion',note:'acidulé et exotique, la passion apporte un parfum tropical intense.'},
+  fraise:{k:'f',adj:'Fraise',q:4,u:'pièce',say:'4 fraises',m:1,gar:'Fraise sur le bord',note:'gourmand et rouge, la fraise adoucit et parfume.'},
+  framboise:{k:'f',adj:'Framboise',q:8,u:'pièce',say:'8 framboises',m:1,gar:'Framboises',note:'la framboise apporte une acidité fruitée et une robe rose.'},
+  mangue:{k:'f',adj:'Mangue',q:4,u:'cl purée',say:'4 cl de purée de mangue',gar:'Tranche de mangue',note:'velouté et solaire grâce à la mangue.'},
+  ananas:{k:'f',adj:'Ananas',q:3,u:'morceau',say:'3 morceaux d’ananas',m:1,gar:'Morceau d’ananas',note:'l’ananas donne une touche tropicale et juteuse.'},
+  peche:{k:'f',adj:'Pêche',q:4,u:'cl purée',say:'4 cl de purée de pêche',gar:'Tranche de pêche',note:'douceur estivale de la pêche blanche.'},
+  litchi:{k:'f',adj:'Litchi',q:4,u:'pièce',say:'4 litchis',m:1,gar:'Litchi',note:'floral et délicat, le litchi parfume en finesse.'},
+  pasteque:{k:'f',adj:'Pastèque',q:5,u:'cube',say:'5 cubes de pastèque',m:1,gar:'Triangle de pastèque',note:'désaltérant au possible grâce à la pastèque.'},
+  melon:{k:'f',adj:'Melon',q:5,u:'cube',say:'5 cubes de melon',m:1,gar:'Boule de melon',note:'le melon apporte une douceur parfumée et estivale.'},
+  myrtille:{k:'f',adj:'Myrtille',q:12,u:'pièce',say:'12 myrtilles',m:1,gar:'Myrtilles',note:'les myrtilles donnent une jolie robe violette et du fruit.'},
+  mure:{k:'f',adj:'Mûre',q:6,u:'pièce',say:'6 mûres',m:1,gar:'Mûres',note:'la mûre ajoute un fruit noir intense.'},
+  kiwi:{k:'f',adj:'Kiwi',q:1,u:'pièce',say:'un kiwi pelé',m:1,gar:'Rondelle de kiwi',note:'vif et acidulé grâce au kiwi.'},
+  banane:{k:'f',adj:'Banane',q:.5,u:'pièce',say:'une demi-banane (à mixer)',gar:'Rondelle de banane',note:'onctueux et gourmand, façon smoothie.'},
+  coco:{k:'f',adj:'Coco',q:3,u:'cl',say:'3 cl de crème de coco',gar:'Copeaux de coco',note:'la coco arrondit et apporte une texture crémeuse.'},
+  grenade:{k:'f',adj:'Grenade',q:3,u:'cl jus',say:'3 cl de jus de grenade',gar:'Grains de grenade',note:'la grenade donne du peps et une robe rubis.'},
+  pomme:{k:'f',adj:'Pomme verte',q:3,u:'cl jus',say:'3 cl de jus de pomme verte',gar:'Lamelle de pomme',note:'croquant et acidulé à la pomme verte.'},
+  cerise:{k:'f',adj:'Cerise',q:5,u:'pièce',say:'5 cerises dénoyautées',m:1,gar:'Cerise',note:'la cerise apporte un fruit rouge profond.',fams:ALLF},
+  yuzu:{k:'f',adj:'Yuzu',q:1.5,u:'cl jus',say:'1,5 cl de jus de yuzu',gar:'Zeste de citron',note:'le yuzu japonais ajoute une acidité florale unique.'},
+  concombre:{k:'h',adj:'Concombre',q:4,u:'rondelle',say:'4 rondelles de concombre',m:1,gar:'Ruban de concombre',note:'ultra frais et végétal grâce au concombre.'},
+  orange:{k:'f',adj:'Orange',q:3,u:'cl jus',say:'3 cl de jus d’orange pressée',gar:'Tranche d’orange',note:'l’orange pressée apporte rondeur et soleil.'},
+  pamplemousse:{k:'f',adj:'Pamplemousse',q:3,u:'cl jus',say:'3 cl de jus de pamplemousse',gar:'Quartier de pamplemousse',note:'amertume fraîche et vive du pamplemousse.'},
+  menthe:{k:'h',adj:'Menthe',q:8,u:'feuilles',say:'8 feuilles de menthe',m:1,gar:'Brin de menthe',note:'la menthe apporte un coup de fraîcheur.'},
+  basilic:{k:'h',adj:'Basilic',q:8,u:'feuilles',say:'8 feuilles de basilic',m:1,gar:'Feuille de basilic',note:'herbacé et méditerranéen, le basilic surprend.'},
+  romarin:{k:'h',adj:'Romarin',q:1,u:'brin',say:'un brin de romarin',m:1,gar:'Brin de romarin',note:'note boisée et aromatique du romarin.',fams:ALLF},
+  thym:{k:'h',adj:'Thym',q:2,u:'brin',say:'2 brins de thym',m:1,gar:'Brin de thym',note:'le thym ajoute une touche provençale.'},
+  coriandre:{k:'h',adj:'Coriandre',q:6,u:'feuilles',say:'6 feuilles de coriandre',m:1,gar:'Feuille de coriandre',note:'audacieux et parfumé à la coriandre.'},
+  gingembre:{k:'h',adj:'Gingembre',q:3,u:'tranche',say:'3 tranches de gingembre frais',m:1,gar:'Lamelle de gingembre',note:'le gingembre réveille avec sa chaleur piquante.'},
+  piment:{k:'h',pre:'Spicy',adj:'Piment',q:2,u:'rondelle',say:'2 rondelles de piment (sans pépins)',m:1,gar:'Rondelle de piment',note:'version relevée : le piment réchauffe chaque gorgée.'},
+  cannelle:{k:'h',adj:'Cannelle',q:1,u:'bâton',say:'un bâton de cannelle (à infuser)',gar:'Bâton de cannelle',note:'chaleureux et épicé, parfait pour l’hiver.',fams:ALLF},
+  vanille:{k:'h',adj:'Vanille',q:.5,u:'gousse',say:'les graines d’une demi-gousse de vanille',gar:'Gousse de vanille',note:'la vanille arrondit et apporte de la gourmandise.',fams:ALLF},
+  lavande:{k:'h',adj:'Lavande',q:1,u:'pincée',say:'une pincée de fleurs de lavande',gar:'Brin de lavande',note:'floral et provençal à la lavande.'},
+  miel:{k:'s',adj:'Miel',q:2,u:'cl',say:'2 cl de miel (à la place du sirop)',gar:'',note:'le miel remplace le sucre et apporte de la rondeur.'},
+  sureau:{k:'l',adj:'Sureau',q:1.5,u:'cl',say:'1,5 cl de liqueur de sureau',gar:'Fleur comestible',note:'le sureau ajoute une note florale élégante.'},
+  creme_peche:{k:'l',adj:'Pêche',q:1.5,u:'cl',say:'1,5 cl de liqueur de pêche',gar:'Tranche de pêche',note:'touche fruitée de liqueur de pêche.'},
+  creme_cassis:{k:'l',adj:'Cassis',q:1.5,u:'cl',say:'1,5 cl de crème de cassis',gar:'',note:'le cassis apporte une robe pourpre et du fruit noir.'},
+  passoa:{k:'l',adj:'Passion',q:1.5,u:'cl',say:'1,5 cl de liqueur de passion',gar:'Demi-fruit de la passion',note:'version liqueur de passion, plus douce.'},
+  malibu:{k:'l',adj:'Coco',q:2,u:'cl',say:'2 cl de liqueur de coco',gar:'Copeaux de coco',note:'un parfum de coco ensoleillé.'}
+};
+const DEFAULT_POOL=['fruit_passion','fraise','mangue','framboise','pasteque','gingembre','basilic','piment','concombre','litchi','peche','myrtille'];
+const SPIRIT_ART={rhum_blanc:'le rhum',rhum_ambre:'le rhum',rhum_brun:'le rhum',cachaca:'la cachaça',vodka:'la vodka',vodka_vanille:'la vodka',gin:'le gin',tequila:'la tequila',mezcal:'le mezcal',bourbon:'le bourbon',scotch:'le whisky',irish:'le whiskey',cognac:'le cognac',pisco:'le pisco'};
+const GLASS={highball:'Highball',rocks:'Old fashioned',coupe:'Coupe',martini:'Verre à martini',flute:'Flûte',wine:'Verre à vin',hurricane:'Hurricane',copper:'Tasse en cuivre',mug:'Verre à pied irish'};
+const BASES=[['all','Tous'],['rhum','Rhum'],['gin','Gin'],['vodka','Vodka'],['tequila','Tequila'],['whisky','Whisky'],['cognac','Cognac & pisco'],['liqueur','Liqueurs'],['bulles','Bulles'],['sans','Sans alcool']];
+const MOODS=[['frais','Frais & mentholé','🌿'],['fruite','Fruité','🍓'],['amer','Amer & apéritif','🍊'],['classique','Grands classiques','🎩'],['tiki','Tiki & exotique','🌺'],['bulles','Pétillant','🍾'],['epice','Épicé','🌶️'],['dessert','Gourmand','☕'],['sans','Sans alcool','🧃']];
+
+/* ---------- utilitaires ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>String(s).toLowerCase().replace(/œ/g,'oe').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’'`\-]/g,' ').replace(/\s+/g,' ').trim();
+const clone=o=>JSON.parse(JSON.stringify(o));
+const cat=id=>I[id]?I[id][1]:'autre';
+const store={get(k,d){try{const v=localStorage.getItem('shaker.'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('shaker.'+k,JSON.stringify(v))}catch(e){}}};
+function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]}
+function mix(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);return'#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')}
+function hash(s){let h=2166136261;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+const joinFr=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' et '+a[a.length-1];
+const PLUR=['pièce','tranche','brin','morceau','rondelle','fruit','quartier','trait','cube','zeste','bâton','gousse','branche'];
+function fmtNum(n){n=Math.round(n*100)/100;return(n%1?String(n).replace('.',','):String(n))}
+function fmtQty(q,u,serv){
+  if(q==='top')return 'Compléter';
+  const n=q*serv;let unit=u||'';
+  if(n>=2&&PLUR.includes(unit))unit+='s';
+  if(n>=2)unit=unit.replace(/^(pièce|tranche|morceau|rondelle|cube|zeste|quartier)s? /,'$1s ');
+  return fmtNum(n)+(unit?' '+unit:'');
+}
+function label(id,u){
+  const n=I[id]?I[id][0]:id;
+  if(cat(id)==='agrume'&&/^cl/.test(u||'')&&!id.startsWith('jus'))return 'Jus de '+n.toLowerCase().replace(' jaune','');
+  return n;
+}
+
+/* ---------- état ---------- */
+let P=new Set(store.get('bar',[]));
+let FAV=new Set(store.get('fav',[]));
+let MINE=store.get('mine',[]);
+let tab=store.get('tab','home');
+let listBase='all',listMood=null,listReady=false,listQ='';
+let labQ='';
+const GEN={};
+function saveBar(){store.set('bar',[...P]);touch('bar')}
+
+/* ---------- moteur ---------- */
+function hs(id,pan){pan=pan||P;if(pan.has(id))return 2;for(const g of SUBS)if(g.includes(id)&&g.some(x=>x!==id&&pan.has(x)))return 1;return 0}
+function analyze(c,pan){
+  const req=c.ing.filter(x=>!x[3]);const miss=[],sub=[];
+  for(const x of req){const s=hs(x[0],pan);if(s===0)miss.push(x[0]);else if(s===1)sub.push(x[0])}
+  return{miss,sub,ok:miss.length===0};
+}
+const isAlc=id=>['spirit','liqueur','bulles'].includes(cat(id));
+const hasAlc=c=>c.ing.some(x=>isAlc(x[0])&&!x[3]&&x[0]!=='angostura');
+const shaken=c=>c.steps.some(s=>/secouer|shaker|mixer/i.test(s));
+const reg=v=>{GEN[v.id]=v;return v};
+
+function twist(c,k,force){
+  const t=TW[k];if(!t)return null;
+  if(c.ing.some(x=>x[0]===k&&!x[3]))return null;
+  const fams=t.fams||FRUITY;if(!force&&!fams.includes(c.fam))return null;
+  if(!force&&t.k==='l'&&!hasAlc(c))return null;
+  const v=clone(c);v.id=c.id+'~'+k;v.parent=c.parent||c.id;v.gen=true;
+  v.n=t.pre?(c.n.startsWith(t.pre)?c.n+' '+t.adj:t.pre+' '+c.n):c.n+' '+t.adj;
+  v.ing=v.ing.filter(x=>x[0]!==k);
+  if(t.k==='f'||t.k==='l'){v.ing.forEach(x=>{if(cat(x[0])==='sucre'&&typeof x[1]==='number'&&x[0]!=='grenadine')x[1]=Math.max(.5,Math.round(x[1]*.66*2)/2)})}
+  if(t.k==='s'){v.ing=v.ing.filter(x=>!(x[0]==='sirop_sucre'||x[0]==='sucre'||x[0]==='agave'))}
+  let at=v.ing.findIndex(x=>x[1]==='top');if(at<0)at=v.ing.length;
+  v.ing.splice(at,0,[k,t.q,t.u]);
+  const tc=I[k][3]||'#ffffff';v.col=mix(c.col,tc,t.k==='f'?.55:t.k==='l'?.35:.18);
+  const where=shaken(c)?'du shaker':'du verre';
+  v.steps=[(t.m?'Piler '+t.say+' au fond '+where+'.':'Ajouter '+t.say+(shaken(c)?' dans le shaker avec les autres ingrédients.':' au fond du verre.')),...c.steps.filter(s=>!/sucre/i.test(s)||t.k!=='s')];
+  if(t.k==='s')v.steps.splice(1,0,'Le miel remplace le sucre : bien mélanger pour le dissoudre.');
+  if(!shaken(c)&&t.u&&/purée|jus|cl/.test(t.u)&&c.ing.some(x=>x[1]==='top'))v.steps.push('Remuer franchement pour bien intégrer '+(t.u.includes('purée')?'la purée':'le jus')+'.');
+  if(t.gar)v.gar=t.gar+(c.gar?', '+c.gar.split(',')[0].toLowerCase():'');
+  v.desc='Twist '+t.adj.toLowerCase()+' du '+(c.parentName||c.n)+' : '+t.note;
+  v.parentName=c.parentName||c.n;
+  v.tags=[...new Set([...(c.tags||[]),'variante'])];
+  return reg(v);
+}
+function swapSpirit(c,s,force){
+  if(cat(s)!=='spirit')return null;
+  if(!force&&!['sour','smash','highball','mule','fizz','tiki'].includes(c.fam))return null;
+  const main=c.ing.filter(x=>cat(x[0])==='spirit'&&typeof x[1]==='number'&&x[1]>=3.5);
+  if(main.length!==1||main[0][0]===s)return null;
+  const old=main[0][0];
+  const v=clone(c);v.id=c.id+'~'+s;v.parent=c.parent||c.id;v.gen=true;
+  v.n=c.n+' · '+I[s][0];
+  v.ing.forEach(x=>{if(x[0]===old)x[0]=s});
+  const a=SPIRIT_ART[old],b=SPIRIT_ART[s];
+  if(a&&b)v.steps=v.steps.map(t=>t.replace(new RegExp(a,'g'),b).replace(new RegExp(a[0].toUpperCase()+a.slice(1),'g'),b[0].toUpperCase()+b.slice(1)));
+  v.col=mix(c.col,I[s][3],.3);
+  v.base=({rhum_blanc:'rhum',rhum_ambre:'rhum',rhum_brun:'rhum',cachaca:'rhum',vodka:'vodka',vodka_vanille:'vodka',gin:'gin',tequila:'tequila',mezcal:'tequila',bourbon:'whisky',scotch:'whisky',irish:'whisky',cognac:'cognac',pisco:'cognac'})[s]||c.base;
+  v.desc='Le '+(c.parentName||c.n)+' revisité avec '+b.replace(/^(le|la) /,m=>m==='le '?'du ':'de la ')+' à la place '+(a.startsWith('la')?'de la ':'du ')+a.slice(3)+'.';
+  v.parentName=c.parentName||c.n;v.tags=[...new Set([...(c.tags||[]),'variante'])];
+  return reg(v);
+}
+function virgin(c){
+  if(!hasAlc(c)||['stirred','hot'].includes(c.fam))return null;
+  const v=clone(c);v.id=c.id+'~virgin';v.parent=c.parent||c.id;v.gen=true;
+  v.n='Virgin '+c.n;v.base='sans';
+  const hadBul=v.ing.some(x=>cat(x[0])==='bulles');
+  v.ing=v.ing.filter(x=>!isAlc(x[0]));
+  if(!v.ing.some(x=>x[1]==='top')){
+    const sp=c.fam==='mule'?'ginger_beer':(c.fam==='tiki'||c.fam==='dessert')?'jus_ananas':'eau_gazeuse';
+    if(sp==='jus_ananas'&&c.fam!=='dessert')v.ing.push(['jus_ananas',4,'cl']);else if(c.fam!=='dessert')v.ing.push([sp,'top']);
+  }
+  if(!v.ing.some(x=>cat(x[0])==='sucre')&&c.fam!=='dessert')v.ing.splice(1,0,['sirop_sucre',1,'cl']);
+  v.steps=genSteps(v.ing,shaken(c)?'shake':'build',v.g);
+  v.col=mix(c.col,'#ffffff',.15);
+  v.desc='La version sans alcool du '+(c.parentName||c.n)+(hadBul?' : les bulles viennent de l’eau gazeuse.':' : tout le goût, zéro degré.');
+  v.parentName=c.parentName||c.n;v.tags=[...new Set([...(c.tags||[]).filter(t=>t!=='classique'),'sans','variante'])];
+  return reg(v);
+}
+function royal(c){
+  if(!['sour','fizz','smash'].includes(c.fam)||c.ing.some(x=>cat(x[0])==='bulles')||!hasAlc(c))return null;
+  const v=clone(c);v.id=c.id+'~royal';v.parent=c.parent||c.id;v.gen=true;
+  v.n=c.n+' Royal';v.ing.push(['champagne','top']);
+  v.steps=[...c.steps,'Compléter avec du champagne (ou du prosecco) bien frais.'];
+  v.desc='Le '+(c.parentName||c.n)+' couronné de bulles : plus festif, plus léger.';
+  v.parentName=c.parentName||c.n;v.tags=[...new Set([...(c.tags||[]),'bulles','variante'])];
+  return reg(v);
+}
+function variantsFor(c,limit){
+  const pool=[...new Set([...[...P].filter(id=>TW[id]),...DEFAULT_POOL])];
+  const out=[];
+  for(const k of pool){const v=twist(c,k);if(v)out.push(v);if(out.length>=limit)break}
+  [...P].filter(id=>cat(id)==='spirit').slice(0,3).forEach(s=>{const v=swapSpirit(c,s);if(v)out.push(v)});
+  const vr=virgin(c);if(vr)out.push(vr);
+  const ro=royal(c);if(ro)out.push(ro);
+  return out;
+}
+
+/* étapes génériques */
+function genSteps(ings,method,g){
+  const mud=ings.filter(x=>(TW[x[0]]&&TW[x[0]].m)||(x[0]==='citron_vert'&&/pièce|quartier/.test(x[2]||'')));
+  const tops=ings.filter(x=>x[1]==='top');
+  const rest=ings.filter(x=>!mud.includes(x)&&!tops.includes(x)&&!x[3]);
+  const nm=x=>label(x[0],x[2]).toLowerCase();
+  const S=[];
+  if(mud.length)S.push('Piler '+joinFr(mud.map(nm))+' au fond '+(method==='shake'?'du shaker.':'du verre.'));
+  if(method==='shake'){
+    if(rest.length)S.push('Ajouter '+joinFr(rest.map(nm))+(mud.length?'':' dans un shaker')+' avec beaucoup de glace.');
+    S.push('Secouer énergiquement une douzaine de secondes.');
+    S.push(['coupe','martini','flute'].includes(g)?'Filtrer finement dans le verre bien glacé.':'Filtrer dans le verre rempli de glace fraîche.');
+  }else if(method==='stir'){
+    S.push('Verser '+joinFr(rest.map(nm))+' dans un verre à mélange avec de la glace.');
+    S.push('Remuer 30 secondes puis filtrer sur un gros glaçon.');
+  }else{
+    if(rest.length)S.push('Verser '+joinFr(rest.map(nm))+(mud.length?'':' dans le verre')+', puis remplir de glace.');else S.push('Remplir le verre de glace.');
+  }
+  if(tops.length)S.push('Compléter de '+joinFr(tops.map(nm))+' et remonter délicatement à la cuillère.');
+  return S;
+}
+
+/* créations signature */
+const NAMES=['Escale','Aube','Velours','Mirage','Comète','Lagon','Nocturne','Zénith','Brise','Éclipse','Sirocco','Opale','Aurore','Solstice','Mistral','Odyssée','Riviera','Altitude','Dernier Vol','Néon','Boréal','Cabana','Oasis','Satin'];
+function nameFor(ings,seed){
+  const h=hash(ings.map(x=>x[0]).join('|'))+seed*7;
+  const f=ings.find(x=>TW[x[0]]&&TW[x[0]].k==='f')||ings.find(x=>TW[x[0]]);
+  const sp=ings.find(x=>cat(x[0])==='spirit');
+  const hb=ings.find(x=>TW[x[0]]&&TW[x[0]].k==='h'&&(!f||x[0]!==f[0]));
+  const suf=(f?TW[f[0]].adj:sp?I[sp[0]][0]:'Signature')+(hb&&f?' & '+TW[hb[0]].adj:'');
+  return NAMES[h%NAMES.length]+' '+suf;
+}
+function colorFor(ings){
+  let col='#f3ead2',w=0;
+  ings.forEach(x=>{const c=I[x[0]];if(!c)return;const k=cat(x[0]);const wt=k==='fruit'?3:k==='liqueur'?2.5:(k==='agrume'&&x[0].startsWith('jus'))?2:k==='herbe'?.6:k==='sucre'?(x[0]==='grenadine'?2:.2):k==='soda'?.4:.8;w+=wt;col=mix(col,c[3],wt/w)});
+  return col;
+}
+const SWEET_Q={sirop_sucre:[2,'cl'],miel:[2,'cl'],agave:[1.5,'cl'],grenadine:[1.5,'cl'],orgeat:[1.5,'cl'],sucre:[2,'c.à.c']};
+function signatures(pan,seed){
+  pan=[...pan];seed=seed||0;
+  const by=k=>pan.filter(id=>cat(id)===k);
+  const spirits=by('spirit'),fruits=by('fruit').filter(x=>TW[x]),herbs=by('herbe').filter(x=>TW[x]),sodas=by('soda'),bul=by('bulles');
+  const citrus=pan.filter(id=>['citron_vert','citron','yuzu'].includes(id));
+  const sweets=by('sucre');const liqs=by('liqueur').filter(x=>!['angostura','campari','aperol','vermouth_rouge','vermouth_sec'].includes(x));
+  const bitter=pan.filter(x=>['aperol','campari'].includes(x));
+  const pick=(a,k)=>a.length?a[(seed+k)%a.length]:null;
+  const out=[];
+  const add=(kind,fam,g,base,ings,method)=>{
+    const id='sig~'+kind+'~'+ings.map(x=>x[0]).join('-');
+    const n=nameFor(ings,seed+out.length);
+    const c={id,n,base,g,col:colorFor(ings),fam,tags:['création'],ing:ings,steps:genSteps(ings,method,g),gar:'',gen:true,sig:true};
+    const f=ings.find(x=>TW[x[0]]&&TW[x[0]].gar);c.gar=f?TW[f[0]].gar:(ings.some(x=>x[0]==='citron_vert')?'Rondelle de citron vert':'Zeste de citron');
+    const fr=ings.filter(x=>TW[x[0]]).map(x=>TW[x[0]].adj.toLowerCase());
+    c.desc={sour:'Un sour maison',smash:'Un smash herbacé',highball:'Un long drink désaltérant',spritz:'Un spritz de ta composition',cooler:'Un cooler sans alcool'}[kind]+(fr.length?' autour de '+joinFr(fr)+'.':'.')+' Inventé avec ce que tu as sous la main.';
+    out.push(reg(c));
+  };
+  const sp=pick(spirits,0),ci=pick(citrus,1),sw=pick(sweets,2)||(liqs.includes('triple_sec')?'triple_sec':pick(liqs,2));
+  const fr=pick(fruits,3),he=pick(herbs,4),fr2=pick(fruits,4);
+  const fx=k=>k?[[k,TW[k].q,TW[k].u]]:[];
+  const swq=s=>s?[[s,...(SWEET_Q[s]||[2,'cl'])]]:[];
+  const bOf=s=>({rhum_blanc:'rhum',rhum_ambre:'rhum',rhum_brun:'rhum',cachaca:'rhum',vodka:'vodka',vodka_vanille:'vodka',gin:'gin',tequila:'tequila',mezcal:'tequila',bourbon:'whisky',scotch:'whisky',irish:'whisky',cognac:'cognac',pisco:'cognac'})[s]||'autre';
+  if(sp&&(ci||fr)&&(sw||fr)){
+    const ings=[[sp,5,'cl'],...(ci?[[ci,ci==='yuzu'?1.5:2.5,'cl']]:[]),...swq(sw&&cat(sw)==='sucre'?sw:null),...(sw&&cat(sw)==='liqueur'?[[sw,2,'cl']]:[]),...fx(fr),...fx(he)];
+    if(pan.includes('blanc_oeuf')&&!he)ings.push(['blanc_oeuf',1,'pièce']);
+    add(he?'smash':'sour',he?'smash':'sour',he?'rocks':'coupe',bOf(sp),ings,'shake');
+  }
+  const sp2=pick(spirits,1)||sp,so=pick(sodas.filter(x=>x!=='cola'),0)||pick(sodas,0);
+  if(sp2&&so){
+    const k=fr2&&fr2!==fr?fr2:fr;
+    const h2=pick(herbs,5);
+    const ings=[[sp2,5,'cl'],...(ci?[[ci,1.5,'cl']]:[]),...(k&&/purée|jus|cl/.test(TW[k].u)&&!sw?[]:swq(sw&&cat(sw)==='sucre'?sw:null).map(x=>[x[0],x[2]==='cl'?1.5:x[1],x[2]])),...fx(k),...fx(h2),[so,'top']];
+    add('highball',so==='ginger_beer'?'mule':'highball',so==='ginger_beer'&&pan.length?'copper':'highball',bOf(sp2),ings,ings.some(x=>TW[x[0]]&&/purée/.test(TW[x[0]].u))?'shake':'build');
+  }
+  const b=pick(bul,0);
+  if(b&&(bitter.length||liqs.length||fruits.length)){
+    const L=pick(bitter,0)||pick(liqs,1);
+    const ings=[[b,9,'cl'],...(L?[[L,L==='aperol'||L==='campari'?5:3,'cl']]:[]),...fx(!L?fr:null),...fx(pick(herbs,2)),...(pan.includes('eau_gazeuse')?[['eau_gazeuse',3,'cl']]:[])];
+    add('spritz','spritz','wine','bulles',ings,'build');
+  }
+  if((fr||ci)&&sodas.length){
+    const k=fr||null;
+    const ings=[...fx(k),...(ci?[[ci,2,'cl']]:[]),...swq(sw&&cat(sw)==='sucre'?sw:(sweets[0]||null)),...fx(he||pick(herbs,1)),[pick(sodas.filter(x=>x!=='cola'),1)||sodas[0],'top']];
+    if(ings.length>=3)add('cooler','fizz','highball','sans',ings,ings.some(x=>TW[x[0]]&&/purée|jus/.test(TW[x[0]].u))?'shake':'build');
+  }
+  return out;
+}
+
+/* analyse de texte libre */
+let INDEX_I=null,INDEX_C=null;
+function buildIndex(){
+  INDEX_I=[];for(const id in I){[I[id][0],...I[id][2]].forEach(t=>INDEX_I.push([norm(t),id]))}
+  INDEX_I.sort((a,b)=>b[0].length-a[0].length);
+  INDEX_C=[];const AL={pina_colada:['pina colada','colada'],caipirinha:['caipi','caipirinha'],aperol_spritz:['spritz','aperol spritz'],gin_tonic:['gin tonic','gin to','gt'],moscow_mule:['mule','moscow'],cosmo:['cosmo','cosmopolitan'],dark_stormy:['dark and stormy','dark n stormy'],old_fashioned:['old fashioned','old fashion'],sotb:['sex on the beach'],ti_punch:['ti punch','tipunch'],long_island:['long island'],tommys:['tommy'],fraise_daiquiri:['strawberry daiquiri','daiquiri fraise'],planteur:['planteur','planters punch','planter s punch']};
+  CK.forEach(c=>{INDEX_C.push([norm(c.n),c.id]);(AL[c.id]||[]).forEach(a=>INDEX_C.push([norm(a),c.id]))});
+  INDEX_C.sort((a,b)=>b[0].length-a[0].length);
+}
+function parseQuery(q){
+  if(!INDEX_I)buildIndex();
+  let t=' '+norm(q).replace(/[+,;&/]/g,' ')+' ';let ck=null;const ings=[];
+  for(const [k,id] of INDEX_C){const re=new RegExp(' '+k.replace(/[.*?()[\]]/g,'\\$&')+'s? ');if(re.test(t)){ck=CK.find(c=>c.id===id);t=t.replace(re,' ');break}}
+  for(const [k,id] of INDEX_I){
+    const re=new RegExp(' '+k.replace(/[.*?()[\]]/g,'\\$&')+'s? ');
+    if(re.test(t)){if(!ings.includes(id))ings.push(id);t=t.replace(re,' ')}
+  }
+  const sansAlc=/ (sans alcool|virgin|mocktail|sans alcol) /.test(' '+norm(q)+' ');
+  return{ck,ings,sansAlc};
+}
+
+/* ---------- SVG verres ---------- */
+let gid=0;
+const GL={
+  highball:{p:'M35 26 L85 26 L81.5 146 Q81 150 77 150 L43 150 Q39 150 38.5 146 Z',top:26,liq:46,ice:[[42,62,18],[60,86,17],[45,110,16]],rim:[84,28],straw:1},
+  rocks:{p:'M28 66 L92 66 L88.5 140 Q88 146 82 146 L38 146 Q32 146 31.5 140 Z',top:66,liq:82,ice:[[36,88,22],[60,98,20]],rim:[90,68]},
+  coupe:{p:'M22 50 L98 50 Q97 90 60 93 Q23 90 22 50 Z',top:50,liq:57,stem:[93,138],base:140,rim:[95,51]},
+  martini:{p:'M20 40 L100 40 L60 92 Z',top:40,liq:48,stem:[92,138],base:140,rim:[96,41]},
+  flute:{p:'M47 22 L73 22 Q75 70 66 98 Q60 104 54 98 Q45 70 47 22 Z',top:22,liq:34,stem:[103,140],base:142,rim:[72,24]},
+  wine:{p:'M33 30 L87 30 Q92 82 78 98 Q60 112 42 98 Q28 82 33 30 Z',top:30,liq:58,stem:[106,140],base:142,rim:[86,32],ice:[[42,66,17],[62,72,16]]},
+  hurricane:{p:'M40 20 L80 20 Q84 50 74 70 Q66 84 76 112 Q80 132 66 136 L54 136 Q40 132 44 112 Q54 84 46 70 Q36 50 40 20 Z',top:20,liq:32,stem:[136,142],base:144,rim:[79,22],straw:1,ice:[[48,38,15],[58,52,13]]},
+  copper:{mug:1,p:'M30 50 L86 50 L83 146 Q83 150 79 150 L37 150 Q33 150 33 146 Z',top:50,rim:[85,51]},
+  mug:{p:'M36 34 L84 34 L80 116 Q80 120 76 120 L44 120 Q40 120 40 116 Z',top:34,liq:40,stem:[120,136],base:138,handle:1,rim:[83,35]}
+};
+function wheel(x,y,c1,c2){let s=`<g transform="translate(${x} ${y})"><circle r="11.5" fill="${c1}"/><circle r="9.3" fill="${c2}"/>`;for(let i=0;i<8;i++){const a=i*Math.PI/4;s+=`<line x1="0" y1="0" x2="${(8.6*Math.cos(a)).toFixed(1)}" y2="${(8.6*Math.sin(a)).toFixed(1)}" stroke="${c1}" stroke-width="1" opacity=".55"/>`}return s+`<circle r="1.6" fill="${c1}" opacity=".6"/></g>`}
+function glassSVG(c,big){
+  const g=GL[c.g]||GL.rocks,id='g'+(++gid),col=c.col||'#f3ead2';
+  const light=mix(col,'#ffffff',.38),deep=mix(col,'#000000',.28);
+  const fizz=c.ing.some(x=>['soda','bulles'].includes(cat(x[0])));
+  const gar=norm(c.gar||'');const [rx,ry]=g.rim;
+  let s=`<svg viewBox="0 0 120 160" class="gl" aria-hidden="true"><defs>
+<linearGradient id="${id}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".5" stop-color="${col}"/><stop offset="1" stop-color="${deep}"/></linearGradient>
+<linearGradient id="${id}s" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".16" stop-color="#fff" stop-opacity=".38"/><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset=".82" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="${id}cu" x1="0" x2="1"><stop offset="0" stop-color="#8a4520"/><stop offset=".3" stop-color="#e9a26a"/><stop offset=".55" stop-color="#b8672f"/><stop offset=".8" stop-color="#f0b37e"/><stop offset="1" stop-color="#7a3a18"/></linearGradient>
+<clipPath id="${id}c"><path d="${g.p}"/></clipPath></defs>`;
+  s+=`<ellipse cx="60" cy="153" rx="36" ry="4.5" fill="${col}" opacity=".28"/>`;
+  if(g.stem)s+=`<path d="M60 ${g.stem[0]} L60 ${g.stem[1]}" stroke="rgba(255,255,255,.6)" stroke-width="2.6" stroke-linecap="round"/><ellipse cx="60" cy="${g.base}" rx="21" ry="3.6" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.55)" stroke-width="1.4"/>`;
+  if(g.straw&&!g.mug)s+=`<path d="M${rx-20} ${g.top+70} L${rx+4} ${g.top-24}" stroke="#ff5c8a" stroke-width="4" stroke-linecap="round"/><path d="M${rx-20} ${g.top+70} L${rx+4} ${g.top-24}" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 6" opacity=".7"/>`;
+  if(g.mug){
+    s+=`<path d="M86 66 Q104 68 102 94 Q100 120 84 122" fill="none" stroke="url(#${id}cu)" stroke-width="7" stroke-linecap="round"/>`;
+    s+=`<path d="${g.p}" fill="url(#${id}cu)"/><ellipse cx="58" cy="50" rx="28" ry="4.5" fill="${col}"/><ellipse cx="58" cy="50" rx="28" ry="4.5" fill="none" stroke="#f6c391" stroke-width="1.6"/>`;
+    for(let i=0;i<9;i++)s+=`<circle cx="${40+(i*13)%38}" cy="${70+((i*29)%66)}" r="2.2" fill="#fff" opacity=".13"/>`;
+    s+=`<path d="M40 56 L42 140" stroke="#fff" stroke-width="3" opacity=".25" stroke-linecap="round"/>`;
+  }else{
+    s+=`<path d="${g.p}" fill="rgba(255,255,255,.05)"/><g clip-path="url(#${id}c)"><rect x="0" y="${g.liq}" width="120" height="130" fill="url(#${id}l)"/>`;
+    if(c.foam)s+=`<rect x="0" y="${g.liq-1}" width="120" height="${c.foamH||7}" fill="${c.foam}"/>`;else s+=`<rect x="0" y="${g.liq}" width="120" height="2.2" fill="#fff" opacity=".4"/>`;
+    if(['highball','rocks','hurricane','wine'].includes(c.g)&&c.fam!=='hot')(g.ice||[]).forEach(([x,y,w],i)=>{s+=`<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="4" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.5)" stroke-width="1" transform="rotate(${i%2?12:-9} ${x+w/2} ${y+w/2})"/>`});
+    if(/menthe|basilic/.test(gar)||c.ing.some(x=>['menthe','basilic'].includes(x[0])&&!x[3]&&c.fam==='smash'))for(let i=0;i<4;i++)s+=`<ellipse cx="${46+i*9}" cy="${(g.liq+g.top)/2+44+(i%2)*14}" rx="5" ry="2.6" fill="#3e9b43" opacity=".75" transform="rotate(${i*40} ${46+i*9} ${(g.liq+g.top)/2+44+(i%2)*14})"/>`;
+    if(fizz)for(let i=0;i<8;i++){const cx=40+((i*37)%40),cy=(g.liq+70)+((i*23)%40);s+=`<circle class="bub" cx="${cx}" cy="${Math.min(cy,148)}" r="${1+(i%3)*.6}" fill="#fff" opacity=".7" style="animation-delay:${(i*.43).toFixed(2)}s"/>`}
+    s+=`</g>`;
+    s+=`<path d="${g.p}" fill="url(#${id}s)" stroke="rgba(255,255,255,.62)" stroke-width="1.5" stroke-linejoin="round"/>`;
+    if(g.handle)s+=`<path d="M84 50 Q100 52 98 76 Q96 98 81 100" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  if(/sel|sucre/.test(gar)&&/croute/.test(gar)){const w=g.rim[0]-(120-g.rim[0]);for(let i=0;i<16;i++)s+=`<circle cx="${(120-g.rim[0])+i*(w/15)}" cy="${g.top+.5}" r="1.3" fill="#fff" opacity=".9"/>`}
+  if(/citron vert/.test(gar))s+=wheel(rx,ry,'#7fbf2e','#e3f6b4');
+  else if(/citron/.test(gar))s+=wheel(rx,ry,'#f2c81d','#fff6bf');
+  else if(/pamplemousse/.test(gar))s+=wheel(rx,ry,'#f2795a','#ffc7b8');
+  else if(/orange/.test(gar))s+=wheel(rx,ry,'#ff8c1a','#ffd39a');
+  else if(/kiwi/.test(gar))s+=wheel(rx,ry,'#6b4f2a','#9ad14b');
+  else if(/concombre/.test(gar))s+=wheel(rx,ry,'#3f7d2c','#d6f0b0');
+  if(/passion/.test(gar))s+=`<g transform="translate(${rx-6} ${ry-2})"><circle r="10" fill="#6d2a5a"/><circle r="8" fill="#f7b32b"/>${[[-3,-2],[2,-3],[3,2],[-2,3],[0,0]].map(([a,b])=>`<circle cx="${a}" cy="${b}" r="1.1" fill="#2b1a0f"/>`).join('')}</g>`;
+  if(/menthe|basilic|coriandre|thym|romarin/.test(gar))s+=`<g transform="translate(${rx-22} ${ry-6})"><path d="M0 8 Q2 -6 -4 -18" stroke="#2f7a34" stroke-width="1.6" fill="none"/><ellipse cx="-7" cy="-12" rx="7" ry="3.6" fill="#4fb35a" transform="rotate(-40 -7 -12)"/><ellipse cx="3" cy="-8" rx="7" ry="3.6" fill="#62c46a" transform="rotate(30 3 -8)"/><ellipse cx="-4" cy="-20" rx="6" ry="3.2" fill="#73d17a" transform="rotate(-70 -4 -20)"/></g>`;
+  if(/cerise/.test(gar))s+=`<g transform="translate(${rx-14} ${ry-4})"><path d="M0 0 Q4 -14 12 -18" stroke="#3a5a1a" stroke-width="1.4" fill="none"/><circle r="5.5" fill="#c1121f"/><circle cx="-1.8" cy="-1.8" r="1.6" fill="#fff" opacity=".6"/></g>`;
+  if(/olive/.test(gar))s+=`<g><line x1="${rx-34}" y1="${ry+30}" x2="${rx+4}" y2="${ry-12}" stroke="#d9c39a" stroke-width="1.6"/><ellipse cx="${rx-22}" cy="${ry+16}" rx="5" ry="6.5" fill="#8a9a2a" transform="rotate(-40 ${rx-22} ${ry+16})"/></g>`;
+  if(/ananas/.test(gar))s+=`<g transform="translate(${rx-4} ${ry-6})"><path d="M-10 6 L10 6 L4 -10 L-4 -10 Z" fill="#ffd23f"/><path d="M-3 -10 L-6 -20 M0 -10 L0 -22 M3 -10 L6 -20" stroke="#4caf50" stroke-width="2.2" stroke-linecap="round"/></g>`;
+  if(/fraise/.test(gar))s+=`<g transform="translate(${rx-4} ${ry-4})"><path d="M0 9 Q-9 0 -6 -5 Q0 -8 6 -5 Q9 0 0 9 Z" fill="#ff3557"/><path d="M-5 -5 L0 -9 L5 -5" stroke="#3e9b43" stroke-width="2.2" fill="none"/></g>`;
+  if(/framboise|mure|myrtille|grenade/.test(gar)&&!/fraise/.test(gar)){const cc=/myrtille/.test(gar)?'#4b4fb5':/mure/.test(gar)?'#3c0f4f':'#e8336d';s+=[[0,0],[7,3],[-6,4]].map(([a,b])=>`<circle cx="${rx-6+a}" cy="${ry-4+b}" r="4.5" fill="${cc}"/><circle cx="${rx-7+a}" cy="${ry-5.5+b}" r="1.2" fill="#fff" opacity=".5"/>`).join('')}
+  if(/cafe/.test(gar))s+=[[-6,0],[0,-2],[6,0]].map(([a,b])=>`<ellipse cx="${60+a}" cy="${g.liq+3+b}" rx="2.6" ry="1.8" fill="#2a160c"/>`).join('');
+  if(/piment/.test(gar))s+=`<g transform="translate(${rx-4} ${ry-2}) rotate(30)"><path d="M-3 -8 Q6 -4 2 10 Q-4 4 -3 -8 Z" fill="#e63946"/><path d="M-3 -8 L-5 -12" stroke="#3e9b43" stroke-width="2"/></g>`;
+  if(/cannelle/.test(gar))s+=`<rect x="${rx-8}" y="${ry-24}" width="5" height="44" rx="2.5" fill="#8b4a22" transform="rotate(14 ${rx} ${ry})"/>`;
+  return s+'</svg>';
+}
+
+/* ---------- icônes UI ---------- */
+const IC={
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.3 5.4 5.7.5-4.4 3.8 1.4 5.6L12 15.4 7 18.3l1.4-5.6L4 8.9l5.7-.5z"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14l-7 8z"/><path d="M12 12v7M8 20h8"/></svg>',
+  bar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v4.5L7.5 11v9.5h9V11L14 7.5V3"/><path d="M7.5 14.5h9"/></svg>',
+  lab:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/><circle cx="12" cy="12" r="3.5"/></svg>',
+  fav:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+  heartF:'<svg viewBox="0 0 24 24" fill="#ff5c8a" stroke="#ff5c8a" stroke-width="1.9"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  dice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r=".8" fill="currentColor"/><circle cx="15" cy="15" r=".8" fill="currentColor"/><circle cx="15" cy="9" r=".8" fill="currentColor"/><circle cx="9" cy="15" r=".8" fill="currentColor"/></svg>',
+  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.6L19 9.5l-5.2 1.9L12 17l-1.8-5.6L5 9.5l5.2-1.9zM19 15l.9 2.3 2.1.7-2.1.8L19 21l-.9-2.2-2.1-.8 2.1-.7z"/></svg>'
+};
+const TABS=[['home','Découvrir'],['list','Carte'],['bar','Mon bar'],['lab','Atelier'],['fav','Favoris']];
+
+/* ---------- rendu cartes ---------- */
+function isFav(c){return c.gen?MINE.some(m=>m.id===c.id):FAV.has(c.id)}
+function card(c,opts){
+  opts=opts||{};if(c.gen)reg(c);
+  let badge='';
+  if(opts.badge!==false&&P.size){const a=analyze(c);badge=a.ok?(a.sub.length?'<span class="badge sub">≈ Prêt</span>':'<span class="badge ok">✓ Prêt</span>'):a.miss.length===1?'<span class="badge no">Il manque 1</span>':''}
+  if(c.gen&&!opts.nobadgenew)badge=`<span class="badge new">${c.sig?'Création':'Variante'}</span>`;
+  const par=c.parent?CK.find(x=>x.id===c.parent):null;
+  let li=c.ing.filter(x=>!x[3]);
+  if(par){const nw=li.filter(x=>!par.ing.some(y=>y[0]===x[0]));li=nw.length?nw:li}
+  else if(c.sig)li=[...li.filter(x=>['fruit','herbe','liqueur'].includes(cat(x[0]))),...li.filter(x=>!['fruit','herbe','liqueur'].includes(cat(x[0])))];
+  const sub=(par?'Base '+par.n+' + ':'')+li.slice(0,par?3:4).map(x=>label(x[0],x[2])).join(' · ');
+  return `<button class="ck" data-open="${esc(c.id)}" style="--c:${c.col}">${badge}${isFav(c)?`<span class="heart">${IC.heartF}</span>`:''}<div class="vis">${glassSVG(c)}</div><div class="meta"><h4>${esc(c.n)}</h4><p>${esc(sub)}</p></div></button>`;
+}
+const byId=id=>GEN[id]||CK.find(c=>c.id===id)||MINE.find(m=>m.id===id);
+
+/* ---------- vues ---------- */
+function greet(){const h=new Date().getHours();return h<6?'Nuit blanche':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir'}
+function daily(){const d=Math.floor(Date.now()/864e5);return CK.filter(c=>c.base!=='sans')[d%CK.filter(c=>c.base!=='sans').length]}
+function counts(){let ok=0,one=0;CK.forEach(c=>{const a=analyze(c);if(a.ok)ok++;else if(a.miss.length===1)one++});return{ok,one}}
+
+function vHome(){
+  const d=daily();const ct=counts();
+  const picks=[['mojito','fruit_passion'],['margarita','piment'],['gin_tonic','concombre'],['daiquiri','mangue'],['moscow_mule','framboise'],['aperol_spritz','pamplemousse'],['whisky_sour','miel'],['caipirinha','fraise']]
+    .map(([c,k])=>twist(CK.find(x=>x.id===c),k,true)).filter(Boolean);
+  return `<div class="view">
+  <div class="eyebrow">${greet()} · ${CK.length} recettes</div>
+  <h1>Qu’est-ce qu’on <em>shake</em><br>ce soir&nbsp;?</h1>
+  <section class="hero" style="--c:${d.col}">
+    <div><div class="eyebrow">Cocktail du jour</div><h3>${esc(d.n)}</h3><p>${esc(d.desc)}</p>
+    <div class="row"><button class="btn" data-open="${d.id}">Voir la recette</button><button class="btn ghost" data-act="random">${IC.dice} Surprends-moi</button></div></div>
+    ${glassSVG(d,1)}
+  </section>
+  ${P.size?`<div class="stats"><div class="stat"><b>${P.size}</b><span>ingrédients</span></div><div class="stat"><b>${ct.ok}</b><span>prêts à servir</span></div><div class="stat"><b>${ct.one}</b><span>à 1 ingrédient</span></div></div>`
+  :`<div class="panelbox" style="margin-top:14px"><div class="row" style="justify-content:space-between"><div><b>Remplis ton bar</b><div class="mut" style="font-size:14px;margin-top:4px">Coche ce que tu as : je te dis ce que tu peux servir, et j’invente des variantes.</div></div><button class="btn" data-tab="bar">${IC.bar} Mon bar</button></div></div>`}
+  <h2>Humeurs</h2>
+  <div class="chips scroll">${MOODS.map(m=>`<button class="chip" data-mood="${m[0]}">${m[2]} ${m[1]}</button>`).join('')}</div>
+  <h2>Twists signature <small>variantes inventées</small></h2>
+  <div class="rail">${picks.map(v=>card(v)).join('')}</div>
+  <h2>Grands classiques</h2>
+  <div class="grid">${CK.filter(c=>c.tags.includes('classique')).slice(0,12).map(c=>card(c)).join('')}</div>
+  <div style="text-align:center;margin-top:20px"><button class="btn ghost" data-tab="list">Toute la carte →</button></div>
+  </div>`;
+}
+function listFiltered(){
+  const q=norm(listQ);
+  return CK.filter(c=>(listBase==='all'||c.base===listBase)&&(!listMood||c.tags.includes(listMood)||(listMood==='sans'&&c.base==='sans'))&&(!listReady||analyze(c).ok)
+    &&(!q||norm(c.n).includes(q)||c.ing.some(x=>norm(I[x[0]][0]).includes(q))));
+}
+function vList(){
+  const m=MOODS.find(x=>x[0]===listMood);
+  return `<div class="view"><div class="eyebrow">La carte</div><h1>Tous les <em>cocktails</em></h1>
+  <label class="search">${IC.search}<input id="q" placeholder="Nom, ingrédient… (ex. menthe)" value="${esc(listQ)}" autocomplete="off"></label>
+  <div class="chips scroll">${BASES.map(b=>`<button class="chip sm ${listBase===b[0]?'on':''}" data-base="${b[0]}">${b[1]}</button>`).join('')}</div>
+  <div class="row" style="margin-top:10px">
+    ${P.size?`<button class="chip sm ${listReady?'on':''}" data-act="ready">✓ Faisables avec mon bar</button>`:''}
+    ${m?`<button class="chip sm on" data-mood="">${m[2]} ${m[1]} <span class="x">✕</span></button>`:''}
+  </div>
+  <p class="mut" id="cnt" style="font-size:13px;margin:16px 2px 12px"></p>
+  <div class="grid" id="lgrid"></div></div>`;
+}
+function fillList(){const r=listFiltered();$('#cnt').textContent=r.length+' cocktail'+(r.length>1?'s':'');$('#lgrid').innerHTML=r.length?r.map(c=>card(c)).join(''):`<div class="empty" style="grid-column:1/-1"><b>Rien ici</b>Essaie un autre mot ou passe par l’Atelier pour inventer.</div>`}
+
+function unlockList(){
+  const gain={};
+  CK.forEach(c=>{const a=analyze(c);if(a.miss.length===1)(gain[a.miss[0]]=gain[a.miss[0]]||[]).push(c.n)});
+  return Object.entries(gain).sort((a,b)=>b[1].length-a[1].length).slice(0,5);
+}
+function vBar(){
+  const ct=counts();const un=unlockList();
+  return `<div class="view"><div class="eyebrow">Mon bar</div><h1>Qu’as-tu <em>sous la main</em>&nbsp;?</h1>
+  <div class="panelbox" id="barsum">${barSummary(ct,un)}</div>
+  <label class="search" style="margin-top:18px">${IC.search}<input id="iq" placeholder="Chercher un ingrédient…" autocomplete="off"></label>
+  <div class="row"><button class="chip sm" data-act="preset">🍹 Bar de départ</button><button class="chip sm" data-act="clear">Tout décocher</button></div>
+  <div id="cats">${CATS.map(([k,l,e])=>{const ids=Object.keys(I).filter(id=>I[id][1]===k);return `<div class="cat" data-cat="${k}"><h3>${e} ${l} <span>${ids.filter(i=>P.has(i)).length}/${ids.length}</span></h3><div class="chips">${ids.map(id=>`<button class="chip sm ${P.has(id)?'on':''}" data-ing="${id}" data-n="${esc(norm(I[id][0]+' '+I[id][2].join(' ')))}">${esc(I[id][0])}</button>`).join('')}</div></div>`}).join('')}</div></div>`;
+}
+function barSummary(ct,un){
+  return `<div class="stats" style="margin-top:0"><div class="stat"><b>${P.size}</b><span>ingrédients</span></div><div class="stat"><b>${ct.ok}</b><span>prêts</span></div><div class="stat"><b>${ct.one}</b><span>à 1 près</span></div></div>
+  ${un.length?`<div style="margin-top:16px;font-weight:800;font-size:14px">Le meilleur achat pour débloquer des recettes</div><div class="unlock">${un.map(([id,l])=>`<button data-ing="${id}">+ ${esc(I[id][0])}<em>${l.length} recette${l.length>1?'s':''} : ${esc(l.slice(0,3).join(', '))}${l.length>3?'…':''}</em></button>`).join('')}</div>`:''}
+  <div class="row" style="margin-top:16px"><button class="btn" data-act="seeready">Voir ce que je peux faire</button><button class="btn ghost" data-tab="lab">${IC.spark} Inventer avec mon bar</button></div>`;
+}
+
+const EX=['Mojito fruit de la passion','Gin fraise basilic','Margarita mangue piment','Tequila pamplemousse','Spritz pêche','Sans alcool framboise menthe','Moscow mule concombre','Whisky miel gingembre'];
+function vLab(){
+  return `<div class="view"><div class="eyebrow">L’atelier</div><h1>Dis-moi tes <em>ingrédients</em>,<br>j’invente le reste.</h1>
+  <form class="forge" id="forge"><div><input id="lq" placeholder="ex. « mojito fruit de la passion » ou « vodka, fraise, basilic »" value="${esc(labQ)}" autocomplete="off" enterkeyhint="go"><button class="btn" type="submit">${IC.spark} Créer</button></div></form>
+  <div class="hint">Un cocktail + un ingrédient = une variante. Juste des ingrédients = des créations sur-mesure. Champ vide = je pars de ton bar.</div>
+  <div class="chips scroll">${EX.map(e=>`<button class="chip sm" data-ex="${esc(e)}">${esc(e)}</button>`).join('')}</div>
+  <div id="labout"></div></div>`;
+}
+function section(t,small,items,rail){return items.length?`<h2>${t}${small?` <small>${small}</small>`:''}</h2><div class="${rail?'rail':'grid'}">${items.map(c=>card(c)).join('')}</div>`:''}
+function runLab(){
+  const out=$('#labout');if(!out)return;
+  const q=labQ.trim();let html='';
+  if(q){
+    const {ck,ings,sansAlc}=parseQuery(q);
+    html+=`<div class="understood">Compris : ${ck?`<span class="tag">🍸 ${esc(ck.n)}</span>`:''}${ings.map(i=>`<span class="tag">${esc(I[i][0])}</span>`).join('')}${sansAlc?'<span class="tag">Sans alcool</span>':''}${!ck&&!ings.length&&!sansAlc?'<span class="mut">rien de reconnu… essaie avec des noms d’ingrédients ou de cocktails.</span>':''}</div>`;
+    if(ck){
+      const res=[];
+      ings.forEach(k=>{const v=TW[k]?twist(ck,k,true):cat(k)==='spirit'?swapSpirit(ck,k,true):cat(k)==='bulles'?royal(ck):null;if(v)res.push(v)});
+      const tw=ings.filter(k=>TW[k]);
+      if(tw.length>1){let v=ck;tw.forEach(k=>{const n=twist(v,k,true);if(n)v=n});if(v!==ck)res.unshift(v)}
+      let main=res.slice();
+      if(sansAlc)main=(main.length?main:[ck]).map(v=>virgin(v)||v);
+      if(!ings.length&&!sansAlc)main=[];
+      html+=main.length?`<h2>Ta création <small>à partir du ${esc(ck.n)}</small></h2><div class="grid">${main.map(v=>card(v)).join('')}</div>`:'';
+      html+=section('Autres variantes du '+esc(ck.n),'',variantsFor(ck,10).filter(v=>!main.some(m=>m.id===v.id)),true);
+      html+=section('L’original','',[ck]);
+    }else if(ings.length||sansAlc){
+      const pan=new Set(ings);
+      const basics=['sirop_sucre','citron_vert','eau_gazeuse'].filter(b=>!pan.has(b));
+      const pan2=new Set([...ings,...basics]);
+      let sig=signatures(pan2,0).concat(signatures(pan2,1)).filter((v,i,a)=>a.findIndex(x=>x.n===v.n||x.id===v.id)===i);
+      if(sansAlc)sig=sig.map(v=>hasAlc(v)?virgin(v):v).filter(Boolean);
+      html+=sig.length?`<h2>Créations sur-mesure <small>avec ${basics.length?'sucre, citron vert et eau gazeuse en plus':'tes ingrédients'}</small></h2><div class="grid">${sig.slice(0,4).map(v=>card(v)).join('')}</div>`:'';
+      const scored=CK.map(c=>{const hit=ings.filter(k=>c.ing.some(x=>x[0]===k||SUBS.some(g=>g.includes(k)&&g.includes(x[0])))).length;return{c,hit,miss:analyze(c,pan2).miss.length}}).filter(o=>o.hit&&(!sansAlc||o.c.base==='sans')).sort((a,b)=>b.hit-a.hit||a.miss-b.miss);
+      const fr=ings.filter(k=>TW[k]);const sp=ings.filter(k=>cat(k)==='spirit');
+      let vars=[];
+      const bases=scored.length?scored.slice(0,6).map(o=>o.c):CK.filter(c=>FRUITY.includes(c.fam)&&(!sansAlc||c.base==='sans')).slice(0,8);
+      bases.forEach(c=>{let v=c;sp.forEach(s=>{const n=swapSpirit(v,s);if(n)v=n});fr.forEach(k=>{const n=twist(v,k);if(n)v=n});if(sansAlc&&hasAlc(v))v=virgin(v)||v;if(v!==c)vars.push(v)});
+      if(!vars.length&&fr.length)['mojito','daiquiri','margarita','moscow_mule','gin_tonic','aperol_spritz'].forEach(id=>{let v=CK.find(c=>c.id===id);fr.forEach(k=>{const n=twist(v,k,true);if(n)v=n});if(sansAlc)v=virgin(v)||v;vars.push(v)});
+      html+=section('Variantes de classiques','',vars.filter((v,i,a)=>a.findIndex(x=>x.id===v.id)===i).slice(0,8),true);
+      html+=section('Classiques avec ces ingrédients','',scored.slice(0,8).map(o=>o.c));
+    }
+  }else if(P.size){
+    const sig=signatures(P,0).concat(signatures(P,2)).filter((v,i,a)=>a.findIndex(x=>x.n===v.n||x.id===v.id)===i);
+    html+=section('Créations avec ton bar','inventées pour toi',sig.slice(0,4));
+    const ready=CK.filter(c=>analyze(c).ok);
+    const pf=[...P].filter(id=>TW[id]);
+    let vars=[];ready.forEach(c=>pf.forEach(k=>{const v=twist(c,k);if(v&&analyze(v).ok)vars.push(v)}));
+    if(!vars.length)ready.forEach(c=>{const v=variantsFor(c,2)[0];if(v)vars.push(v)});
+    html+=section('Variantes faisables tout de suite','',vars.slice(0,10),true);
+    html+=section('Prêts à servir','',ready.slice(0,12));
+    if(!sig.length&&!ready.length)html+=`<div class="empty" style="margin-top:24px"><b>Ton bar est encore un peu vide</b>Ajoute au moins un alcool, un agrume et un sucre pour que j’invente des recettes.</div>`;
+    html+=`<div class="row" style="justify-content:center;margin-top:22px"><button class="btn ghost" data-act="reroll">${IC.dice} Autres créations</button></div>`;
+  }else{
+    html+=`<div class="empty" style="margin-top:26px"><b>Par où commencer&nbsp;?</b>Tape une envie ci-dessus, ou coche tes bouteilles dans <a href="#" data-tab="bar" style="color:var(--a1)">Mon bar</a>.</div>`;
+  }
+  out.innerHTML=html;
+}
+let rerollSeed=0;
+function reroll(){rerollSeed+=3;const sig=signatures(P,rerollSeed).concat(signatures(P,rerollSeed+1));const out=$('#labout');const first=out.querySelector('.grid');if(first&&sig.length){first.innerHTML=sig.filter((v,i,a)=>a.findIndex(x=>x.n===v.n)===i).slice(0,4).map(v=>card(v)).join('');first.scrollIntoView({behavior:'smooth',block:'center'})}}
+
+function vFav(){
+  const favs=[...FAV].map(id=>CK.find(c=>c.id===id)).filter(Boolean);
+  MINE.forEach(m=>{GEN[m.id]=m});
+  return `<div class="view"><div class="eyebrow">Favoris</div><h1>Ta <em>collection</em></h1><button class="btn ghost" data-act="sync">☁️ Sauvegarde & synchro${SYNC.tok?' · '+esc(syncAgo()):''}</button>
+  ${MINE.length?`<h2>Mes créations <small>${MINE.length}</small></h2><div class="grid">${MINE.map(m=>card(m)).join('')}</div>`:''}
+  ${favs.length?`<h2>Cocktails favoris <small>${favs.length}</small></h2><div class="grid">${favs.map(c=>card(c)).join('')}</div>`:''}
+  ${!favs.length&&!MINE.length?`<div class="empty" style="margin-top:10px"><b>Rien pour l’instant</b>Touche le cœur sur une recette, ou enregistre une création de l’Atelier.</div>`:''}</div>`;
+}
+
+/* ---------- détail ---------- */
+let cur=null,serv=1;
+function openDetail(c){if(!c)return;cur=c;serv=1;renderDetail();$('#sheet').classList.add('on');document.body.style.overflow='hidden';$('#panel').scrollTop=0;$('.dr')&&($('.dr').scrollTop=0)}
+function closeDetail(){$('#sheet').classList.remove('on');document.body.style.overflow='';if(tab==='fav'||tab==='home'||tab==='list')render(true)}
+function renderDetail(){
+  const c=cur;const a=P.size?analyze(c):null;
+  const st=id=>!P.size?'':['no','sub','ok'][hs(id)];
+  const vars=variantsFor(c,8);
+  const fav=isFav(c);
+  $('#panel').innerHTML=`<button class="close" data-act="close" aria-label="Fermer">${IC.x}</button>
+  <div class="dl" style="--c:${c.col}">${glassSVG(c,1)}
+    <div class="eyebrow" style="margin-top:6px">${c.sig?'Création signature':c.gen?'Variante':(BASES.find(b=>b[0]===c.base)||[0,''])[1]}</div>
+    <h2>${esc(c.n)}</h2><p>${esc(c.desc||'')}</p>
+    <div class="row"><button class="btn${fav?'':' ghost'}" data-act="fav">${fav?IC.heartF:IC.fav} ${c.gen?(fav?'Enregistrée':'Enregistrer'):(fav?'Favori':'Ajouter aux favoris')}</button><button class="btn ghost" data-act="share" aria-label="Partager">${IC.share}</button></div>
+  </div>
+  <div class="dr">
+    <h3>Ingrédients <span class="serv"><button data-act="minus">−</button><b>${serv} verre${serv>1?'s':''}</b><button data-act="plus">+</button></span></h3>
+    <ul class="ings">${c.ing.map(x=>`<li>${P.size?`<span class="dot ${st(x[0])}"></span>`:''}<span class="q">${esc(fmtQty(x[1],x[2],serv))}</span><span class="n">${esc(label(x[0],x[2]))}</span>${x[3]?'<span class="o">facultatif</span>':''}</li>`).join('')}</ul>
+    ${a?`<div class="legend"><span><i class="dot ok"></i>dans ton bar</span><span><i class="dot sub"></i>substitut possible</span><span><i class="dot no"></i>manquant</span>${a.ok?'<span style="color:var(--ok);font-weight:800">✓ Tu peux le faire&nbsp;!</span>':''}</div>`:''}
+    <h3>Préparation</h3>
+    <ol class="steps">${c.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+    <div class="facts"><div class="fact"><small>Verre</small>${esc(GLASS[c.g]||c.g)}</div><div class="fact"><small>Garniture</small>${esc(c.gar||'—')}</div></div>
+    ${vars.length?`<h3>Variantes à essayer</h3><div class="rail">${vars.map(v=>card(v,{badge:false,nobadgenew:true})).join('')}</div>`:''}
+    ${c.parent&&byId(c.parent)?`<h3>Recette d’origine</h3><div class="rail">${card(byId(c.parent),{badge:false})}</div>`:''}
+  </div>`;
+}
+function shareTxt(c){return `🍸 ${c.n}\n\n`+c.ing.map(x=>`• ${fmtQty(x[1],x[2],1)} — ${label(x[0],x[2])}${x[3]?' (facultatif)':''}`).join('\n')+'\n\n'+c.steps.map((s,i)=>`${i+1}. ${s}`).join('\n')+(c.gar?`\n\nGarniture : ${c.gar}`:'')+'\n\n— Shaker'}
+
+/* ---------- navigation ---------- */
+function renderNav(){
+  const n=$('#nav');n.querySelectorAll('button').forEach(b=>b.remove());
+  TABS.forEach(([k,l])=>{const b=document.createElement('button');b.dataset.tab=k;b.className=tab===k?'on':'';b.innerHTML=IC[k]+'<span>'+l+'</span>';n.appendChild(b)});
+}
+function render(keepScroll){
+  const y=window.scrollY;
+  const app=$('#app');
+  app.innerHTML={home:vHome,list:vList,bar:vBar,lab:vLab,fav:vFav}[tab]();
+  if(tab==='list')fillList();
+  if(tab==='lab')runLab();
+  renderNav();
+  window.scrollTo(0,keepScroll?y:0);
+}
+function go(t){tab=t;store.set('tab',t);render()}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),1800)}
+
+/* ---------- événements ---------- */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-open],[data-tab],[data-act],[data-ing],[data-base],[data-mood],[data-ex]');
+  if(!el){if(e.target.id==='sheet')closeDetail();return}
+  if(el.tagName==='A')e.preventDefault();
+  const d=el.dataset;
+  if(d.open!==undefined){openDetail(byId(d.open));return}
+  if(d.tab){if($('#sheet').classList.contains('on'))closeDetail();go(d.tab);return}
+  if(d.ing){
+    const id=d.ing;P.has(id)?P.delete(id):P.add(id);saveBar();
+    if(tab==='bar'){
+      document.querySelectorAll(`#cats [data-ing="${id}"]`).forEach(b=>b.classList.toggle('on',P.has(id)));
+      document.querySelectorAll('#cats .cat').forEach(cEl=>{const k=cEl.dataset.cat;const ids=Object.keys(I).filter(i=>I[i][1]===k);cEl.querySelector('h3 span').textContent=ids.filter(i=>P.has(i)).length+'/'+ids.length});
+      $('#barsum').innerHTML=barSummary(counts(),unlockList());
+      if(el.closest('.unlock'))toast(I[id][0]+' ajouté au bar');
+    }
+    return;
+  }
+  if(d.base){listBase=d.base;document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('on',b.dataset.base===listBase));fillList();return}
+  if(d.mood!==undefined){listMood=d.mood||null;listBase='all';if(tab!=='list'){go('list')}else render(true);return}
+  if(d.ex){labQ=d.ex;$('#lq').value=labQ;runLab();$('#labout').scrollIntoView({behavior:'smooth',block:'start'});return}
+  switch(d.act){
+    case 'close':closeDetail();break;
+    case 'sync':openSync();break;
+    case 'gh-connect':ghConnect();break;
+    case 'gh-now':syncNow(true);break;
+    case 'gh-off':if(confirm('Déconnecter cet appareil de la synchro ? (tes données restent sur l’appareil et sur GitHub)')){SYNC.tok='';SYNC.gist='';SYNC.err='';store.set('gh_tok','');store.set('gh_gist','');setSyncUI();renderSync()}break;
+    case 'export':exportJSON();break;
+    case 'import':$('#impfile').click();break;
+    case 'random':openDetail(CK[Math.floor(Math.random()*CK.length)]);break;
+    case 'ready':listReady=!listReady;el.classList.toggle('on',listReady);fillList();break;
+    case 'seeready':listReady=true;listMood=null;listBase='all';go('list');break;
+    case 'preset':['rhum_blanc','vodka','gin','citron_vert','citron','sirop_sucre','sucre','menthe','eau_gazeuse','tonic','jus_orange','ginger_beer'].forEach(i=>P.add(i));saveBar();render(true);toast('Bar de départ ajouté');break;
+    case 'clear':P.clear();saveBar();render(true);break;
+    case 'reroll':reroll();break;
+    case 'minus':serv=Math.max(1,serv-1);renderDetail();break;
+    case 'plus':serv=Math.min(12,serv+1);renderDetail();break;
+    case 'fav':{
+      const c=cur;
+      if(c.gen){const i=MINE.findIndex(m=>m.id===c.id);if(i>=0){MINE.splice(i,1);toast('Retirée de tes créations')}else{MINE.unshift(clone(c));toast('Enregistrée dans tes créations ✨')}store.set('mine',MINE);touch('mine')}
+      else{FAV.has(c.id)?FAV.delete(c.id):FAV.add(c.id);store.set('fav',[...FAV]);touch('fav');toast(FAV.has(c.id)?'Ajouté aux favoris':'Retiré des favoris')}
+      renderDetail();break;}
+    case 'share':{const t=shareTxt(cur);if(navigator.share)navigator.share({title:cur.n,text:t}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Recette copiée'),()=>toast('Copie impossible'))}break;}
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='q'){listQ=e.target.value;fillList()}
+  if(e.target.id==='iq'){const q=norm(e.target.value);document.querySelectorAll('#cats [data-ing]').forEach(b=>{b.style.display=!q||b.dataset.n.includes(q)?'':'none'});document.querySelectorAll('#cats .cat').forEach(c=>{c.style.display=[...c.querySelectorAll('[data-ing]')].some(b=>b.style.display!=='none')?'':'none'})}
+});
+document.addEventListener('change',e=>{if(e.target.id==='impfile'&&e.target.files[0])importJSON(e.target.files[0])});
+document.addEventListener('submit',e=>{if(e.target.id==='forge'){e.preventDefault();labQ=$('#lq').value;$('#lq').blur();runLab();setTimeout(()=>$('#labout').scrollIntoView({behavior:'smooth',block:'start'}),50)}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sheet').classList.contains('on'))closeDetail()});
+
+
+/* ---------- sauvegarde & synchro GitHub (Gist privé) ---------- */
+const GFILE='shaker-sync.json';
+const SYNC={tok:store.get('gh_tok',''),gist:store.get('gh_gist',''),last:store.get('gh_last',0),busy:false,err:''};
+let TS=store.get('ts',{bar:0,fav:0,mine:0});
+function touch(f){TS[f]=Date.now();store.set('ts',TS);schedulePush()}
+let pushT;function schedulePush(){if(!SYNC.tok)return;clearTimeout(pushT);pushT=setTimeout(()=>syncNow(),1500)}
+function syncAgo(){if(!SYNC.last)return 'jamais';const s=Math.round((Date.now()-SYNC.last)/1000);return s<60?'à l’instant':s<3600?'il y a '+Math.round(s/60)+' min':s<86400?'il y a '+Math.round(s/3600)+' h':'il y a '+Math.round(s/86400)+' j'}
+async function gh(path,opt){
+  opt=opt||{};
+  const r=await fetch('https://api.github.com'+path,{method:opt.method||'GET',body:opt.body,cache:'no-store',headers:Object.assign({'Accept':'application/vnd.github+json','Authorization':'Bearer '+SYNC.tok,'X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{})});
+  if(!r.ok){const e=new Error(r.status===401?'Jeton invalide ou expiré':r.status===403?'Accès refusé : le jeton doit avoir le droit « gist »':r.status===404?'Sauvegarde introuvable (404)':'Erreur GitHub '+r.status);e.status=r.status;throw e}
+  return r.status===204?null:r.json();
+}
+function snapshot(){return{app:'shaker',v:1,saved:new Date().toISOString(),ts:TS,bar:[...P],fav:[...FAV],mine:MINE}}
+const body=()=>JSON.stringify({files:{[GFILE]:{content:JSON.stringify(snapshot(),null,1)}}});
+async function findGist(){
+  for(let page=1;page<=5;page++){const l=await gh('/gists?per_page=100&page='+page);const g=l.find(x=>x.files&&x.files[GFILE]);if(g)return{id:g.id,isNew:false};if(l.length<100)break}
+  const c=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Shaker — sauvegarde de mes cocktails (bar, favoris, créations)',public:false,files:{[GFILE]:{content:JSON.stringify(snapshot(),null,1)}}})});
+  return{id:c.id,isNew:true};
+}
+function applyLocal(){store.set('bar',[...P]);store.set('fav',[...FAV]);store.set('mine',MINE);store.set('ts',TS)}
+async function syncNow(manual){
+  if(!SYNC.tok||SYNC.busy)return;SYNC.busy=true;setSyncUI();
+  try{
+    let firstLink=false;
+    if(!SYNC.gist){const f=await findGist();SYNC.gist=f.id;store.set('gh_gist',f.id);firstLink=!f.isNew;if(f.isNew){finishSync(false);return}}
+    const g=await gh('/gists/'+SYNC.gist);
+    const f=g.files&&g.files[GFILE];let R=null;
+    if(f){let t=f.content;if(f.truncated)t=await(await fetch(f.raw_url)).text();try{R=JSON.parse(t)}catch(e){}}
+    let changed=false,push=!R;
+    if(R&&firstLink){
+      // première connexion de cet appareil : on fusionne tout
+      const nb=new Set([...P,...(R.bar||[])]),nf=new Set([...FAV,...(R.fav||[])]);
+      const nm=[...MINE];(R.mine||[]).forEach(m=>{if(!nm.some(x=>x.id===m.id))nm.push(m)});
+      changed=nb.size!==P.size||nf.size!==FAV.size||nm.length!==MINE.length;
+      push=nb.size!==(R.bar||[]).length||nf.size!==(R.fav||[]).length||nm.length!==(R.mine||[]).length;
+      P=nb;FAV=nf;MINE=nm;const now=Date.now();TS={bar:now,fav:now,mine:now};
+    }else if(R){
+      const rt=R.ts||{};
+      for(const k of ['bar','fav','mine']){const a=rt[k]||0,b=TS[k]||0;
+        if(a>b){if(k==='bar')P=new Set(R.bar||[]);if(k==='fav')FAV=new Set(R.fav||[]);if(k==='mine')MINE=R.mine||[];TS[k]=a;changed=true}
+        else if(b>a)push=true}
+    }
+    if(changed||firstLink)applyLocal();
+    if(push)await gh('/gists/'+SYNC.gist,{method:'PATCH',body:body()});
+    finishSync(changed);
+    if(manual)toast(changed?'Données récupérées depuis GitHub':push?'Sauvegardé sur GitHub':'Déjà à jour ✓');
+  }catch(e){
+    SYNC.err=e.message||'Pas de connexion';if(e.status===404){SYNC.gist='';store.set('gh_gist','')}
+    SYNC.busy=false;setSyncUI();if(manual)toast(SYNC.err);
+    if(document.getElementById('syncbox'))renderSync();
+  }
+}
+function finishSync(changed){
+  SYNC.last=Date.now();store.set('gh_last',SYNC.last);SYNC.err='';SYNC.busy=false;setSyncUI();
+  if(document.getElementById('syncbox'))renderSync();
+  else if(changed&&!$('#sheet').classList.contains('on'))render(true);
+}
+function setSyncUI(){const d=document.querySelector('#ver .sd');if(d)d.className='sd'+(!SYNC.tok?'':SYNC.busy?' busy':SYNC.err?' err':' ok')}
+function openSync(){cur=null;renderSync();$('#sheet').classList.add('on');document.body.style.overflow='hidden'}
+async function ghConnect(){
+  const v=($('#ghtok').value||'').trim();if(!v){toast('Colle ton jeton GitHub');return}
+  SYNC.tok=v;SYNC.gist='';SYNC.err='';
+  try{const u=await gh('/user');store.set('gh_tok',v);store.set('gh_user',u.login);await syncNow();if(!SYNC.err)toast('Connecté à GitHub ✓');}
+  catch(e){SYNC.tok='';SYNC.err=e.message;toast(e.message)}
+  renderSync();
+}
+function renderSync(){
+  const on=!!SYNC.tok,user=store.get('gh_user','');
+  $('#panel').innerHTML=`<button class="close" data-act="close" aria-label="Fermer">${IC.x}</button>
+  <div class="dl" style="--c:#7aa8ff"><div style="font-size:90px;line-height:1;margin-top:20px">☁️</div>
+    <div class="eyebrow" style="margin-top:14px">GitHub</div><h2>Sauvegarde<br>& synchro</h2>
+    <p>Ton bar, tes favoris et tes créations sont copiés dans un <b>Gist privé</b> sur ton compte GitHub et synchronisés automatiquement entre ton Mac, ton iPad et ton iPhone.</p></div>
+  <div class="dr" id="syncbox">
+  ${on?`<h3>Statut</h3>
+    <div class="okline ${SYNC.err?'e':''}"><i class="sd ${SYNC.busy?'busy':SYNC.err?'err':'ok'}"></i>${SYNC.err?esc(SYNC.err):SYNC.busy?'Synchronisation…':'Synchronisé '+esc(syncAgo())}${user?`<span class="mut" style="margin-left:auto;font-weight:600">@${esc(user)}</span>`:''}</div>
+    <p class="note" style="margin-top:12px">Chaque modification est envoyée automatiquement. À l’ouverture de l’appli (ou quand tu y reviens), les changements faits sur tes autres appareils sont récupérés.</p>
+    <div class="stack"><button class="btn" data-act="gh-now">↻ Synchroniser maintenant</button>
+    ${SYNC.gist?`<a class="btn ghost" href="https://gist.github.com/${encodeURIComponent(SYNC.gist)}" target="_blank" rel="noopener">Voir la sauvegarde sur GitHub ↗</a>`:''}
+    <button class="btn ghost" data-act="gh-off">Déconnecter cet appareil</button></div>
+    <h3>Sur tes autres appareils</h3><p class="note">Ouvre Shaker, touche le badge <b>☁ v1.1</b> en haut à droite et colle <b>le même jeton</b> (envoie-le-toi par AirDrop ou Notes). L’appli retrouve toute seule la sauvegarde et fusionne avec ce qui est déjà sur l’appareil.</p>`
+  :`<h3>1 · Crée un jeton GitHub</h3>
+    <p class="note">Un jeton limité au seul droit <b>« gist »</b> : il ne donne accès ni à tes dépôts ni au reste de ton compte. Choisis une expiration (ex. 1 an ou « No expiration »), puis <b>Generate token</b> et copie le code qui commence par <b>ghp_</b>.</p>
+    <div class="stack"><a class="btn ghost" href="https://github.com/settings/tokens/new?scopes=gist&description=Shaker%20cocktails" target="_blank" rel="noopener">Créer le jeton sur GitHub ↗</a></div>
+    <h3>2 · Colle-le ici</h3>
+    <div class="field"><input id="ghtok" type="password" placeholder="ghp_…" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" data-act="gh-connect">Connecter</button></div>
+    ${SYNC.err?`<div class="okline e" style="margin-top:12px"><i class="sd err"></i>${esc(SYNC.err)}</div>`:''}
+    <p class="note" style="margin-top:12px">Fais la même chose sur chaque appareil avec le même jeton. Le jeton reste uniquement sur l’appareil.</p>`}
+    <h3>Copie de secours (fichier)</h3>
+    <div class="row"><button class="btn ghost" data-act="export">⬇ Exporter</button><button class="btn ghost" data-act="import">⬆ Importer</button><input type="file" id="impfile" accept="application/json,.json" hidden></div>
+  </div>`;
+}
+function exportJSON(){
+  const b=new Blob([JSON.stringify(snapshot(),null,1)],{type:'application/json'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='shaker-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function importJSON(file){
+  const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.app!=='shaker')throw 0;
+    P=new Set(d.bar||[]);FAV=new Set(d.fav||[]);MINE=d.mine||[];const now=Date.now();TS={bar:now,fav:now,mine:now};applyLocal();schedulePush();toast('Sauvegarde importée ✓');closeDetail();render(true)}catch(e){toast('Fichier invalide')}};r.readAsText(file);
+}
+document.addEventListener('visibilitychange',()=>{if(!SYNC.tok)return;if(document.visibilityState==='visible')syncNow();else if(pushT){clearTimeout(pushT);syncNow()}});
+window.addEventListener('online',()=>SYNC.tok&&syncNow());
+
+/* ---------- démarrage ---------- */
+render();setSyncUI();if(SYNC.tok)syncNow();
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
