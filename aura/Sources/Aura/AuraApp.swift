@@ -116,6 +116,7 @@ struct AuraApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Rechercher des mises à jour…") { Task { await model.selfUpdate.check(silent: false) } }
+                    .keyboardShortcut("u")
             }
             CommandMenu("Aura") {
                 Button("Analyse intelligente") { model.router.open(.smartScan) }.keyboardShortcut("1")

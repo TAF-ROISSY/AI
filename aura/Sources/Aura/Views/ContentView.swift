@@ -311,21 +311,66 @@ struct SidebarFooter: View {
     @EnvironmentObject var monitor: SystemMonitor
 
     var body: some View {
-        HStack(spacing: 10) {
-            Annunciator(color: AuraTheme.scoreColor(monitor.healthScore), size: 9)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("Santé").font(.auraCaption).foregroundStyle(AuraTheme.legendDim)
-                    Text("\(monitor.healthScore)").font(.auraReadout(17)).monospacedDigit()
-                    Text("/ 100").font(.auraCaption2).foregroundStyle(AuraTheme.legendFaint)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Annunciator(color: AuraTheme.scoreColor(monitor.healthScore), size: 9)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("Santé").font(.auraCaption).foregroundStyle(AuraTheme.legendDim)
+                        Text("\(monitor.healthScore)").font(.auraReadout(17)).monospacedDigit()
+                        Text("/ 100").font(.auraCaption2).foregroundStyle(AuraTheme.legendFaint)
+                    }
+                    Text("\(Fmt.bytes(Int64(cleanup.totalFreed))) libérés depuis l'installation")
+                        .font(.auraCaption2).foregroundStyle(AuraTheme.legendFaint)
                 }
-                Text("\(Fmt.bytes(Int64(cleanup.totalFreed))) libérés depuis l'installation")
-                    .font(.auraCaption2).foregroundStyle(AuraTheme.legendFaint)
+                Spacer()
             }
-            Spacer()
+            UpdateButton()
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
         .background(AuraTheme.well)
         .overlay(alignment: .top) { Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1) }
+    }
+}
+
+/// Bouton « Rechercher des mises à jour » avec son résultat (à jour, disponible, en cours).
+struct UpdateButton: View {
+    @EnvironmentObject var selfUpdate: SelfUpdater
+    @Etat private var showResult = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let rel = selfUpdate.available {
+                Button {
+                    Task { await selfUpdate.install() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if selfUpdate.isInstalling { ProgressView().controlSize(.small).tint(AuraTheme.onSignal) }
+                        else { Image(systemName: "arrow.down.circle.fill") }
+                        Text(selfUpdate.isInstalling ? "Installation…" : "Installer la \(rel.version)")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AuraButton(.primary))
+                .disabled(selfUpdate.isInstalling)
+            } else {
+                Button {
+                    showResult = true
+                    Task { await selfUpdate.check(silent: false) }
+                } label: {
+                    HStack(spacing: 6) {
+                        if selfUpdate.isChecking { ProgressView().controlSize(.small) }
+                        else { Image(systemName: "arrow.triangle.2.circlepath") }
+                        Text(selfUpdate.isChecking ? "Recherche…" : "Rechercher des mises à jour")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .disabled(selfUpdate.isChecking)
+                .help("Raccourci : ⌘U")
+            }
+            Text(showResult && !selfUpdate.lastResult.isEmpty && !selfUpdate.isChecking
+                 ? selfUpdate.lastResult : "Version \(selfUpdate.currentVersion)")
+                .font(.auraCaption2).foregroundStyle(AuraTheme.legendFaint).lineLimit(2)
+        }
     }
 }

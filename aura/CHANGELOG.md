@@ -1,5 +1,10 @@
 # Nouveautés d'Aura
 
+## 2.9.1
+- Bouton « Rechercher des mises à jour » toujours visible en bas de la barre latérale et dans l'icône de la barre des menus, avec le résultat de la recherche et la version installée.
+- Quand une version est disponible, le bouton devient « Installer la x.x » : un clic suffit.
+- Raccourci clavier ⌘U.
+
 ## 2.9.0
 - Nouveau module « Fichiers caméra » (Fichiers), aussi accessible depuis chaque support amovible : nettoie les dossiers de rushes Insta360 (X et Ace Pro), GoPro et DJI.
 - Repère les aperçus basse définition (LRV/LRF) dont l'original est présent, les vignettes et fichiers techniques (THM, index, journaux), les fichiers vides ou interrompus et les copies identiques : cochés d'office.

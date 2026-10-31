@@ -114,6 +114,8 @@ struct MenuBarView: View {
                 Text("Dernier nettoyage : \(Fmt.bytes(cleanup.lastFreed)) libérés").font(.auraCaption).foregroundStyle(AuraTheme.green)
             }
 
+            UpdateButton()
+
             HStack {
                 Button("Ouvrir Aura") {
                     NSApp.activate(ignoringOtherApps: true)
