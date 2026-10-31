@@ -42,6 +42,7 @@ final class AppModel {
     let keepAwake = KeepAwake()
     let tidy = TidyManager()
     let activity = AppActivityMonitor()
+    let organizer = PhotoOrganizer()
     /// Lu une fois au lancement (modifiable dans les Réglages, effectif au prochain lancement).
     let showMenuBar = UserDefaults.standard.object(forKey: "aura.menuBarEnabled") as? Bool ?? true
     private var started = false
@@ -91,6 +92,7 @@ extension View {
             .environmentObject(m.keepAwake)
             .environmentObject(m.tidy)
             .environmentObject(m.activity)
+            .environmentObject(m.organizer)
     }
 }
 

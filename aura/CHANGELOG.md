@@ -1,5 +1,12 @@
 # Nouveautés d'Aura
 
+## 2.8.0
+- Nouveau module « Classement photo » (Fichiers), accessible aussi depuis chaque support amovible via « Classer les photos ».
+- Tu décris ton voyage étape par étape (date, heure facultative, lieu), comme dans Prisme ; Aura crée les dossiers Pays › Ville › Ville 1, Ville 2… (un par jour ou par passage) et y range photos et vidéos d'après leur date de prise de vue.
+- Dates lues dans l'EXIF des photos (avec le bon fuseau horaire) et dans les métadonnées des vidéos ; les Live Photos restent groupées.
+- Doublons détectés au contenu identique et écartés (mis de côté, laissés en place ou à la Corbeille).
+- Renommage facultatif (Bangkok 1 - 001.heic), sous-dossier Vidéos, copie ou déplacement, aperçu complet avant de classer, annulation en un clic. Les voyages sont enregistrés pour être réutilisés.
+
 ## 2.7.0
 - Nouveau design « tableau de bord de vol » : panneau gris-bleu, cadrans d'instruments à graduations, voyants vert, ambre et rouge.
 - Typographie Avenir Next (Adrian Frutiger, auteur de la signalétique de Roissy-CDG) ; chiffres de mesure en Avenir Next Condensed.

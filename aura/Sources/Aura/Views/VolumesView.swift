@@ -114,6 +114,7 @@ struct VolumesView: View {
 
                 HStack(spacing: 10) {
                     Button { NSWorkspace.shared.open(v.url) } label: { Label("Ouvrir", systemImage: "folder") }
+                    Button { router.open(.voyages, roots: [v.url]) } label: { Label("Classer les photos", systemImage: "airplane.departure") }
                     Button { router.open(.duplicates, roots: [v.url]) } label: { Label("Doublons", systemImage: "square.on.square") }
                     Button { router.open(.largeFiles, roots: [v.url]) } label: { Label("Gros fichiers", systemImage: "doc.badge.ellipsis") }
                     Button { router.open(.spaceMap, roots: [v.url]) } label: { Label("Carte", systemImage: "chart.pie") }
