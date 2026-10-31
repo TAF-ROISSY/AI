@@ -1,5 +1,11 @@
 # Nouveautés d'Aura
 
+## 2.9.0
+- Nouveau module « Fichiers caméra » (Fichiers), aussi accessible depuis chaque support amovible : nettoie les dossiers de rushes Insta360 (X et Ace Pro), GoPro et DJI.
+- Repère les aperçus basse définition (LRV/LRF) dont l'original est présent, les vignettes et fichiers techniques (THM, index, journaux), les fichiers vides ou interrompus et les copies identiques : cochés d'office.
+- Signale sans les cocher les aperçus dont l'original a disparu, les clips de moins de 3 secondes (avec lecture pour vérifier) et les vidéos 360 incomplètes (X3, X2, ONE X).
+- Suppression définitive sur carte SD et disque externe (la Corbeille n'y libère pas de place), Corbeille sur le Mac.
+
 ## 2.8.0
 - Nouveau module « Classement photo » (Fichiers), accessible aussi depuis chaque support amovible via « Classer les photos ».
 - Tu décris ton voyage étape par étape (date, heure facultative, lieu), comme dans Prisme ; Aura crée les dossiers Pays › Ville › Ville 1, Ville 2… (un par jour ou par passage) et y range photos et vidéos d'après leur date de prise de vue.

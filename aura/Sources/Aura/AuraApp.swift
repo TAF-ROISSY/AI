@@ -43,6 +43,7 @@ final class AppModel {
     let tidy = TidyManager()
     let activity = AppActivityMonitor()
     let organizer = PhotoOrganizer()
+    let camera = CameraCleaner()
     /// Lu une fois au lancement (modifiable dans les Réglages, effectif au prochain lancement).
     let showMenuBar = UserDefaults.standard.object(forKey: "aura.menuBarEnabled") as? Bool ?? true
     private var started = false
@@ -93,6 +94,7 @@ extension View {
             .environmentObject(m.tidy)
             .environmentObject(m.activity)
             .environmentObject(m.organizer)
+            .environmentObject(m.camera)
     }
 }
 

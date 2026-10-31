@@ -7,7 +7,7 @@ enum Module: String, CaseIterable, Identifiable {
     case security, privacy, permissions
     case monitor, activity, battery, network, disks, maintenance, launch
     case apps, updater, extensions
-    case largeFiles, duplicates, similarImages, spaceMap, volumes, voyages, cloud, tidy, shredder
+    case largeFiles, duplicates, similarImages, spaceMap, volumes, voyages, camera, cloud, tidy, shredder
 
     var id: String { rawValue }
 
@@ -34,6 +34,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceMap: "Carte de l'espace"
         case .volumes: "Supports amovibles"
         case .voyages: "Classement photo"
+        case .camera: "Fichiers caméra"
         case .cloud: "Nettoyage du cloud"
         case .tidy: "Rangement"
         case .shredder: "Broyeur"
@@ -63,6 +64,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceMap: "chart.pie.fill"
         case .volumes: "externaldrive.fill"
         case .voyages: "airplane.departure"
+        case .camera: "camera.aperture"
         case .cloud: "icloud.fill"
         case .tidy: "tray.2.fill"
         case .shredder: "scissors"
@@ -78,7 +80,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .security, .privacy, .permissions: "Protection"
         case .monitor, .activity, .battery, .network, .disks, .maintenance, .launch: "Performances"
         case .apps, .updater, .extensions: "Applications"
-        case .largeFiles, .duplicates, .similarImages, .spaceMap, .volumes, .voyages, .cloud, .tidy, .shredder: "Fichiers"
+        case .largeFiles, .duplicates, .similarImages, .spaceMap, .volumes, .voyages, .camera, .cloud, .tidy, .shredder: "Fichiers"
         }
     }
 
@@ -294,6 +296,7 @@ struct ContentView: View {
         case .spaceMap: SpaceMapView()
         case .volumes: VolumesView()
         case .voyages: PhotoOrganizerView()
+        case .camera: CameraCleanerView()
         case .cloud: CloudView()
         case .tidy: TidyView()
         case .shredder: ShredderView()
