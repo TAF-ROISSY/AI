@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — Full-stack TEST V2
+# TAF WAREHOUSE — TEST V4.5
+
+> **V4.5 (lot 1, intégrité du stock)** : voir `LOT1_INTEGRITE_STOCK.md`. Version de recette locale, non homologuée pour la production.
 
 Application de test locale avec **API FastAPI, base SQLite persistante, interface web, étiquettes QR PDF, rapports PDF, rôles, journal d'audit et contrôles transactionnels**.
 

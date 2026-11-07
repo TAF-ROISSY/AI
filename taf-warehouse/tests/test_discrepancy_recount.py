@@ -27,8 +27,18 @@ def test_independent_recount_and_receipt_discrepancy():
         assert post(w1,'receipt-discrepancies/'+disc+'/review',{'approve':True,'decision':'Réserves acceptées'}).status_code==403
         assert post(mgr,'receipt-discrepancies/'+disc+'/review',{'approve':True,'decision':'Réserves acceptées'}).status_code==200
         assert c.get('/api/units',headers=a).json()[0]['hold']
-        assert post(w1,'releases',{'unit_id':unit,'quantity':1}).status_code==400
-        assert post(mgr,'units/'+unit+'/hold',{'hold':'','reason':'Réserves traitées'}).status_code==200
+        # Lot 1 : la demande de sortie est réservée à l'exploitation / au responsable.
+        assert post(w1,'releases',{'unit_id':unit,'quantity':1}).status_code==403
+        assert post(mgr,'releases',{'unit_id':unit,'quantity':1}).status_code==400
+        # Lot 1 : levée réservée à l'exploitation ou à un utilisateur habilité par le Super Admin.
+        assert post(mgr,'units/'+unit+'/hold',{'hold':'','reason':'Réserves traitées'}).status_code==403
+        mgr_id=next(x['id'] for x in c.get('/api/users',headers=a).json() if x['username']=='manager1')
+        assert post(a,'users/'+mgr_id+'/permissions',{'can_lift_holds':True}).status_code==200
+        mgr=login('manager1','LongPassword12345!')
+        holds=[h for h in c.get('/api/units/'+unit+'/holds',headers=mgr).json() if not h['lifted_at']]
+        assert len(holds)==2  # écart quantité à la création + écart déclaré
+        for h in holds:
+            assert post(mgr,'holds/'+h['id']+'/lift',{'reason':'Réserves traitées'}).status_code==200
         assert c.put('/api/locations/AFR-R01-A1',headers=mgr,json={'capacity_kg':1000,'capacity_m3':10,'verified':True,'notes':'Plaque constructeur vérifiée'}).status_code==200
         version=next(x for x in c.get('/api/units',headers=a).json() if x['id']==unit)['version']
         assert post(w1,'move',{'unit_id':unit,'destination':'AFR-R01-A1','expected_version':version}).status_code==200

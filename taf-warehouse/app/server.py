@@ -8,14 +8,15 @@ from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, R
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal, Annotated
+from pydantic import StringConstraints
 from cryptography.fernet import Fernet, InvalidToken
 
 ROOT=Path(__file__).resolve().parent.parent
 DATA=Path(os.getenv('TAF_DATA_DIR',ROOT/'data')); DATA.mkdir(parents=True,exist_ok=True)
 UPLOAD=DATA/'uploads'; UPLOAD.mkdir(exist_ok=True)
 DB=DATA/'warehouse.sqlite3'
-app=FastAPI(title='TAF WAREHOUSE TEST API',version='4.0-security')
+app=FastAPI(title='TAF WAREHOUSE TEST API',version='4.5-lot1')
 PRODUCTION=os.getenv('TAF_ENV','test').lower()=='production'
 if PRODUCTION:
     raise RuntimeError('Production désactivée : SQLite local et authentification sans MFA ne sont pas homologués. Utiliser une infrastructure centralisée sécurisée.')
@@ -141,9 +142,12 @@ def init():
         CREATE TABLE IF NOT EXISTS rack_rules(location_id TEXT PRIMARY KEY, max_unit_kg REAL, max_unit_m3 REAL, max_units INTEGER, allowed_categories TEXT NOT NULL DEFAULT '[]', forbidden_categories TEXT NOT NULL DEFAULT '[]', verified_by TEXT NOT NULL, verified_at TEXT NOT NULL, FOREIGN KEY(location_id) REFERENCES locations(id));
         CREATE TABLE IF NOT EXISTS claim_actions(id TEXT PRIMARY KEY,claim_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(claim_id) REFERENCES claims(id));
         CREATE TABLE IF NOT EXISTS task_events(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(task_id) REFERENCES tasks(id));
+        CREATE TABLE IF NOT EXISTS unit_holds(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,kind TEXT NOT NULL,reason TEXT NOT NULL,ref TEXT,created TEXT NOT NULL,created_by TEXT NOT NULL,lifted_at TEXT,lifted_by TEXT,lift_reason TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
+        CREATE INDEX IF NOT EXISTS unit_holds_active ON unit_holds(unit_id) WHERE lifted_at IS NULL;
         """)
         for table,fields in {
-          'units': [('category',"TEXT NOT NULL DEFAULT 'general'")],
+          'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'")],
+          'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0')],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
@@ -155,6 +159,9 @@ def init():
         columns={r['name'] for r in c.execute('PRAGMA table_info(transfers)')}
         for column in ('approved_by','dispatched_by','dispatched_at','dispatch_note','driver_id','signature_name','signature_data','signature_at'):
             if column not in columns:c.execute(f'ALTER TABLE transfers ADD COLUMN {column} TEXT')
+        # Lot 1 : reprise des blocages texte V4.4 dans la table des blocages multiples.
+        for legacy in q(c,"SELECT id,hold FROM units WHERE hold!='' AND NOT EXISTS (SELECT 1 FROM unit_holds h WHERE h.unit_id=units.id AND h.lifted_at IS NULL)"):
+            c.execute('INSERT INTO unit_holds(id,unit_id,kind,reason,ref,created,created_by) VALUES(?,?,?,?,?,?,?)',(uid('HLD'),legacy['id'],'legacy',legacy['hold'],None,now(),'migration-lot1'))
         if not one(c,'SELECT id FROM users LIMIT 1'):
             initial=os.getenv('TAF_ADMIN_PASSWORD')
             if not initial:
@@ -162,7 +169,7 @@ def init():
                 (DATA/'INITIAL_ADMIN_PASSWORD.txt').write_text('Utilisateur: admin\nMot de passe initial: '+initial+'\nCHANGEZ-LE IMMÉDIATEMENT.\n')
                 try:os.chmod(DATA/'INITIAL_ADMIN_PASSWORD.txt',0o600)
                 except OSError:pass
-            c.execute('INSERT INTO users VALUES(?,?,?,?,?,1)',(uid('USR'),'admin',password_hash(initial),'superadmin',json.dumps(WAREHOUSES)))
+            c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),'admin',password_hash(initial),'superadmin',json.dumps(WAREHOUSES)))
             for name in ['CLIENT DEMO','CLIENT TEST']:
                 c.execute('INSERT INTO clients VALUES(?,?)',(uid('CLI'),name))
             for wh,code in zip(WAREHOUSES,['AFR','MAR','MO','TMS']):
@@ -181,7 +188,7 @@ class UserCreate(BaseModel):username:str;password:str=Field(min_length=12);role:
 class ClientCreate(BaseModel):name:str
 class LocationPatch(BaseModel):capacity_kg:Optional[float]=None;capacity_m3:Optional[float]=None;verified:bool=False;blocked:bool=False;notes:str=''
 class ReceiptCreate(BaseModel):warehouse:str;client_id:str;awb:str='';expected:int=Field(ge=0);actual:int=Field(ge=0);weight:float=Field(ge=0);notes:str=''
-class UnitCreate(BaseModel):receipt_id:str;description:str;quantity:int=Field(gt=0);weight:float=Field(ge=0);volume:Optional[float]=Field(default=None,ge=0);dimensions_ok:bool=False;category:str='general'
+class UnitCreate(BaseModel):receipt_id:str;description:str;quantity:int=Field(gt=0);weight:float=Field(ge=0);volume:Optional[float]=Field(default=None,ge=0);dimensions_ok:bool=False;category:str='general';unit_type:Literal['colis','palette']='palette'
 class Move(BaseModel):unit_id:str;destination:str;expected_version:int;reason:str='Rangement interne'
 class Hold(BaseModel):hold:str;reason:str
 class TransferCreate(BaseModel):unit_id:str;destination:str
@@ -207,17 +214,36 @@ class MissionPlan(BaseModel):priority:str='normal';due_at:Optional[str]=None;des
 class ClaimAction(BaseModel):action:str;note:str=Field(min_length=5)
 class UserStatus(BaseModel):active:bool
 class UserReset(BaseModel):password:str=Field(min_length=12)
+class UserPermissions(BaseModel):can_lift_holds:bool
+class HoldLift(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=1000)]
 
 def auth(authorization:Optional[str]=Header(None)):
     require(authorization and authorization.startswith('Bearer '),'Connexion requise',401)
     digest=hashlib.sha256(authorization[7:].encode()).hexdigest()
     with db() as c:
-        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
+        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
     require(u and u['active'],'Session expirée',401)
     u['warehouses']=json.loads(u['warehouses']);return u
 def role(u,*allowed):require(u['role'] in allowed or u['role']=='superadmin','Habilitation insuffisante',403)
 def access(u,wh):require(wh in u['warehouses'],'Accès entrepôt refusé',403)
 def warehouse(wh):require(wh in WAREHOUSES,'Entrepôt inconnu')
+def can_lift_holds(u):
+    """Règle TAF : levée par l'exploitation ou par un utilisateur habilité par le Super Admin."""
+    return u['role']=='exploitation' or bool(u.get('can_lift_holds'))
+def sync_hold(c,unit_id):
+    """Le champ units.hold reste le résumé des blocages actifs : tous les contrôles existants s'appuient dessus."""
+    active=q(c,'SELECT reason FROM unit_holds WHERE unit_id=? AND lifted_at IS NULL ORDER BY created,id',(unit_id,))
+    c.execute('UPDATE units SET hold=?,version=version+1 WHERE id=?',(' | '.join(x['reason'] for x in active)[:1000],unit_id))
+def add_hold(c,actor,unit_id,kind,reason,ref=None):
+    i=uid('HLD')
+    c.execute('INSERT INTO unit_holds(id,unit_id,kind,reason,ref,created,created_by) VALUES(?,?,?,?,?,?,?)',(i,unit_id,kind,reason,ref,now(),actor))
+    sync_hold(c,unit_id);audit(c,actor,'hold_add','unit',unit_id,{'hold_id':i,'kind':kind,'reason':reason,'ref':ref})
+    return i
+def lift_hold(c,u,hold,reason):
+    require(can_lift_holds(u),'Levée réservée à l’exploitation ou à un utilisateur habilité',403)
+    require(hold['lifted_at'] is None,'Blocage déjà levé',409)
+    c.execute('UPDATE unit_holds SET lifted_at=?,lifted_by=?,lift_reason=? WHERE id=?',(now(),u['username'],reason,hold['id']))
+    sync_hold(c,hold['unit_id']);audit(c,u['username'],'hold_lift','unit',hold['unit_id'],{'hold_id':hold['id'],'kind':hold['kind'],'reason':reason})
 def unit_access(c,u,unit_id):
     x=one(c,'SELECT * FROM units WHERE id=?',(unit_id,));require(x,'Unité introuvable',404);access(u,x['warehouse']);return x
 
@@ -375,13 +401,13 @@ def change_password(x:Password,u=Depends(auth)):
 @app.get('/api/users')
 def users(u=Depends(auth)):
     role(u,'admin');
-    with db() as c:return q(c,'SELECT id,username,role,warehouses,active FROM users ORDER BY username')
+    with db() as c:return q(c,'SELECT id,username,role,warehouses,active,can_lift_holds FROM users ORDER BY username')
 @app.post('/api/users')
 def create_user(x:UserCreate,u=Depends(auth)):
     role(u,'superadmin');require(x.role in ROLES,'Rôle invalide');require(x.warehouses and all(w in WAREHOUSES for w in x.warehouses),'Entrepôts invalides')
     with db() as c:
         password_policy(x.password)
-        try:c.execute('INSERT INTO users VALUES(?,?,?,?,?,1)',(uid('USR'),x.username,password_hash(x.password),x.role,json.dumps(x.warehouses)))
+        try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),x.username,password_hash(x.password),x.role,json.dumps(x.warehouses)))
         except sqlite3.IntegrityError:raise HTTPException(409,'Identifiant déjà utilisé')
         audit(c,u['username'],'create_user','user',x.username)
     return {'ok':True}
@@ -422,12 +448,23 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth)):
 def units(u=Depends(auth)):
     with db() as c:return q(c,'SELECT u.*,r.awb,c.name client FROM units u LEFT JOIN receipts r ON r.id=u.receipt_id LEFT JOIN clients c ON c.id=r.client_id WHERE u.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY u.id DESC',u['warehouses'])
 @app.post('/api/units')
-def create_unit(x:UnitCreate,u=Depends(auth)):
+def create_unit(x:UnitCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    require(x.unit_type=='palette' or x.quantity==1,'Une unité de type colis correspond à un seul colis')
     with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        replay,digest=replay_request(c,u['id'],'unit.create',idempotency_key,x.model_dump())
+        if replay is not None:return replay
         r=one(c,'SELECT * FROM receipts WHERE id=?',(x.receipt_id,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
-        i=uid('UNIT');c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status) VALUES(?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'available'))
-        event(c,u['username'],i,'receive',None,None,x.quantity,r['id']);c.execute('UPDATE units SET category=? WHERE id=?',(x.category.strip().lower() or 'general',i));audit(c,u['username'],'create','unit',i)
-    return {'id':i}
+        # Quantités initiales (mouvements de réception), indépendantes des sorties ultérieures.
+        registered=one(c,"SELECT COALESCE(SUM(m.quantity),0) n FROM movements m JOIN units x ON x.id=m.unit_id WHERE m.kind='receive' AND x.receipt_id=?",(r['id'],))['n']
+        require(registered+x.quantity<=r['actual'],f"Colis enregistrés ({registered}+{x.quantity}) supérieurs aux colis reçus ({r['actual']}) : signaler un écart de réception",409)
+        i=uid('UNIT');c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'available',x.category.strip().lower() or 'general',x.unit_type))
+        event(c,u['username'],i,'receive',None,None,x.quantity,r['id']);audit(c,u['username'],'create','unit',i,{'unit_type':x.unit_type,'quantity':x.quantity})
+        if r['status']=='discrepancy':
+            last=one(c,"SELECT id FROM receipt_discrepancies WHERE receipt_id=? ORDER BY created DESC,id DESC LIMIT 1",(r['id'],))
+            add_hold(c,u['username'],i,'ecart_reception','Écart réception '+(last['id'] if last else r['id']),last['id'] if last else r['id'])
+        response={'id':i};save_request(c,u['id'],'unit.create',idempotency_key,digest,response);c.commit()
+    return response
 @app.post('/api/move')
 def move(x:Move,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     with db() as c:
@@ -457,10 +494,33 @@ def move(x:Move,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias=
 def hold_unit(unit_id:str,x:Hold,u=Depends(auth)):
     role(u,'manager','exploitation','admin')
     with db() as c:
-        c.execute('BEGIN IMMEDIATE');unit=unit_access(c,u,unit_id)
-        require(not unit['hold'] or x.hold or u['role'] in ('superadmin','admin','manager'),'Levée non habilitée')
-        require(x.hold or x.reason.strip(),'Justification obligatoire pour lever un blocage')
-        c.execute('UPDATE units SET hold=?,version=version+1 WHERE id=?',(x.hold,unit_id));audit(c,u['username'],'hold_change','unit',unit_id,{'hold':x.hold,'reason':x.reason});c.commit()
+        c.execute('BEGIN IMMEDIATE');unit_access(c,u,unit_id)
+        require(x.reason.strip(),'Justification obligatoire')
+        if x.hold.strip():
+            add_hold(c,u['username'],unit_id,'manuel',x.hold.strip(),None)
+        else:
+            # Compatibilité V4.4 : levée sans identifiant seulement s'il n'existe qu'un blocage actif.
+            require(can_lift_holds(u),'Levée réservée à l’exploitation ou à un utilisateur habilité',403)
+            active=q(c,'SELECT * FROM unit_holds WHERE unit_id=? AND lifted_at IS NULL',(unit_id,))
+            require(active,'Aucun blocage actif',409)
+            require(len(active)==1,'Plusieurs blocages actifs : lever chacun individuellement',409)
+            lift_hold(c,u,active[0],x.reason.strip())
+        c.commit()
+    return {'ok':True}
+
+@app.get('/api/units/{unit_id}/holds')
+def unit_holds(unit_id:str,u=Depends(auth)):
+    with db() as c:
+        unit_access(c,u,unit_id)
+        return q(c,'SELECT * FROM unit_holds WHERE unit_id=? ORDER BY created,id',(unit_id,))
+
+@app.post('/api/holds/{hold_id}/lift')
+def lift_unit_hold(hold_id:str,x:HoldLift,u=Depends(auth)):
+    with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        hold=one(c,'SELECT * FROM unit_holds WHERE id=?',(hold_id,));require(hold,'Blocage introuvable',404)
+        unit_access(c,u,hold['unit_id'])
+        lift_hold(c,u,hold,x.reason);c.commit()
     return {'ok':True}
 @app.get('/api/movements')
 def movements(u=Depends(auth)):
@@ -645,7 +705,8 @@ def report_discrepancy(rid:str,x:DiscrepancyCreate,u=Depends(auth)):
         i=uid('ECART')
         c.execute('INSERT INTO receipt_discrepancies(id,receipt_id,warehouse,kind,expected,observed,description,status,created,reported_by) VALUES(?,?,?,?,?,?,?,?,?,?)',(i,rid,r['warehouse'],x.kind,r['expected'],r['actual'],x.description,'open',now(),u['username']))
         c.execute('UPDATE receipts SET status="discrepancy" WHERE id=?',(rid,))
-        c.execute('UPDATE units SET hold=CASE WHEN hold="" THEN "Écart réception " || ? ELSE hold END,version=version+1 WHERE receipt_id=?',(i,rid))
+        for held in q(c,"SELECT id FROM units WHERE receipt_id=? AND status NOT IN ('exited','depleted')",(rid,)):
+            add_hold(c,u['username'],held['id'],'ecart_reception','Écart réception '+i,i)
         audit(c,u['username'],'report_discrepancy','receipt',rid,{'discrepancy_id':i,'kind':x.kind})
         notify(c,r['warehouse'],'receipt',rid,'Écart de réception','Contrôle exploitation obligatoire.',u['username'])
         c.commit()
@@ -682,6 +743,7 @@ def releases(u=Depends(auth)):
     with db() as c:return q(c,'SELECT r.*,u.warehouse FROM releases r JOIN units u ON u.id=r.unit_id WHERE u.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY r.created DESC',u['warehouses'])
 @app.post('/api/releases')
 def create_release(x:ReleaseCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key")):
+    role(u,'exploitation','manager','admin')
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
         replay,digest=replay_request(c,u['id'],'release.create',idempotency_key,x.model_dump())
@@ -721,6 +783,7 @@ def authorize_release(rid:str,u=Depends(auth)):
     return {'ok':True}
 @app.post('/api/releases/{rid}/complete')
 def complete_release(rid:str,x:ReleaseComplete,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'worker','leader','manager','admin')
     with db() as c:
         c.execute('BEGIN IMMEDIATE');replay,digest=replay_request(c,u['id'],'release.complete',idempotency_key,{'ref':rid,'payload':x.model_dump()});
         if replay is not None:return replay
@@ -736,7 +799,11 @@ def complete_release(rid:str,x:ReleaseComplete,u=Depends(auth),idempotency_key:O
             raise HTTPException(400,'Signature PNG invalide')
         require(signature_bytes.startswith(b'\x89PNG\r\n\x1a\n') and 300<len(signature_bytes)<320000,'Image de signature invalide ou trop volumineuse')
         require(one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Chauffeur inconnu');require(unit['quantity']>=r['quantity'],'Quantité insuffisante')
-        c.execute('UPDATE units SET quantity=quantity-?,status=CASE WHEN quantity-?=0 THEN "exited" ELSE status END,version=version+1 WHERE id=?',(r['quantity'],r['quantity'],unit['id']))
+        remaining=unit['quantity']-r['quantity']
+        # Poids restant proportionnel au nombre de colis restants (volume conservé : estimation prudente).
+        new_weight=round(unit['weight']*remaining/unit['quantity'],3) if unit['quantity'] else 0
+        c.execute("UPDATE units SET quantity=?,weight=?,status=CASE WHEN ?=0 THEN 'exited' ELSE status END,version=version+1 WHERE id=?",(remaining,new_weight,remaining,unit['id']))
+        audit(c,u['username'],'weight_update','unit',unit['id'],{'release':rid,'weight_before':unit['weight'],'weight_after':new_weight,'method':'proportionnel'})
         c.execute("UPDATE releases SET status='completed',driver_id=?,signature_name=?,signature_data=?,completed=? WHERE id=?",(x.driver_id,x.signature_name,x.signature_data,now(),rid))
         event(c,u['username'],unit['id'],'exit',unit['location_id'],None,r['quantity'],rid);audit(c,u['username'],'handover','release',rid,{'driver':x.driver_id});notify(c,unit['warehouse'],'release',rid,'Sortie remise','Remise signée enregistrée.',u['username']);save_request(c,u['id'],'release.complete',idempotency_key,digest,{'ok':True});c.commit()
     return {'ok':True}
@@ -809,7 +876,7 @@ def create_incident(x:IncidentCreate,u=Depends(auth)):
             unit=unit_access(c,u,x.unit_id);require(unit['warehouse']==x.warehouse,'Entrepôt incohérent')
         i=uid('INC');c.execute('INSERT INTO incidents(id,warehouse,unit_id,location_id,category,severity,description,status,created,actor) VALUES(?,?,?,?,?,?,?,?,?,?)',(i,x.warehouse,x.unit_id,x.location_id,x.category,x.severity,x.description,'open',now(),u['username']))
         if x.unit_id and x.severity in ('major','critical'):
-            c.execute('UPDATE units SET hold=?,version=version+1 WHERE id=?',('Incident '+i,x.unit_id))
+            add_hold(c,u['username'],x.unit_id,'incident','Incident '+i,i)
         audit(c,u['username'],'declare','incident',i,{'severity':x.severity});notify(c,x.warehouse,'incident',i,'Incident '+x.severity,x.description[:350],u['username']);c.commit()
     return {'id':i}
 @app.post('/api/incidents/{iid}/update')
@@ -1050,6 +1117,15 @@ def user_status(userid:str,x:UserStatus,u=Depends(auth)):
         c.execute('UPDATE users SET active=? WHERE id=?',(int(x.active),userid))
         if not x.active:c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
         audit(c,u['username'],'user_status','user',userid,{'active':x.active});c.commit()
+    return {'ok':True}
+
+@app.post('/api/users/{userid}/permissions')
+def user_permissions(userid:str,x:UserPermissions,u=Depends(auth)):
+    require(u['role']=='superadmin','Réservé au Super Admin',403)
+    with db() as c:
+        c.execute('BEGIN IMMEDIATE');require(one(c,'SELECT id FROM users WHERE id=?',(userid,)),'Utilisateur inconnu',404)
+        c.execute('UPDATE users SET can_lift_holds=? WHERE id=?',(int(x.can_lift_holds),userid))
+        audit(c,u['username'],'user_permissions','user',userid,x.model_dump());c.commit()
     return {'ok':True}
 
 @app.post('/api/users/{userid}/reset-password')
