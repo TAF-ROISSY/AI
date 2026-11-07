@@ -320,6 +320,7 @@ Resources:
           TAF_DB_HOST=${Database.Endpoint.Address}
           TAF_DB_PORT=${Database.Endpoint.Port}
           TAF_DB_NAME=warehouse
+          TAF_CLIENT_IP_HEADER=x-taf-client-ip
           AWS_REGION=${AWS::Region}
           ENV
           cat > /usr/local/bin/taf-warehouse-deploy <<'DEPLOY'
@@ -400,9 +401,9 @@ Resources:
       PayloadFormatVersion: '1.0'
       TimeoutInMillis: 29000
       RequestParameters:
-        # Adresse IP reelle du client, non falsifiable (limitation des tentatives de connexion).
-        overwrite:header.X-Forwarded-For: $context.identity.sourceIp
-        overwrite:header.X-Forwarded-Proto: https
+        # Adresse IP reelle du client, toujours reecrite par la passerelle donc non falsifiable
+        # (X-Forwarded-For et X-Forwarded-Proto sont des en-tetes reserves d'API Gateway).
+        overwrite:header.X-Taf-Client-Ip: $context.identity.sourceIp
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:

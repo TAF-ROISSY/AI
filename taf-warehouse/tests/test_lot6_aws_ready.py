@@ -216,3 +216,13 @@ def test_mfa_mandatory_for_configured_roles(monkeypatch, tmp_path):
 def test_public_health_probe_reveals_nothing(env):
     r = env['c'].get('/healthz')
     assert r.status_code == 200 and r.json() == {'status': 'ok'}
+
+
+def test_rate_limit_uses_gateway_client_ip_header(monkeypatch, tmp_path):
+    """Derrière la passerelle AWS, chaque client réel est limité séparément, quel que soit X-Forwarded-For."""
+    server, c = boot(monkeypatch, tmp_path, TAF_CLIENT_IP_HEADER='X-Taf-Client-Ip')
+    bad = lambda i: {'username': f'inconnu{i}', 'password': 'mauvais'}  # identifiants distincts : seule la limite par IP joue
+    for i in range(15):
+        assert c.post('/api/login', json=bad(i), headers={'X-Taf-Client-Ip': '203.0.113.7', 'X-Forwarded-For': f'198.51.100.{i}'}).status_code == 401
+    assert c.post('/api/login', json=bad(99), headers={'X-Taf-Client-Ip': '203.0.113.7', 'X-Forwarded-For': '198.51.100.99'}).status_code == 429
+    assert c.post('/api/login', json=bad(100), headers={'X-Taf-Client-Ip': '203.0.113.8'}).status_code == 401

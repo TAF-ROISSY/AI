@@ -27,7 +27,7 @@ CloudWatch : journaux 90 jours, alarmes serveur et base → e-mail · AWS Budget
 | Élément | Choix et raison |
 |---|---|
 | Réseau | VPC dédié `10.42.0.0/16`. La base est dans deux sous-réseaux privés, sans route Internet. Le pare-feu de la base n'accepte que le serveur applicatif. |
-| Accès HTTPS | **API Gateway (HTTP API)** : adresse `execute-api` et certificat gérés par AWS, sans nom de domaine. Le lien privé (VPC Link + Cloud Map) mène au serveur. L'adresse IP réelle du client est transmise et ne peut pas être falsifiée. Limitation à 50 requêtes/s (pointes à 100). Journal d'accès de 90 jours. Requêtes limitées à 10 Mo par AWS, d'où une limite de 9 Mo par fichier dans l'application. |
+| Accès HTTPS | **API Gateway (HTTP API)** : adresse `execute-api` et certificat gérés par AWS, sans nom de domaine. Le lien privé (VPC Link + Cloud Map) mène au serveur. L'adresse IP réelle du client est transmise dans l'en-tête `X-Taf-Client-Ip`, que la passerelle réécrit toujours : elle ne peut donc pas être falsifiée. `X-Forwarded-For` et `X-Forwarded-Proto` sont réservés par API Gateway et ne peuvent pas être modifiés. Limitation à 50 requêtes/s (pointes à 100). Journal d'accès de 90 jours. Requêtes limitées à 10 Mo par AWS, d'où une limite de 9 Mo par fichier dans l'application. |
 | Serveur | `t3.small` (modifiable). **Aucun port ouvert sur Internet** : seul le lien privé de la passerelle atteint l'application. Disque chiffré, IMDSv2 obligatoire. Pas de SSH : l'administration passe par AWS Systems Manager. Redémarrage automatique en cas de panne matérielle. |
 | Base | RDS PostgreSQL 16.9, `db.t4g.micro`. Chiffrée, TLS imposé (`rds.force_ssl`). Mot de passe géré et renouvelé par RDS. Sauvegardes automatiques 14 jours avec restauration à un instant précis. Protection contre la suppression ; instantané conservé si la pile est supprimée. |
 | Documents | Bucket S3 privé : accès public bloqué, chiffrement, versionnage, HTTPS obligatoire. Conservé même si la pile est supprimée. |
@@ -94,7 +94,7 @@ unset KEY CUR NEW
 
 ### 3. Construire et publier l'image
 ```bash
-VERSION=4.11.0; REPO=<RepositoryUri>
+VERSION=4.11.1; REPO=<RepositoryUri>
 docker build -t "$REPO:$VERSION" .
 aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin "${REPO%%/*}"
 docker push "$REPO:$VERSION"
@@ -104,7 +104,7 @@ Derrière un proxy d'entreprise, ajouter `--secret id=ca,src=<certificat.pem>` �
 ### 4. Démarrer l'application
 Dans la console EC2, ouvrir le serveur `taf-warehouse-recette` puis **Se connecter → Session Manager** :
 ```bash
-sudo taf-warehouse-deploy 4.11.0
+sudo taf-warehouse-deploy 4.11.1
 ```
 Le script attend que l'application soit saine et s'arrête en erreur si ce n'est pas le cas. L'application est ensuite accessible à l'adresse `Url`.
 

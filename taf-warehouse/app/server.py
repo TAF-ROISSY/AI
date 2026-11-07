@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.11-lot7',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.11.1',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -99,6 +99,15 @@ def recovery_hash(user_id,code):
     normalized=code.strip().replace('-','').upper()
     return hashlib.sha256((user_id+':'+normalized).encode()).hexdigest()
 
+# Adresse IP du client pour la limitation des tentatives. Derrière la passerelle AWS, l'en-tête
+# TAF_CLIENT_IP_HEADER est toujours réécrit par la passerelle (non falsifiable) ; X-Forwarded-For,
+# complété et non remplacé par AWS, ne l'est pas. Sans passerelle : adresse de la connexion.
+CLIENT_IP_HEADER=os.getenv('TAF_CLIENT_IP_HEADER','').strip().lower()
+def client_ip(request):
+    if CLIENT_IP_HEADER:
+        value=request.headers.get(CLIENT_IP_HEADER,'').strip()
+        if value:return value[:64]
+    return request.client.host if request.client else 'unknown'
 _login_attempts=defaultdict(deque)
 _login_lock=threading.Lock()
 
@@ -481,7 +490,7 @@ def mfa_status(u=Depends(auth)):
 def login(x:Login,request:Request):
     # Double limitation : IP locale en mémoire et compte persistant dans SQLite.
     # Le verrou compte survit au redémarrage du serveur pilote.
-    key=request.client.host if request.client else 'unknown'
+    key=client_ip(request)
     with _login_lock:
         attempts=_login_attempts[key]
         while attempts and attempts[0] < time.monotonic()-300:attempts.popleft()
