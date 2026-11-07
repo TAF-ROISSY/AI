@@ -1,0 +1,458 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  TAF WAREHOUSE - installation autonome (serveur EC2 + Docker/Caddy, PostgreSQL RDS, S3 prive,
+  Secrets Manager, alarmes, budget). Aucune ressource TAF OPS n'est referencee ni modifiee.
+  NE PAS DEPLOYER sans accord ecrit de TAF : ce modele cree des ressources payantes.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    AllowedValues: [recette, production]
+    Default: recette
+  DomainName:
+    Type: String
+    Description: Nom complet publie (ex. warehouse.exemple.fr). Enregistrement DNS A vers l'IP publique en sortie.
+    AllowedPattern: '^[a-z0-9.-]+\.[a-z]{2,}$'
+  AlertEmail:
+    Type: String
+    Description: Adresse qui recoit alarmes et alertes budgetaires (confirmation SNS a valider).
+    AllowedPattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+  MonthlyBudgetUSD:
+    Type: Number
+    Default: 60
+    MinValue: 10
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium]
+  DBMultiAZ:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  BackupRetentionDays:
+    Type: Number
+    Default: 14
+    MinValue: 7
+    MaxValue: 35
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  # ---------------------------------------------------------------- Reseau dedie
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}'}
+        - {Key: Application, Value: taf-warehouse}
+        - {Key: Environment, Value: !Ref EnvironmentName}
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+        - {Key: Environment, Value: !Ref EnvironmentName}
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway}
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}-public'}
+        - {Key: Application, Value: taf-warehouse}
+  DbSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.11.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}-db-a'}
+        - {Key: Application, Value: taf-warehouse}
+  DbSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.12.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}-db-b'}
+        - {Key: Application, Value: taf-warehouse}
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: {RouteTableId: !Ref PublicRouteTable, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway}
+  PublicSubnetRoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicSubnet, RouteTableId: !Ref PublicRouteTable}
+  # Sous-reseaux base : aucune route vers Internet.
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: TAF WAREHOUSE - HTTPS public (HTTP uniquement pour la redirection et le certificat)
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS}
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: Redirection HTTPS et certificat}
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: TAF WAREHOUSE - PostgreSQL joignable uniquement depuis le serveur applicatif
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 5432, ToPort: 5432, SourceSecurityGroupId: !Ref WebSecurityGroup, Description: Serveur applicatif}
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+
+  # ---------------------------------------------------------------- Stockage des documents
+  DocumentsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'taf-warehouse-${EnvironmentName}-documents-${AWS::AccountId}'
+      OwnershipControls:
+        Rules: [{ObjectOwnership: BucketOwnerEnforced}]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      VersioningConfiguration: {Status: Enabled}
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+        - {Key: Environment, Value: !Ref EnvironmentName}
+  DocumentsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DocumentsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: TlsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt DocumentsBucket.Arn, !Sub '${DocumentsBucket.Arn}/*']
+            Condition: {Bool: {'aws:SecureTransport': 'false'}}
+
+  # ---------------------------------------------------------------- Secrets
+  AppSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub 'taf-warehouse/${EnvironmentName}/app'
+      Description: >-
+        TAF WAREHOUSE - mot de passe initial du Super Admin (genere). Ajouter TAF_MFA_ENCRYPTION_KEY
+        (cle Fernet) avant le premier demarrage : voir DEPLOIEMENT_AWS.md.
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: TAF_ADMIN_PASSWORD
+        PasswordLength: 28
+        RequireEachIncludedType: true
+        ExcludeCharacters: '"''\/@`'
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+
+  # ---------------------------------------------------------------- Base PostgreSQL
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: TAF WAREHOUSE - sous-reseaux prives de la base
+      SubnetIds: [!Ref DbSubnetA, !Ref DbSubnetB]
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  DbParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: TAF WAREHOUSE - connexions chiffrees obligatoires
+      Family: postgres16
+      Parameters:
+        rds.force_ssl: '1'
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub 'taf-warehouse-${EnvironmentName}'
+      Engine: postgres
+      EngineVersion: '16.9'
+      DBInstanceClass: !Ref DBInstanceClass
+      DBName: warehouse
+      MasterUsername: taf_app
+      ManageMasterUserPassword: true
+      AllocatedStorage: '20'
+      MaxAllocatedStorage: 100
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: !Ref DBMultiAZ
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      DBParameterGroupName: !Ref DbParameterGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      PreferredBackupWindow: '01:00-02:00'
+      PreferredMaintenanceWindow: 'sun:02:30-sun:03:30'
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+        - {Key: Environment, Value: !Ref EnvironmentName}
+
+  # ---------------------------------------------------------------- Images applicatives
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'taf-warehouse-${EnvironmentName}'
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: {ScanOnPush: true}
+      LifecyclePolicy:
+        LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"Conserver les 15 dernieres versions","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":15},"action":{"type":"expire"}}]}'
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+
+  # ---------------------------------------------------------------- Serveur applicatif
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/taf-warehouse/${EnvironmentName}/app'
+      RetentionInDays: 90
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: TAF WAREHOUSE - droits minimaux du serveur applicatif
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - {Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: 'sts:AssumeRole'}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore   # administration sans SSH
+      Policies:
+        - PolicyName: taf-warehouse-app
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject']
+                Resource: !Sub '${DocumentsBucket.Arn}/documents/*'
+              - Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !GetAtt DocumentsBucket.Arn
+              - Effect: Allow
+                Action: 'secretsmanager:GetSecretValue'
+                Resource: [!Ref AppSecret, !GetAtt Database.MasterUserSecret.SecretArn]
+              - Effect: Allow
+                Action: 'ecr:GetAuthorizationToken'
+                Resource: '*'
+              - Effect: Allow
+                Action: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchCheckLayerAvailability']
+                Resource: !GetAtt Repository.Arn
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents', 'logs:DescribeLogStreams']
+                Resource: !Sub '${AppLogGroup.Arn}:*'
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: {Roles: [!Ref InstanceRole]}
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WebSecurityGroup]
+      MetadataOptions: {HttpTokens: required, HttpPutResponseHopLimit: 2}
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs: {VolumeSize: 20, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          dnf install -y docker
+          systemctl enable --now docker
+          install -d -m 0750 /etc/taf-warehouse
+          cat > /etc/taf-warehouse/app.env <<'ENV'
+          TAF_ENV=production
+          TAF_STORAGE=s3
+          TAF_S3_BUCKET=${DocumentsBucket}
+          TAF_S3_PREFIX=documents/
+          TAF_SECRETS_ARN=${AppSecret}
+          TAF_DB_SECRET_ARN=${Database.MasterUserSecret.SecretArn}
+          TAF_DB_HOST=${Database.Endpoint.Address}
+          TAF_DB_PORT=${Database.Endpoint.Port}
+          TAF_DB_NAME=warehouse
+          AWS_REGION=${AWS::Region}
+          ENV
+          cat > /etc/taf-warehouse/Caddyfile <<'CADDY'
+          ${DomainName} {
+            encode gzip
+            header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+            request_body { max_size 12MB }
+            reverse_proxy app:8765
+          }
+          CADDY
+          cat > /usr/local/bin/taf-warehouse-deploy <<'DEPLOY'
+          #!/bin/bash
+          # Usage : sudo taf-warehouse-deploy <version>   (ex. 4.11.0) — retour arriere : relancer avec la version precedente.
+          set -euo pipefail
+          TAG="$1"; REPO="${Repository.RepositoryUri}"
+          aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+          docker pull "$REPO:$TAG"
+          docker network inspect taf >/dev/null 2>&1 || docker network create taf
+          docker rm -f app >/dev/null 2>&1 || true
+          docker run -d --name app --network taf --restart unless-stopped --env-file /etc/taf-warehouse/app.env \
+            --log-driver awslogs --log-opt awslogs-region=${AWS::Region} --log-opt awslogs-group=${AppLogGroup} --log-opt awslogs-stream=app \
+            "$REPO:$TAG"
+          for i in $(seq 1 30); do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' app)" = healthy ]; then break; fi; sleep 3
+          done
+          [ "$(docker inspect -f '{{.State.Health.Status}}' app)" = healthy ] || { echo "ECHEC : application non saine, revenir a la version precedente"; exit 1; }
+          if ! docker inspect caddy >/dev/null 2>&1; then
+            docker run -d --name caddy --network taf --restart unless-stopped -p 80:80 -p 443:443 \
+              -v /etc/taf-warehouse/Caddyfile:/etc/caddy/Caddyfile:ro -v caddy_data:/data -v caddy_config:/config \
+              --log-driver awslogs --log-opt awslogs-region=${AWS::Region} --log-opt awslogs-group=${AppLogGroup} --log-opt awslogs-stream=caddy \
+              public.ecr.aws/docker/library/caddy:2.8.4-alpine
+          fi
+          echo "$TAG" > /etc/taf-warehouse/current-version
+          echo "TAF WAREHOUSE $TAG en service."
+          DEPLOY
+          chmod 0750 /usr/local/bin/taf-warehouse-deploy
+      Tags:
+        - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}'}
+        - {Key: Application, Value: taf-warehouse}
+        - {Key: Environment, Value: !Ref EnvironmentName}
+  PublicAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref AppServer
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+
+  # ---------------------------------------------------------------- Surveillance et budget
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'taf-warehouse-${EnvironmentName}-alertes'
+      Subscription: [{Protocol: email, Endpoint: !Ref AlertEmail}]
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  ServerRecoveryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Serveur TAF WAREHOUSE en panne materielle - redemarrage automatique sur un autre hote
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Dimensions: [{Name: InstanceId, Value: !Ref AppServer}]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions: [!Sub 'arn:aws:automate:${AWS::Region}:ec2:recover', !Ref AlertTopic]
+  ServerStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Serveur TAF WAREHOUSE injoignable (controle instance)
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_Instance
+      Dimensions: [{Name: InstanceId, Value: !Ref AppServer}]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions: [!Ref AlertTopic]
+  DbStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Espace disque PostgreSQL inferieur a 3 Go
+      Namespace: AWS/RDS
+      MetricName: FreeStorageSpace
+      Dimensions: [{Name: DBInstanceIdentifier, Value: !Ref Database}]
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3000000000
+      ComparisonOperator: LessThanThreshold
+      AlarmActions: [!Ref AlertTopic]
+  DbCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: PostgreSQL CPU > 80 % pendant 15 minutes
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions: [{Name: DBInstanceIdentifier, Value: !Ref Database}]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref AlertTopic]
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub 'taf-warehouse-${EnvironmentName}'
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: {Amount: !Ref MonthlyBudgetUSD, Unit: USD}
+        CostFilters:
+          TagKeyValue: ['user:Application$taf-warehouse']
+      NotificationsWithSubscribers:
+        - Notification: {NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 80, ThresholdType: PERCENTAGE}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref AlertEmail}]
+        - Notification: {NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref AlertEmail}]
+
+Outputs:
+  PublicIp:
+    Description: Creer l'enregistrement DNS A de DomainName vers cette adresse
+    Value: !Ref PublicAddress
+  Url:
+    Value: !Sub 'https://${DomainName}'
+  RepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri
+  DocumentsBucketName:
+    Value: !Ref DocumentsBucket
+  AppSecretArn:
+    Value: !Ref AppSecret
+  DatabaseEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  ServerInstanceId:
+    Description: Administration via AWS Systems Manager Session Manager (aucun acces SSH ouvert)
+    Value: !Ref AppServer

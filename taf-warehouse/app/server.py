@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.10-lot6',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.11-lot7',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -540,6 +540,15 @@ def logout(authorization:Optional[str]=Header(None),u=Depends(auth)):
         c.execute('DELETE FROM sessions WHERE tokenhash=?',(digest,))
         audit(c,u['username'],'logout','session',u['id'])
     return {'ok':True}
+
+@app.get('/healthz')
+def healthz():
+    """Sonde publique minimale pour l'équilibreur / Docker : aucune information interne."""
+    try:
+        with db() as c:c.execute('SELECT 1').fetchone()
+    except Exception:
+        raise HTTPException(503,'indisponible')
+    return {'status':'ok'}
 
 @app.get('/api/health')
 def health(u=Depends(auth)):

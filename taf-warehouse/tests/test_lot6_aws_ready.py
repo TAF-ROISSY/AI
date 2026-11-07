@@ -211,3 +211,8 @@ def test_mfa_mandatory_for_configured_roles(monkeypatch, tmp_path):
     data, h = login(c, 'expl', otp=code)
     assert data['mfa_setup_required'] is False
     assert c.get('/api/units', headers=h).status_code == 200
+
+
+def test_public_health_probe_reveals_nothing(env):
+    r = env['c'].get('/healthz')
+    assert r.status_code == 200 and r.json() == {'status': 'ok'}

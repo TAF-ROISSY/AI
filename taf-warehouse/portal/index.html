@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YiSRTzJxRlWmUssxk3T0QeVb3pszdKle0Q+yh7NbjJU='; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Portail TAF</title>
+<style>
+  /* Portail TAF : page statique indépendante. Elle ne contient aucun lien technique avec
+     les applications : elle ne fait qu'orienter vers TAF OPS ou TAF WAREHOUSE. */
+  :root{--navy:#0f2b47;--blue:#1f6fa8;--ink:#1b2733;--muted:#5b6b7a;--bg:#f3f6f9;--card:#fff;--line:#d6dee6;--ring:#1f6fa8}
+  @media (prefers-color-scheme:dark){:root{--ink:#e7eef5;--muted:#9fb0c0;--bg:#0b1a2a;--card:#11263b;--line:#24425f;--ring:#69b8eb}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
+  header{background:var(--navy);color:#fff;padding:28px 16px 34px}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand b{font-size:28px;letter-spacing:.5px}
+  .brand span{font-size:12px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+  header h1{margin:14px 0 4px;font-size:22px;font-weight:600}
+  header p{margin:0;opacity:.8;font-size:15px}
+  main{flex:1;padding:28px 0 40px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+  a.tile{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;text-decoration:none;color:inherit;min-height:220px;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+  a.tile:hover{transform:translateY(-2px);box-shadow:0 12px 32px #0f2b4722;border-color:var(--ring)}
+  a.tile:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+  .icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--navy);color:#fff}
+  .icon svg{width:28px;height:28px}
+  .tile h2{margin:0;font-size:21px}
+  .tile p{margin:0;color:var(--muted);font-size:15px;flex:1}
+  .go{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;background:var(--blue);color:#fff;border-radius:10px;padding:11px 18px;font-weight:600;font-size:15px;min-height:44px}
+  .note{margin-top:22px;color:var(--muted);font-size:13px}
+  footer{color:var(--muted);font-size:12px;padding:16px 0 24px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><b>TAF</b><span>Trans Air Freight</span></div>
+    <h1>Portail des applications</h1>
+    <p>Choisissez l’application à ouvrir.</p>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="grid">
+      <a class="tile" id="tile-ops" href="#" rel="noopener">
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16l20-6-9 9-2-5-5-2"/><path d="M2 21h20"/></svg></div>
+        <h2>TAF OPS</h2>
+        <p>Dossiers, tour de contrôle, documents, facturation et suivi des expéditions.</p>
+        <span class="go">Ouvrir TAF OPS <span aria-hidden="true">→</span></span>
+      </a>
+      <a class="tile" id="tile-warehouse" href="#" rel="noopener">
+        <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-7h10v7"/><path d="M7 17h10"/></svg></div>
+        <h2>TAF WAREHOUSE</h2>
+        <p>Réceptions, stock et emplacements, transferts, sorties signées, inventaires et incidents des entrepôts.</p>
+        <span class="go">Ouvrir TAF WAREHOUSE <span aria-hidden="true">→</span></span>
+      </a>
+    </div>
+    <p class="note">Chaque application a sa propre connexion et ses propres accès. En cas de doute sur un lien reçu, passez toujours par ce portail.</p>
+  </div>
+</main>
+<footer>TRANS AIR FREIGHT · Usage interne</footer>
+<!-- Adresses à renseigner au déploiement (aucune autre configuration). -->
+<script>
+  const LINKS = {
+    ops: 'https://TAF-OPS.A-RENSEIGNER',
+    warehouse: 'https://WAREHOUSE.A-RENSEIGNER'
+  };
+  for (const [key, url] of Object.entries(LINKS)) {
+    const a = document.getElementById('tile-' + key);
+    if (/^https:\/\/[^\s]+$/.test(url) && !url.includes('A-RENSEIGNER')) a.href = url;
+    else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); a.style.opacity = .55; a.querySelector('.go').textContent = 'Adresse à configurer'; }
+  }
+</script>
+</body>
+</html>

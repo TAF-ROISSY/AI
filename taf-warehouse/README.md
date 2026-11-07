@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.10
+# TAF WAREHOUSE — TEST V4.11
+
+> **V4.11 (lot 7, image Docker, infrastructure AWS, portail)** : voir `DEPLOIEMENT_AWS.md`. Rien n'est déployé.
 
 > **V4.10 (lot 6, prêt pour AWS : S3, secrets, production, double authentification)** : voir `LOT6_PRET_AWS.md`.
 
