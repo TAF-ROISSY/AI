@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.5
+# TAF WAREHOUSE — TEST V4.6
+
+> **V4.6 (lot 2, fiabilité)** : voir `LOT2_FIABILITE.md`.
 
 > **V4.5 (lot 1, intégrité du stock)** : voir `LOT1_INTEGRITE_STOCK.md`. Version de recette locale, non homologuée pour la production.
 

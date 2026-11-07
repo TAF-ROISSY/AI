@@ -7,55 +7,9 @@ fixe la règle métier validée par TAF :
   habilité par le Super Admin (permission « lever les blocages ») ;
 - le demandeur d'une sortie peut aussi l'autoriser.
 """
-import base64, importlib, io, os, tempfile
 import pytest
-from fastapi.testclient import TestClient
-from PIL import Image, ImageDraw
 
-PWD = 'TestPassword12345!'
-
-
-@pytest.fixture
-def env():
-    with tempfile.TemporaryDirectory() as tmp:
-        os.environ['TAF_DATA_DIR'] = tmp
-        os.environ['TAF_ADMIN_PASSWORD'] = PWD
-        from app import server
-        importlib.reload(server)
-        c = TestClient(server.app)
-
-        def login(name):
-            r = c.post('/api/login', json={'username': name, 'password': PWD})
-            assert r.status_code == 200, r.text
-            return {'Authorization': 'Bearer ' + r.json()['token']}
-
-        admin = login('admin')
-        for name, role in [('expl', 'exploitation'), ('expl2', 'exploitation'), ('mag', 'worker'), ('resp', 'manager')]:
-            r = c.post('/api/users', headers=admin, json={'username': name, 'password': PWD, 'role': role, 'warehouses': ['Afrique']})
-            assert r.status_code == 200, r.text
-        h = {'admin': admin, **{n: login(n) for n in ('expl', 'expl2', 'mag', 'resp')}}
-        client_id = c.get('/api/clients', headers=admin).json()[0]['id']
-
-        def receipt(expected=4, actual=4):
-            r = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': client_id, 'expected': expected, 'actual': actual, 'weight': 400})
-            assert r.status_code == 200, r.text
-            return r.json()['id']
-
-        def unit(rec, quantity=4, weight=400, who='mag', headers=None, **extra):
-            body = {'receipt_id': rec, 'description': 'Palette', 'quantity': quantity, 'weight': weight, 'volume': 1, 'dimensions_ok': True, **extra}
-            return c.post('/api/units', headers={**h[who], **(headers or {})}, json=body)
-
-        def get_unit(uid_):
-            return next(x for x in c.get('/api/units', headers=admin).json() if x['id'] == uid_)
-
-        yield {'c': c, 'h': h, 'server': server, 'receipt': receipt, 'unit': unit, 'get_unit': get_unit}
-
-
-def signature():
-    img = Image.new('RGB', (400, 140), 'white')
-    ImageDraw.Draw(img).line([(15, 90), (70, 45), (150, 100), (260, 30), (380, 85)], fill='black', width=5)
-    bio = io.BytesIO(); img.save(bio, format='PNG')
-    return 'data:image/png;base64,' + base64.b64encode(bio.getvalue()).decode()
+from helpers import signature
 
 
 # --- A. Création d'unités : anti-doublon et cohérence avec la réception ---
