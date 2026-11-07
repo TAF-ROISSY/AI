@@ -1235,7 +1235,8 @@ def doc_access(c,u,kind,ref):
 @app.post('/api/documents/{kind}/{ref}')
 async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
     with db() as c:doc_access(c,u,kind,ref)
-    raw=await file.read(10*1024*1024+1);require(len(raw)<=10*1024*1024,'Fichier supérieur à 10 Mo')
+    # 9 Mo : la passerelle HTTPS d'AWS limite chaque requête à 10 Mo (fichier + enveloppe multipart).
+    raw=await file.read(9*1024*1024+1);require(len(raw)<=9*1024*1024,'Fichier supérieur à 9 Mo : réduire la taille ou la résolution de la photo')
     require(raw[:4]==b'%PDF' or raw[:3]==b'\xff\xd8\xff' or raw[:8]==b'\x89PNG\r\n\x1a\n','PDF, JPG ou PNG uniquement')
     ext='.pdf' if raw[:4]==b'%PDF' else ('.png' if raw[:8]==b'\x89PNG\r\n\x1a\n' else '.jpg')
     i=uid('DOC');ref_path=store_ref(i+ext);mime={'.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg'}[ext]

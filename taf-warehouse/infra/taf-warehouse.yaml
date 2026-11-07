@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  TAF WAREHOUSE - installation autonome (serveur EC2 + Docker/Caddy, PostgreSQL RDS, S3 prive,
-  Secrets Manager, alarmes, budget). Aucune ressource TAF OPS n'est referencee ni modifiee.
+  TAF WAREHOUSE - installation autonome (adresse HTTPS fournie par AWS via API Gateway, serveur EC2 + Docker
+  joignable uniquement par lien prive, PostgreSQL RDS, S3 prive, Secrets Manager, alarmes, budget).
+  Aucune ressource TAF OPS n'est referencee ni modifiee.
   NE PAS DEPLOYER sans accord ecrit de TAF : ce modele cree des ressources payantes.
 
 Parameters:
@@ -9,10 +10,6 @@ Parameters:
     Type: String
     AllowedValues: [recette, production]
     Default: recette
-  DomainName:
-    Type: String
-    Description: Nom complet publie (ex. warehouse.exemple.fr). Enregistrement DNS A vers l'IP publique en sortie.
-    AllowedPattern: '^[a-z0-9.-]+\.[a-z]{2,}$'
   AlertEmail:
     Type: String
     Description: Adresse qui recoit alarmes et alertes budgetaires (confirmation SNS a valider).
@@ -69,7 +66,7 @@ Resources:
       VpcId: !Ref Vpc
       CidrBlock: 10.42.1.0/24
       AvailabilityZone: !Select [0, !GetAZs '']
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true   # sortie Internet du serveur (ECR, S3, secrets) ; aucune entree publique
       Tags:
         - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}-public'}
         - {Key: Application, Value: taf-warehouse}
@@ -106,14 +103,20 @@ Resources:
     Properties: {SubnetId: !Ref PublicSubnet, RouteTableId: !Ref PublicRouteTable}
   # Sous-reseaux base : aucune route vers Internet.
 
+  VpcLinkSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: TAF WAREHOUSE - lien prive de la passerelle HTTPS AWS
+      VpcId: !Ref Vpc
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: TAF WAREHOUSE - HTTPS public (HTTP uniquement pour la redirection et le certificat)
+      GroupDescription: TAF WAREHOUSE - application joignable uniquement par la passerelle HTTPS (aucun acces public)
       VpcId: !Ref Vpc
       SecurityGroupIngress:
-        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS}
-        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: Redirection HTTPS et certificat}
+        - {IpProtocol: tcp, FromPort: 8765, ToPort: 8765, SourceSecurityGroupId: !Ref VpcLinkSecurityGroup, Description: Passerelle API Gateway}
       Tags:
         - {Key: Application, Value: taf-warehouse}
   DbSecurityGroup:
@@ -317,14 +320,6 @@ Resources:
           TAF_DB_NAME=warehouse
           AWS_REGION=${AWS::Region}
           ENV
-          cat > /etc/taf-warehouse/Caddyfile <<'CADDY'
-          ${DomainName} {
-            encode gzip
-            header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-            request_body { max_size 12MB }
-            reverse_proxy app:8765
-          }
-          CADDY
           cat > /usr/local/bin/taf-warehouse-deploy <<'DEPLOY'
           #!/bin/bash
           # Usage : sudo taf-warehouse-deploy <version>   (ex. 4.11.0) — retour arriere : relancer avec la version precedente.
@@ -334,19 +329,13 @@ Resources:
           docker pull "$REPO:$TAG"
           docker network inspect taf >/dev/null 2>&1 || docker network create taf
           docker rm -f app >/dev/null 2>&1 || true
-          docker run -d --name app --network taf --restart unless-stopped --env-file /etc/taf-warehouse/app.env \
+          docker run -d --name app --network taf --restart unless-stopped -p 8765:8765 --env-file /etc/taf-warehouse/app.env \
             --log-driver awslogs --log-opt awslogs-region=${AWS::Region} --log-opt awslogs-group=${AppLogGroup} --log-opt awslogs-stream=app \
             "$REPO:$TAG"
           for i in $(seq 1 30); do
             if [ "$(docker inspect -f '{{.State.Health.Status}}' app)" = healthy ]; then break; fi; sleep 3
           done
           [ "$(docker inspect -f '{{.State.Health.Status}}' app)" = healthy ] || { echo "ECHEC : application non saine, revenir a la version precedente"; exit 1; }
-          if ! docker inspect caddy >/dev/null 2>&1; then
-            docker run -d --name caddy --network taf --restart unless-stopped -p 80:80 -p 443:443 \
-              -v /etc/taf-warehouse/Caddyfile:/etc/caddy/Caddyfile:ro -v caddy_data:/data -v caddy_config:/config \
-              --log-driver awslogs --log-opt awslogs-region=${AWS::Region} --log-opt awslogs-group=${AppLogGroup} --log-opt awslogs-stream=caddy \
-              public.ecr.aws/docker/library/caddy:2.8.4-alpine
-          fi
           echo "$TAG" > /etc/taf-warehouse/current-version
           echo "TAF WAREHOUSE $TAG en service."
           DEPLOY
@@ -355,13 +344,90 @@ Resources:
         - {Key: Name, Value: !Sub 'taf-warehouse-${EnvironmentName}'}
         - {Key: Application, Value: taf-warehouse}
         - {Key: Environment, Value: !Ref EnvironmentName}
-  PublicAddress:
-    Type: AWS::EC2::EIP
+
+  # ---------------------------------------------------------------- Adresse HTTPS fournie par AWS
+  # API Gateway (HTTP API) : certificat gere par AWS, lien prive (VPC Link) vers le serveur.
+  ServiceNamespace:
+    Type: AWS::ServiceDiscovery::HttpNamespace
     Properties:
-      Domain: vpc
-      InstanceId: !Ref AppServer
+      Name: !Sub 'taf-warehouse-${EnvironmentName}'
       Tags:
         - {Key: Application, Value: taf-warehouse}
+  AppService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: app
+      NamespaceId: !Ref ServiceNamespace
+      Type: HTTP
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  AppServiceInstance:
+    Type: AWS::ServiceDiscovery::Instance
+    Properties:
+      ServiceId: !Ref AppService
+      InstanceId: app-server
+      InstanceAttributes:
+        AWS_INSTANCE_IPV4: !GetAtt AppServer.PrivateIp
+        AWS_INSTANCE_PORT: '8765'
+  VpcLink:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties:
+      Name: !Sub 'taf-warehouse-${EnvironmentName}'
+      SubnetIds: [!Ref PublicSubnet]
+      SecurityGroupIds: [!Ref VpcLinkSecurityGroup]
+      Tags:
+        Application: taf-warehouse
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub 'taf-warehouse-${EnvironmentName}'
+      ProtocolType: HTTP
+      DisableExecuteApiEndpoint: false
+      Tags:
+        Application: taf-warehouse
+        Environment: !Ref EnvironmentName
+  AppIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      IntegrationUri: !GetAtt AppService.Arn
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref VpcLink
+      PayloadFormatVersion: '1.0'
+      TimeoutInMillis: 29000
+      RequestParameters:
+        # Adresse IP reelle du client, non falsifiable (limitation des tentatives de connexion).
+        overwrite:header.X-Forwarded-For: $context.identity.sourceIp
+        overwrite:header.X-Forwarded-Proto: https
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: $default
+      Target: !Sub 'integrations/${AppIntegration}'
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/taf-warehouse/${EnvironmentName}/acces'
+      RetentionInDays: 90
+      Tags:
+        - {Key: Application, Value: taf-warehouse}
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latency":"$context.responseLatency","integrationStatus":"$context.integrationStatus"}'
+      Tags:
+        Application: taf-warehouse
 
   # ---------------------------------------------------------------- Surveillance et budget
   AlertTopic:
@@ -440,11 +506,9 @@ Resources:
           Subscribers: [{SubscriptionType: EMAIL, Address: !Ref AlertEmail}]
 
 Outputs:
-  PublicIp:
-    Description: Creer l'enregistrement DNS A de DomainName vers cette adresse
-    Value: !Ref PublicAddress
   Url:
-    Value: !Sub 'https://${DomainName}'
+    Description: Adresse HTTPS de TAF WAREHOUSE (fournie par AWS, comme pour TAF OPS)
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
   RepositoryUri:
     Value: !GetAtt Repository.RepositoryUri
   DocumentsBucketName:
