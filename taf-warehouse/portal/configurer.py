@@ -11,7 +11,7 @@ if len(sys.argv) != 3 or not all(re.fullmatch(r'https://[A-Za-z0-9.-]+(/[^\s\'"<
 ops, warehouse = sys.argv[1:]
 here = Path(__file__).resolve().parent
 html = (here / 'index.html').read_text(encoding='utf-8')
-html = html.replace('https://TAF-OPS.A-RENSEIGNER', ops).replace('https://staging.deat82862v504.amplifyapp.com', ops).replace('https://WAREHOUSE.A-RENSEIGNER', warehouse)
+html = html.replace('https://TAF-OPS.A-RENSEIGNER', ops).replace('https://staging.deat82862v504.amplifyapp.com', ops).replace('https://WAREHOUSE.A-RENSEIGNER', warehouse).replace('https://yeclkv6p39.execute-api.eu-west-3.amazonaws.com', warehouse)
 script = re.search(r'<script>(.*?)</script>', html, re.S).group(1)
 digest = base64.b64encode(hashlib.sha256(script.encode('utf-8')).digest()).decode()
 html = re.sub(r"script-src 'sha256-[^']+'", f"script-src 'sha256-{digest}'", html)

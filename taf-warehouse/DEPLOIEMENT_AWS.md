@@ -1,5 +1,26 @@
 # TAF WAREHOUSE — Déploiement AWS (lot 7)
 
+## État au 7 novembre 2026 : recette en service
+
+| | |
+|---|---|
+| Adresse | **https://yeclkv6p39.execute-api.eu-west-3.amazonaws.com** |
+| Pile CloudFormation | `taf-warehouse-recette` (compte `857689333163`, Paris), protégée contre la suppression |
+| Serveur | `i-01d11329cf79785bd` (administration par Session Manager uniquement) |
+| Base | `taf-warehouse-recette` (RDS PostgreSQL 16.9, privée) |
+| Documents | `taf-warehouse-recette-documents-857689333163` |
+| Mot de passe initial du Super Admin `admin` | Console AWS → Secrets Manager → `taf-warehouse/recette/app` → *Récupérer la valeur du secret* → `TAF_ADMIN_PASSWORD` |
+| Budgets | `taf-warehouse-recette` à 65 $/mois (étiquette `Application=taf-warehouse`). Budget de compte `taf` relevé de 5 $ à 52 $ (≈ 45 €) à la demande de TAF |
+
+**Historique :**
+- **Première tentative en échec.** API Gateway refuse de réécrire `X-Forwarded-Proto` et `X-Forwarded-For`, qui sont des en-têtes réservés. La base, encore en création, a bloqué l'annulation automatique. Elle a été supprimée, vide et sans instantané, de même que le bucket vide et le secret créés par cette tentative.
+- **Corrections :** la version 4.11.1 utilise l'en-tête `X-Taf-Client-Ip`. La seconde création a réussi.
+
+**Mise en service de l'application :** l'image est construite **sur le serveur** à partir d'un commit GitHub précis (`deploy/build-on-server.sh`, lancé par Systems Manager). Aucun identifiant ECR ne transite par le poste de travail. La méthode ECR décrite plus bas reste possible depuis un poste administrateur.
+```bash
+sudo taf-warehouse-build <sha-commit-complet> <version>   # téléchargement, contrôle de version, construction, contrôle de santé
+```
+
 > **Rien n'est déployé.** Ce document et les fichiers `Dockerfile` et `infra/taf-warehouse.yaml` préparent une installation qui crée des **ressources payantes**. Aucune commande ci-dessous ne doit être lancée sans l'**accord écrit de TAF**.
 
 ## Principe validé (7 novembre 2026)
