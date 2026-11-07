@@ -49,7 +49,7 @@ Postes facturés par ce modèle :
 - journaux CloudWatch et 4 alarmes ;
 - transfert sortant.
 
-Le budget AWS (`MonthlyBudgetUSD`, 60 $ par défaut) envoie une alerte à 80 % de consommation réelle et à 100 % de la prévision. Le filtre par étiquette exige d'activer l'étiquette de répartition des coûts `Application` dans la console Facturation. C'est un réglage du compte, sans effet sur les ressources de TAF OPS.
+**Budget validé par TAF : 2 € par jour en moyenne, soit environ 60 € par mois.** Le budget AWS (`MonthlyBudgetUSD`, 65 $ par défaut, AWS Budgets comptant en dollars) envoie une alerte à 80 % de consommation réelle et à 100 % de la prévision. Le filtre par étiquette exige d'activer l'étiquette de répartition des coûts `Application` dans la console Facturation. C'est un réglage du compte, sans effet sur les ressources de TAF OPS.
 
 ## Procédure (recette d'abord, production ensuite)
 
@@ -65,7 +65,7 @@ aws cloudformation deploy --region eu-west-3 \
   --template-file infra/taf-warehouse.yaml \
   --capabilities CAPABILITY_IAM \
   --tags Application=taf-warehouse Environment=recette \
-  --parameter-overrides EnvironmentName=recette AlertEmail=<email> MonthlyBudgetUSD=60
+  --parameter-overrides EnvironmentName=recette AlertEmail=<email> MonthlyBudgetUSD=65
 aws cloudformation describe-stacks --region eu-west-3 --stack-name taf-warehouse-recette --query 'Stacks[0].Outputs'
 ```
 - Confirmer l'abonnement SNS reçu par e-mail.
