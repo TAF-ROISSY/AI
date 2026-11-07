@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.9
+# TAF WAREHOUSE — TEST V4.10
+
+> **V4.10 (lot 6, prêt pour AWS : S3, secrets, production, double authentification)** : voir `LOT6_PRET_AWS.md`.
 
 > **V4.9 (lot 5, PostgreSQL)** : voir `LOT5_POSTGRESQL.md`.
 

@@ -109,9 +109,10 @@ def photo_grid(photos, max_photos=6):
     cells = []
     for d in photos[:max_photos]:
         try:
-            iw, ih = ImageReader(d['path']).getSize()
+            source = (lambda: io.BytesIO(d['content'])) if d.get('content') else (lambda: d['path'])
+            iw, ih = ImageReader(source()).getSize()
             scale = min(cell_w / iw, cell_h / ih)
-            img = Image(d['path'], width=iw * scale, height=ih * scale)
+            img = Image(source(), width=iw * scale, height=ih * scale)
         except Exception:
             img = txt('Photo illisible', 'small')
         cells.append([img, Paragraph(escape(d['name']) + ' · ' + escape(fr_date(d['uploaded'])) + ' · ' + escape(d['actor']), S['caption'])])

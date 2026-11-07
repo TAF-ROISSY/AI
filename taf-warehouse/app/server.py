@@ -5,21 +5,80 @@ from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Literal, Annotated
 from pydantic import StringConstraints
 from cryptography.fernet import Fernet, InvalidToken
 
+# --- Secrets (AWS Secrets Manager) ---------------------------------------------------
+# TAF_SECRETS_ARN : secret JSON de l'application (clé MFA, mot de passe initial...).
+# TAF_DB_SECRET_ARN : secret géré par RDS ({username,password}) + TAF_DB_HOST/PORT/NAME.
+# Une variable déjà définie dans l'environnement n'est jamais écrasée.
+APP_SECRET_KEYS={'TAF_MFA_ENCRYPTION_KEY','TAF_ADMIN_PASSWORD','TAF_DATABASE_URL'}
+def _aws_region():return os.getenv('AWS_REGION') or os.getenv('AWS_DEFAULT_REGION') or 'eu-west-3'
+def _read_secret(arn):
+    import boto3
+    return json.loads(boto3.client('secretsmanager',region_name=_aws_region()).get_secret_value(SecretId=arn)['SecretString'])
+def database_url_from_rds_secret(arn,host,port='5432',name='warehouse'):
+    from urllib.parse import quote
+    data=_read_secret(arn)
+    return f"postgresql://{quote(data['username'],safe='')}:{quote(data['password'],safe='')}@{host}:{port}/{name}?sslmode=require"
+def load_secrets():
+    arn=os.getenv('TAF_SECRETS_ARN','').strip()
+    if arn:
+        for k,v in _read_secret(arn).items():
+            if k in APP_SECRET_KEYS and not os.getenv(k):os.environ[k]=str(v)
+    db_arn=os.getenv('TAF_DB_SECRET_ARN','').strip()
+    if db_arn and not os.getenv('TAF_DATABASE_URL'):
+        os.environ['TAF_DATABASE_URL']=database_url_from_rds_secret(db_arn,os.environ['TAF_DB_HOST'],os.getenv('TAF_DB_PORT','5432'),os.getenv('TAF_DB_NAME','warehouse'))
+load_secrets()
+
 ROOT=Path(__file__).resolve().parent.parent
 DATA=Path(os.getenv('TAF_DATA_DIR',ROOT/'data')); DATA.mkdir(parents=True,exist_ok=True)
 UPLOAD=DATA/'uploads'; UPLOAD.mkdir(exist_ok=True)
 DB=DATA/'warehouse.sqlite3'
-app=FastAPI(title='TAF WAREHOUSE TEST API',version='4.9-lot5')
 PRODUCTION=os.getenv('TAF_ENV','test').lower()=='production'
-if PRODUCTION:
-    raise RuntimeError('Production désactivée : SQLite local et authentification sans MFA ne sont pas homologués. Utiliser une infrastructure centralisée sécurisée.')
+STORAGE=os.getenv('TAF_STORAGE','local').strip().lower()
+S3_BUCKET=os.getenv('TAF_S3_BUCKET','').strip()
+S3_PREFIX=os.getenv('TAF_S3_PREFIX','documents/').strip()
+# Double authentification obligatoire : par défaut en production pour les rôles sensibles.
+MFA_REQUIRED_ROLES={r.strip() for r in os.getenv('TAF_MFA_REQUIRED_ROLES','superadmin,admin,exploitation,manager' if PRODUCTION else '').split(',') if r.strip()}
+def production_problems():
+    problems=[]
+    if not os.getenv('TAF_DATABASE_URL','').startswith(('postgres://','postgresql://')):problems.append('base PostgreSQL requise (TAF_DATABASE_URL ou TAF_DB_SECRET_ARN)')
+    if STORAGE!='s3' or not S3_BUCKET:problems.append('stockage S3 privé requis (TAF_STORAGE=s3, TAF_S3_BUCKET)')
+    if not os.getenv('TAF_MFA_ENCRYPTION_KEY','').strip():problems.append('clé de chiffrement MFA requise (TAF_MFA_ENCRYPTION_KEY via Secrets Manager)')
+    if not MFA_REQUIRED_ROLES:problems.append('double authentification obligatoire requise pour les rôles sensibles (TAF_MFA_REQUIRED_ROLES)')
+    return problems
+if PRODUCTION and production_problems():
+    raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.10-lot6',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+
+# --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
+_s3_client=None
+def _s3():
+    global _s3_client
+    if _s3_client is None:
+        import boto3
+        _s3_client=boto3.client('s3',region_name=_aws_region())
+    return _s3_client
+def store_ref(name):
+    """Référence enregistrée dans documents.path : chemin local ou « s3:<clé> »."""
+    return 's3:'+S3_PREFIX+name if STORAGE=='s3' else str(UPLOAD/name)
+def store_put(ref,raw,content_type='application/octet-stream'):
+    if ref.startswith('s3:'):
+        _s3().put_object(Bucket=S3_BUCKET,Key=ref[3:],Body=raw,ContentType=content_type,ServerSideEncryption='AES256')
+    else:Path(ref).write_bytes(raw)
+def store_get(ref):
+    if ref.startswith('s3:'):return _s3().get_object(Bucket=S3_BUCKET,Key=ref[3:])['Body'].read()
+    return Path(ref).read_bytes()
+def store_delete(ref):
+    try:
+        if ref.startswith('s3:'):_s3().delete_object(Bucket=S3_BUCKET,Key=ref[3:])
+        else:Path(ref).unlink(missing_ok=True)
+    except Exception:pass  # nettoyage au mieux ; l'échec d'origine est remonté
 # A stable 32-byte Fernet key is mandatory for new MFA enrollment.
 # Store it outside the application/database and back it up securely.
 def mfa_cipher():
@@ -245,6 +304,8 @@ def init():
             c.execute('INSERT INTO unit_holds(id,unit_id,kind,reason,ref,created,created_by) VALUES(?,?,?,?,?,?,?)',(uid('HLD'),legacy['id'],'legacy',legacy['hold'],None,now(),'migration-lot1'))
         if not one(c,'SELECT id FROM users LIMIT 1') and not os.getenv('TAF_SKIP_BOOTSTRAP'):
             initial=os.getenv('TAF_ADMIN_PASSWORD')
+            if not initial and PRODUCTION:
+                raise RuntimeError('Premier démarrage en production : TAF_ADMIN_PASSWORD doit être fourni par Secrets Manager')
             if not initial:
                 initial=secrets.token_urlsafe(14)
                 (DATA/'INITIAL_ADMIN_PASSWORD.txt').write_text('Utilisateur: admin\nMot de passe initial: '+initial+'\nCHANGEZ-LE IMMÉDIATEMENT.\n')
@@ -310,13 +371,17 @@ class RefusalReview(BaseModel):approve:bool;note:Annotated[str,StringConstraints
 class TransferDiscrepancyReview(BaseModel):accept_observed:bool;decision:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
 class HoldLift(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=1000)]
 
-def auth(authorization:Optional[str]=Header(None)):
+MFA_EXEMPT_PATHS={'/api/me','/api/logout','/api/password','/api/mfa/setup','/api/mfa/confirm','/api/mfa/status'}
+def auth(request:Request,authorization:Optional[str]=Header(None)):
     require(authorization and authorization.startswith('Bearer '),'Connexion requise',401)
     digest=hashlib.sha256(authorization[7:].encode()).hexdigest()
     with db() as c:
-        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
+        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds,COALESCE(m.enabled,0) mfa_enabled FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN mfa m ON m.user_id=u.id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
     require(u and u['active'],'Session expirée',401)
-    u['warehouses']=json.loads(u['warehouses']);return u
+    u['warehouses']=json.loads(u['warehouses']);u['mfa_enabled']=bool(u['mfa_enabled']);u['mfa_required']=u['role'] in MFA_REQUIRED_ROLES
+    if u['mfa_required'] and not u['mfa_enabled'] and request.url.path not in MFA_EXEMPT_PATHS:
+        raise HTTPException(403,'Double authentification obligatoire pour votre rôle : activez-la avant de continuer')
+    return u
 def role(u,*allowed):require(u['role'] in allowed or u['role']=='superadmin','Habilitation insuffisante',403)
 def access(u,wh):require(wh in u['warehouses'],'Accès entrepôt refusé',403)
 def warehouse(wh):require(wh in WAREHOUSES,'Entrepôt inconnu')
@@ -385,7 +450,9 @@ def mfa_setup(u=Depends(auth)):
         c.commit()
     from urllib.parse import quote
     uri=f'otpauth://totp/{quote("TAF Warehouse:"+u["username"])}?secret={secret}&issuer=TAF%20Warehouse&algorithm=SHA1&digits=6&period=30'
-    return {'secret':secret,'otpauth_uri':uri,'instruction':'Conserver la clé en lieu sûr. Valider un code de votre application Authenticator.'}
+    import qrcode
+    qr=io.BytesIO();qrcode.make(uri).save(qr,format='PNG')
+    return {'secret':secret,'otpauth_uri':uri,'qr_png':'data:image/png;base64,'+base64.b64encode(qr.getvalue()).decode(),'instruction':'Scanner le QR code avec votre application Authenticator, puis saisir le code à 6 chiffres.'}
 
 @app.post('/api/mfa/confirm')
 def mfa_confirm(x:MFAConfirm,u=Depends(auth)):
@@ -464,7 +531,8 @@ def login(x:Login,request:Request):
         c.execute('INSERT INTO sessions VALUES(?,?,?)',(hashlib.sha256(token.encode()).hexdigest(),u['id'],current+8*3600))
         audit(c,u['username'],'login','session',u['id'])
         c.commit()
-    return {'token':token,'user':{'username':u['username'],'role':u['role'],'warehouses':json.loads(u['warehouses'])}}
+    setup_required=u['role'] in MFA_REQUIRED_ROLES and not (mfa_record and mfa_record['enabled'])
+    return {'token':token,'mfa_setup_required':setup_required,'user':{'username':u['username'],'role':u['role'],'warehouses':json.loads(u['warehouses'])}}
 @app.post('/api/logout')
 def logout(authorization:Optional[str]=Header(None),u=Depends(auth)):
     digest=hashlib.sha256(authorization[7:].encode()).hexdigest()
@@ -817,18 +885,20 @@ def review_transfer_refusal(rid:str,x:RefusalReview,u=Depends(auth),idempotency_
                 c.execute("UPDATE transfers SET status='refused' WHERE id=?",(t['id'],))
                 r=one(c,'SELECT * FROM transfer_refusals WHERE id=?',(rid,))
                 unit=one(c,'SELECT * FROM units WHERE id=?',(t['unit_id'],));driver=one(c,'SELECT * FROM drivers WHERE id=?',(t['driver_id'],))
+                for d in docs:
+                    if Path(d['path']).suffix in ('.png','.jpg'):d['content']=store_get(d['path'])
                 raw=refusal_report_pdf(r,t,unit,driver,docs)
-                did=uid('DOC');path=UPLOAD/(did+'.pdf')
-                c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(did,'transfer',t['id'],f'rapport-refus-{rid}.pdf','application/pdf',hashlib.sha256(raw).hexdigest(),str(path),now(),u['username']))
+                did=uid('DOC');path=store_ref(did+'.pdf')
+                c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(did,'transfer',t['id'],f'rapport-refus-{rid}.pdf','application/pdf',hashlib.sha256(raw).hexdigest(),path,now(),u['username']))
                 c.execute('UPDATE transfer_refusals SET report_document_id=? WHERE id=?',(did,rid))
                 audit(c,u['username'],'refusal_validated','transfer',t['id'],{'refusal':rid,'document':did,'note':x.note})
                 for wh in dict.fromkeys((t['source'],t['destination'])):
                     notify(c,wh,'transfer',t['id'],'Refus de transfert validé — exploitation',f"Rapport {rid} validé par {u['username']}. Marchandise bloquée : instruction exploitation requise.",u['username'])
-                path.write_bytes(raw)
+                store_put(path,raw,'application/pdf')
                 response={'ok':True,'status':'validated','report_document_id':did}
             save_request(c,u['id'],'transfer.refusal_review',idempotency_key,digest,response)
     except BaseException:
-        if path:path.unlink(missing_ok=True)
+        if path:store_delete(path)
         raise
     return response
 
@@ -1159,14 +1229,14 @@ async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
     raw=await file.read(10*1024*1024+1);require(len(raw)<=10*1024*1024,'Fichier supérieur à 10 Mo')
     require(raw[:4]==b'%PDF' or raw[:3]==b'\xff\xd8\xff' or raw[:8]==b'\x89PNG\r\n\x1a\n','PDF, JPG ou PNG uniquement')
     ext='.pdf' if raw[:4]==b'%PDF' else ('.png' if raw[:8]==b'\x89PNG\r\n\x1a\n' else '.jpg')
-    i=uid('DOC');path=UPLOAD/(i+ext)
+    i=uid('DOC');ref_path=store_ref(i+ext);mime={'.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg'}[ext]
     try:
         with tx() as c:
-            c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(i,kind,ref,Path(file.filename or 'document').name,file.content_type,hashlib.sha256(raw).hexdigest(),str(path),now(),u['username']))
+            c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(i,kind,ref,Path(file.filename or 'document').name,mime,hashlib.sha256(raw).hexdigest(),ref_path,now(),u['username']))
             audit(c,u['username'],'upload','document',i,{'kind':kind,'ref':ref})
-            path.write_bytes(raw)  # écrit avant validation : en cas d'échec, ligne annulée et fichier supprimé
+            store_put(ref_path,raw,mime)  # écrit avant validation : en cas d'échec, ligne annulée et fichier supprimé
     except BaseException:
-        path.unlink(missing_ok=True);raise
+        store_delete(ref_path);raise
     return {'id':i,'sha256':hashlib.sha256(raw).hexdigest()}
 @app.get('/api/documents')
 def documents(kind:str,ref:str,u=Depends(auth)):
@@ -1178,7 +1248,9 @@ def download(did:str,u=Depends(auth)):
     with db() as c:
         d=one(c,'SELECT * FROM documents WHERE id=?',(did,));require(d,'Document introuvable',404)
         doc_access(c,u,d['kind'],d['ref'])
-    return FileResponse(d['path'],filename=Path(d['path']).name,media_type='application/octet-stream')
+    raw=store_get(d['path'])
+    with tx() as c:audit(c,u['username'],'download','document',did,{'kind':d['kind'],'ref':d['ref']})
+    return Response(content=raw,media_type='application/octet-stream',headers={'Content-Disposition':f'attachment; filename="{Path(d["path"]).name}"'})
 @app.get('/api/labels/{unit_id}')
 def label(unit_id:str,u=Depends(auth)):
     import qrcode

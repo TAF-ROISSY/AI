@@ -35,7 +35,7 @@ def test_production_fail_closed():
             importlib.reload(server)
             assert False,'Production should not boot'
         except RuntimeError as exc:
-            assert 'Production désactivée' in str(exc)
+            assert 'Démarrage en production refusé' in str(exc)  # lot 6 : refus tant que la configuration est incomplète
         finally:
             os.environ.pop('TAF_ENV',None)
             importlib.reload(server)
