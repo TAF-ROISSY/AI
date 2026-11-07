@@ -34,22 +34,32 @@ CloudWatch : journaux 90 jours, alarmes serveur et base → e-mail · AWS Budget
 | Images | Dépôt ECR privé. Versions non modifiables, analyse de vulnérabilités à l'envoi, 15 dernières versions conservées. |
 | Droits | Rôle du serveur limité au préfixe `documents/` du bucket, aux deux secrets, au dépôt ECR et au groupe de journaux. |
 
-## Coûts
+## Coûts — tarifs officiels AWS, région Paris (API de tarification, 7 novembre 2026)
 
-**Les coûts ne sont pas encore chiffrés.** Le calcul se fera service par service avec l'API de tarification AWS, dès que la connexion AWS de la session de travail sera rétablie.
+Base : 730 heures par mois, prix **hors taxes**, en dollars, comme les facture AWS.
 
-Postes facturés par ce modèle :
-- instance EC2 et son disque ;
-- adresse IPv4 publique du serveur, pour sa sortie vers ECR, S3 et les secrets ;
-- API Gateway (à la requête) et Cloud Map (une ressource enregistrée) ;
-- instance RDS, stockage, sauvegardes au-delà de la taille de la base ;
-- stockage S3 et requêtes ;
-- 2 secrets ;
-- ECR ;
-- journaux CloudWatch et 4 alarmes ;
-- transfert sortant.
+| Poste | Hypothèse | Prix unitaire | $/mois |
+|---|---|---|---|
+| Serveur EC2 `t3.small` (crédits CPU plafonnés) | permanent | 0,0236 $/h | 17,23 |
+| Disque serveur gp3 | 20 Go | 0,0928 $/Go-mois | 1,86 |
+| Adresse IPv4 publique (sortie du serveur) | 1 | 0,005 $/h | 3,65 |
+| Base RDS PostgreSQL `db.t4g.micro` (une seule zone) | permanente | 0,018 $/h | 13,14 |
+| Stockage base gp3 | 20 Go | 0,133 $/Go-mois | 2,66 |
+| Sauvegardes base (14 jours) | inférieures à la taille de la base | gratuites jusqu'à 20 Go | 0,00 |
+| API Gateway (HTTP API) | ≈ 2,5 millions de requêtes (20 utilisateurs actifs) | 1,17 $/million | 2,93 |
+| Cloud Map | 1 ressource + jusqu'à 2,5 M d'appels | 0,10 $ + 1 $/million | 2,60 |
+| Secrets Manager | 2 secrets | 0,40 $/secret | 0,80 |
+| S3 documents | 10 Go | 0,024 $/Go-mois | 0,24 |
+| Journaux CloudWatch | ≈ 1 Go ingéré | 0,5985 $/Go | 0,60 |
+| Alarmes CloudWatch | 4 | 0,10 $/alarme | 0,40 |
+| ECR (images) | ≈ 2 Go | 0,10 $/Go-mois | 0,20 |
+| Transfert sortant, notifications e-mail | faible volume | inclus dans la gratuité AWS | 0,00 |
+| **Total estimé, un environnement** | | | **≈ 46 $/mois (≈ 1,5 $/jour)** |
 
-**Budget validé par TAF : 2 € par jour en moyenne, soit environ 60 € par mois.** Le budget AWS (`MonthlyBudgetUSD`, 65 $ par défaut, AWS Budgets comptant en dollars) envoie une alerte à 80 % de consommation réelle et à 100 % de la prévision. Le filtre par étiquette exige d'activer l'étiquette de répartition des coûts `Application` dans la console Facturation. C'est un réglage du compte, sans effet sur les ressources de TAF OPS.
+- **Budget TAF : 2 € par jour en moyenne (≈ 60 €/mois). Un environnement tient dans ce budget, deux non.** La recette devient donc la plateforme de démarrage. Au passage en production, l'environnement de production est créé, puis la recette est supprimée après bascule. Pendant quelques jours seulement, les deux environnements coexistent.
+- **Postes variables :** requêtes API, journaux et stockage S3 suivent l'activité réelle. Les montants fixes (serveur, base, IP) représentent environ 38 $/mois.
+- **Économie possible :** un serveur `t3.micro` (1 Go de mémoire) économiserait environ 8,60 $/mois. Ce choix est à valider après mesure de la mémoire en recette.
+- **Alertes :** le budget AWS `taf-warehouse-recette` (65 $) prévient à 80 % de consommation réelle et à 100 % de la prévision. Le filtre par étiquette exige d'activer l'étiquette de répartition des coûts `Application`. Elle existe dans le compte mais est **inactive** au 7 novembre 2026.
 
 ## Procédure (recette d'abord, production ensuite)
 
