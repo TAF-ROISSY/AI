@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.7
+# TAF WAREHOUSE — TEST V4.8
+
+> **V4.8 (lot 4, décision après refus et rapport PDF)** : voir la fin de `LOT3_REFUS_RANGEMENT.md`.
 
 > **V4.7 (lot 3, refus de transfert et attente de rangement)** : voir `LOT3_REFUS_RANGEMENT.md`.
 

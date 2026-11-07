@@ -143,3 +143,55 @@ def test_migration_marks_unplaced_available_units(env):
         db.execute("UPDATE units SET status='available',location_id=NULL WHERE id=?", (u,))  # état V4.6
     server.init()
     assert env['get_unit'](u)['status'] == 'awaiting_putaway'
+
+
+# --- Lot 4 : décision de l'exploitation après refus validé (option C) ---
+
+def refused(env, axel):
+    c, h = env['c'], env['h']
+    u, tid = in_transit(env)
+    rid = c.post(f'/api/transfers/{tid}/refuse', headers=h['mag_mar'], json={'reason': 'Palette effondrée, colis écrasés'}).json()['id']
+    upload_photo(env, tid)
+    assert c.post(f'/api/transfer-refusals/{rid}/review', headers=axel, json={'approve': True, 'note': 'Refus justifié'}).status_code == 200
+    return u, tid
+
+
+def test_refusal_decision_return_to_source(env, axel):
+    c, h = env['c'], env['h']
+    u, tid = refused(env, axel)
+    body = {'decision': 'return', 'note': 'Retour Afrique pour reconditionnement'}
+    for who in ('mag_mar', 'axel'):
+        assert c.post(f'/api/transfers/{tid}/refusal-decision', headers=h[who], json=body).status_code == 403, who
+    r = c.post(f'/api/transfers/{tid}/refusal-decision', headers=h['expl_mar'], json=body)
+    assert r.status_code == 200, r.text
+    back = r.json()['return_transfer_id']
+    assert c.post(f'/api/transfers/{tid}/refusal-decision', headers=h['expl_mar'], json=body).status_code == 409
+    assert transfer(env, tid)['status'] == 'returned'
+    ret = transfer(env, back)
+    assert (ret['source'], ret['destination'], ret['status'], ret['return_of']) == ('Maritime', 'Afrique', 'approved', tid)
+    assert c.post(f'/api/transfers/{back}/cancel', headers=h['expl']).status_code == 409
+    # Nouvelle signature du transporteur au départ de Maritime.
+    r = c.post(f'/api/transfers/{back}/dispatch', headers=h['mag_mar'], json={'confirmation': True, 'note': 'Retour camion EF-456-GH', 'driver_id': driver(env), 'signature_name': 'Chauffeur retour', 'signature_data': signature(), 'signature_consent': True})
+    assert r.status_code == 200, r.text
+    assert c.post(f'/api/transfers/{back}/receive', headers=h['mag']).status_code == 200
+    row = env['get_unit'](u)
+    assert row['warehouse'] == 'Afrique' and row['status'] == 'awaiting_putaway' and row['hold']
+
+
+def test_refusal_decision_accept_with_reserves(env, axel):
+    c, h = env['c'], env['h']
+    u, tid = refused(env, axel)
+    assert c.post(f'/api/transfers/{tid}/refusal-decision', headers=h['expl_mar'], json={'decision': 'accept_with_reserves', 'note': 'x'}).status_code == 422
+    r = c.post(f'/api/transfers/{tid}/refusal-decision', headers=h['expl_mar'], json={'decision': 'accept_with_reserves', 'note': 'Client accepte, réserves notifiées au transporteur'})
+    assert r.status_code == 200, r.text
+    t = transfer(env, tid)
+    assert t['status'] == 'received_with_reserves' and t['received_by'] == 'expl_mar'
+    row = env['get_unit'](u)
+    assert row['warehouse'] == 'Maritime' and row['status'] == 'awaiting_putaway' and row['hold']
+    assert c.get(f'/api/transfers/{tid}/dispatch-pdf', headers=h['expl']).status_code == 200
+
+
+def test_refusal_decision_requires_validated_refusal(env, axel):
+    c, h = env['c'], env['h']
+    _, tid = in_transit(env)
+    assert c.post(f'/api/transfers/{tid}/refusal-decision', headers=h['expl_mar'], json={'decision': 'return', 'note': 'Retour demandé'}).status_code == 409
