@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.8
+# TAF WAREHOUSE — TEST V4.9
+
+> **V4.9 (lot 5, PostgreSQL)** : voir `LOT5_POSTGRESQL.md`.
 
 > **V4.8 (lot 4, décision après refus et rapport PDF)** : voir la fin de `LOT3_REFUS_RANGEMENT.md`.
 

@@ -23,4 +23,4 @@ def test_inventory_review_idempotent_and_conflict():
         assert denied.status_code==403
         # No idempotency result is stored for a denied request.
         with server.db() as db:
-            assert db.execute('SELECT COUNT(*) FROM idempotency WHERE operation="inventory.review"').fetchone()[0]==0
+            assert db.execute("SELECT COUNT(*) FROM idempotency WHERE operation='inventory.review'").fetchone()[0]==0

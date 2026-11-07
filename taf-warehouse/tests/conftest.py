@@ -1,7 +1,22 @@
-import os,base64,pytest
+import os,base64,uuid,pytest
 @pytest.fixture(autouse=True)
 def test_mfa_key(monkeypatch):
     monkeypatch.setenv("TAF_MFA_ENCRYPTION_KEY",base64.urlsafe_b64encode(b"test-only-key-for-warehouse-1234").decode())
+
+
+@pytest.fixture(autouse=True)
+def postgres_schema(monkeypatch):
+    """Avec TAF_TEST_DATABASE_URL, chaque test tourne sur PostgreSQL dans un schéma neuf."""
+    base=os.getenv('TAF_TEST_DATABASE_URL','')
+    if not base:
+        monkeypatch.delenv('TAF_DATABASE_URL',raising=False);yield;return
+    import psycopg
+    schema='t_'+uuid.uuid4().hex[:12]
+    with psycopg.connect(base,autocommit=True) as c:c.execute(f'CREATE SCHEMA {schema}')
+    sep='&' if '?' in base else '?'
+    monkeypatch.setenv('TAF_DATABASE_URL',f'{base}{sep}options=-csearch_path%3D{schema}')
+    yield
+    with psycopg.connect(base,autocommit=True) as c:c.execute(f'DROP SCHEMA {schema} CASCADE')
 
 
 # Jeu d'essai partagé des lots 1 et suivants.
