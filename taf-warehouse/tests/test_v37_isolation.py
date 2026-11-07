@@ -43,6 +43,7 @@ def test_concurrent_release_reservations_never_exceed_stock():
             customer=client.get('/api/clients',headers=h).json()[0]['id']
             receipt=client.post('/api/receipts',headers=h,json={'warehouse':'Afrique','client_id':customer,'expected':1,'actual':1,'weight':10}).json()['id']
             unit=client.post('/api/units',headers=h,json={'receipt_id':receipt,'description':'Test concurrence','quantity':1,'weight':10}).json()['id']
+            from helpers import putaway; putaway(server, unit)  # Lot 3 : rangement avant sortie/transfert
             def reserve(_):
                 with TestClient(server.app) as c:
                     return c.post('/api/releases',headers=h,json={'unit_id':unit,'quantity':1}).status_code

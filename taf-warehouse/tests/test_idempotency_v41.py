@@ -15,6 +15,7 @@ def test_idempotency_and_movement_reservation():
             cli=get('clients').json()[0]['id']
             rec=post('receipts',{'warehouse':'Afrique','client_id':cli,'expected':3,'actual':3,'weight':30}).json()['id']
             unit=post('units',{'receipt_id':rec,'description':'Palette','quantity':3,'weight':30,'dimensions_ok':True}).json()['id']
+            from helpers import putaway; putaway(server, unit)  # Lot 3 : rangement avant sortie/transfert
             key={'Idempotency-Key':'release-unique-00001'}
             body={'unit_id':unit,'quantity':2}
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:

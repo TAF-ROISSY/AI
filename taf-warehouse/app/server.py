@@ -16,7 +16,7 @@ ROOT=Path(__file__).resolve().parent.parent
 DATA=Path(os.getenv('TAF_DATA_DIR',ROOT/'data')); DATA.mkdir(parents=True,exist_ok=True)
 UPLOAD=DATA/'uploads'; UPLOAD.mkdir(exist_ok=True)
 DB=DATA/'warehouse.sqlite3'
-app=FastAPI(title='TAF WAREHOUSE TEST API',version='4.6-lot2')
+app=FastAPI(title='TAF WAREHOUSE TEST API',version='4.7-lot3')
 PRODUCTION=os.getenv('TAF_ENV','test').lower()=='production'
 if PRODUCTION:
     raise RuntimeError('Production désactivée : SQLite local et authentification sans MFA ne sont pas homologués. Utiliser une infrastructure centralisée sécurisée.')
@@ -155,6 +155,7 @@ def init():
         CREATE TABLE IF NOT EXISTS task_events(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(task_id) REFERENCES tasks(id));
         CREATE TABLE IF NOT EXISTS unit_holds(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,kind TEXT NOT NULL,reason TEXT NOT NULL,ref TEXT,created TEXT NOT NULL,created_by TEXT NOT NULL,lifted_at TEXT,lifted_by TEXT,lift_reason TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE INDEX IF NOT EXISTS unit_holds_active ON unit_holds(unit_id) WHERE lifted_at IS NULL;
+        CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
         """)
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'")],
@@ -171,6 +172,8 @@ def init():
         columns={r['name'] for r in c.execute('PRAGMA table_info(transfers)')}
         for column in ('approved_by','dispatched_by','dispatched_at','dispatch_note','driver_id','signature_name','signature_data','signature_at'):
             if column not in columns:c.execute(f'ALTER TABLE transfers ADD COLUMN {column} TEXT')
+        # Lot 3 : une unité disponible sans emplacement est en attente de rangement.
+        c.execute("UPDATE units SET status='awaiting_putaway' WHERE status='available' AND location_id IS NULL")
         # Lot 1 : reprise des blocages texte V4.4 dans la table des blocages multiples.
         for legacy in q(c,"SELECT id,hold FROM units WHERE hold!='' AND NOT EXISTS (SELECT 1 FROM unit_holds h WHERE h.unit_id=units.id AND h.lifted_at IS NULL)"):
             c.execute('INSERT INTO unit_holds(id,unit_id,kind,reason,ref,created,created_by) VALUES(?,?,?,?,?,?,?)',(uid('HLD'),legacy['id'],'legacy',legacy['hold'],None,now(),'migration-lot1'))
@@ -235,6 +238,8 @@ class TransferReceive(BaseModel):
     def note_on_discrepancy(self):
         if self.condition!='conforme' and len(self.note)<3:raise ValueError('Observation obligatoire en cas d’écart')
         return self
+class TransferRefusal(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=10,max_length=3000)]
+class RefusalReview(BaseModel):approve:bool;note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
 class TransferDiscrepancyReview(BaseModel):accept_observed:bool;decision:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
 class HoldLift(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=1000)]
 
@@ -482,7 +487,7 @@ def create_unit(x:UnitCreate,u=Depends(auth),idempotency_key:Optional[str]=Heade
         # Quantités initiales (mouvements de réception), indépendantes des sorties ultérieures.
         registered=one(c,"SELECT COALESCE(SUM(m.quantity),0) n FROM movements m JOIN units x ON x.id=m.unit_id WHERE m.kind='receive' AND x.receipt_id=?",(r['id'],))['n']
         require(registered+x.quantity<=r['actual'],f"Colis enregistrés ({registered}+{x.quantity}) supérieurs aux colis reçus ({r['actual']}) : signaler un écart de réception",409)
-        i=uid('UNIT');c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'available',x.category.strip().lower() or 'general',x.unit_type))
+        i=uid('UNIT');c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'awaiting_putaway',x.category.strip().lower() or 'general',x.unit_type))
         event(c,u['username'],i,'receive',None,None,x.quantity,r['id']);audit(c,u['username'],'create','unit',i,{'unit_type':x.unit_type,'quantity':x.quantity})
         if r['status']=='discrepancy':
             last=one(c,"SELECT id FROM receipt_discrepancies WHERE receipt_id=? ORDER BY created DESC,id DESC LIMIT 1",(r['id'],))
@@ -497,7 +502,7 @@ def move(x:Move,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias=
         unit=unit_access(c,u,x.unit_id);role(u,'worker','leader','manager','exploitation','admin')
         dest=one(c,'SELECT * FROM locations WHERE id=?',(x.destination,));require(dest,'Destination inconnue',404);require(dest['warehouse']==unit['warehouse'],'Utiliser un transfert inter-entrepôts')
         require(unit['version']==x.expected_version,'Unité modifiée simultanément',409)
-        require(unit['status']=='available' and not unit['hold'] and unit['quantity']>0,'Unité indisponible ou bloquée')
+        require(unit['status'] in ('available','awaiting_putaway') and not unit['hold'] and unit['quantity']>0,'Unité indisponible ou bloquée')
         require(not one(c,'SELECT id FROM transfers WHERE unit_id=? AND status IN ("requested","approved","in_transit")',(unit['id'],)),'Transfert actif',409)
         require(not one(c,'SELECT id FROM counts WHERE unit_id=? AND status="pending"',(unit['id'],)),'Inventaire actif',409)
         require(not one(c,'SELECT id FROM releases WHERE unit_id=? AND status IN ("requested","authorized")',(unit['id'],)),'Sortie réservée',409)
@@ -510,7 +515,7 @@ def move(x:Move,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias=
             neighbors=q(c,'SELECT DISTINCT category FROM units WHERE location_id=? AND id!=? AND status="available"',(dest['id'],unit['id']))
             require(all((not allowed or n['category'] in allowed) and n['category'] not in forbidden for n in neighbors),'Marchandise déjà stockée incompatible')
         capacity(c,dest,unit['weight'],unit['volume'],unit['id'])
-        c.execute('UPDATE units SET location_id=?,version=version+1 WHERE id=?',(dest['id'],unit['id']))
+        c.execute("UPDATE units SET location_id=?,status='available',version=version+1 WHERE id=?",(dest['id'],unit['id']))
         event(c,u['username'],unit['id'],'move',unit['location_id'],dest['id'],unit['quantity'],x.reason)
         audit(c,u['username'],'move','unit',unit['id'],{'from':unit['location_id'],'to':dest['id']});save_request(c,u['id'],'unit.move',idempotency_key,digest,{'ok':True});c.commit()
     return {'ok':True}
@@ -655,7 +660,7 @@ def receive_transfer(tid:str,x:Optional[TransferReceive]=None,u=Depends(auth),id
         gap=observed!=unit['quantity'] or condition!='conforme'
         status='discrepancy' if gap else 'received'
         c.execute('UPDATE transfers SET status=?,received_by=?,received_at=?,received_quantity=?,received_condition=?,received_note=? WHERE id=?',(status,u['username'],now(),observed,condition,note,tid))
-        c.execute('UPDATE units SET warehouse=?,status="available",version=version+1 WHERE id=?',(t['destination'],unit['id']))
+        c.execute("UPDATE units SET warehouse=?,status='awaiting_putaway',location_id=NULL,version=version+1 WHERE id=?",(t['destination'],unit['id']))
         event(c,u['username'],unit['id'],'transfer_receive',t['source'],t['destination'],unit['quantity'],tid)
         audit(c,u['username'],'receive','transfer',tid,{'observed':observed,'dispatched':unit['quantity'],'condition':condition,'note':note})
         if gap:
@@ -686,6 +691,97 @@ def review_transfer_discrepancy(tid:str,x:TransferDiscrepancyReview,u=Depends(au
         notify(c,t['destination'],'transfer',tid,'Écart de transfert tranché','Le blocage reste en place jusqu’à levée autorisée.',u['username'])
         response={'ok':True,'hold_remains':True};save_request(c,u['id'],'transfer.discrepancy_review',idempotency_key,digest,response)
     return response
+# Lot 3 : refus de transfert — rapport du magasinier, validation du responsable magasin.
+@app.post('/api/transfers/{tid}/refuse')
+def refuse_transfer(tid:str,x:TransferRefusal,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'worker','leader','manager','admin')
+    with tx() as c:
+        replay,digest=replay_request(c,u['id'],'transfer.refuse',idempotency_key,{'ref':tid,'payload':x.model_dump()})
+        if replay is not None:return replay
+        t=one(c,'SELECT * FROM transfers WHERE id=?',(tid,));require(t,'Transfert inconnu',404);access(u,t['destination'])
+        require(t['status']=='in_transit','Refus possible uniquement pour un transfert en transit non réceptionné',409)
+        require(t['dispatched_by']!=u['username'],'Le refus doit être constaté par une autre personne que l’expéditeur',403)
+        i=uid('REFUS')
+        c.execute('INSERT INTO transfer_refusals(id,transfer_id,reason,created_by,created,status) VALUES(?,?,?,?,?,?)',(i,tid,x.reason,u['username'],now(),'pending'))
+        c.execute("UPDATE transfers SET status='refusal_pending' WHERE id=?",(tid,))
+        add_hold(c,u['username'],t['unit_id'],'refus_transfert','Refus transfert '+tid,tid)
+        audit(c,u['username'],'refuse','transfer',tid,{'refusal':i,'reason':x.reason})
+        notify(c,t['destination'],'transfer',tid,'Rapport de refus à valider','Responsable magasin : joindre photo(s) et valider le rapport '+i+'.',u['username'])
+        response={'id':i,'status':'pending'};save_request(c,u['id'],'transfer.refuse',idempotency_key,digest,response)
+    return response
+
+@app.get('/api/transfer-refusals')
+def transfer_refusals(u=Depends(auth)):
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:return q(c,f'SELECT r.*,t.source,t.destination,t.unit_id FROM transfer_refusals r JOIN transfers t ON t.id=r.transfer_id WHERE t.source IN ({marks}) OR t.destination IN ({marks}) ORDER BY r.created DESC',u['warehouses']*2)
+
+def refusal_report_pdf(refusal,t,unit,driver,docs):
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Image as RLImage
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
+    from xml.sax.saxutils import escape
+    out=io.BytesIO();doc=SimpleDocTemplate(out,title='Rapport de refus '+refusal['id']);st=getSampleStyleSheet()
+    def line(k,v):return Paragraph('<b>'+escape(k)+'</b> : '+escape(str(v if v not in (None,'') else '—')),st['Normal'])
+    story=[Paragraph('TAF WAREHOUSE — RAPPORT DE REFUS DE TRANSFERT',st['Title']),Spacer(1,8)]
+    for k,v in [('Rapport',refusal['id']),('Transfert',t['id']),('Unité',unit['id'] if unit else t['unit_id']),('Type',unit['unit_type'] if unit else ''),('Quantité expédiée',unit['quantity'] if unit else ''),('Poids (kg)',unit['weight'] if unit else ''),
+                ('Départ',t['source']),('Arrivée',t['destination']),('Expédié par',t['dispatched_by']),('Expédié le (UTC)',t['dispatched_at']),('Transporteur',(driver['company']+' · ' if driver and driver['company'] else '')+(driver['name'] if driver else '')),('Immatriculation',driver['plate'] if driver else ''),
+                ('Motif du refus',refusal['reason']),('Constaté par',refusal['created_by']),('Constaté le (UTC)',refusal['created']),('Validé par (responsable magasin)',refusal['reviewed_by']),('Validé le (UTC)',refusal['reviewed_at']),('Avis du responsable',refusal['review_note'])]:
+        story+=[line(k,v),Spacer(1,4)]
+    photos=[d for d in docs if Path(d['path']).suffix in ('.png','.jpg')]
+    story+=[Spacer(1,10),Paragraph('Photos ('+str(len(photos))+')',st['Heading2'])]
+    for d in photos[:6]:
+        try:
+            w,h=ImageReader(d['path']).getSize();scale=min(160*mm/w,95*mm/h,1)
+            story+=[RLImage(d['path'],width=w*scale,height=h*scale),Paragraph(escape(d['name'])+' · '+escape(d['uploaded']),st['Italic']),Spacer(1,6)]
+        except Exception:story.append(Paragraph('Photo illisible : '+escape(d['name']),st['Normal']))
+    if len(photos)>6:story.append(Paragraph(f'{len(photos)-6} photo(s) supplémentaire(s) disponibles dans le dossier du transfert.',st['Normal']))
+    story+=[Spacer(1,8),Paragraph('Pièces jointes',st['Heading2'])]
+    for d in docs:story.append(Paragraph(escape(d['name'])+' — ajouté par '+escape(d['actor'])+' — SHA-256 '+escape(d['sha256']),st['Normal']))
+    story+=[Spacer(1,12),Paragraph('Document généré par TAF WAREHOUSE. Transmis à l’exploitation par notification interne ; aucun envoi externe automatique.',st['Italic'])]
+    doc.build(story);return out.getvalue()
+
+@app.post('/api/transfer-refusals/{rid}/review')
+def review_transfer_refusal(rid:str,x:RefusalReview,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'manager','admin')
+    path=None
+    try:
+        with tx() as c:
+            replay,digest=replay_request(c,u['id'],'transfer.refusal_review',idempotency_key,{'ref':rid,'payload':x.model_dump()})
+            if replay is not None:return replay
+            r=one(c,'SELECT * FROM transfer_refusals WHERE id=?',(rid,));require(r,'Rapport inconnu',404)
+            t=one(c,'SELECT * FROM transfers WHERE id=?',(r['transfer_id'],));access(u,t['destination'])
+            require(r['status']=='pending' and t['status']=='refusal_pending','Rapport déjà traité',409)
+            require(r['created_by']!=u['username'],'Validation par une autre personne que l’auteur du rapport',403)
+            c.execute('UPDATE transfer_refusals SET reviewed_by=?,reviewed_at=?,review_note=? WHERE id=?',(u['username'],now(),x.note,rid))
+            if not x.approve:
+                c.execute("UPDATE transfer_refusals SET status='rejected' WHERE id=?",(rid,))
+                c.execute("UPDATE transfers SET status='in_transit' WHERE id=?",(t['id'],))
+                audit(c,u['username'],'refusal_rejected','transfer',t['id'],{'refusal':rid,'note':x.note})
+                notify(c,t['destination'],'transfer',t['id'],'Rapport de refus non validé',x.note[:300],u['username'])
+                response={'ok':True,'status':'rejected'}
+            else:
+                docs=q(c,"SELECT * FROM documents WHERE kind='transfer' AND ref=? ORDER BY uploaded",(t['id'],))
+                require(any(Path(d['path']).suffix in ('.png','.jpg') for d in docs),'Au moins une photo est obligatoire avant validation du refus',409)
+                c.execute("UPDATE transfer_refusals SET status='validated' WHERE id=?",(rid,))
+                c.execute("UPDATE transfers SET status='refused' WHERE id=?",(t['id'],))
+                r=one(c,'SELECT * FROM transfer_refusals WHERE id=?',(rid,))
+                unit=one(c,'SELECT * FROM units WHERE id=?',(t['unit_id'],));driver=one(c,'SELECT * FROM drivers WHERE id=?',(t['driver_id'],))
+                raw=refusal_report_pdf(r,t,unit,driver,docs)
+                did=uid('DOC');path=UPLOAD/(did+'.pdf')
+                c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(did,'transfer',t['id'],f'rapport-refus-{rid}.pdf','application/pdf',hashlib.sha256(raw).hexdigest(),str(path),now(),u['username']))
+                c.execute('UPDATE transfer_refusals SET report_document_id=? WHERE id=?',(did,rid))
+                audit(c,u['username'],'refusal_validated','transfer',t['id'],{'refusal':rid,'document':did,'note':x.note})
+                for wh in dict.fromkeys((t['source'],t['destination'])):
+                    notify(c,wh,'transfer',t['id'],'Refus de transfert validé — exploitation',f"Rapport {rid} validé par {u['username']}. Marchandise bloquée : instruction exploitation requise.",u['username'])
+                path.write_bytes(raw)
+                response={'ok':True,'status':'validated','report_document_id':did}
+            save_request(c,u['id'],'transfer.refusal_review',idempotency_key,digest,response)
+    except BaseException:
+        if path:path.unlink(missing_ok=True)
+        raise
+    return response
+
 @app.get('/api/counts')
 def counts(u=Depends(auth)):
     with db() as c:return q(c,'SELECT * FROM counts WHERE warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC',u['warehouses'])
@@ -964,12 +1060,19 @@ def update_claim(cid:str,x:ClaimUpdate,u=Depends(auth)):
         require(x.status!='closed','Utiliser la clôture contrôlée du litige')
         c.execute('UPDATE claims SET status=?,decision=?,owner=? WHERE id=?',(x.status,x.decision,x.owner,cid));audit(c,u['username'],'update','claim',cid,{'status':x.status})
     return {'ok':True}
+DOC_TABLES={'receipt':'receipts','incident':'incidents','claim':'claims','mission':'missions','unit':'units'}
+def doc_access(c,u,kind,ref):
+    """Un document suit les habilitations de son dossier ; un transfert est visible au départ et à l'arrivée."""
+    require(kind in DOC_TABLES or kind=='transfer','Type invalide')
+    if kind=='transfer':
+        t=one(c,'SELECT source,destination FROM transfers WHERE id=?',(ref,));require(t,'Dossier introuvable',404)
+        require(t['source'] in u['warehouses'] or t['destination'] in u['warehouses'],'Accès entrepôt refusé',403)
+    else:
+        row=one(c,f'SELECT warehouse FROM {DOC_TABLES[kind]} WHERE id=?',(ref,));require(row,'Dossier introuvable',404);access(u,row['warehouse'])
+
 @app.post('/api/documents/{kind}/{ref}')
 async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
-    require(kind in ('receipt','incident','claim','mission','unit'),'Type invalide')
-    tables={'receipt':('receipts','warehouse'),'incident':('incidents','warehouse'),'claim':('claims','warehouse'),'mission':('missions','warehouse'),'unit':('units','warehouse')}
-    with db() as c:
-        row=one(c,f'SELECT warehouse FROM {tables[kind][0]} WHERE id=?',(ref,));require(row,'Dossier introuvable',404);access(u,row['warehouse'])
+    with db() as c:doc_access(c,u,kind,ref)
     raw=await file.read(10*1024*1024+1);require(len(raw)<=10*1024*1024,'Fichier supérieur à 10 Mo')
     require(raw[:4]==b'%PDF' or raw[:3]==b'\xff\xd8\xff' or raw[:8]==b'\x89PNG\r\n\x1a\n','PDF, JPG ou PNG uniquement')
     ext='.pdf' if raw[:4]==b'%PDF' else ('.png' if raw[:8]==b'\x89PNG\r\n\x1a\n' else '.jpg')
@@ -984,16 +1087,14 @@ async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
     return {'id':i,'sha256':hashlib.sha256(raw).hexdigest()}
 @app.get('/api/documents')
 def documents(kind:str,ref:str,u=Depends(auth)):
-    require(kind in ('receipt','incident','claim','mission','unit'),'Type invalide')
     with db() as c:
-        row=one(c,f'SELECT warehouse FROM { {"receipt":"receipts","incident":"incidents","claim":"claims","mission":"missions","unit":"units"}[kind]} WHERE id=?',(ref,));require(row,'Dossier introuvable',404);access(u,row['warehouse'])
+        doc_access(c,u,kind,ref)
         return q(c,'SELECT id,kind,ref,name,mime,sha256,uploaded,actor FROM documents WHERE kind=? AND ref=?',(kind,ref))
 @app.get('/api/documents/{did}/download')
 def download(did:str,u=Depends(auth)):
     with db() as c:
         d=one(c,'SELECT * FROM documents WHERE id=?',(did,));require(d,'Document introuvable',404)
-        table={'receipt':'receipts','incident':'incidents','claim':'claims','mission':'missions','unit':'units'}[d['kind']]
-        r=one(c,f'SELECT warehouse FROM {table} WHERE id=?',(d['ref'],));require(r,'Dossier introuvable',404);access(u,r['warehouse'])
+        doc_access(c,u,d['kind'],d['ref'])
     return FileResponse(d['path'],filename=Path(d['path']).name,media_type='application/octet-stream')
 @app.get('/api/labels/{unit_id}')
 def label(unit_id:str,u=Depends(auth)):

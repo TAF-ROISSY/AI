@@ -65,7 +65,7 @@ def test_transfer_receive_conform_without_body_stays_compatible(env):
     assert env['c'].post(f'/api/transfers/{tid}/receive', headers=env['h']['mag_mar']).status_code == 200
     assert transfer(env, tid)['status'] == 'received'
     row = env['get_unit'](u)
-    assert row['warehouse'] == 'Maritime' and row['status'] == 'available' and not row['hold']
+    assert row['warehouse'] == 'Maritime' and row['status'] == 'awaiting_putaway' and not row['hold']  # lot 3
 
 
 def test_transfer_missing_package_is_held_until_independent_decision(env):

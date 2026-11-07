@@ -20,6 +20,7 @@ def test_transfer_requires_separate_people_and_physical_dispatch():
         client=c.get('/api/clients',headers=admin).json()[0]['id']
         rec=c.post('/api/receipts',headers=admin,json={'warehouse':'Afrique','client_id':client,'expected':1,'actual':1,'weight':100}).json()['id']
         unit=c.post('/api/units',headers=admin,json={'receipt_id':rec,'description':'Palette','quantity':1,'weight':100}).json()['id']
+        from helpers import putaway; putaway(server, unit)  # Lot 3 : rangement avant sortie/transfert
         transfer=c.post('/api/transfers',headers=admin,json={'unit_id':unit,'destination':'Maritime'});assert transfer.status_code==200,transfer.text
         tid=transfer.json()['id']
         assert c.post('/api/transfers/'+tid+'/approve',headers=admin).status_code==403
@@ -37,5 +38,5 @@ def test_transfer_requires_separate_people_and_physical_dispatch():
         assert c.post('/api/transfers/'+tid+'/receive',headers=manager).status_code==200
         assert c.post('/api/transfers/'+tid+'/receive',headers=admin).status_code==409
         row=next(x for x in c.get('/api/units',headers=admin).json() if x['id']==unit)
-        assert row['warehouse']=='Maritime' and row['status']=='available'
+        assert row['warehouse']=='Maritime' and row['status']=='awaiting_putaway'
         assert len(c.get('/api/locations',headers=admin).json())==4*49

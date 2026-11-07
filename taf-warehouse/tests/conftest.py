@@ -37,9 +37,14 @@ def env():
             assert r.status_code == 200, r.text
             return r.json()['id']
 
-        def unit(rec, quantity=4, weight=400, who='mag', headers=None, **extra):
+        def unit(rec, quantity=4, weight=400, who='mag', headers=None, placed=True, **extra):
+            """Crée une unité ; par défaut elle est ensuite rangée en zone temporaire (lot 3)."""
             body = {'receipt_id': rec, 'description': 'Palette', 'quantity': quantity, 'weight': weight, 'volume': 1, 'dimensions_ok': True, **extra}
-            return c.post('/api/units', headers={**h[who], **(headers or {})}, json=body)
+            r = c.post('/api/units', headers={**h[who], **(headers or {})}, json=body)
+            if placed and r.status_code == 200:
+                with server.db() as db:
+                    db.execute("UPDATE units SET location_id='AFR-TEMP',status='available' WHERE id=? AND status='awaiting_putaway'", (r.json()['id'],))
+            return r
 
         def get_unit(uid_):
             return next(x for x in c.get('/api/units', headers=admin).json() if x['id'] == uid_)

@@ -15,7 +15,7 @@ def test_inventory_review_idempotent_and_conflict():
         receipt=resp.json()['id']
         unit=c.post('/api/units',headers=h,json={'receipt_id':receipt,'description':'Test','quantity':1,'weight':1}).json()['id']
         with server.db() as db:
-            db.execute('UPDATE units SET location_id=? WHERE id=?',('AFR-TEMP',unit))
+            db.execute("UPDATE units SET location_id=?,status='available' WHERE id=?",('AFR-TEMP',unit))
         count=c.post('/api/counts',headers=h,json={'unit_id':unit,'observed':1}).json()['id']
         # Independent reviewer required, even with an idempotency key.
         key={**h,'Idempotency-Key':'test-review-unique-001'}

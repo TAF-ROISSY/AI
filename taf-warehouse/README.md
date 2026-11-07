@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.6
+# TAF WAREHOUSE — TEST V4.7
+
+> **V4.7 (lot 3, refus de transfert et attente de rangement)** : voir `LOT3_REFUS_RANGEMENT.md`.
 
 > **V4.6 (lot 2, fiabilité)** : voir `LOT2_FIABILITE.md`.
 

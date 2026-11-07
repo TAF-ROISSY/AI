@@ -15,6 +15,7 @@ def test_cancel_reservations_and_transfer_independence():
         cli=get('clients').json()[0]['id']
         rec=post('receipts',{'warehouse':'Afrique','client_id':cli,'expected':2,'actual':2,'weight':40}).json()['id']
         unit=post('units',{'receipt_id':rec,'description':'Palette','quantity':2,'weight':40,'dimensions_ok':True}).json()['id']
+        from helpers import putaway; putaway(server, unit)  # Lot 3 : rangement avant sortie/transfert
         out=post('releases',{'unit_id':unit,'quantity':2}).json()['id']
         assert post('transfers',{'unit_id':unit,'destination':'Maritime'}).status_code==409
         assert post('releases/'+out+'/cancel').status_code==200
