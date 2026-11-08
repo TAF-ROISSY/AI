@@ -1,4 +1,11 @@
-# TAF WAREHOUSE — TEST V4.19
+# TAF WAREHOUSE — TEST V4.20
+
+> **V4.20 (recherche, chronologie, scanner iPhone, plan des racks)** :
+> - **Recherche universelle** en haut de chaque page : unités, réceptions (LTA, dossier, CMR, expéditeur), sorties, transferts, emplacements, clients, chauffeurs, incidents et litiges, limitée aux entrepôts autorisés.
+> - **Chronologie complète d'une unité :** réception, étiquettes, rangements, blocages et levées, comptages, demande, préparation, autorisation, sortie avec chauffeur et immatriculation, transferts, incidents.
+> - **Scanner QR :** lecture native (Chrome, Android) ou décodeur jsQR intégré (Safari iPhone et iPad, Apache 2.0, voir `web/vendor/`). La lecture ouvre la chronologie de l'unité.
+> - **Plan des racks** par entrepôt : niveaux C, B, A, avec l'état de chaque emplacement (libre, occupé, réservé, bloqué, fermé, capacité non validée), l'occupation et la charge.
+> - **Correctif :** l'écran « Écarts de réception » appelait une adresse inexistante depuis la V3.4 et restait vide.
 
 > **V4.19 (missions et tableau de bord)** :
 > - **Missions :** 8 types, affectation à un collaborateur habilité, priorité, échéance et consignes. Cycle à affecter → affectée → en cours → suspendue → terminée, ou annulée. Motif obligatoire pour suspendre, terminer ou annuler. Historique des événements, retards signalés, réaffectation.

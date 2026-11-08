@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.19.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.20.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -869,6 +869,85 @@ def search_movements(date_from:Optional[str]=None,date_to:Optional[str]=None,war
         return Response(content='\ufeff'+out.getvalue(),media_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="mouvements-taf-warehouse.csv"'})
     return {'total':total,'items':items,'limit':limit,'offset':offset}
 
+# --- Lot 12 : recherche universelle, chronologie, plan des racks ----------------------
+@app.get('/api/search')
+def universal_search(text:str=Query('',alias='q'),u=Depends(auth)):
+    term=text.strip().lower().replace('%','').replace('_','')
+    res={k:[] for k in ('units','receipts','clients','locations','release_orders','transfers','incidents','claims','drivers')}
+    if len(term)<2:return {**res,'total':0}
+    like='%'+term+'%';m=','.join('?' for _ in u['warehouses']);w=tuple(u['warehouses'])
+    with db() as c:
+        res['units']=q(c,f"SELECT u.id,u.warehouse,u.status,u.location_id,u.unit_type,u.unit_index,u.unit_count,u.description FROM units u WHERE u.warehouse IN ({m}) AND (lower(u.id) LIKE ? OR lower(u.description) LIKE ?) ORDER BY u.id DESC LIMIT 10",w+(like,like))
+        res['receipts']=q(c,f"SELECT r.id,r.warehouse,r.awb,r.status,r.created,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.warehouse IN ({m}) AND (lower(r.id) LIKE ? OR lower(COALESCE(r.awb,'')) LIKE ? OR lower(COALESCE(r.folder_ref,'')) LIKE ? OR lower(COALESCE(r.transport_ref,'')) LIKE ? OR lower(COALESCE(r.shipper,'')) LIKE ?) ORDER BY r.created DESC LIMIT 10",w+(like,)*5)
+        res['clients']=q(c,"SELECT id,name FROM clients WHERE lower(name) LIKE ? ORDER BY name LIMIT 10",(like,))
+        res['locations']=q(c,f"SELECT id,warehouse,zone FROM locations WHERE warehouse IN ({m}) AND lower(id) LIKE ? ORDER BY id LIMIT 10",w+(like,))
+        res['release_orders']=q(c,f"SELECT id,warehouse,reference,status,created FROM release_orders WHERE warehouse IN ({m}) AND (lower(id) LIKE ? OR lower(reference) LIKE ?) ORDER BY created DESC LIMIT 10",w+(like,like))
+        res['transfers']=q(c,f"SELECT id,unit_id,source,destination,status FROM transfers WHERE (source IN ({m}) OR destination IN ({m})) AND (lower(id) LIKE ? OR lower(unit_id) LIKE ?) ORDER BY created DESC LIMIT 10",w+w+(like,like))
+        res['incidents']=q(c,f"SELECT id,warehouse,severity,status,description FROM incidents WHERE warehouse IN ({m}) AND (lower(id) LIKE ? OR lower(description) LIKE ?) ORDER BY created DESC LIMIT 10",w+(like,like))
+        res['claims']=q(c,f"SELECT id,warehouse,status,description FROM claims WHERE warehouse IN ({m}) AND (lower(id) LIKE ? OR lower(description) LIKE ?) ORDER BY created DESC LIMIT 10",w+(like,like))
+        res['drivers']=q(c,"SELECT id,name,company,plate FROM drivers WHERE lower(name) LIKE ? OR lower(COALESCE(plate,'')) LIKE ? OR lower(COALESCE(company,'')) LIKE ? ORDER BY name LIMIT 10",(like,like,like))
+    return {**res,'total':sum(len(v) for v in res.values())}
+
+TIMELINE_RANK={'reception':0,'label':1,'move':2,'transfer_out':2,'transfer_in':2,'hold':3,'incident':3,'hold_lift':4,'count':5,'inventory':5,'release_order':6,'prepare':7,'authorize':8,'exit':9}
+@app.get('/api/units/{unit_id}/timeline')
+def unit_timeline(unit_id:str,u=Depends(auth)):
+    """Historique complet d'une unité, du plus ancien au plus récent."""
+    with db() as c:
+        unit=unit_access(c,u,unit_id);ev=[]
+        def add(at,kind,title,actor=None,detail='',ref=None):
+            if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail,'ref':ref})
+        rc=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(unit['receipt_id'],)) if unit['receipt_id'] else None
+        labels={'move':('move','Rangement / déplacement'),'transfer_depart':('transfer_out','Départ en transfert'),'transfer_receive':('transfer_in','Arrivée de transfert'),
+                'inventory_adjustment':('inventory','Correction d’inventaire'),'transfer_adjustment':('inventory','Ajustement après écart de transfert'),'refusal_return':('transfer_out','Retour après refus')}
+        for mv in q(c,'SELECT * FROM movements WHERE unit_id=? ORDER BY at,id',(unit_id,)):
+            if mv['kind']=='receive':
+                add(mv['at'],'reception','Réception',mv['actor'],f"{mv['quantity']} colis"+(f" · LTA {rc['awb']}" if rc and rc.get('awb') else '')+(f" · {rc['client']}" if rc else ''),mv['reference'])
+            elif mv['kind']=='exit':
+                d=one(c,"SELECT d.name,d.company,d.plate FROM drivers d WHERE d.id=COALESCE((SELECT driver_id FROM releases WHERE id=?),(SELECT driver_id FROM releases WHERE order_id=? AND unit_id=? AND handover_id IS NOT NULL LIMIT 1))",(mv['reference'],mv['reference'],unit_id))
+                add(mv['at'],'exit','Sortie remise au transporteur',mv['actor'],f"{mv['quantity']} colis"+(f" · {d['name']}"+(f" ({d['company']})" if d.get('company') else '')+(f" · {d['plate']}" if d.get('plate') else '') if d else ''),mv['reference'])
+            else:
+                k,t=labels.get(mv['kind'],(mv['kind'],mv['kind']));add(mv['at'],k,t,mv['actor'],' → '.join(x for x in (mv['source'],mv['destination']) if x)+(f" · {mv['quantity']:+d} colis" if mv['kind'] in ('inventory_adjustment','transfer_adjustment') else ''),mv['reference'])
+        for lp in q(c,'SELECT * FROM label_prints WHERE unit_id=?',(unit_id,)):add(lp['printed_at'],'label','Réimpression d’étiquette' if lp['reprint'] else 'Impression d’étiquette',lp['actor'])
+        for hd in q(c,'SELECT * FROM unit_holds WHERE unit_id=?',(unit_id,)):
+            add(hd['created'],'hold','Blocage : '+hd['reason'],hd['created_by'],hd['kind'],hd['ref'])
+            add(hd['lifted_at'],'hold_lift','Levée du blocage : '+hd['reason'],hd['lifted_by'],hd['lift_reason'] or '',hd['ref'])
+        for n in q(c,'SELECT * FROM counts WHERE unit_id=?',(unit_id,)):
+            add(n['created'],'count','Comptage d’inventaire',n['actor'],f"{n['observed']} compté(s) pour {n['expected']} attendu(s) · {({'approved':'validé','pending':'en attente','rejected':'rejeté'}).get(n['status'],n['status'])}",n['id'])
+        for r in q(c,'SELECT r.*,o.reference,o.authorized_at,o.authorized_by o_auth FROM releases r LEFT JOIN release_orders o ON o.id=r.order_id WHERE r.unit_id=?',(unit_id,)):
+            add(r['created'],'release_order','Demande de sortie'+(f" {r['reference']}" if r.get('reference') else ''),r['requested_by'],f"{r['quantity']} colis",r.get('order_id') or r['id'])
+            add(r.get('prepared_at'),'prepare','Préparation et contrôle',r.get('prepared_by'),r.get('prepare_note') or '',r.get('order_id'))
+            if r['status'] in ('authorized','completed'):add(r.get('authorized_at'),'authorize','Sortie autorisée',r.get('o_auth') or r.get('authorized_by'),'',r.get('order_id'))
+        for t in q(c,'SELECT * FROM transfers WHERE unit_id=?',(unit_id,)):add(t['created'],'transfer_out','Transfert demandé',t['actor'],f"{t['source']} → {t['destination']}",t['id'])
+        for i in q(c,'SELECT * FROM incidents WHERE unit_id=?',(unit_id,)):add(i['created'],'incident','Incident '+i['severity'],i['actor'],i['description'][:200],i['id'])
+    ev.sort(key=lambda e:(e['at'][:19],TIMELINE_RANK.get(e['kind'],5)))
+    return {'unit':{k:unit[k] for k in ('id','warehouse','status','location_id','quantity','weight','unit_type','unit_index','unit_count','description','hold')},'events':ev}
+
+@app.get('/api/locations/plan')
+def locations_plan(warehouse:str,u=Depends(auth)):
+    """Plan des racks : niveaux du haut vers le bas, état et occupation de chaque emplacement."""
+    access(u,warehouse)
+    with db() as c:
+        locs=q(c,'SELECT * FROM locations WHERE warehouse=? ORDER BY id',(warehouse,))
+        occ={r['location_id']:r for r in q(c,"SELECT location_id,COUNT(*) units,COALESCE(SUM(weight),0) kg,COALESCE(SUM(volume),0) m3,SUM(CASE WHEN hold!='' THEN 1 ELSE 0 END) held FROM units WHERE warehouse=? AND status='available' AND location_id IS NOT NULL GROUP BY location_id",(warehouse,))}
+        reserved={r['location_id'] for r in q(c,"SELECT DISTINCT un.location_id FROM releases r JOIN units un ON un.id=r.unit_id WHERE un.warehouse=? AND r.status IN ('requested','authorized')",(warehouse,))}
+    racks={}
+    for l in locs:
+        mt=re.match(r'^[A-Z]+-(R\d+)-([A-Z])(\d+)$',l['id'])
+        rack,level,pos=(mt.group(1),mt.group(2),int(mt.group(3))) if mt else (l['id'].split('-',1)[-1],'-',1)
+        o=occ.get(l['id'],{})
+        n=o.get('units',0)
+        state='blocked' if l['blocked'] else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'unverified' if not l['verified'] else 'free'
+        cell={'id':l['id'],'position':pos,'state':state,'units':n,'kg':round(o.get('kg',0),1),'m3':round(o.get('m3',0),3),
+              'capacity_kg':l['capacity_kg'],'capacity_m3':l['capacity_m3'],'verified':bool(l['verified']),
+              'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None}
+        racks.setdefault(rack,{}).setdefault(level,[]).append(cell)
+    out=[]
+    for rack in sorted(racks,key=lambda r:(not r.startswith('R'),r)):
+        levels=[{'level':lv,'cells':sorted(cells,key=lambda x:x['position'])} for lv,cells in sorted(racks[rack].items(),reverse=True)]
+        out.append({'rack':rack,'levels':levels})
+    states=[cell['state'] for r in out for lv in r['levels'] for cell in lv['cells']]
+    return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','reserved','held','blocked','unverified')}}
+
 @app.get('/api/transfers')
 def transfers(u=Depends(auth)):
     cols="id,unit_id,source,destination,status,created,actor,received_by,received_at,approved_by,dispatched_by,dispatched_at,dispatch_note,driver_id,signature_name,signature_at,received_quantity,received_condition,received_note,discrepancy_reviewed_by,discrepancy_reviewed_at,discrepancy_decision,return_of"
@@ -1276,6 +1355,7 @@ def recounts(u=Depends(auth)):
     with db() as c:
         return q(c,'SELECT r.* FROM recounts r JOIN counts c ON c.id=r.count_id WHERE c.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY r.created DESC',u['warehouses'])
 
+@app.get('/api/discrepancies')  # adresse utilisée par l'écran « Écarts de réception » depuis la V3.4
 @app.get('/api/receipt-discrepancies')
 def receipt_discrepancies(u=Depends(auth)):
     with db() as c:
