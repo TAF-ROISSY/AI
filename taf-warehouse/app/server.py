@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.22.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.23.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -142,6 +142,14 @@ ROLES=['superadmin','admin','exploitation','manager','leader','worker']
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
 def now_precise(): return datetime.now(timezone.utc).isoformat(timespec='microseconds')  # ordre des événements rapprochés
 def uid(prefix): return f'{prefix}-{uuid.uuid4().hex[:10].upper()}'
+def next_seq(c,name):
+    """Compteur unique, appelé dans une transaction d'écriture (verrou global : pas de doublon)."""
+    r=one(c,'SELECT value FROM counters WHERE name=?',(name,))
+    if r:
+        v=r['value']+1;c.execute('UPDATE counters SET value=? WHERE name=?',(v,name))
+    else:
+        v=1;c.execute('INSERT INTO counters(name,value) VALUES(?,?)',(name,v))
+    return v
 def password_hash(p,salt=None):
     salt=salt or secrets.token_hex(16)
     return salt+'$'+hashlib.pbkdf2_hmac('sha256',p.encode(),bytes.fromhex(salt),220000).hex()
@@ -318,6 +326,7 @@ def init():
         CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
+        CREATE TABLE IF NOT EXISTS counters(name TEXT PRIMARY KEY,value INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS mail_routes(warehouse TEXT PRIMARY KEY,recipients TEXT NOT NULL DEFAULT '[]',updated TEXT,updated_by TEXT);
         CREATE TABLE IF NOT EXISTS mail_outbox(id TEXT PRIMARY KEY,kind TEXT NOT NULL,ref TEXT NOT NULL,warehouse TEXT NOT NULL,reason TEXT NOT NULL,status TEXT NOT NULL,created TEXT NOT NULL,created_by TEXT NOT NULL,not_before TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,recipients TEXT,subject TEXT,sent_at TEXT,last_error TEXT,provider_id TEXT);
         """)
@@ -325,9 +334,10 @@ def init():
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
           'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
-          'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT')],
+          'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT'),('receipt_id','TEXT'),('unit_ids','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'drivers':[('id_type','TEXT'),('id_number','TEXT'),('identity_erased_at','TEXT')],
+          'locations':[('kind',"TEXT NOT NULL DEFAULT 'rack'"),('structure','TEXT'),('level','TEXT'),('position','INTEGER'),('active','INTEGER NOT NULL DEFAULT 1'),('created_by','TEXT'),('created','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
           'transfers':[('received_quantity','INTEGER'),('received_condition','TEXT'),('received_note','TEXT'),('discrepancy_reviewed_by','TEXT'),('discrepancy_reviewed_at','TEXT'),('discrepancy_decision','TEXT'),('return_of','TEXT')],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
@@ -339,6 +349,12 @@ def init():
         columns={r['name'] for r in c.execute('PRAGMA table_info(transfers)')}
         for column in ('approved_by','dispatched_by','dispatched_at','dispatch_note','driver_id','signature_name','signature_data','signature_at'):
             if column not in columns:c.execute(f'ALTER TABLE transfers ADD COLUMN {column} TEXT')
+        # Lot 15 : structure des emplacements créés avant le générateur.
+        for l in q(c,'SELECT id FROM locations WHERE structure IS NULL'):
+            mt=re.match(r'^[A-Z]+-(R\d+)-([A-Z])(\d+)$',l['id'])
+            if mt:c.execute("UPDATE locations SET kind='rack',structure=?,level=?,position=? WHERE id=?",(mt.group(1),mt.group(2),int(mt.group(3)),l['id']))
+            elif l['id'].endswith('-TEMP'):c.execute("UPDATE locations SET kind='temp',structure='TEMP',level='-',position=1 WHERE id=?",(l['id'],))
+            else:c.execute("UPDATE locations SET kind='other',structure=?,level='-',position=1 WHERE id=?",(l['id'].split('-',1)[-1],l['id']))
         # Lot 3 : une unité disponible sans emplacement est en attente de rangement.
         c.execute("UPDATE units SET status='awaiting_putaway' WHERE status='available' AND location_id IS NULL")
         # Lot 1 : reprise des blocages texte V4.4 dans la table des blocages multiples.
@@ -357,11 +373,11 @@ def init():
             for name in ['CLIENT DEMO','CLIENT TEST']:
                 c.execute('INSERT INTO clients VALUES(?,?)',(uid('CLI'),name))
             for wh,code in zip(WAREHOUSES,['AFR','MAR','MO','TMS']):
-                for rack in (1,2):
+                for rack in ((1,2) if os.getenv('TAF_DEMO_RACKS','1')=='1' else ()):
                     for level in ('A','B','C'):
                         for n in range(1,9):
-                            c.execute('INSERT INTO locations(id,warehouse,zone,verified) VALUES(?,?,?,0)',(f'{code}-R{rack:02d}-{level}{n}',wh,f'Rack {rack:02d} / {level}'))
-                c.execute('INSERT INTO locations(id,warehouse,zone,verified) VALUES(?,?,?,0)',(f'{code}-TEMP',wh,'Zone temporaire'))
+                            c.execute("INSERT INTO locations(id,warehouse,zone,verified,kind,structure,level,position) VALUES(?,?,?,0,'rack',?,?,?)",(f'{code}-R{rack:02d}-{level}{n}',wh,f'Rack {rack:02d} / {level}',f'R{rack:02d}',level,n))
+                c.execute("INSERT INTO locations(id,warehouse,zone,verified,kind,structure,level,position) VALUES(?,?,?,0,'temp','TEMP','-',1)",(f'{code}-TEMP',wh,'Zone temporaire'))
             audit(c,'system','bootstrap','system','initial',{'warning':'all rack capacities unverified'})
         default_to=[x.strip() for x in os.getenv('TAF_MAIL_DEFAULT_TO','').split(',') if x.strip()]
         for wh in (WAREHOUSES if one(c,'SELECT id FROM users LIMIT 1') else []):  # base vide (migration) : rien
@@ -408,7 +424,7 @@ class MissionCreate(BaseModel):
     warehouse:str;title:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=200)];leader:str=''
     type:Literal['reception','rangement','preparation','inventaire','transfert','controle','incident','autre']='autre'
     assignee:str='';priority:Literal['low','normal','high','urgent']='normal';due_at:Optional[str]=None;description:str=Field(default='',max_length=2000)
-class MissionAction(BaseModel):action:Literal['start','suspend','resume','complete','cancel'];note:str=Field(default='',max_length=1000)
+class MissionAction(BaseModel):action:Literal['take','start','suspend','resume','complete','cancel'];note:str=Field(default='',max_length=1000)
 class MissionAssign(BaseModel):assignee:str
 class TaskCreate(BaseModel):title:str;assignee:str=''
 class IncidentCreate(BaseModel):warehouse:str;unit_id:Optional[str]=None;location_id:Optional[str]=None;category:str;severity:str;description:str
@@ -710,7 +726,7 @@ def create_client(x:ClientCreate,u=Depends(auth)):
 @app.get('/api/locations')
 def locations(warehouse:Optional[str]=None,u=Depends(auth)):
     if warehouse:access(u,warehouse)
-    with db() as c:return q(c,'SELECT * FROM locations WHERE warehouse IN ('+','.join('?' for _ in u['warehouses'])+')'+(' AND warehouse=?' if warehouse else '')+' ORDER BY id',tuple(u['warehouses'])+((warehouse,) if warehouse else ()))
+    with db() as c:return q(c,'SELECT * FROM locations WHERE active=1 AND warehouse IN ('+','.join('?' for _ in u['warehouses'])+')'+(' AND warehouse=?' if warehouse else '')+' ORDER BY warehouse,kind,structure,level,position,id',tuple(u['warehouses'])+((warehouse,) if warehouse else ()))
 @app.put('/api/locations/{lid}')
 def update_location(lid:str,x:LocationPatch,u=Depends(auth)):
     role(u,'admin','manager');
@@ -740,7 +756,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
     with tx() as c:
         replay,digest=replay_request(c,u['id'],'receipt.create',idempotency_key,x.model_dump())
         if replay is not None:return replay
-        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');i=uid('REC')
+        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');i=f"E-{next_seq(c,'receipt'):06d}"
         c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes,shipper,carrier,transport_ref,folder_ref,nature,apparent_condition,security_status,volume_m3,volumetric_weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   (i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes,x.shipper,x.carrier,x.transport_ref,x.folder_ref,x.nature,x.apparent_condition,x.security_status,round(volume,4) if x.packages else None,round(volume*VOLUMETRIC_KG_PER_M3,2) if x.packages else None))
         audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages)})
@@ -787,7 +803,7 @@ def move(x:Move,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias=
         c.execute('BEGIN IMMEDIATE');replay,digest=replay_request(c,u['id'],'unit.move',idempotency_key,x.model_dump())
         if replay is not None:return replay
         unit=unit_access(c,u,x.unit_id);role(u,'worker','leader','manager','exploitation','admin')
-        dest=one(c,'SELECT * FROM locations WHERE id=?',(x.destination,));require(dest,'Destination inconnue',404);require(dest['warehouse']==unit['warehouse'],'Utiliser un transfert inter-entrepôts')
+        dest=one(c,'SELECT * FROM locations WHERE id=? AND active=1',(x.destination,));require(dest,'Destination inconnue',404);require(dest['warehouse']==unit['warehouse'],'Utiliser un transfert inter-entrepôts')
         require(unit['version']==x.expected_version,'Unité modifiée simultanément',409)
         require(unit['status'] in ('available','awaiting_putaway') and not unit['hold'] and unit['quantity']>0,'Unité indisponible ou bloquée')
         require(not one(c,"SELECT id FROM transfers WHERE unit_id=? AND status IN ('requested','approved','in_transit')",(unit['id'],)),'Transfert actif',409)
@@ -910,7 +926,10 @@ TIMELINE_RANK={'reception':0,'label':1,'move':2,'transfer_out':2,'transfer_in':2
 def unit_timeline(unit_id:str,u=Depends(auth)):
     """Historique complet d'une unité, du plus ancien au plus récent."""
     with db() as c:
-        unit=unit_access(c,u,unit_id);ev=[]
+        unit=unit_access(c,u,unit_id);ev=unit_events(c,unit)
+    return {'unit':{k:unit[k] for k in ('id','warehouse','status','location_id','quantity','weight','unit_type','unit_index','unit_count','description','hold')},'events':ev}
+def unit_events(c,unit):
+        unit_id=unit['id'];ev=[]
         def add(at,kind,title,actor=None,detail='',ref=None):
             if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail,'ref':ref})
         rc=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(unit['receipt_id'],)) if unit['receipt_id'] else None
@@ -936,8 +955,8 @@ def unit_timeline(unit_id:str,u=Depends(auth)):
             if r['status'] in ('authorized','completed'):add(r.get('authorized_at'),'authorize','Sortie autorisée',r.get('o_auth') or r.get('authorized_by'),'',r.get('order_id'))
         for t in q(c,'SELECT * FROM transfers WHERE unit_id=?',(unit_id,)):add(t['created'],'transfer_out','Transfert demandé',t['actor'],f"{t['source']} → {t['destination']}",t['id'])
         for i in q(c,'SELECT * FROM incidents WHERE unit_id=?',(unit_id,)):add(i['created'],'incident','Incident '+i['severity'],i['actor'],i['description'][:200],i['id'])
-    ev.sort(key=lambda e:(e['at'][:19],TIMELINE_RANK.get(e['kind'],5)))
-    return {'unit':{k:unit[k] for k in ('id','warehouse','status','location_id','quantity','weight','unit_type','unit_index','unit_count','description','hold')},'events':ev}
+        ev.sort(key=lambda e:(e['at'][:19],TIMELINE_RANK.get(e['kind'],5)))
+        return ev
 
 @app.get('/api/locations/plan')
 def locations_plan(warehouse:str,u=Depends(auth)):
@@ -947,21 +966,24 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         locs=q(c,'SELECT * FROM locations WHERE warehouse=? ORDER BY id',(warehouse,))
         occ={r['location_id']:r for r in q(c,"SELECT location_id,COUNT(*) units,COALESCE(SUM(weight),0) kg,COALESCE(SUM(volume),0) m3,SUM(CASE WHEN hold!='' THEN 1 ELSE 0 END) held FROM units WHERE warehouse=? AND status='available' AND location_id IS NOT NULL GROUP BY location_id",(warehouse,))}
         reserved={r['location_id'] for r in q(c,"SELECT DISTINCT un.location_id FROM releases r JOIN units un ON un.id=r.unit_id WHERE un.warehouse=? AND r.status IN ('requested','authorized')",(warehouse,))}
-    racks={}
+    racks={};kinds={}
     for l in locs:
-        mt=re.match(r'^[A-Z]+-(R\d+)-([A-Z])(\d+)$',l['id'])
-        rack,level,pos=(mt.group(1),mt.group(2),int(mt.group(3))) if mt else (l['id'].split('-',1)[-1],'-',1)
+        if not l.get('active',1):continue
+        rack,level,pos=l.get('structure') or l['id'],l.get('level') or '-',l.get('position') or 1
+        kinds[rack]=l.get('kind') or 'rack'
         o=occ.get(l['id'],{})
         n=o.get('units',0)
         state='blocked' if l['blocked'] else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'unverified' if not l['verified'] else 'free'
         cell={'id':l['id'],'position':pos,'state':state,'units':n,'kg':round(o.get('kg',0),1),'m3':round(o.get('m3',0),3),
               'capacity_kg':l['capacity_kg'],'capacity_m3':l['capacity_m3'],'verified':bool(l['verified']),
               'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None}
-        racks.setdefault(rack,{}).setdefault(level,[]).append(cell)
+        racks.setdefault(rack,{}).setdefault(str(level),[]).append(cell)
+    order={'rack':0,'shelf':1,'floor':2,'vault':3,'other':4,'temp':5}
     out=[]
-    for rack in sorted(racks,key=lambda r:(not r.startswith('R'),r)):
-        levels=[{'level':lv,'cells':sorted(cells,key=lambda x:x['position'])} for lv,cells in sorted(racks[rack].items(),reverse=True)]
-        out.append({'rack':rack,'levels':levels})
+    for rack in sorted(racks,key=lambda r:(order.get(kinds[r],4),r)):
+        top_first=kinds[rack] in ('rack','shelf')   # racks et étagères : niveau du haut en premier ; sol : allée A en premier
+        levels=[{'level':lv,'cells':sorted(cells,key=lambda x:x['position'])} for lv,cells in sorted(racks[rack].items(),reverse=top_first)]
+        out.append({'rack':rack,'kind':kinds[rack],'label':STRUCTURE_LABEL(kinds[rack],rack),'levels':levels})
     states=[cell['state'] for r in out for lv in r['levels'] for cell in lv['cells']]
     return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','reserved','held','blocked','unverified')}}
 
@@ -1526,6 +1548,7 @@ def receipt_dossier(c,rid):
     holds=q(c,'SELECT h.unit_id,h.reason FROM unit_holds h JOIN units x ON x.id=h.unit_id WHERE x.receipt_id=? AND h.lifted_at IS NULL ORDER BY h.created',(rid,))
     docs=q(c,"SELECT * FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
     who=one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,))
+    rec['history']=receipt_history(c,rid)
     return rec,units,discrepancies,holds,docs,(who or {}).get('actor'),receipt_problems(c,rec,units)
 def receipt_pdf(c,rid):
     from app.pdf_report import receipt_report
@@ -1659,6 +1682,168 @@ def _background_loop():
 @app.on_event('startup')
 def _start_background():
     if os.getenv('TAF_BACKGROUND','1')=='1':threading.Thread(target=_background_loop,name='taf-background',daemon=True).start()
+
+
+# --- Lot 15 : générateur de zones de stockage -------------------------------------------------------
+WH_CODES={'Afrique':'AFR','Maritime':'MAR','Moyen-Orient':'MO','TMS':'TMS'}
+def STRUCTURE_LABEL(kind,structure):
+    if kind=='rack':return {'G':'Rack gauche','D':'Rack droite'}.get(structure,'Rack '+structure)
+    if kind=='shelf':return 'Étagère '+structure[2:] if structure.startswith('ET') else 'Étagère '+structure
+    if kind=='floor':return 'Sol (marquage au sol)'
+    if kind=='vault':return 'Coffre objets de valeur'
+    if kind=='temp':return 'Zone temporaire'
+    return structure
+CODE_RE=re.compile(r'^[A-Z0-9]{1,3}$')
+class LocationGenerate(BaseModel):
+    warehouse:str
+    kind:Literal['rack','floor','shelf','vault']
+    names:list[str]=Field(default_factory=list,max_length=26)   # racks : G, D… ; sol : allées A, B…
+    count:int=Field(default=1,ge=1,le=26)                          # étagères : nombre de meubles
+    start:int=Field(default=1,ge=1,le=99)                          # étagères : premier numéro
+    levels:int=Field(default=1,ge=1,le=9)
+    positions:int=Field(default=1,ge=1,le=99)                      # par niveau (rack, étagère), par allée (sol), cases du coffre
+    capacity_kg:Optional[float]=Field(default=None,gt=0,le=20000)
+    capacity_m3:Optional[float]=Field(default=None,gt=0,le=200)
+    proof:str=Field(default='',max_length=300)
+    dry_run:bool=False
+def plan_locations(x):
+    """Identifiants générés : AFR-G-2-05 (rack), AFR-SOL-A-03 (sol), AFR-ET1-2-03 (étagère), AFR-COFFRE-01 (coffre)."""
+    code=WH_CODES[x.warehouse];out=[]
+    if x.kind in ('rack','floor'):
+        names=[n.strip().upper() for n in x.names if n.strip()]
+        require(names,'Indiquer au moins un rack (ex. G, D) ou une allée (ex. A, B)')
+        require(all(CODE_RE.match(n) for n in names) and len(set(names))==len(names),'Noms : 1 à 3 lettres ou chiffres, sans doublon')
+    if x.kind=='rack':
+        for n in names:
+            for lv in range(1,x.levels+1):
+                for pos in range(1,x.positions+1):out.append((f'{code}-{n}-{lv}-{pos:02d}',n,str(lv),pos,f'{STRUCTURE_LABEL("rack",n)} · étage {lv}'))
+    elif x.kind=='floor':
+        for n in names:
+            for pos in range(1,x.positions+1):out.append((f'{code}-SOL-{n}-{pos:02d}','SOL',n,pos,f'Sol · allée {n}'))
+    elif x.kind=='shelf':
+        for k in range(x.start,x.start+x.count):
+            for lv in range(1,x.levels+1):
+                for pos in range(1,x.positions+1):out.append((f'{code}-ET{k}-{lv}-{pos:02d}',f'ET{k}',str(lv),pos,f'Étagère {k} · niveau {lv}'))
+    else:
+        if x.positions==1:out.append((f'{code}-COFFRE','COFFRE','-',1,'Coffre objets de valeur'))
+        else:
+            for pos in range(1,x.positions+1):out.append((f'{code}-COFFRE-{pos:02d}','COFFRE','-',pos,'Coffre objets de valeur'))
+    require(len(out)<=2000,'Plus de 2 000 emplacements en une fois : découper la création')
+    return out
+@app.post('/api/locations/generate')
+def generate_locations(x:LocationGenerate,u=Depends(auth)):
+    role(u,'admin','manager');warehouse(x.warehouse);access(u,x.warehouse)
+    verified=bool(x.capacity_kg and x.capacity_m3 and len(x.proof.strip())>=5)
+    require(not x.proof.strip() or verified,'Preuve fournie : indiquer aussi la charge (kg) et le volume (m³) par emplacement')
+    rows=plan_locations(x)
+    with tx() as c:
+        existing={r['id']:r for r in q(c,'SELECT id,active FROM locations WHERE id IN ('+','.join('?' for _ in rows)+')',[r[0] for r in rows])}
+        fresh=[r for r in rows if r[0] not in existing]
+        revived=[r for r in rows if r[0] in existing and not existing[r[0]]['active']]
+        if x.dry_run:
+            return {'dry_run':True,'total':len(rows),'new':len(fresh)+len(revived),'existing':len(rows)-len(fresh)-len(revived),'sample':[r[0] for r in rows[:6]]+(['…',rows[-1][0]] if len(rows)>6 else []),'verified':verified}
+        require(fresh or revived,'Tous ces emplacements existent déjà',409)
+        t=now()
+        for lid,struct,lv,pos,zone in fresh:
+            c.execute('INSERT INTO locations(id,warehouse,zone,capacity_kg,capacity_m3,verified,blocked,notes,kind,structure,level,position,active,created_by,created) VALUES(?,?,?,?,?,?,0,?,?,?,?,?,1,?,?)',
+                      (lid,x.warehouse,zone,x.capacity_kg,x.capacity_m3,int(verified),x.proof.strip(),x.kind,struct,lv,pos,u['username'],t))
+        for lid,*_ in revived:
+            c.execute('UPDATE locations SET active=1,capacity_kg=COALESCE(?,capacity_kg),capacity_m3=COALESCE(?,capacity_m3),verified=CASE WHEN ?=1 THEN 1 ELSE verified END,notes=CASE WHEN ?=1 THEN ? ELSE notes END WHERE id=?',
+                      (x.capacity_kg,x.capacity_m3,int(verified),int(verified),x.proof.strip(),lid))
+        audit(c,u['username'],'generate_locations','warehouse',x.warehouse,{'kind':x.kind,'names':x.names,'count':x.count,'levels':x.levels,'positions':x.positions,'created':len(fresh),'reactivated':len(revived),'verified':verified})
+    return {'created':len(fresh),'reactivated':len(revived),'skipped':len(rows)-len(fresh)-len(revived),'ids':[r[0] for r in fresh+revived]}
+class StructureRemove(BaseModel):warehouse:str;structure:str=Field(min_length=1,max_length=20);reason:str=Field(min_length=5,max_length=300)
+@app.post('/api/locations/remove-structure')
+def remove_structure(x:StructureRemove,u=Depends(auth)):
+    """Retire une structure (rack, allée au sol, étagère…). Refusé si un emplacement contient encore de la marchandise."""
+    role(u,'admin','manager');access(u,x.warehouse)
+    with tx() as c:
+        locs=[r['id'] for r in q(c,'SELECT id FROM locations WHERE warehouse=? AND structure=? AND active=1',(x.warehouse,x.structure))]
+        require(locs,'Structure introuvable',404)
+        marks=','.join('?' for _ in locs)
+        busy=q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks}) AND status NOT IN ('exited','depleted')",locs)
+        require(not busy,'Emplacements encore occupés : '+', '.join(b['location_id'] for b in busy[:5]),409)
+        used={r['location_id'] for r in q(c,f"SELECT DISTINCT destination location_id FROM movements WHERE destination IN ({marks})",locs)}
+        used|={r['location_id'] for r in q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks})",locs)}
+        for lid in locs:
+            if lid in used or one(c,'SELECT location_id FROM rack_rules WHERE location_id=?',(lid,)):c.execute('UPDATE locations SET active=0 WHERE id=?',(lid,))  # historique conservé
+            else:c.execute('DELETE FROM locations WHERE id=?',(lid,))
+        audit(c,u['username'],'remove_structure','warehouse',x.warehouse,{'structure':x.structure,'locations':len(locs),'archived':len(used),'reason':x.reason})
+    return {'removed':len(locs),'archived':len(used)}
+@app.get('/api/locations/labels')
+def location_labels(ids:str='',warehouse:str='',structure:str='',u=Depends(auth)):
+    """Panneaux A4 d'emplacements (6 par page) avec QR code : racks, étagères, marquage au sol, coffre."""
+    with db() as c:
+        if ids:rows=[one(c,'SELECT * FROM locations WHERE id=? AND active=1',(i.strip(),)) for i in ids.split(',') if i.strip()]
+        else:
+            access(u,warehouse);rows=q(c,'SELECT * FROM locations WHERE warehouse=? AND active=1'+(' AND structure=?' if structure else '')+' ORDER BY structure,level,position',(warehouse,structure) if structure else (warehouse,))
+        rows=[r for r in rows if r];require(rows,'Aucun emplacement',404);require(len(rows)<=600,'600 panneaux maximum par impression')
+        for r in rows:access(u,r['warehouse'])
+    from app.pdf_report import location_signs
+    for r in rows:r['label']=STRUCTURE_LABEL(r.get('kind') or 'rack',r.get('structure') or '')
+    return Response(content=location_signs(rows),media_type='application/pdf',headers={'Content-Disposition':'inline; filename="panneaux-emplacements.pdf"'})
+
+# --- Lot 15 : demandes au magasin depuis la fiche d'entrée -------------------------------------------
+class ReceiptMission(BaseModel):
+    type:Literal['preparation','rangement','controle','inventaire','transfert','autre']='preparation'
+    title:str=Field(default='',max_length=200);description:str=Field(default='',max_length=2000)
+    priority:Literal['low','normal','high','urgent']='normal';due_at:Optional[str]=None;assignee:str=''
+    unit_ids:Optional[list[str]]=None
+MISSION_TITLES={'preparation':'Préparer pour la sortie','rangement':'Ranger','controle':'Contrôler','inventaire':'Compter','transfert':'Préparer le transfert','autre':'Tâche'}
+@app.post('/api/receipts/{rid}/missions')
+def receipt_mission(rid:str,x:ReceiptMission,u=Depends(auth)):
+    role(u,'exploitation','manager','admin','leader')
+    with tx() as c:
+        r=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        stock=[x_['id'] for x_ in q(c,"SELECT id FROM units WHERE receipt_id=? AND status NOT IN ('exited','depleted') ORDER BY unit_index,id",(rid,))]
+        units=stock if x.unit_ids is None else x.unit_ids
+        require(units,'Aucune unité en stock pour cette entrée',409)
+        require(all(i in stock for i in units),'Unité hors de cette entrée ou déjà sortie')
+        require(x.type!='autre' or len(x.description.strip())>=3,'Décrire la tâche demandée')
+        who=_mission_assignee(c,r['warehouse'],x.assignee)
+        title=x.title.strip() or f"{MISSION_TITLES[x.type]} — {rid} · {r['client']}"+(f" · LTA {r['awb']}" if r.get('awb') else '')+f" · {len(units)} unité(s)"
+        i=uid('MIS')
+        c.execute('INSERT INTO missions(id,warehouse,title,leader,status,created,closed,type,assignee,priority,due_at,description,created_by,receipt_id,unit_ids) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                  (i,r['warehouse'],title[:200],'','assigned' if who else 'to_assign',now(),None,x.type,who,x.priority,x.due_at,x.description.strip(),u['username'],rid,json.dumps(units)))
+        audit(c,u['username'],'request_mission','receipt',rid,{'mission':i,'type':x.type,'units':len(units),'assignee':who})
+        audit(c,u['username'],'create','mission',i,{'type':x.type,'receipt':rid})
+        notify(c,r['warehouse'],'mission',i,'🔔 Nouvelle demande au magasin'+(f' pour {who}' if who else ''),title[:300],u['username'])
+    return {'id':i,'status':'assigned' if who else 'to_assign'}
+@app.get('/api/missions/feed')
+def missions_feed(u=Depends(auth)):
+    """Alertes des postes magasin : missions en attente de prise en charge et missions qui me sont affectées."""
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:
+        rows=q(c,f"SELECT id,warehouse,title,type,priority,status,assignee,created,receipt_id,due_at FROM missions WHERE warehouse IN ({marks}) AND (status='to_assign' OR (status='assigned' AND assignee=?)) ORDER BY created DESC LIMIT 50",[*u['warehouses'],u['username']])
+    return {'missions':rows,'count':len(rows),'at':now()}
+
+def receipt_history(c,rid):
+    """Historique complet d'une entrée : réception, unités, documents, écarts, demandes et missions, e-mails."""
+    ev=[]
+    def add(at,kind,title,actor=None,detail='',ref=None):
+        if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail or '','ref':ref})
+    labels={'receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
+    for a in q(c,"SELECT * FROM audit WHERE kind='receipt' AND ref=? ORDER BY at,id",(rid,)):
+        d=json.loads(a['details'] or '{}') if a.get('details') else {}
+        detail={'receive':lambda: f"{d.get('units',0)} unité(s)"+(' · '+' ; '.join(d.get('warnings',[])) if d.get('warnings') else ''),
+                'mail_sent':lambda: ', '.join(d.get('to',[])),'request_mission':lambda: f"{d.get('mission')} · {d.get('units')} unité(s)"}.get(a['action'],lambda:'')()
+        add(a['at'],'receipt',labels.get(a['action'],a['action']),a['actor'],detail,rid)
+    for doc in q(c,"SELECT * FROM documents WHERE kind='receipt' AND ref=?",(rid,)):add(doc['uploaded'],'document','Pièce jointe : '+doc['name'],doc['actor'],'',doc['id'])
+    for m in q(c,'SELECT * FROM missions WHERE receipt_id=?',(rid,)):
+        for e in q(c,'SELECT * FROM mission_events WHERE mission_id=? ORDER BY created,id',(m['id'],)):
+            add(e['created'],'mission',{'take':'Mission prise en charge','start':'Mission démarrée','suspend':'Mission suspendue','resume':'Mission reprise','complete':'Mission terminée','cancel':'Mission annulée','assign':'Mission affectée'}.get(e['action'],e['action']),e['actor'],f"{m['title']}"+(f" · {e['note']}" if e['note'] else ''),m['id'])
+    for un in q(c,'SELECT * FROM units WHERE receipt_id=?',(rid,)):
+        tag=f"{(un.get('unit_type') or 'unité').capitalize()} {un['unit_index']}/{un['unit_count']}" if un.get('unit_index') else un['id']
+        for e in unit_events(c,un):
+            if e['kind']=='reception':continue
+            add(e['at'],e['kind'],f"{tag} · {e['title']}",e['actor'],e['detail'],un['id'])
+    ev.sort(key=lambda e:(e['at'][:19],-1 if e['title']=='Réception enregistrée' else TIMELINE_RANK.get(e['kind'],5)))
+    return ev
+@app.get('/api/receipts/{rid}/history')
+def receipt_history_api(rid:str,u=Depends(auth)):
+    with db() as c:
+        r=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        return {'receipt':{k:r[k] for k in ('id','warehouse','client','awb','expected','actual','status','created')},'events':receipt_history(c,rid)}
 
 @app.get('/api/releases')
 def releases(u=Depends(auth)):
@@ -1907,7 +2092,7 @@ def create_mission(x:MissionCreate,u=Depends(auth)):
         audit(c,u['username'],'create','mission',i,{'type':x.type,'assignee':who,'priority':x.priority,'due_at':x.due_at})
         notify(c,x.warehouse,'mission',i,'Nouvelle mission'+(f' pour {who}' if who else ' à affecter'),x.title,u['username'])
     return {'id':i}
-MISSION_FLOW={'start':({'assigned'},'in_progress'),'suspend':({'in_progress'},'suspended'),'resume':({'suspended'},'in_progress'),
+MISSION_FLOW={'take':({'to_assign'},'in_progress'),'start':({'assigned'},'in_progress'),'suspend':({'in_progress'},'suspended'),'resume':({'suspended'},'in_progress'),
               'complete':({'in_progress'},'done'),'cancel':({'to_assign','assigned','in_progress','suspended','open'},'cancelled')}
 @app.post('/api/missions/{mid}/status')
 def mission_status(mid:str,x:MissionAction,u=Depends(auth)):
@@ -1917,14 +2102,15 @@ def mission_status(mid:str,x:MissionAction,u=Depends(auth)):
         require(m['status'] in allowed,'Action impossible dans l’état actuel de la mission',409)
         office=u['role'] in ('superadmin','admin','manager','exploitation')
         if x.action=='cancel':require(office,'Annulation réservée à l’exploitation et aux responsables',403)
+        elif x.action=='take':pass  # toute personne habilitée sur l'entrepôt peut prendre en charge une mission en attente
         else:require(m['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Mission affectée à un autre collaborateur',403)
         if x.action in ('suspend','cancel','complete'):require(len(x.note.strip())>=3,'Motif ou compte rendu obligatoire')
-        sets={'start':'started_at=COALESCE(started_at,?)','complete':'completed_at=?,completed_by=?','cancel':'closed=?'}.get(x.action)
-        vals={'start':(now(),),'complete':(now(),u['username']),'cancel':(now(),)}.get(x.action,())
+        sets={'take':'assignee=?,started_at=COALESCE(started_at,?)','start':'started_at=COALESCE(started_at,?)','complete':'completed_at=?,completed_by=?','cancel':'closed=?'}.get(x.action)
+        vals={'take':(u['username'],now()),'start':(now(),),'complete':(now(),u['username']),'cancel':(now(),)}.get(x.action,())
         c.execute(f"UPDATE missions SET status=?{','+sets if sets else ''} WHERE id=?",(target,*vals,mid))
         c.execute('INSERT INTO mission_events(id,mission_id,actor,action,note,created) VALUES(?,?,?,?,?,?)',(uid('MEV'),mid,u['username'],x.action,x.note.strip(),now_precise()))
         audit(c,u['username'],'mission_'+x.action,'mission',mid,{'note':x.note})
-        if x.action in ('suspend','complete','cancel'):notify(c,m['warehouse'],'mission',mid,{'suspend':'Mission suspendue','complete':'Mission terminée','cancel':'Mission annulée'}[x.action],f"{m['title']} : {x.note}"[:300],u['username'])
+        if x.action in ('take','suspend','complete','cancel'):notify(c,m['warehouse'],'mission',mid,{'take':f"Mission prise en charge par {u['username']}",'suspend':'Mission suspendue','complete':'Mission terminée','cancel':'Mission annulée'}[x.action],(f"{m['title']} : {x.note}" if x.note else m['title'])[:300],u['username'])
     return {'ok':True,'status':target}
 @app.post('/api/missions/{mid}/assign')
 def mission_assign(mid:str,x:MissionAssign,u=Depends(auth)):
@@ -2117,6 +2303,14 @@ def report(kind:str,ref:str,u=Depends(auth)):
         logs=q(c,'SELECT at,actor,action,details FROM audit WHERE kind=? AND ref=? ORDER BY at,id',(kind,ref))
         docs=q(c,'SELECT name,sha256,uploaded,actor FROM documents WHERE kind=? AND ref=? ORDER BY uploaded',(kind,ref))
         extra=q(c,'SELECT actor,action,note,created FROM claim_actions WHERE claim_id=? ORDER BY created',(ref,)) if kind=='claim' else q(c,'SELECT actor,action,note,created FROM mission_events WHERE mission_id=? ORDER BY created',(ref,)) if kind=='mission' else []
+    if kind=='mission':
+        with db() as c:
+            ids=json.loads(item.get('unit_ids') or '[]')
+            units=[one(c,'SELECT * FROM units WHERE id=?',(i,)) for i in ids];units=[x for x in units if x]
+            rec=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(item['receipt_id'],)) if item.get('receipt_id') else None
+        from app.pdf_report import mission_report
+        raw=mission_report(item,extra,units,rec,docs,now())
+        return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="mission-{ref}.pdf"'})
     from app.pdf_report import dossier_report
     raw=dossier_report(kind,item,logs,docs,extra,now())
     return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="rapport-{ref}.pdf"'})

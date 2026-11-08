@@ -609,8 +609,103 @@ def receipt_report(rec, units, discrepancies, holds, problems, docs, received_by
     if len(photos) > 6:
         story.append(txt(f'{len(photos) - 6} photo(s) supplémentaire(s) dans le dossier de réception.', 'small'))
     story += [Spacer(1, 8), KeepTogether([section('Pièces jointes'), Spacer(1, 4), attachments_table(docs)])]
+    story += history_table(rec.get('history') or [])
     story += [Spacer(1, 10), txt('Fiche établie à partir des saisies du magasin dans TAF WAREHOUSE. Les blocages éventuels restent en place '
                                  'jusqu’à leur levée par une personne habilitée.', 'small')]
     ok = not problems
     return build('Fiche de réception', rec['id'], 'RÉCEPTION CONFORME' if ok else 'PROBLÈME DE RÉCEPTION', 'green' if ok else 'red',
                  story, generated_at, rec['warehouse'] + (' · LTA ' + rec['awb'] if rec.get('awb') else ''))
+
+
+def history_table(events, title='Historique complet'):
+    if not events:
+        return []
+    head = [Paragraph(h, S['cellhead']) for h in ('DATE', 'PAR', 'ÉVÉNEMENT', 'DÉTAIL')]
+    rows = [head] + [[txt(fr_date(e['at'][:19]), 'cell'), txt(e.get('actor'), 'cell'), txt(e['title'], 'cell'), txt(e.get('detail'), 'cell')] for e in events]
+    t = Table(rows, colWidths=[CONTENT * .2, CONTENT * .13, CONTENT * .32, CONTENT * .35], repeatRows=1)
+    t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                           ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3)]))
+    return [Spacer(1, 10), section(f'{title} ({len(events)} événement(s))'), Spacer(1, 4), t]
+
+
+MISSION_STATUS = {'to_assign': ('EN ATTENTE', 'red'), 'assigned': ('AFFECTÉE', 'blue'), 'in_progress': ('EN COURS', 'blue'), 'suspended': ('SUSPENDUE', 'red'),
+                  'done': ('TERMINÉE', 'green'), 'closed': ('CLÔTURÉE', 'green'), 'cancelled': ('ANNULÉE', 'red'), 'open': ('EN COURS', 'blue')}
+MISSION_EVENTS = {'take': 'Prise en charge', 'start': 'Démarrage', 'suspend': 'Suspension', 'resume': 'Reprise', 'complete': 'Fin de mission', 'cancel': 'Annulation', 'assign': 'Affectation'}
+
+
+def mission_report(m, events, units, rec, docs, generated_at):
+    """Récapitulatif de mission à imprimer : consignes, unités à traiter et emplacements, suivi."""
+    taken = next((e for e in events if e['action'] in ('take', 'start')), None)
+    story = [section('Mission'), Spacer(1, 4),
+             field_grid([('Mission', m['id']), ('Type', fr(m.get('type'))), ('Priorité', fr(m.get('priority'))),
+                         ('Entrepôt', m['warehouse']), ('Demandée par', m.get('created_by')), ('Le', fr_date(m.get('created'))),
+                         ('Échéance', (m.get('due_at') or '—').replace('T', ' à ')), ('Pris en charge par', m.get('assignee')),
+                         ('Terminée le', fr_date(m.get('completed_at')) if m.get('completed_at') else '—')]),
+             Spacer(1, 8), callout('Objet', m['title'], 'navy')]
+    if (m.get('description') or '').strip():
+        story += [Spacer(1, 6), callout('Consignes de l’exploitation', m['description'], 'red' if m.get('priority') in ('high', 'urgent') else 'navy')]
+    if rec:
+        story += [Spacer(1, 10), section('Entrée concernée'), Spacer(1, 4),
+                  field_grid([('Entrée', rec['id']), ('Client', rec.get('client')), ('LTA', rec.get('awb')),
+                              ('Colis reçus', rec.get('actual')), ('Poids déclaré', f"{fr_number(rec.get('weight'))} kg"), ('Reçue le', fr_date(rec.get('created')))])]
+    if units:
+        head = [Paragraph(h, S['cellhead']) for h in ('OK', 'UNITÉ', 'TYPE', 'COLIS', 'POIDS', 'EMPLACEMENT', 'ÉTAT')]
+        st = {'available': 'En stock', 'awaiting_putaway': 'À ranger', 'exited': 'Sortie', 'in_transit': 'En transit', 'depleted': 'Épuisée'}
+        rows = [head] + [['', txt(u['id'], 'cell'),
+                          txt(f"{(u.get('unit_type') or '').capitalize()} {u['unit_index']}/{u['unit_count']}" if u.get('unit_index') else (u.get('unit_type') or '').capitalize(), 'cell'),
+                          txt(u['quantity'], 'cell'), txt(f"{fr_number(u.get('weight'))} kg", 'cell'),
+                          Paragraph('<b>' + escape(u.get('location_id') or 'À ranger') + '</b>', S['cell']),
+                          txt(st.get(u.get('status'), u.get('status')) + (' · bloquée' if u.get('hold') else ''), 'cell')] for u in units]
+        rows.append(['', txt('Total', 'cellhead'), '', txt(sum(u['quantity'] for u in units), 'cellhead'), txt(f"{fr_number(sum(u.get('weight') or 0 for u in units))} kg", 'cellhead'), '', ''])
+        t = Table(rows, colWidths=[CONTENT * .05, CONTENT * .22, CONTENT * .14, CONTENT * .08, CONTENT * .12, CONTENT * .2, CONTENT * .19], repeatRows=1)
+        t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -2), 0.3, LINE), ('LINEABOVE', (0, -1), (-1, -1), 0.8, NAVY),
+                               ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5)]
+                              + [('BOX', (0, r), (0, r), 0.9, MUTED) for r in range(1, len(rows) - 1)]))
+        story += [Spacer(1, 10), section(f'Unités à traiter ({len(units)})'), Spacer(1, 4), t]
+    head = [Paragraph(h, S['cellhead']) for h in ('DATE', 'PAR', 'ÉTAPE', 'COMMENTAIRE')]
+    rows = [head] + [[txt(fr_date(e['created'][:19]), 'cell'), txt(e['actor'], 'cell'), txt(MISSION_EVENTS.get(e['action'], e['action']), 'cell'), txt(e.get('note'), 'cell')] for e in events]
+    if len(rows) == 1:
+        rows.append([txt('—', 'cell'), '', txt('En attente de prise en charge', 'cell'), ''])
+    t = Table(rows, colWidths=[CONTENT * .22, CONTENT * .15, CONTENT * .2, CONTENT * .43], repeatRows=1)
+    t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                           ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
+    story += [Spacer(1, 10), KeepTogether([section('Suivi'), Spacer(1, 4), t])]
+    story += [Spacer(1, 12), KeepTogether([section('Validation'), Spacer(1, 5),
+              signatures_block(('Pris en charge par (magasin)', (taken or {}).get('actor') or m.get('assignee') or '', fr_date(taken['created'][:19]) if taken else 'Date :'),
+                               ('Terminé par', m.get('completed_by') or '', fr_date(m['completed_at']) if m.get('completed_at') else 'Date :'))])]
+    if docs:
+        story += [Spacer(1, 8), KeepTogether([section('Pièces jointes'), Spacer(1, 4), attachments_table(docs)])]
+    label, tone = MISSION_STATUS.get(m.get('status'), ('EN COURS', 'blue'))
+    return build('Récapitulatif de mission', m['id'], label, tone, story, generated_at, m['warehouse'] + (f" · entrée {rec['id']}" if rec else ''))
+
+
+def location_signs(rows):
+    """Panneaux d'emplacement A4 : 6 par page (2 × 3), identifiant en très gros et QR code."""
+    import qrcode
+    out = io.BytesIO()
+    c = rl_canvas.Canvas(out, pagesize=A4)
+    c.setTitle('Panneaux d’emplacement TAF WAREHOUSE')
+    cols, lines = 2, 3
+    cw, ch = (W - 2 * 10 * mm) / cols, (H - 2 * 10 * mm) / lines
+    for i, r in enumerate(rows):
+        if i and i % (cols * lines) == 0:
+            c.showPage()
+        k = i % (cols * lines)
+        x0 = 10 * mm + (k % cols) * cw
+        y0 = H - 10 * mm - (k // cols + 1) * ch
+        c.setStrokeColor(LINE); c.setDash(2, 3); c.rect(x0, y0, cw, ch); c.setDash()
+        c.setFillColor(NAVY); c.rect(x0 + 4 * mm, y0 + ch - 16 * mm, cw - 8 * mm, 12 * mm, stroke=0, fill=1)
+        c.setFillColor(colors.white); c.setFont('Helvetica-Bold', 11); c.drawString(x0 + 8 * mm, y0 + ch - 11.5 * mm, 'TAF WAREHOUSE')
+        c.setFont('Helvetica', 9); c.drawRightString(x0 + cw - 8 * mm, y0 + ch - 11.5 * mm, r['warehouse'])
+        c.setFillColor(INK)
+        size = 30
+        while c.stringWidth(r['id'], 'Helvetica-Bold', size) > cw - 12 * mm and size > 12:
+            size -= 1
+        c.setFont('Helvetica-Bold', size); c.drawCentredString(x0 + cw / 2, y0 + ch - 32 * mm, r['id'])
+        c.setFont('Helvetica', 10); c.setFillColor(MUTED); c.drawCentredString(x0 + cw / 2, y0 + ch - 39 * mm, r.get('zone') or r.get('label') or '')
+        img = qrcode.make(r['id'], box_size=8, border=1)
+        bio = io.BytesIO(); img.save(bio, format='PNG'); bio.seek(0)
+        q = min(cw, ch) - 52 * mm
+        c.drawImage(ImageReader(bio), x0 + (cw - q) / 2, y0 + 6 * mm, q, q)
+    c.save()
+    return out.getvalue()

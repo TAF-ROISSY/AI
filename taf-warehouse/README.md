@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.22 (recette)
+# TAF WAREHOUSE — V4.23 (recette)
+
+> **V4.23 :** générateur de zones de stockage (racks AFR-G-2-05, sol AFR-SOL-A-03, étagères AFR-ET1-2-03, coffre AFR-COFFRE) avec panneaux QR à imprimer ; numéro d'entrée unique E-000001 ; « Demander au magasin » depuis l'entrée (préparation ou tâche libre) ; prise en charge par le magasinier (en attente → en cours → terminée) avec alerte sonore sur les postes ; récapitulatif de mission PDF ; historique complet de chaque entrée (écran et fiche PDF). `TAF_DEMO_RACKS=0` : pas de racks de démonstration sur une nouvelle base.
 
 > **V4.22 :** notice transporteur (FR/EN) sur le contrôle d'identité, effacement automatique des pièces d'identité 1 an après le dernier passage, fiche de réception PDF envoyée par e-mail aux destinataires de chaque entrepôt (écran « E-mails des fiches »). Réglages : `TAF_MAIL_BACKEND=ses`, `TAF_MAIL_FROM`, `TAF_MAIL_DEFAULT_TO`, `TAF_MAIL_DELAY_SECONDS` (180), `TAF_IDENTITY_RETENTION_DAYS` (365), `TAF_PRIVACY_CONTACT`.
 >
