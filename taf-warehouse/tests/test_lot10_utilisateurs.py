@@ -66,3 +66,13 @@ def test_cannot_delete_self_or_last_superadmin(env):
     assert c.delete(f'/api/users/{me}', headers=ch).status_code == 200
     # La session de l'admin archivé est révoquée : il ne peut plus rien modifier.
     assert c.put(f'/api/users/{christophe}', headers=h['admin'], json={'role': 'admin', 'warehouses': ['Afrique']}).status_code == 401
+
+
+def test_username_is_case_insensitive(env):
+    """Sur iPhone, la première lettre est mise en majuscule automatiquement."""
+    c, h = env['c'], env['h']
+    assert c.post('/api/users', headers=h['admin'], json={'username': 'Christophe@TafTrans.fr', 'password': PWD, 'role': 'superadmin', 'warehouses': ['Afrique']}).status_code == 200
+    assert 'christophe@taftrans.fr' in [u['username'] for u in c.get('/api/users', headers=h['admin']).json()]
+    assert login(env, 'Christophe@taftrans.fr').status_code == 200
+    assert login(env, ' CHRISTOPHE@TAFTRANS.FR ').status_code == 200
+    assert c.post('/api/users', headers=h['admin'], json={'username': 'christophe@taftrans.fr', 'password': PWD, 'role': 'worker', 'warehouses': ['Afrique']}).status_code == 409

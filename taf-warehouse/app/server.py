@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.14.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.14.1',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -519,7 +519,7 @@ def login(x:Login,request:Request):
         attempts=_login_attempts[key]
         while attempts and attempts[0] < time.monotonic()-300:attempts.popleft()
         require(len(attempts)<15,'Trop de tentatives : réessayez plus tard',429)
-    username=x.username.strip()
+    username=x.username.strip().lower()  # identifiant insensible à la casse (majuscule automatique des iPhone)
     current=int(time.time())
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
@@ -528,7 +528,7 @@ def login(x:Login,request:Request):
         if security and security['locked_until']>current:
             c.commit()
             raise HTTPException(429,'Compte temporairement verrouillé. Réessayez plus tard.')
-        u=one(c,'SELECT * FROM users WHERE username=?',(username,))
+        u=one(c,'SELECT * FROM users WHERE lower(username)=?',(username,))
         if not (u and u['active'] and verify(x.password,u['passhash'])):
             failures=(security['failures'] if security else 0)+1
             # Après cinq échecs, verrou de 15 minutes; aucun secret journalisé.
@@ -636,8 +636,10 @@ def create_user(x:UserCreate,u=Depends(auth)):
     role(u,'superadmin');require(x.role in ROLES,'Rôle invalide');require(x.warehouses and all(w in WAREHOUSES for w in x.warehouses),'Entrepôts invalides')
     with tx() as c:
         password_policy(x.password)
-        require(2<=len(x.username.strip())<=60 and x.username.strip()==x.username,'Identifiant invalide (2 à 60 caractères, sans espace au début ou à la fin)')
-        try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),x.username,password_hash(x.password),x.role,json.dumps(x.warehouses)))
+        name=x.username.strip().lower()
+        require(2<=len(name)<=60 and ' ' not in name,'Identifiant invalide (2 à 60 caractères, sans espace)')
+        require(not one(c,'SELECT id FROM users WHERE lower(username)=?',(name,)),'Identifiant déjà utilisé',409)
+        try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),name,password_hash(x.password),x.role,json.dumps(x.warehouses)))
         except IntegrityErrors:raise HTTPException(409,'Identifiant déjà utilisé')
         audit(c,u['username'],'create_user','user',x.username)
     return {'ok':True}
