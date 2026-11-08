@@ -44,17 +44,19 @@ STORAGE=os.getenv('TAF_STORAGE','local').strip().lower()
 S3_BUCKET=os.getenv('TAF_S3_BUCKET','').strip()
 S3_PREFIX=os.getenv('TAF_S3_PREFIX','documents/').strip()
 # Double authentification obligatoire : par défaut en production pour les rôles sensibles.
-MFA_REQUIRED_ROLES={r.strip() for r in os.getenv('TAF_MFA_REQUIRED_ROLES','superadmin,admin,exploitation,manager' if PRODUCTION else '').split(',') if r.strip()}
+# TAF_MFA_ENABLED=0 : double authentification désactivée par décision de TAF (connexion identifiant + code PIN).
+MFA_ENABLED=os.getenv('TAF_MFA_ENABLED','1').strip().lower() not in ('0','false','non','off')
+MFA_REQUIRED_ROLES={r.strip() for r in os.getenv('TAF_MFA_REQUIRED_ROLES','superadmin,admin,exploitation,manager' if PRODUCTION else '').split(',') if r.strip()} if MFA_ENABLED else set()
 def production_problems():
     problems=[]
     if not os.getenv('TAF_DATABASE_URL','').startswith(('postgres://','postgresql://')):problems.append('base PostgreSQL requise (TAF_DATABASE_URL ou TAF_DB_SECRET_ARN)')
     if STORAGE!='s3' or not S3_BUCKET:problems.append('stockage S3 privé requis (TAF_STORAGE=s3, TAF_S3_BUCKET)')
     if not os.getenv('TAF_MFA_ENCRYPTION_KEY','').strip():problems.append('clé de chiffrement MFA requise (TAF_MFA_ENCRYPTION_KEY via Secrets Manager)')
-    if not MFA_REQUIRED_ROLES:problems.append('double authentification obligatoire requise pour les rôles sensibles (TAF_MFA_REQUIRED_ROLES)')
+    if MFA_ENABLED and not MFA_REQUIRED_ROLES:problems.append('double authentification obligatoire requise pour les rôles sensibles (TAF_MFA_REQUIRED_ROLES), ou désactivation explicite TAF_MFA_ENABLED=0')
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.15.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.16.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -421,7 +423,7 @@ def auth(request:Request,authorization:Optional[str]=Header(None)):
     with db() as c:
         u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds,u.auth_mode,COALESCE(m.enabled,0) mfa_enabled FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN mfa m ON m.user_id=u.id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
     require(u and u['active'],'Session expirée',401)
-    u['warehouses']=json.loads(u['warehouses']);u['mfa_enabled']=bool(u['mfa_enabled']);u['mfa_required']=u['role'] in MFA_REQUIRED_ROLES
+    u['warehouses']=json.loads(u['warehouses']);u['mfa_enabled']=bool(u['mfa_enabled']) and MFA_ENABLED;u['mfa_required']=u['role'] in MFA_REQUIRED_ROLES;u['mfa_available']=MFA_ENABLED;u['pin_allowed']=u['role'] in PIN_ROLES
     if u['mfa_required'] and not u['mfa_enabled'] and request.url.path not in MFA_EXEMPT_PATHS:
         raise HTTPException(403,'Double authentification obligatoire pour votre rôle : activez-la avant de continuer')
     return u
@@ -550,6 +552,7 @@ def login(x:Login,request:Request):
             raise HTTPException(401,'Identifiants invalides')
         mfa_record=one(c,'SELECT enabled FROM mfa WHERE user_id=?',(u['id'],))
         mfa_valid=True
+        if not MFA_ENABLED:mfa_record=None  # double authentification désactivée : aucun code demandé
         if mfa_record and mfa_record['enabled'] and not (x.otp or '').strip() and not (x.recovery_code or '').strip():
             c.commit()  # mot de passe correct : on demande le code, sans compter d'échec
             raise HTTPException(401,'Code de double authentification requis')
@@ -1732,18 +1735,18 @@ def reset_user_pin(userid:str,x:PinReset,u=Depends(auth)):
     role(u,'superadmin');pin_policy(x.pin)
     with tx() as c:
         t=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404);require(not t['deleted_at'],'Compte supprimé',409)
-        require(t.get('auth_mode')=='pin','Ce compte se connecte par mot de passe')
-        c.execute('UPDATE users SET passhash=? WHERE id=?',(password_hash(x.pin),userid));c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
+        require(t.get('auth_mode')=='pin' or t['role'] in PIN_ROLES,'Ce rôle doit se connecter par mot de passe')
+        c.execute("UPDATE users SET passhash=?,auth_mode='pin' WHERE id=?",(password_hash(x.pin),userid));c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
         c.execute('DELETE FROM login_security WHERE username=?',(t['username'],))
         audit(c,u['username'],'reset_pin','user',userid,{'username':t['username']})
     return {'ok':True}
 @app.post('/api/pin')
 def change_own_pin(x:PinChange,u=Depends(auth)):
-    require(u.get('auth_mode')=='pin','Votre compte utilise un mot de passe')
+    require(u.get('auth_mode')=='pin' or u['role'] in PIN_ROLES,'Votre rôle doit se connecter par mot de passe')
     with tx() as c:
-        row=one(c,'SELECT passhash FROM users WHERE id=?',(u['id'],));require(verify(x.old,row['passhash']),'Code PIN actuel incorrect',403)
+        row=one(c,'SELECT passhash FROM users WHERE id=?',(u['id'],));require(verify(x.old,row['passhash']),'Code PIN ou mot de passe actuel incorrect',403)
         pin_policy(x.new);require(x.new!=x.old,'Nouveau code identique')
-        c.execute('UPDATE users SET passhash=? WHERE id=?',(password_hash(x.new),u['id']));c.execute('DELETE FROM sessions WHERE user_id=?',(u['id'],))
+        c.execute("UPDATE users SET passhash=?,auth_mode='pin' WHERE id=?",(password_hash(x.new),u['id']));c.execute('DELETE FROM sessions WHERE user_id=?',(u['id'],))
         audit(c,u['username'],'change_pin','user',u['id'])
     return {'ok':True,'message':'Reconnectez-vous avec votre nouveau code'}
 @app.post('/api/users/{userid}/reset-password')

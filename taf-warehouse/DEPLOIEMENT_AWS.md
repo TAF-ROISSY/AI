@@ -12,6 +12,16 @@
 | Mot de passe initial du Super Admin `admin` | Console AWS → Secrets Manager → `taf-warehouse/recette/app` → *Récupérer la valeur du secret* → `TAF_ADMIN_PASSWORD` |
 | Budgets | `taf-warehouse-recette` à 65 $/mois (étiquette `Application=taf-warehouse`). Budget de compte `taf` relevé de 5 $ à 52 $ (≈ 45 €) à la demande de TAF |
 
+**Réglages de connexion décidés par TAF (8 novembre 2026)**, ajoutés à `/etc/taf-warehouse/app.env` sur le serveur de recette :
+```
+TAF_MFA_ENABLED=0
+TAF_PIN_ROLES=superadmin,admin,manager,exploitation,leader,worker
+```
+- Connexion **prénom ou e-mail + code PIN à 6 chiffres** pour tous, sans double authentification.
+- Protections maintenues : verrouillage 15 minutes après 5 erreurs, limite d'essais par appareil, codes trop simples refusés.
+- **Pour réactiver la double authentification,** retirer ces deux lignes puis lancer `sudo taf-warehouse-deploy <version>`.
+- Ces réglages ne figurent pas dans le modèle CloudFormation : ils sont à reporter lors de la création de la production.
+
 **Historique :**
 - **Première tentative en échec.** API Gateway refuse de réécrire `X-Forwarded-Proto` et `X-Forwarded-For`, qui sont des en-têtes réservés. La base, encore en création, a bloqué l'annulation automatique. Elle a été supprimée, vide et sans instantané, de même que le bucket vide et le secret créés par cette tentative.
 - **Corrections :** la version 4.11.1 utilise l'en-tête `X-Taf-Client-Ip`. La seconde création a réussi.

@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.15
+# TAF WAREHOUSE — TEST V4.16
+
+> **V4.16** : décision TAF du 8/11/2026 : connexion prénom ou e-mail + code PIN pour tous (`TAF_PIN_ROLES`), double authentification désactivée (`TAF_MFA_ENABLED=0`, réactivable). Chacun peut passer son compte au code PIN.
 
 > **V4.15** : connexion des magasiniers et chefs d'équipe par **prénom + code PIN à 6 chiffres** (codes trop simples refusés, verrouillage après 5 erreurs, attribution et réinitialisation par le Super Admin, changement par l'utilisateur). Les comptes de bureau gardent mot de passe et double authentification ; le code de double authentification n'est demandé qu'aux comptes qui l'ont activé. Identifiants insensibles à la casse (4.14.1).
 

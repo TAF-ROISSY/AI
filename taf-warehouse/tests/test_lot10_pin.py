@@ -55,9 +55,11 @@ def test_superadmin_resets_pin_and_role_change_rules(env):
     # Un compte PIN ne peut pas recevoir un rôle sensible sans mot de passe.
     assert c.put(f'/api/users/{oid}', headers=h['admin'], json={'role': 'exploitation', 'warehouses': ['Afrique']}).status_code == 400
     assert c.put(f'/api/users/{oid}', headers=h['admin'], json={'role': 'leader', 'warehouses': ['Afrique']}).status_code == 200
-    # PIN refusé sur un compte à mot de passe.
-    mag = next(u['id'] for u in c.get('/api/users', headers=h['admin']).json() if u['username'] == 'mag')
-    assert c.post(f'/api/users/{mag}/reset-pin', headers=h['admin'], json={'pin': '903174'}).status_code == 400
+    # Un magasinier à mot de passe peut être passé au code PIN ; un rôle de bureau non (configuration par défaut).
+    users = {u['username']: u['id'] for u in c.get('/api/users', headers=h['admin']).json()}
+    assert c.post(f"/api/users/{users['mag']}/reset-pin", headers=h['admin'], json={'pin': '903174'}).status_code == 200
+    assert login(env, 'mag', '903174').status_code == 200
+    assert c.post(f"/api/users/{users['expl']}/reset-pin", headers=h['admin'], json={'pin': '903174'}).status_code == 400
 
 
 def test_user_changes_own_pin(env):
@@ -82,3 +84,49 @@ def test_mfa_account_asked_for_code_without_counting_a_failure(env):
         assert r.status_code == 401 and r.json()['detail'] == 'Code de double authentification requis'
     code = server.totp(setup['secret'], int(time.time()) // 30 + 1)
     assert login(env, 'expl', PWD, otp=code).status_code == 200  # pas de verrouillage
+
+
+
+def boot(monkeypatch, tmp_path, **env):
+    monkeypatch.setenv('TAF_DATA_DIR', str(tmp_path)); monkeypatch.setenv('TAF_ADMIN_PASSWORD', PWD)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    from app import server
+    importlib.reload(server)
+    c = TestClient(server.app)
+    h = {'Authorization': 'Bearer ' + c.post('/api/login', json={'username': 'admin', 'password': PWD}).json()['token']}
+    return server, c, h
+
+
+def test_pin_for_everyone_when_mfa_disabled(monkeypatch, tmp_path):
+    """Décision TAF (08/11/2026) : identifiant + code PIN pour tous, double authentification désactivée."""
+    server, c, h = boot(monkeypatch, tmp_path, TAF_MFA_ENABLED='0', TAF_PIN_ROLES='superadmin,admin,manager,exploitation,leader,worker', TAF_MFA_REQUIRED_ROLES='superadmin,admin')
+    assert c.get('/api/units', headers=h).status_code == 200  # aucune activation imposée
+    me = c.get('/api/me', headers=h).json()
+    assert me['mfa_required'] is False and me['mfa_available'] is False and me['pin_allowed'] is True
+    assert c.post('/api/users', headers=h, json={'username': 'fatou', 'role': 'exploitation', 'warehouses': ['Afrique'], 'pin': '482915'}).status_code == 200
+    assert c.post('/api/login', json={'username': 'Fatou', 'password': '482915'}).status_code == 200
+    # Le Super Admin passe son propre compte au code PIN avec son mot de passe actuel.
+    assert c.post('/api/pin', headers=h, json={'old': PWD, 'new': '739164'}).status_code == 200
+    r = c.post('/api/login', json={'username': 'ADMIN', 'password': '739164'})
+    assert r.status_code == 200 and r.json()['mfa_setup_required'] is False
+    assert c.post('/api/login', json={'username': 'admin', 'password': PWD}).status_code == 401
+
+
+def test_mfa_disabled_ignores_previous_enrollment(monkeypatch, tmp_path):
+    server, c, h = boot(monkeypatch, tmp_path)
+    setup = c.post('/api/mfa/setup', headers=h).json()
+    assert c.post('/api/mfa/confirm', headers=h, json={'otp': server.totp(setup['secret'], int(time.time()) // 30)}).status_code == 200
+    assert c.post('/api/login', json={'username': 'admin', 'password': PWD}).json()['detail'] == 'Code de double authentification requis'
+    monkeypatch.setenv('TAF_MFA_ENABLED', '0'); importlib.reload(server); c = TestClient(server.app)
+    assert c.post('/api/login', json={'username': 'admin', 'password': PWD}).status_code == 200
+
+
+def test_production_accepts_explicit_mfa_opt_out(monkeypatch, tmp_path):
+    monkeypatch.setenv('TAF_ENV', 'production'); monkeypatch.setenv('TAF_MFA_ENABLED', '0')
+    monkeypatch.delenv('TAF_DATABASE_URL', raising=False); monkeypatch.setenv('TAF_DATA_DIR', str(tmp_path))
+    from app import server
+    with pytest.raises(RuntimeError) as err:
+        importlib.reload(server)
+    assert 'double authentification' not in str(err.value) and 'PostgreSQL' in str(err.value)
+    monkeypatch.setenv('TAF_ENV', 'test'); importlib.reload(server)
