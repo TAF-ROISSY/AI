@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.23 (recette)
+# TAF WAREHOUSE — V4.24 (recette)
+
+> **V4.24 :** nouvelle charte (polices Inter et Space Grotesk intégrées, `web/vendor/fonts`, licence OFL) ; accueil « Aujourd’hui » (attention, chiffres clés, parcours de la marchandise, dernières entrées, magasin en direct) ; poste magasin sur téléphone (« Mon poste », prise en charge, mission pas à pas : aller à l’emplacement, scanner chaque unité, terminer) ; plan des zones cliquable avec contenu et charge.
 
 > **V4.23 :** générateur de zones de stockage (racks AFR-G-2-05, sol AFR-SOL-A-03, étagères AFR-ET1-2-03, coffre AFR-COFFRE) avec panneaux QR à imprimer ; numéro d'entrée unique E-000001 ; « Demander au magasin » depuis l'entrée (préparation ou tâche libre) ; prise en charge par le magasinier (en attente → en cours → terminée) avec alerte sonore sur les postes ; récapitulatif de mission PDF ; historique complet de chaque entrée (écran et fiche PDF). `TAF_DEMO_RACKS=0` : pas de racks de démonstration sur une nouvelle base.
 

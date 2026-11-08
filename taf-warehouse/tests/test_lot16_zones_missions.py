@@ -100,6 +100,15 @@ def test_preparation_request_take_complete_and_pdf(env):
     assert m['status'] == 'in_progress' and m['assignee'] == 'mag' and m['started_at']
     assert c.post(f'/api/missions/{mid}/status', headers=h['expl2'], json={'action': 'take'}).status_code == 409   # déjà prise
     assert c.get('/api/missions/feed', headers=h['mag']).json()['count'] == 0
+    r = c.post(f'/api/missions/{mid}/status', headers=h['mag'], json={'action': 'complete', 'note': 'Palettes filmées et prêtes quai 2'})
+    assert r.status_code == 409 and '2 unité(s) restant' in r.text                      # chaque unité doit être scannée
+    assert c.post(f'/api/missions/{mid}/check', headers=h['mag'], json={'unit_id': 'UNIT-INCONNUE'}).status_code == 400
+    assert c.post(f'/api/missions/{mid}/check', headers=h['expl2'], json={'unit_id': units[0]}).status_code == 403
+    assert c.post(f'/api/missions/{mid}/check', headers=h['mag'], json={'unit_id': 'TAF:UNIT:' + units[0]}).json() == {'ok': True, 'checked': 1, 'total': 2}
+    assert c.post(f'/api/missions/{mid}/check', headers=h['mag'], json={'unit_id': units[0]}).status_code == 409
+    m = next(x for x in c.get('/api/missions', headers=h['mag']).json() if x['id'] == mid)
+    assert m['checked'] == 1 and [u['checked'] for u in m['units']] == [False, True]      # reste à faire en premier
+    c.post(f'/api/missions/{mid}/check', headers=h['mag'], json={'unit_id': units[1]})
     assert c.post(f'/api/missions/{mid}/status', headers=h['mag'], json={'action': 'complete', 'note': 'Palettes filmées et prêtes quai 2'}).status_code == 200
     pdf = c.get(f'/api/reports/mission/{mid}', headers=h['expl'])
     assert pdf.status_code == 200
@@ -136,3 +145,18 @@ def test_receipt_full_history(env):
     assert c.get(f'/api/receipts/{rec}/history', headers=h['expl_mar']).status_code == 403
     t = pdf_text(c.get(f'/api/receipts/{rec}/report', headers=h['expl']).content)
     assert 'Historique complet' in t and 'Mission prise en charge' in t
+
+
+def test_dashboard_flow_live_and_recent(env):
+    c, h = env['c'], env['h']
+    rec, units = stocked_receipt(env)
+    bad = env['receipt'](expected=4, actual=3)
+    mid = c.post(f'/api/receipts/{rec}/missions', headers=h['expl'], json={'description': 'Préparer'}).json()['id']
+    d = c.get('/api/dashboard/ops', headers=h['expl'], params={'warehouse': 'Afrique'}).json()
+    assert d['flow']['received'] == 2 and d['flow']['in_stock'] == 2 and d['flow']['preparing'] == 1
+    assert [w['id'] for w in d['waiting']] == [mid] and d['live'] == []
+    c.post(f'/api/missions/{mid}/status', headers=h['mag'], json={'action': 'take'})
+    d = c.get('/api/dashboard/ops', headers=h['expl'], params={'warehouse': 'Afrique'}).json()
+    assert d['live'][0]['assignee'] == 'mag' and d['waiting'] == []
+    recent = {r['id']: r for r in d['recent']}
+    assert recent[bad]['problem'] is True and recent[rec]['problem'] is False and recent[rec]['missions'] == 1

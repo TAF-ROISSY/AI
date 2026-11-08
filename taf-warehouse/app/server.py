@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.23.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.24.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -424,6 +424,7 @@ class MissionCreate(BaseModel):
     warehouse:str;title:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=200)];leader:str=''
     type:Literal['reception','rangement','preparation','inventaire','transfert','controle','incident','autre']='autre'
     assignee:str='';priority:Literal['low','normal','high','urgent']='normal';due_at:Optional[str]=None;description:str=Field(default='',max_length=2000)
+class MissionCheck(BaseModel):unit_id:str=Field(min_length=3,max_length=60)
 class MissionAction(BaseModel):action:Literal['take','start','suspend','resume','complete','cancel'];note:str=Field(default='',max_length=1000)
 class MissionAssign(BaseModel):assignee:str
 class TaskCreate(BaseModel):title:str;assignee:str=''
@@ -2077,6 +2078,11 @@ def missions(u=Depends(auth)):
         for m in rows:
             m['events']=q(c,'SELECT actor,action,note,created FROM mission_events WHERE mission_id=? ORDER BY created,id',(m['id'],))
             m['late']=bool(m.get('due_at') and m['status'] in ('to_assign','assigned','in_progress','suspended','open') and m['due_at']<t[:16])
+            ids=json.loads(m.get('unit_ids') or '[]')
+            if ids:
+                done=[e['note'] for e in m['events'] if e['action']=='check']
+                m['units']=sorted([dict(un,checked=un['id'] in done) for un in (one(c,'SELECT id,unit_type,unit_index,unit_count,quantity,weight,location_id,length_cm,width_cm,height_cm,status,hold FROM units WHERE id=?',(i,)) for i in ids) if un],key=lambda x:(x['checked'],x['location_id'] or 'ZZZ',x['id']))
+                m['checked']=len(done)
     return rows
 def _mission_assignee(c,warehouse_,name):
     if not name.strip():return None
@@ -2104,7 +2110,11 @@ def mission_status(mid:str,x:MissionAction,u=Depends(auth)):
         if x.action=='cancel':require(office,'Annulation réservée à l’exploitation et aux responsables',403)
         elif x.action=='take':pass  # toute personne habilitée sur l'entrepôt peut prendre en charge une mission en attente
         else:require(m['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Mission affectée à un autre collaborateur',403)
-        if x.action in ('suspend','cancel','complete'):require(len(x.note.strip())>=3,'Motif ou compte rendu obligatoire')
+        if x.action in ('suspend','cancel'):require(len(x.note.strip())>=3,'Motif obligatoire')
+        if x.action=='complete':
+            todo=[i for i in json.loads(m.get('unit_ids') or '[]') if i not in mission_checked(c,mid)]
+            require(not todo,f'{len(todo)} unité(s) restant à scanner : '+', '.join(todo[:5]),409)
+            require(len(x.note.strip())>=3 or m.get('unit_ids'),'Compte rendu obligatoire')
         sets={'take':'assignee=?,started_at=COALESCE(started_at,?)','start':'started_at=COALESCE(started_at,?)','complete':'completed_at=?,completed_by=?','cancel':'closed=?'}.get(x.action)
         vals={'take':(u['username'],now()),'start':(now(),),'complete':(now(),u['username']),'cancel':(now(),)}.get(x.action,())
         c.execute(f"UPDATE missions SET status=?{','+sets if sets else ''} WHERE id=?",(target,*vals,mid))
@@ -2112,6 +2122,22 @@ def mission_status(mid:str,x:MissionAction,u=Depends(auth)):
         audit(c,u['username'],'mission_'+x.action,'mission',mid,{'note':x.note})
         if x.action in ('take','suspend','complete','cancel'):notify(c,m['warehouse'],'mission',mid,{'take':f"Mission prise en charge par {u['username']}",'suspend':'Mission suspendue','complete':'Mission terminée','cancel':'Mission annulée'}[x.action],(f"{m['title']} : {x.note}" if x.note else m['title'])[:300],u['username'])
     return {'ok':True,'status':target}
+def mission_checked(c,mid):
+    return [e['note'] for e in q(c,"SELECT note FROM mission_events WHERE mission_id=? AND action='check' ORDER BY created,id",(mid,))]
+@app.post('/api/missions/{mid}/check')
+def mission_check(mid:str,x:MissionCheck,u=Depends(auth)):
+    """Le magasinier confirme chaque unité en scannant son étiquette."""
+    uid_=x.unit_id.strip()
+    if uid_.startswith('TAF:UNIT:'):uid_=uid_[9:]
+    with tx() as c:
+        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse'])
+        require(m['status']=='in_progress','Prendre la mission en charge d’abord',409)
+        require(m['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Mission affectée à un autre collaborateur',403)
+        ids=json.loads(m.get('unit_ids') or '[]');require(uid_ in ids,f'Cette étiquette ({uid_}) ne fait pas partie de la mission',400)
+        done=mission_checked(c,mid);require(uid_ not in done,'Unité déjà scannée',409)
+        c.execute('INSERT INTO mission_events(id,mission_id,actor,action,note,created) VALUES(?,?,?,?,?,?)',(uid('MEV'),mid,u['username'],'check',uid_,now_precise()))
+        audit(c,u['username'],'mission_check','mission',mid,{'unit':uid_})
+    return {'ok':True,'checked':len(done)+1,'total':len(ids)}
 @app.post('/api/missions/{mid}/assign')
 def mission_assign(mid:str,x:MissionAssign,u=Depends(auth)):
     role(u,'exploitation','manager','admin','leader')
@@ -2391,7 +2417,15 @@ def dashboard_ops(warehouse:Optional[str]=None,u=Depends(auth)):
         alert('missions_unassigned','info','Missions à affecter',q(c,f"SELECT id ref FROM missions WHERE warehouse IN ({m}) AND status='to_assign'",w))
         workload=q(c,f"SELECT assignee,COUNT(*) open,SUM(CASE WHEN due_at IS NOT NULL AND due_at<? THEN 1 ELSE 0 END) late,SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) in_progress FROM missions WHERE warehouse IN ({m}) AND assignee IS NOT NULL AND status IN ({','.join('?'*len(open_m))}) GROUP BY assignee ORDER BY open DESC",(t[:16],)+w+open_m)
         activity=q(c,f"SELECT mv.actor,COUNT(*) movements,SUM(CASE WHEN mv.kind='receive' THEN 1 ELSE 0 END) receptions,SUM(CASE WHEN mv.kind='exit' THEN 1 ELSE 0 END) sorties FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.at>=? GROUP BY mv.actor ORDER BY movements DESC",w+(day,))
-    return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity}
+        flow={'received':kpis['receipts_today'],'awaiting_putaway':kpis['awaiting_putaway'],
+              'in_stock':n(f"SELECT COUNT(*) FROM units WHERE warehouse IN ({m}) AND status='available'"),
+              'preparing':n(f"SELECT COUNT(*) FROM missions WHERE warehouse IN ({m}) AND type='preparation' AND status IN ({','.join('?'*len(open_m))})",open_m),
+              'exited':n(f"SELECT COUNT(DISTINCT mv.unit_id) FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.kind='exit' AND mv.at>=?",(day,))}
+        live=q(c,f"SELECT id,title,assignee,status,type,started_at FROM missions WHERE warehouse IN ({m}) AND status IN ('in_progress','assigned','suspended') AND assignee IS NOT NULL ORDER BY started_at DESC LIMIT 12",w)
+        waiting=q(c,f"SELECT id,title,priority,description,created,due_at FROM missions WHERE warehouse IN ({m}) AND status='to_assign' ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,created LIMIT 5",w)
+        recent=q(c,f"SELECT r.id,r.awb,r.expected,r.actual,r.weight,r.status,r.created,r.security_status,r.apparent_condition,cl.name client,(SELECT COUNT(*) FROM units x WHERE x.receipt_id=r.id) units,(SELECT COUNT(*) FROM missions mi WHERE mi.receipt_id=r.id AND mi.status IN ('to_assign','assigned','in_progress','suspended')) missions FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.warehouse IN ({m}) ORDER BY r.created DESC LIMIT 6",w)
+        for r in recent:r['problem']=r['status']=='discrepancy' or r['expected']!=r['actual'] or r.get('security_status') in ('a_controler','non_securise') or r.get('apparent_condition') in ('endommage','a_verifier')
+    return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity,'flow':flow,'live':live,'waiting':waiting,'recent':recent}
 
 @app.get('/api/dashboard')
 def dashboard(u=Depends(auth)):

@@ -630,7 +630,7 @@ def history_table(events, title='Historique complet'):
 
 MISSION_STATUS = {'to_assign': ('EN ATTENTE', 'red'), 'assigned': ('AFFECTÉE', 'blue'), 'in_progress': ('EN COURS', 'blue'), 'suspended': ('SUSPENDUE', 'red'),
                   'done': ('TERMINÉE', 'green'), 'closed': ('CLÔTURÉE', 'green'), 'cancelled': ('ANNULÉE', 'red'), 'open': ('EN COURS', 'blue')}
-MISSION_EVENTS = {'take': 'Prise en charge', 'start': 'Démarrage', 'suspend': 'Suspension', 'resume': 'Reprise', 'complete': 'Fin de mission', 'cancel': 'Annulation', 'assign': 'Affectation'}
+MISSION_EVENTS = {'check': 'Unité scannée', 'take': 'Prise en charge', 'start': 'Démarrage', 'suspend': 'Suspension', 'resume': 'Reprise', 'complete': 'Fin de mission', 'cancel': 'Annulation', 'assign': 'Affectation'}
 
 
 def mission_report(m, events, units, rec, docs, generated_at):
