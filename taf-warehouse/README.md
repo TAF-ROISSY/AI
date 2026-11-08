@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.20
+# TAF WAREHOUSE — V4.21 (recette)
+
+> **État complet, points à valider et limites : `ETAT_V4_21.md`.** V4.21 : bon de transfert, bon de remise unitaire et rapports d'incident, de litige et de mission au style TAF.
 
 > **V4.20 (recherche, chronologie, scanner iPhone, plan des racks)** :
 > - **Recherche universelle** en haut de chaque page : unités, réceptions (LTA, dossier, CMR, expéditeur), sorties, transferts, emplacements, clients, chauffeurs, incidents et litiges, limitée aux entrepôts autorisés.

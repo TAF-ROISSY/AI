@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.20.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.21.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -1028,24 +1028,15 @@ def dispatch_transfer(tid:str,x:TransferDispatch,u=Depends(auth),idempotency_key
     return {'ok':True}
 @app.get('/api/transfers/{tid}/dispatch-pdf')
 def transfer_dispatch_pdf(tid:str,u=Depends(auth)):
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Image
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.utils import ImageReader
     with db() as c:
         t=one(c,'SELECT * FROM transfers WHERE id=?',(tid,));require(t,'Transfert inconnu',404)
         require(t['source'] in u['warehouses'] or t['destination'] in u['warehouses'],'Accès refusé',403)
         require(t['signature_data'] and t['status'] in ('in_transit','received','discrepancy','refusal_pending','refused','returned','received_with_reserves'),'Transfert non signé',409)
-        unit=one(c,'SELECT * FROM units WHERE id=?',(t['unit_id'],))
+        unit=one(c,'SELECT un.*,r.awb,cl.name client FROM units un LEFT JOIN receipts r ON r.id=un.receipt_id LEFT JOIN clients cl ON cl.id=r.client_id WHERE un.id=?',(t['unit_id'],))
         driver=one(c,'SELECT * FROM drivers WHERE id=?',(t['driver_id'],))
-    from xml.sax.saxutils import escape
-    out=io.BytesIO();doc=SimpleDocTemplate(out);styles=getSampleStyleSheet()
-    lines=['TAF WAREHOUSE — BON DE TRANSFERT SIGNÉ',f"Transfert : {tid}",f"Unité : {t['unit_id']}",f"Départ : {t['source']}",f"Destination : {t['destination']}",f"Quantité : {unit['quantity'] if unit else 'N/A'}",f"Transporteur : {driver['company'] if driver else ''}",f"Chauffeur : {driver['name'] if driver else ''}",f"Immatriculation : {driver['plate'] if driver else ''}",f"Signataire : {t['signature_name']}",f"Expédié par : {t['dispatched_by']}",f"Date UTC : {t['signature_at']}",f"Réception : {t['received_at'] or 'En attente'}"]
-    story=[Paragraph(escape(lines[0]),styles['Title']),Spacer(1,14)]
-    for line in lines[1:]:story.extend([Paragraph(escape(str(line)),styles['Normal']),Spacer(1,7)])
-    signature=base64.b64decode(t['signature_data'].split(',',1)[1],validate=True)
-    story.extend([Spacer(1,12),Paragraph('Signature manuscrite du transporteur',styles['Heading3']),Image(io.BytesIO(signature),width=300,height=95),Spacer(1,14),Paragraph('Signature électronique simple : identité déclarée, non qualifiée.',styles['Normal'])]);doc.build(story);out.seek(0)
-    return StreamingResponse(out,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="transfert-{tid}.pdf"'})
-
+    from app.pdf_report import transfer_report
+    raw=transfer_report(t,unit or {},driver,now())
+    return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="transfert-{tid}.pdf"'})
 @app.post('/api/transfers/{tid}/receive')
 def receive_transfer(tid:str,x:Optional[TransferReceive]=None,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     role(u,'worker','leader','exploitation','manager','admin')
@@ -1620,28 +1611,19 @@ def release_order_handover_pdf(oid:str,hid:str,u=Depends(auth)):
 
 @app.get('/api/releases/{rid}/handover-pdf')
 def handover_pdf(rid:str,u=Depends(auth)):
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Image
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.utils import ImageReader
-    from reportlab.lib import colors
-    from xml.sax.saxutils import escape
+    """Bon de remise d'une sortie unitaire (ancien circuit), au même format que les ordres de sortie."""
     with db() as c:
         r=one(c,'SELECT * FROM releases WHERE id=?',(rid,));require(r,'Sortie inconnue',404)
         unit=unit_access(c,u,r['unit_id'])
-        require(r['status']=='completed' and r['signature_data'],'Remise non signée',409)
+        require(r['status']=='completed' and (r['signature_data'] or r.get('handover_id')),'Remise non signée',409)
+        line=one(c,'SELECT r.*,un.unit_type,un.unit_index,un.unit_count,un.description,rc.awb,cl.name client FROM releases r JOIN units un ON un.id=r.unit_id LEFT JOIN receipts rc ON rc.id=un.receipt_id LEFT JOIN clients cl ON cl.id=rc.client_id WHERE r.id=?',(rid,))
         driver=one(c,'SELECT * FROM drivers WHERE id=?',(r['driver_id'],))
-    raw=base64.b64decode(r['signature_data'].split(',',1)[1],validate=True)
-    buf=io.BytesIO();doc=SimpleDocTemplate(buf);styles=getSampleStyleSheet()
-    def line(key,val):return Paragraph('<b>'+escape(key)+'</b> : '+escape(str(val or '—')),styles['Normal'])
-    story=[Paragraph('TAF WAREHOUSE — BON DE REMISE',styles['Title']),Spacer(1,16)]
-    for k,v in [('Référence sortie',rid),('Entrepôt',unit['warehouse']),('Unité QR',unit['id']),('Quantité remise',r['quantity']),('Transporteur / chauffeur',driver['name'] if driver else r['signature_name']),('Société',driver['company'] if driver else ''),('Immatriculation',driver['plate'] if driver else ''),('Signataire',r['signature_name']),('Autorisé par',r['authorized_by']),('Remis le (UTC)',r['completed'])]:
-        story.append(line(k,v));story.append(Spacer(1,8))
-    story.append(Spacer(1,12));story.append(Paragraph('Signature manuscrite recueillie lors de la remise',styles['Heading2']))
-    story.append(Image(io.BytesIO(raw),width=270,height=110,kind='proportional'))
-    story.append(Spacer(1,14));story.append(Paragraph('Signature électronique simple — identité déclarée par le signataire. Ce document ne constitue pas une signature électronique qualifiée.',styles['Normal']))
-    doc.build(story);buf.seek(0)
-    return StreamingResponse(buf,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="remise-{rid}.pdf"'})
-
+    if line.get('weight_out') is None:line['weight_out']=None
+    order={'id':rid,'reference':rid,'warehouse':unit['warehouse'],'authorized_by':r['authorized_by']}
+    handover={'id':rid,'actor':r.get('requested_by'),'signed_at':r['completed'],'signature_name':r['signature_name'],'signature_data':r['signature_data']}
+    from app.pdf_report import handover_report
+    raw=handover_report(order,handover,[line],[],driver,now())
+    return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="remise-{rid}.pdf"'})
 @app.get('/api/missions')
 def missions(u=Depends(auth)):
     t=now()
@@ -1868,24 +1850,16 @@ def label_history(unit_id:str,u=Depends(auth)):
 
 @app.get('/api/reports/{kind}/{ref}')
 def report(kind:str,ref:str,u=Depends(auth)):
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Table,TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib import colors
     require(kind in ('incident','claim','mission'),'Rapport inconnu')
     table={'incident':'incidents','claim':'claims','mission':'missions'}[kind]
     with db() as c:
         item=one(c,f'SELECT * FROM {table} WHERE id=?',(ref,));require(item,'Dossier inconnu',404);access(u,item['warehouse'])
-        logs=q(c,'SELECT at,actor,action,details FROM audit WHERE kind=? AND ref=? ORDER BY at',(kind,ref))
-        docs=q(c,'SELECT name,sha256,uploaded FROM documents WHERE kind=? AND ref=?',(kind,ref))
-    buf=io.BytesIO();doc=SimpleDocTemplate(buf);styles=getSampleStyleSheet()
-    story=[Paragraph('TAF WAREHOUSE - RAPPORT '+kind.upper(),styles['Title']),Paragraph('Reference : '+ref,styles['Heading2']),Spacer(1,12)]
-    for k,v in item.items():story.append(Paragraph(f'<b>{k}</b> : {str(v or "-").replace("&","&amp;").replace("<","&lt;")}',styles['Normal']))
-    story.append(Spacer(1,15));story.append(Paragraph('Journal des actions',styles['Heading2']))
-    for l in logs:story.append(Paragraph(f'{l["at"]} - {l["actor"]} - {l["action"]}',styles['Normal']))
-    story.append(Spacer(1,15));story.append(Paragraph('Pieces associees',styles['Heading2']))
-    for d in docs:story.append(Paragraph(f'{d["name"]} - SHA256 {d["sha256"]}',styles['Normal']))
-    doc.build(story);buf.seek(0)
-    return StreamingResponse(buf,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="rapport-{ref}.pdf"'})
+        logs=q(c,'SELECT at,actor,action,details FROM audit WHERE kind=? AND ref=? ORDER BY at,id',(kind,ref))
+        docs=q(c,'SELECT name,sha256,uploaded,actor FROM documents WHERE kind=? AND ref=? ORDER BY uploaded',(kind,ref))
+        extra=q(c,'SELECT actor,action,note,created FROM claim_actions WHERE claim_id=? ORDER BY created',(ref,)) if kind=='claim' else q(c,'SELECT actor,action,note,created FROM mission_events WHERE mission_id=? ORDER BY created',(ref,)) if kind=='mission' else []
+    from app.pdf_report import dossier_report
+    raw=dossier_report(kind,item,logs,docs,extra,now())
+    return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="rapport-{ref}.pdf"'})
 @app.get('/api/audit')
 def audit_log(u=Depends(auth)):
     role(u,'admin','exploitation','manager')

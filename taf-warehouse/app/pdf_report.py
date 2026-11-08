@@ -330,3 +330,75 @@ def campaign_report(k, generated_at):
                                  'Valeurs avant et après correction conservées dans le journal d’audit.', 'small')]
     status = {'open': ('EN COURS', 'blue'), 'closed': ('CLÔTURÉE', 'green'), 'cancelled': ('ANNULÉE', 'red')}.get(k['status'], (k['status'].upper(), 'blue'))
     return build('Rapport d\'inventaire', k['id'], status[0], status[1], story, generated_at, k['title'])
+
+
+def transfer_report(t, unit, driver, generated_at):
+    """Bon de transfert signé entre entrepôts."""
+    driver = driver or {}
+    status = {'in_transit': ('EN TRANSIT', 'blue'), 'received': ('RÉCEPTIONNÉ', 'green'), 'discrepancy': ('ÉCART À TRANCHER', 'red'),
+              'refusal_pending': ('REFUS À VALIDER', 'red'), 'refused': ('REFUSÉ', 'red'), 'returned': ('RETOURNÉ', 'blue'),
+              'received_with_reserves': ('ACCEPTÉ SOUS RÉSERVES', 'blue')}.get(t['status'], (t['status'].upper(), 'blue'))
+    story = [section('Transfert'), Spacer(1, 4),
+             field_grid([('Trajet', f"{t['source']}  →  {t['destination']}"), ('Transfert', t['id']), ('Retour de', t.get('return_of')),
+                         ('Demandé par', t['actor']), ('Validé par', t.get('approved_by')), ('Expédié par', t.get('dispatched_by')),
+                         ('Expédié le', fr_date(t.get('dispatched_at'))), ('Référence transport', t.get('dispatch_note')), ('', '')]),
+             Spacer(1, 10), section('Marchandise'), Spacer(1, 4),
+             field_grid([('Unité', unit.get('id') or t['unit_id']),
+                         ('Type', f"{str(unit.get('unit_type') or '').capitalize()} {unit.get('unit_index')}/{unit.get('unit_count')}" if unit.get('unit_index') else str(unit.get('unit_type') or '').capitalize()),
+                         ('Colis', unit.get('quantity')), ('Poids', f"{fr_number(unit.get('weight'))} kg"), ('Client', unit.get('client')), ('LTA', unit.get('awb'))]),
+             Spacer(1, 10), section('Transporteur'), Spacer(1, 4),
+             field_grid([('Société', driver.get('company')), ('Chauffeur', driver.get('name')), ('Immatriculation', driver.get('plate'))])]
+    if t.get('received_at'):
+        story += [Spacer(1, 10), section('Réception à destination'), Spacer(1, 4),
+                  field_grid([('Réceptionné par', t.get('received_by')), ('Le', fr_date(t.get('received_at'))), ('Colis reçus', t.get('received_quantity')),
+                              ('État constaté', t.get('received_condition')), ('Observations', t.get('received_note')), ('Décision', t.get('discrepancy_decision'))])]
+    sig = Table([[[Paragraph('SIGNATURE DU TRANSPORTEUR AU DÉPART', S['label']), txt(t.get('signature_name'), 'value'), txt(fr_date(t.get('signature_at')), 'small')],
+                  signature_image(t['signature_data'])]], colWidths=[CONTENT * .45, CONTENT * .55])
+    sig.setStyle(TableStyle([('BOX', (0, 0), (-1, -1), 0.6, LINE), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEFTPADDING', (0, 0), (-1, -1), 9),
+                             ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8)]))
+    story += [Spacer(1, 12), KeepTogether([section('Remise au transporteur'), Spacer(1, 5), sig]), Spacer(1, 10),
+              txt('Signature électronique simple : identité déclarée par le signataire, non qualifiée.', 'small')]
+    return build('Bon de transfert', t['id'], status[0], status[1], story, generated_at, f"{t['source']} → {t['destination']}")
+
+
+ACTION_LABELS = {'declare': 'Déclaration', 'update': 'Mise à jour', 'open': 'Ouverture', 'create': 'Création', 'plan': 'Planification', 'close': 'Clôture',
+                 'investigate': 'Enquête', 'request_evidence': 'Demande de pièces', 'evidence_reviewed': 'Pièces contrôlées', 'decision': 'Décision',
+                 'start': 'Démarrage', 'suspend': 'Suspension', 'resume': 'Reprise', 'complete': 'Fin', 'cancel': 'Annulation', 'assign': 'Affectation'}
+
+
+FR = {'minor': 'Mineure', 'major': 'Majeure', 'critical': 'Critique', 'damage': 'Avarie', 'missing': 'Manquant', 'security': 'Sûreté', 'handling': 'Manutention',
+      'location': 'Emplacement', 'carrier': 'Transporteur', 'weight': 'Écart de poids', 'other': 'Autre', 'low': 'Basse', 'normal': 'Normale', 'high': 'Haute', 'urgent': 'Urgente',
+      'reception': 'Réception', 'rangement': 'Rangement', 'preparation': 'Préparation', 'inventaire': 'Inventaire', 'transfert': 'Transfert', 'controle': 'Contrôle', 'incident': 'Traitement d’incident', 'autre': 'Autre'}
+def fr(v):
+    return FR.get(v, v) if isinstance(v, str) else v
+
+
+def dossier_report(kind, item, logs, docs, extra, generated_at):
+    """Rapport d'incident, de litige ou de mission."""
+    title = {'incident': "Rapport d'incident", 'claim': 'Dossier de litige', 'mission': 'Rapport de mission'}[kind]
+    if kind == 'incident':
+        fields = [('Incident', item['id']), ('Entrepôt', item['warehouse']), ('Gravité', fr(item.get('severity'))), ('Catégorie', fr(item.get('category'))),
+                  ('Unité', item.get('unit_id')), ('Emplacement', item.get('location_id')), ('Déclaré par', item.get('actor')), ('Le', fr_date(item.get('created'))), ('Responsable', item.get('owner'))]
+        body, conclusion = item.get('description'), item.get('resolution')
+    elif kind == 'claim':
+        fields = [('Litige', item['id']), ('Entrepôt', item['warehouse']), ('Client', item.get('client_id')), ('Incident lié', item.get('incident_id')),
+                  ('Ouvert par', item.get('actor')), ('Le', fr_date(item.get('created'))), ('Responsable', item.get('owner')), ('Échéance', item.get('deadline')), ('Clôturé par', item.get('closed_by'))]
+        body, conclusion = item.get('description'), item.get('decision')
+    else:
+        fields = [('Mission', item['id']), ('Entrepôt', item['warehouse']), ('Type', fr(item.get('type'))), ('Collaborateur', item.get('assignee')),
+                  ('Priorité', fr(item.get('priority'))), ('Échéance', item.get('due_at')), ('Créée par', item.get('created_by')), ('Terminée par', item.get('completed_by')), ('Le', fr_date(item.get('completed_at')))]
+        body, conclusion = item.get('title') + (' — ' + item['description'] if item.get('description') else ''), None
+    story = [section('Dossier'), Spacer(1, 4), field_grid(fields), Spacer(1, 10), callout('Description', body, 'navy')]
+    if conclusion:
+        story += [Spacer(1, 6), callout('Résolution / décision', conclusion, 'navy')]
+    rows = [(e['created'], e['actor'], ACTION_LABELS.get(e['action'], e['action']), e.get('note')) for e in extra] or \
+           [(l['at'], l['actor'], ACTION_LABELS.get(l['action'], l['action']), '') for l in logs]
+    head = [Paragraph(h, S['cellhead']) for h in ('DATE', 'PAR', 'ACTION', 'DÉTAIL')]
+    t = Table([head] + [[txt(fr_date(a), 'cell'), txt(b, 'cell'), txt(c_, 'cell'), txt(d, 'cell')] for a, b, c_, d in rows],
+              colWidths=[CONTENT * .24, CONTENT * .16, CONTENT * .2, CONTENT * .4], repeatRows=1)
+    t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                           ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
+    story += [Spacer(1, 10), section('Historique'), Spacer(1, 4), t, Spacer(1, 10), KeepTogether([section('Pièces jointes'), Spacer(1, 4), attachments_table(docs)])]
+    st = str(item.get('status') or '').lower()
+    badge = ('CLÔTURÉ', 'green') if st in ('closed', 'done', 'resolved') else ('ANNULÉ', 'red') if st == 'cancelled' else ('EN COURS', 'blue')
+    return build(title, item['id'], badge[0], badge[1], story, generated_at, item['warehouse'])
