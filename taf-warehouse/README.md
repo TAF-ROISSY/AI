@@ -1,4 +1,9 @@
-# TAF WAREHOUSE — TEST V4.16
+# TAF WAREHOUSE — TEST V4.17
+
+> **V4.17** :
+> - **Réception :** le nombre de palettes ou de colis crée autant de lignes de colisage, numérotées N/total. Ce nombre est prérempli avec les colis constatés, et les dimensions de la première ligne peuvent être recopiées sur toutes.
+> - **Chauffeurs :** type et numéro de pièce d'identité, avec photo prise par l'appareil photo de l'iPhone. Cette donnée personnelle n'est visible que par l'exploitation, les responsables et les administrateurs ; le magasin peut la déposer.
+> - **Recherche des mouvements** (`GET /api/movements/search`) : filtres dates, entrepôt, type, chauffeur, client, utilisateur et texte libre (LTA, unité, plaque, nom), pagination, export CSV pour Excel. Chaque recherche est tracée dans le journal d'audit.
 
 > **V4.16** : décision TAF du 8/11/2026 : connexion prénom ou e-mail + code PIN pour tous (`TAF_PIN_ROLES`), double authentification désactivée (`TAF_MFA_ENABLED=0`, réactivable). Chacun peut passer son compte au code PIN.
 

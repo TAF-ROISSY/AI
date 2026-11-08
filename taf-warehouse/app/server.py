@@ -4,7 +4,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request, Query
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.16.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.17.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -311,6 +311,7 @@ def init():
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
+          'drivers':[('id_type','TEXT'),('id_number','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
           'transfers':[('received_quantity','INTEGER'),('received_condition','TEXT'),('received_note','TEXT'),('discrepancy_reviewed_by','TEXT'),('discrepancy_reviewed_at','TEXT'),('discrepancy_decision','TEXT'),('return_of','TEXT')],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
@@ -378,7 +379,7 @@ class CountReview(BaseModel):approve:bool;reason:str
 class RecountCreate(BaseModel):observed:int=Field(ge=0)
 class DiscrepancyCreate(BaseModel):kind:str;description:str=Field(min_length=5,max_length=2000)
 class DiscrepancyReview(BaseModel):approve:bool;decision:str=Field(min_length=5,max_length=2000)
-class DriverCreate(BaseModel):name:str;company:str='';plate:str='';phone:str=''
+class DriverCreate(BaseModel):name:str;company:str='';plate:str='';phone:str='';id_type:Optional[Literal['CNI','passeport','permis','titre_sejour','autre']]=None;id_number:str=Field(default='',max_length=40)
 class ReleaseCreate(BaseModel):unit_id:str;quantity:int=Field(gt=0)
 class ReleaseComplete(BaseModel):driver_id:str;signature_name:str=Field(min_length=2,max_length=150);signature_data:str=Field(min_length=100,max_length=450000);signature_consent:bool=False
 class MissionCreate(BaseModel):warehouse:str;title:str;leader:str=''
@@ -807,6 +808,51 @@ def lift_unit_hold(hold_id:str,x:HoldLift,u=Depends(auth)):
 @app.get('/api/movements')
 def movements(u=Depends(auth)):
     with db() as c:return q(c,'SELECT m.* FROM movements m JOIN units u ON u.id=m.unit_id WHERE u.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY m.at DESC LIMIT 500',u['warehouses'])
+MOVEMENT_KINDS={'receive':'Réception','move':'Rangement / déplacement','exit':'Sortie','transfer_depart':'Départ transfert','transfer_receive':'Arrivée transfert','transfer_adjustment':'Ajustement transfert','refusal_return':'Retour après refus','inventory_adjustment':'Correction d’inventaire'}
+@app.get('/api/movements/search')
+def search_movements(date_from:Optional[str]=None,date_to:Optional[str]=None,warehouse:Optional[str]=None,kind:Optional[str]=None,actor:Optional[str]=None,
+                     driver_id:Optional[str]=None,client_id:Optional[str]=None,unit_id:Optional[str]=None,text:Optional[str]=Query(None,alias='q'),
+                     limit:int=100,offset:int=0,format:str='json',u=Depends(auth)):
+    """Recherche des mouvements : dates, entrepôt, type, utilisateur, chauffeur, client, unité, texte libre ; export CSV."""
+    whs=u['warehouses']
+    if warehouse:access(u,warehouse);whs=[warehouse]
+    require(not kind or kind in MOVEMENT_KINDS,'Type de mouvement inconnu')
+    limit=max(1,min(limit,1000 if format=='csv' else 500));offset=max(0,offset)
+    # Chauffeur : sortie unitaire (référence = sortie), ordre de sortie (référence = ordre) ou transfert.
+    base=f"""FROM movements m JOIN units un ON un.id=m.unit_id
+      LEFT JOIN receipts rc ON rc.id=un.receipt_id LEFT JOIN clients cl ON cl.id=rc.client_id
+      LEFT JOIN releases rl ON rl.id=m.reference
+      LEFT JOIN releases ro ON ro.order_id=m.reference AND ro.unit_id=m.unit_id AND ro.handover_id IS NOT NULL
+      LEFT JOIN transfers tr ON tr.id=m.reference
+      LEFT JOIN drivers dr ON dr.id=COALESCE(rl.driver_id,ro.driver_id,tr.driver_id)
+      WHERE un.warehouse IN ({','.join('?' for _ in whs)})"""
+    args=list(whs)
+    def add(cond,*vals):
+        nonlocal base;base+=' AND '+cond;args.extend(vals)
+    if date_from:add('m.at>=?',date_from[:10])
+    if date_to:add('m.at<?',date_to[:10]+'T99')
+    if kind:add('m.kind=?',kind)
+    if actor:add('lower(m.actor)=?',actor.strip().lower())
+    if driver_id:add('dr.id=?',driver_id)
+    if client_id:add('cl.id=?',client_id)
+    if unit_id:add('m.unit_id=?',unit_id)
+    if text and text.strip():
+        like='%'+text.strip().lower().replace('%','').replace('_','')+'%'
+        add('(lower(m.unit_id) LIKE ? OR lower(COALESCE(m.reference,\'\')) LIKE ? OR lower(COALESCE(rc.awb,\'\')) LIKE ? OR lower(COALESCE(rc.id,\'\')) LIKE ? OR lower(COALESCE(dr.name,\'\')) LIKE ? OR lower(COALESCE(dr.plate,\'\')) LIKE ? OR lower(COALESCE(dr.company,\'\')) LIKE ? OR lower(COALESCE(cl.name,\'\')) LIKE ?)',*([like]*8))
+    cols="""m.id,m.at,m.kind,m.unit_id,m.source,m.destination,m.quantity,m.reference,m.actor,un.warehouse,un.unit_type,un.unit_index,un.unit_count,
+      rc.id receipt_id,rc.awb,cl.name client,dr.id driver_id,dr.name driver_name,dr.company driver_company,dr.plate driver_plate"""
+    with db() as c:
+        total=c.execute('SELECT COUNT(*) '+base,tuple(args)).fetchone()[0]
+        items=q(c,f'SELECT {cols} {base} ORDER BY m.at DESC,m.id DESC LIMIT {limit} OFFSET {offset}',tuple(args))
+        audit(c,u['username'],'movement_search','security','search',{'filters':{k:v for k,v in dict(date_from=date_from,date_to=date_to,warehouse=warehouse,kind=kind,actor=actor,driver_id=driver_id,client_id=client_id,unit_id=unit_id,q=text).items() if v},'total':total,'format':format})
+    for it in items:it['kind_label']=MOVEMENT_KINDS.get(it['kind'],it['kind'])
+    if format=='csv':
+        out=io.StringIO();w=csv.writer(out,delimiter=';')
+        w.writerow(['Date','Type','Unité','Colis','Entrepôt','Départ','Arrivée','Référence','Réception','LTA','Client','Chauffeur','Société','Immatriculation','Utilisateur'])
+        for it in items:w.writerow([it['at'],it['kind_label'],it['unit_id'],it['quantity'],it['warehouse'],it['source'] or '',it['destination'] or '',it['reference'] or '',it['receipt_id'] or '',it['awb'] or '',it['client'] or '',it['driver_name'] or '',it['driver_company'] or '',it['driver_plate'] or '',it['actor']])
+        return Response(content='\ufeff'+out.getvalue(),media_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="mouvements-taf-warehouse.csv"'})
+    return {'total':total,'items':items,'limit':limit,'offset':offset}
+
 @app.get('/api/transfers')
 def transfers(u=Depends(auth)):
     cols="id,unit_id,source,destination,status,created,actor,received_by,received_at,approved_by,dispatched_by,dispatched_at,dispatch_note,driver_id,signature_name,signature_at,received_quantity,received_condition,received_note,discrepancy_reviewed_by,discrepancy_reviewed_at,discrepancy_decision,return_of"
@@ -1155,13 +1201,18 @@ def review_discrepancy(did:str,x:DiscrepancyReview,u=Depends(auth)):
 
 @app.get('/api/drivers')
 def drivers(u=Depends(auth)):
-    with db() as c:return q(c,'SELECT id,name,company,plate,created FROM drivers ORDER BY created DESC')
+    office=u['role'] in IDENTITY_ROLES
+    with db() as c:
+        rows=q(c,"SELECT d.id,d.name,d.company,d.plate,d.created,d.id_type,d.id_number,CASE WHEN EXISTS (SELECT 1 FROM documents x WHERE x.kind='driver' AND x.ref=d.id) THEN 1 ELSE 0 END has_identity FROM drivers d ORDER BY d.created DESC")
+    for r in rows:
+        if not office:r.pop('id_number',None)
+    return rows
 @app.post('/api/drivers')
 def create_driver(x:DriverCreate,u=Depends(auth)):
     role(u,'worker','leader','manager','exploitation','admin')
     require(bool(x.name.strip()),'Nom du transporteur obligatoire')
     with tx() as c:
-        i=uid('DRV');c.execute('INSERT INTO drivers VALUES(?,?,?,?,?,?)',(i,x.name,x.company,x.plate,x.phone,now()));audit(c,u['username'],'create','driver',i)
+        i=uid('DRV');c.execute('INSERT INTO drivers(id,name,company,plate,phone,created,id_type,id_number) VALUES(?,?,?,?,?,?,?,?)',(i,x.name.strip(),x.company,x.plate.strip().upper(),x.phone,now(),x.id_type,x.id_number.strip()));audit(c,u['username'],'create','driver',i)
     return {'id':i}
 @app.get('/api/releases')
 def releases(u=Depends(auth)):
@@ -1471,10 +1522,15 @@ def update_claim(cid:str,x:ClaimUpdate,u=Depends(auth)):
         c.execute('UPDATE claims SET status=?,decision=?,owner=? WHERE id=?',(x.status,x.decision,x.owner,cid));audit(c,u['username'],'update','claim',cid,{'status':x.status})
     return {'ok':True}
 DOC_TABLES={'receipt':'receipts','incident':'incidents','claim':'claims','mission':'missions','unit':'units'}
-def doc_access(c,u,kind,ref):
+# Pièces d'identité des chauffeurs : donnée personnelle. Le magasin les dépose, seuls ces rôles les consultent.
+IDENTITY_ROLES={'superadmin','admin','manager','exploitation'}
+def doc_access(c,u,kind,ref,write=False):
     """Un document suit les habilitations de son dossier ; un transfert est visible au départ et à l'arrivée."""
-    require(kind in DOC_TABLES or kind=='transfer','Type invalide')
-    if kind=='transfer':
+    require(kind in DOC_TABLES or kind in ('transfer','driver'),'Type invalide')
+    if kind=='driver':
+        require(one(c,'SELECT id FROM drivers WHERE id=?',(ref,)),'Chauffeur introuvable',404)
+        require(write or u['role'] in IDENTITY_ROLES,'Pièce d’identité réservée à l’exploitation et aux responsables',403)
+    elif kind=='transfer':
         t=one(c,'SELECT source,destination FROM transfers WHERE id=?',(ref,));require(t,'Dossier introuvable',404)
         require(t['source'] in u['warehouses'] or t['destination'] in u['warehouses'],'Accès entrepôt refusé',403)
     else:
@@ -1482,7 +1538,7 @@ def doc_access(c,u,kind,ref):
 
 @app.post('/api/documents/{kind}/{ref}')
 async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
-    with db() as c:doc_access(c,u,kind,ref)
+    with db() as c:doc_access(c,u,kind,ref,write=True)
     # 9 Mo : la passerelle HTTPS d'AWS limite chaque requête à 10 Mo (fichier + enveloppe multipart).
     raw=await file.read(9*1024*1024+1);require(len(raw)<=9*1024*1024,'Fichier supérieur à 9 Mo : réduire la taille ou la résolution de la photo')
     require(raw[:4]==b'%PDF' or raw[:3]==b'\xff\xd8\xff' or raw[:8]==b'\x89PNG\r\n\x1a\n','PDF, JPG ou PNG uniquement')
