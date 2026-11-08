@@ -184,7 +184,7 @@ class _NumberedCanvas(rl_canvas.Canvas):
 def build(title, reference, status_label, status_tone, story, generated_at, footer_note):
     """Compose un document A4 avec bandeau TAF, badge de statut et pied de page."""
     out = io.BytesIO()
-    status_color = {'red': RED, 'green': GREEN, 'blue': BLUE}.get(status_tone, NAVY)
+    status_color = {'red': RED, 'green': GREEN, 'blue': BLUE, 'orange': colors.HexColor('#B45309')}.get(status_tone, NAVY)
 
     def decorate(c, doc):
         c.saveState()
@@ -613,6 +613,14 @@ def receipt_report(rec, units, discrepancies, holds, problems, docs, received_by
     story += [Spacer(1, 10), txt('Fiche établie à partir des saisies du magasin dans TAF WAREHOUSE. Les blocages éventuels restent en place '
                                  'jusqu’à leur levée par une personne habilitée.', 'small')]
     ok = not problems
+    if rec.get('missing'):
+        story.insert(0, Spacer(1, 8))
+        story.insert(0, callout('Fiche en attente de complément — non validée', '\n'.join('• ' + m for m in rec['missing']), 'red'))
+        return build('Fiche de réception', rec['id'], 'EN ATTENTE DE COMPLÉMENT', 'orange', story, generated_at,
+                     rec['warehouse'] + (' · LTA ' + rec['awb'] if rec.get('awb') else ''))
+    if rec.get('validated_by'):
+        story.append(Spacer(1, 6)); story.append(txt(f"Fiche validée définitivement par {rec['validated_by']} le {fr_date(rec.get('validated_at'))}"
+                                                     + (f" (révision {rec['revision']})" if (rec.get('revision') or 0) > 1 else '') + '.', 'small'))
     return build('Fiche de réception', rec['id'], 'RÉCEPTION CONFORME' if ok else 'PROBLÈME DE RÉCEPTION', 'green' if ok else 'red',
                  story, generated_at, rec['warehouse'] + (' · LTA ' + rec['awb'] if rec.get('awb') else ''))
 
@@ -709,3 +717,90 @@ def location_signs(rows):
         c.drawImage(ImageReader(bio), x0 + (cw - q) / 2, y0 + 6 * mm, q, q)
     c.save()
     return out.getvalue()
+
+
+def receipt_cover(rec, units, docs, missing, generated_at):
+    """Récapitulatif d'entrée A4 : à imprimer à la validation et à agrafer avec les documents papier."""
+    import qrcode
+    out = io.BytesIO()
+    c = rl_canvas.Canvas(out, pagesize=A4)
+    c.setTitle(f"Récapitulatif {rec['id']}")
+    # Bandeau
+    c.setFillColor(NAVY); c.rect(0, H - 34 * mm, W, 34 * mm, stroke=0, fill=1)
+    c.setFillColor(colors.white); c.setFont('Helvetica-Bold', 17); c.drawString(MARGIN, H - 14 * mm, 'TAF')
+    c.setFont('Helvetica', 7.5); c.drawString(MARGIN + 13.5 * mm, H - 14 * mm, 'TRANS AIR FREIGHT · WAREHOUSE')
+    c.setFont('Helvetica-Bold', 13); c.drawString(MARGIN, H - 25 * mm, 'Récapitulatif d’entrée — dossier papier')
+    ok = rec.get('stage') == 'validated'
+    label = 'VALIDÉE' if ok else 'EN ATTENTE DE COMPLÉMENT'
+    c.setFont('Helvetica-Bold', 9); bw = c.stringWidth(label, 'Helvetica-Bold', 9) + 8 * mm
+    c.setFillColor(GREEN if ok else colors.HexColor('#B45309')); c.roundRect(W - MARGIN - bw, H - 27 * mm, bw, 7 * mm, 1.5 * mm, stroke=0, fill=1)
+    c.setFillColor(colors.white); c.drawCentredString(W - MARGIN - bw / 2, H - 24.6 * mm, label)
+    c.setFont('Helvetica', 8); c.drawRightString(W - MARGIN, H - 14 * mm, 'Imprimé le ' + fr_date(generated_at))
+    # Numéro d'entrée en très grand + QR
+    y = H - 50 * mm
+    c.setFillColor(MUTED); c.setFont('Helvetica', 9); c.drawString(MARGIN, y + 8 * mm, 'N° D’ENTRÉE')
+    c.setFillColor(INK); c.setFont('Helvetica-Bold', 54); c.drawString(MARGIN, y - 12 * mm, rec['id'])
+    img = qrcode.make(rec['id'], box_size=8, border=1); bio = io.BytesIO(); img.save(bio, format='PNG'); bio.seek(0)
+    c.drawImage(ImageReader(bio), W - MARGIN - 30 * mm, y - 19 * mm, 30 * mm, 30 * mm)
+    # Grille d'informations
+    y -= 26 * mm
+    rows = [('Client', rec.get('client')), ('LTA', rec.get('awb') or '—'), ('Entrepôt', rec['warehouse']),
+            ('Colis reçus / prévus', f"{rec.get('actual')} / {rec.get('expected')}"), ('Poids déclaré', f"{fr_number(rec.get('weight'))} kg"),
+            ('Unités', str(len(units))), ('Reçue le', fr_date(rec.get('created'))), ('Validée par', rec.get('validated_by') or '—'),
+            ('Validée le', fr_date(rec.get('validated_at')) if rec.get('validated_at') else '—')]
+    cw = CONTENT / 3
+    for i, (k, v) in enumerate(rows):
+        x0 = MARGIN + (i % 3) * cw; y0 = y - (i // 3) * 15 * mm
+        c.setFillColor(SOFT); c.rect(x0, y0 - 11 * mm, cw - 2 * mm, 13 * mm, stroke=0, fill=1)
+        c.setFillColor(MUTED); c.setFont('Helvetica', 7); c.drawString(x0 + 3 * mm, y0 - 2 * mm, k.upper())
+        c.setFillColor(INK); c.setFont('Helvetica-Bold', 10.5); c.drawString(x0 + 3 * mm, y0 - 7.5 * mm, str(v or '—')[:38])
+    y -= 3 * 15 * mm + 4 * mm
+    if missing:
+        c.setFillColor(RED_SOFT); c.rect(MARGIN, y - (8 + 5 * len(missing)) * mm, CONTENT, (8 + 5 * len(missing)) * mm, stroke=0, fill=1)
+        c.setFillColor(RED); c.setFont('Helvetica-Bold', 9); c.drawString(MARGIN + 4 * mm, y - 5 * mm, 'À COMPLÉTER AVANT VALIDATION')
+        c.setFont('Helvetica', 9)
+        for j, m in enumerate(missing):
+            c.drawString(MARGIN + 4 * mm, y - (10 + 5 * j) * mm, '• ' + m[:110])
+        y -= (12 + 5 * len(missing)) * mm
+    # Documents
+    c.setFillColor(NAVY); c.setFont('Helvetica-Bold', 11); c.drawString(MARGIN, y, 'Documents à agrafer'); c.setStrokeColor(NAVY); c.line(MARGIN, y - 2 * mm, W - MARGIN, y - 2 * mm)
+    y -= 9 * mm
+    lines = [('LTA / document de transport', any(d.get('category') == 'transport' for d in docs)), ('Bon de livraison / CMR', False),
+             ('Déclaration de sûreté', False), ('Réserves signées du transporteur', False), ('Autre :', False)]
+    c.setFont('Helvetica', 10)
+    for name, scanned in lines:
+        c.setStrokeColor(MUTED); c.rect(MARGIN, y - 1 * mm, 4.5 * mm, 4.5 * mm)
+        c.setFillColor(INK); c.drawString(MARGIN + 8 * mm, y, name)
+        if scanned:
+            c.setFillColor(GREEN); c.setFont('Helvetica-Bold', 8); c.drawString(MARGIN + 80 * mm, y, 'copie numérique dans le dossier'); c.setFont('Helvetica', 10)
+        c.setStrokeColor(LINE); c.line(MARGIN + 80 * mm if not scanned else MARGIN + 125 * mm, y - 1 * mm, W - MARGIN, y - 1 * mm)
+        y -= 8 * mm
+    if docs:
+        c.setFillColor(MUTED); c.setFont('Helvetica', 8)
+        c.drawString(MARGIN, y, 'Pièces numériques : ' + ', '.join(d['name'] for d in docs)[:150]); y -= 7 * mm
+    # Unités
+    c.setFillColor(NAVY); c.setFont('Helvetica-Bold', 11); c.drawString(MARGIN, y, f'Unités ({len(units)})'); c.line(MARGIN, y - 2 * mm, W - MARGIN, y - 2 * mm)
+    y -= 8 * mm; c.setFont('Helvetica', 9)
+    for un in units[:14]:
+        typ = f"{(un.get('unit_type') or '').capitalize()} {un['unit_index']}/{un['unit_count']}" if un.get('unit_index') else (un.get('unit_type') or '').capitalize()
+        dim = f"{fr_number(un.get('length_cm'), 0)} × {fr_number(un.get('width_cm'), 0)} × {fr_number(un.get('height_cm'), 0)} cm" if dims_ok_row(un) else 'dimensions à saisir'
+        c.setFillColor(INK); c.drawString(MARGIN, y, typ); c.drawString(MARGIN + 28 * mm, y, un['id'])
+        c.drawString(MARGIN + 68 * mm, y, f"{un['quantity']} colis · {fr_number(un.get('weight'))} kg"); c.drawString(MARGIN + 110 * mm, y, dim)
+        c.drawRightString(W - MARGIN, y, un.get('location_id') or 'À ranger'); y -= 5.5 * mm
+    if len(units) > 14:
+        c.drawString(MARGIN, y, f'… et {len(units) - 14} autre(s) unité(s) : voir la fiche de réception.'); y -= 5.5 * mm
+    # Visa
+    y = max(y - 6 * mm, 32 * mm)
+    c.setStrokeColor(LINE)
+    for i_, lab in enumerate(('Visa magasin', 'Visa exploitation')):
+        x0 = MARGIN + i_ * (CONTENT / 2)
+        c.rect(x0, y - 18 * mm, CONTENT / 2 - 3 * mm, 20 * mm)
+        c.setFillColor(MUTED); c.setFont('Helvetica', 7.5); c.drawString(x0 + 3 * mm, y - 2 * mm, lab.upper())
+    c.setFont('Helvetica', 7.5); c.setFillColor(MUTED)
+    c.drawString(MARGIN, 10 * mm, f"TAF WAREHOUSE · {rec['id']} · conserver ce récapitulatif avec les documents papier de l’expédition")
+    c.save()
+    return out.getvalue()
+
+
+def dims_ok_row(u):
+    return all((u.get(k) or 0) > 0 for k in ('length_cm', 'width_cm', 'height_cm'))

@@ -88,7 +88,11 @@ def receipt(env, **over):
     body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '057-11112222', 'expected': 4, 'actual': 4, 'weight': 400, 'packages': pk, **over}
     r = c.post('/api/receipts', headers=h['mag'], json=body)
     assert r.status_code == 200, r.text
-    return r.json()['id']
+    rid = r.json()['id']
+    # Lot 17 : la fiche part par e-mail à la validation définitive (document de transport joint).
+    assert c.post(f'/api/documents/receipt/{rid}', headers=h['mag'], params={'category': 'transport'}, files={'file': ('lta.pdf', b'%PDF-1.4 test', 'application/pdf')}).status_code == 200
+    assert c.post(f'/api/receipts/{rid}/validate', headers=h['mag']).status_code == 200
+    return rid
 
 
 def test_conform_receipt_sends_green_sheet(env):

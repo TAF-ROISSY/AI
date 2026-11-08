@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.24.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.25.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -133,7 +133,7 @@ async def security_headers(request:Request,call_next):
     response.headers['X-Frame-Options']='DENY'
     response.headers['Referrer-Policy']='no-referrer'
     response.headers['Cache-Control']='no-store' if request.url.path.startswith('/api/') else 'no-cache'
-    response.headers['Content-Security-Policy']="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    response.headers['Content-Security-Policy']="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     return response
 
 WAREHOUSES=['Afrique','Maritime','Moyen-Orient','TMS']
@@ -332,10 +332,11 @@ def init():
         """)
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
-          'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
+          'receipts':[('stage',"TEXT NOT NULL DEFAULT 'pending'"),('validated_by','TEXT'),('validated_at','TEXT'),('revision','INTEGER NOT NULL DEFAULT 0'),('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT'),('receipt_id','TEXT'),('unit_ids','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
+          'documents':[('category',"TEXT NOT NULL DEFAULT ''")],
           'drivers':[('id_type','TEXT'),('id_number','TEXT'),('identity_erased_at','TEXT')],
           'locations':[('kind',"TEXT NOT NULL DEFAULT 'rack'"),('structure','TEXT'),('level','TEXT'),('position','INTEGER'),('active','INTEGER NOT NULL DEFAULT 1'),('created_by','TEXT'),('created','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
@@ -349,6 +350,14 @@ def init():
         columns={r['name'] for r in c.execute('PRAGMA table_info(transfers)')}
         for column in ('approved_by','dispatched_by','dispatched_at','dispatch_note','driver_id','signature_name','signature_data','signature_at'):
             if column not in columns:c.execute(f'ALTER TABLE transfers ADD COLUMN {column} TEXT')
+        # Lot 17 : l'historique (journal d'audit) est inaltérable : ni modification ni suppression, même en base.
+        if PG:
+            c.execute("CREATE OR REPLACE FUNCTION taf_audit_immutable() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'Historique inaltérable : modification ou suppression interdite'; END$$")
+            c.execute('DROP TRIGGER IF EXISTS audit_immutable ON audit')
+            c.execute('CREATE TRIGGER audit_immutable BEFORE UPDATE OR DELETE ON audit FOR EACH ROW EXECUTE FUNCTION taf_audit_immutable()')
+        else:
+            c.executescript("""CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'Historique inaltérable : modification interdite'); END;
+            CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'Historique inaltérable : suppression interdite'); END;""")
         # Lot 15 : structure des emplacements créés avant le générateur.
         for l in q(c,'SELECT id FROM locations WHERE structure IS NULL'):
             mt=re.match(r'^[A-Z]+-(R\d+)-([A-Z])(\d+)$',l['id'])
@@ -396,7 +405,7 @@ class LocationPatch(BaseModel):capacity_kg:Optional[float]=None;capacity_m3:Opti
 class PackageLine(BaseModel):
     """Une ligne de colisage = une unité logistique (palette ou colis), identifiée individuellement."""
     kind:Literal['palette','colis']='palette'
-    length_cm:float=Field(gt=0,le=2000);width_cm:float=Field(gt=0,le=2000);height_cm:float=Field(gt=0,le=1000)
+    length_cm:float=Field(default=0,ge=0,le=2000);width_cm:float=Field(default=0,ge=0,le=2000);height_cm:float=Field(default=0,ge=0,le=1000)  # 0 = à compléter
     weight_kg:float=Field(ge=0,le=50000);packages:int=Field(ge=1,le=10000);notes:str=Field(default='',max_length=500)
 class ReceiptCreate(BaseModel):
     warehouse:str;client_id:str;awb:str='';expected:int=Field(ge=0);actual:int=Field(ge=0);weight:float=Field(ge=0);notes:str=''
@@ -740,7 +749,10 @@ def update_location(lid:str,x:LocationPatch,u=Depends(auth)):
     return {'ok':True}
 @app.get('/api/receipts')
 def receipts(u=Depends(auth)):
-    with db() as c:return q(c,'SELECT r.*,c.name client FROM receipts r JOIN clients c ON c.id=r.client_id WHERE r.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC',u['warehouses'])
+    with db() as c:
+        rows=q(c,'SELECT r.*,c.name client FROM receipts r JOIN clients c ON c.id=r.client_id WHERE r.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC LIMIT 500',u['warehouses'])
+        for r in rows:r['missing']=receipt_missing(c,r['id']) if r.get('stage')!='validated' else []
+        return rows
 VOLUMETRIC_KG_PER_M3=1000/6  # convention fret aérien IATA 1:6000
 @app.post('/api/receipts')
 def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
@@ -766,7 +778,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
             uid_=uid('UNIT');unit_ids.append(uid_)
             label=('Palette' if line.kind=='palette' else 'Colis')+f' {idx}/{n}'
             c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count,length_cm,width_cm,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                      (uid_,i,x.warehouse,(x.nature or 'Marchandise')+' — '+label+(' — '+line.notes if line.notes else ''),line.packages,line.weight_kg,round(line.length_cm*line.width_cm*line.height_cm/1e6,4),1,'awaiting_putaway','general',line.kind,idx,n,line.length_cm,line.width_cm,line.height_cm))
+                      (uid_,i,x.warehouse,(x.nature or 'Marchandise')+' — '+label+(' — '+line.notes if line.notes else ''),line.packages,line.weight_kg,round(line.length_cm*line.width_cm*line.height_cm/1e6,4) if dims_ok(line) else None,int(dims_ok(line)),'awaiting_putaway','general',line.kind,idx,n,line.length_cm,line.width_cm,line.height_cm))
             event(c,u['username'],uid_,'receive',None,None,line.packages,i)
             if status=='discrepancy':add_hold(c,u['username'],uid_,'ecart_reception','Écart réception '+i,i)
             if x.security_status in ('non_securise','a_controler'):add_hold(c,u['username'],uid_,'surete','Sûreté : '+('non sécurisé' if x.security_status=='non_securise' else 'à contrôler'),i)
@@ -774,7 +786,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
             elif x.apparent_condition=='a_verifier':add_hold(c,u['username'],uid_,'controle','État apparent à vérifier',i)
         if status=='discrepancy':notify(c,x.warehouse,'receipt',i,'Écart de réception',' ; '.join(warnings)[:350],u['username'])
         totals={'units':n,'packages':described,'weight_kg':round(weight_sum,2),'volume_m3':round(volume,4),'volumetric_weight_kg':round(volume*VOLUMETRIC_KG_PER_M3,2)} if x.packages else None
-        queue_receipt_mail(c,i,x.warehouse,'reception',u['username'])
+        # La fiche part par e-mail à la validation finale (dimensions et documents de transport complets).
         response={'id':i,'status':status,'units':unit_ids,'totals':totals,'warnings':warnings};save_request(c,u['id'],'receipt.create',idempotency_key,digest,response)
     return response
 @app.get('/api/units')
@@ -1179,7 +1191,7 @@ def review_transfer_refusal(rid:str,x:RefusalReview,u=Depends(auth),idempotency_
                     if Path(d['path']).suffix in ('.png','.jpg'):d['content']=store_get(d['path'])
                 raw=refusal_report_pdf(r,t,unit,driver,docs)
                 did=uid('DOC');path=store_ref(did+'.pdf')
-                c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(did,'transfer',t['id'],f'rapport-refus-{rid}.pdf','application/pdf',hashlib.sha256(raw).hexdigest(),path,now(),u['username']))
+                c.execute('INSERT INTO documents(id,kind,ref,name,mime,sha256,path,uploaded,actor) VALUES(?,?,?,?,?,?,?,?,?)',(did,'transfer',t['id'],f'rapport-refus-{rid}.pdf','application/pdf',hashlib.sha256(raw).hexdigest(),path,now(),u['username']))
                 c.execute('UPDATE transfer_refusals SET report_document_id=? WHERE id=?',(did,rid))
                 audit(c,u['username'],'refusal_validated','transfer',t['id'],{'refusal':rid,'document':did,'note':x.note})
                 for wh in dict.fromkeys((t['source'],t['destination'])):
@@ -1549,7 +1561,7 @@ def receipt_dossier(c,rid):
     holds=q(c,'SELECT h.unit_id,h.reason FROM unit_holds h JOIN units x ON x.id=h.unit_id WHERE x.receipt_id=? AND h.lifted_at IS NULL ORDER BY h.created',(rid,))
     docs=q(c,"SELECT * FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
     who=one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,))
-    rec['history']=receipt_history(c,rid)
+    rec['history']=receipt_history(c,rid);rec['missing']=receipt_missing(c,rid) if rec.get('stage')!='validated' else []
     return rec,units,discrepancies,holds,docs,(who or {}).get('actor'),receipt_problems(c,rec,units)
 def receipt_pdf(c,rid):
     from app.pdf_report import receipt_report
@@ -1576,7 +1588,7 @@ def receipt_email_now(rid:str,background:BackgroundTasks,u=Depends(auth)):
     return {'id':mid,'status':'pending'}
 def compose_receipt_mail(c,rid):
     rec,problems,who,pdf=receipt_pdf(c,rid)
-    title='PROBLÈME DE RÉCEPTION' if problems else 'Réception conforme'
+    title=('PROBLÈME DE RÉCEPTION' if problems else 'Réception conforme')+(' (fiche modifiée)' if (rec.get('revision') or 0)>1 else '')
     subject=f"[TAF WAREHOUSE] {title} · {rec['warehouse']} · LTA {rec.get('awb') or '—'} · {rec['client']} · {rec['id']}"
     lines=[f"Réception {rec['id']} — entrepôt {rec['warehouse']}, le {rec['created'][:10]} à {rec['created'][11:16]} UTC",
            f"Client : {rec['client']}",f"LTA : {rec.get('awb') or '—'}",f"Colis : {rec['actual']} reçus / {rec['expected']} prévus — poids déclaré {rec.get('weight') or 0} kg",
@@ -1823,13 +1835,18 @@ def receipt_history(c,rid):
     ev=[]
     def add(at,kind,title,actor=None,detail='',ref=None):
         if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail or '','ref':ref})
-    labels={'receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
+    labels={'print_cover':'Récapitulatif à agrafer imprimé','edit':'Fiche modifiée','validate':'Validation définitive de la fiche','reopen':'Fiche rouverte pour modification','add_document':'Document ajouté','unit_dimensions':'Dimensions saisies','receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
     for a in q(c,"SELECT * FROM audit WHERE kind='receipt' AND ref=? ORDER BY at,id",(rid,)):
         d=json.loads(a['details'] or '{}') if a.get('details') else {}
         detail={'receive':lambda: f"{d.get('units',0)} unité(s)"+(' · '+' ; '.join(d.get('warnings',[])) if d.get('warnings') else ''),
+                'edit':lambda: ' ; '.join(f"{RECEIPT_FIELDS.get(k,k)} : « {v[0] or '—'} » → « {v[1] or '—'} »" for k,v in d.get('changes',{}).items()),
+                'unit_dimensions':lambda: f"{d.get('unit')} : "+' ; '.join(f"{DIM_LABELS.get(k,k)} {_num(v[0])} → {_num(v[1])} {'kg' if k=='weight' else 'cm'}" for k,v in d.get('changes',{}).items()),
+                'validate':lambda: f"révision {d.get('revision')}"+(' · e-mail au service' if d.get('mail') else ''),
+                'reopen':lambda: d.get('reason',''),
+                'add_document':lambda: f"{d.get('name','')} ({ {'transport':'document de transport','photo':'photo'}.get(d.get('category'),'autre') })",
                 'mail_sent':lambda: ', '.join(d.get('to',[])),'request_mission':lambda: f"{d.get('mission')} · {d.get('units')} unité(s)"}.get(a['action'],lambda:'')()
         add(a['at'],'receipt',labels.get(a['action'],a['action']),a['actor'],detail,rid)
-    for doc in q(c,"SELECT * FROM documents WHERE kind='receipt' AND ref=?",(rid,)):add(doc['uploaded'],'document','Pièce jointe : '+doc['name'],doc['actor'],'',doc['id'])
+    # Les documents ajoutés figurent dans le journal (« Document ajouté »).
     for m in q(c,'SELECT * FROM missions WHERE receipt_id=?',(rid,)):
         for e in q(c,'SELECT * FROM mission_events WHERE mission_id=? ORDER BY created,id',(m['id'],)):
             add(e['created'],'mission',{'take':'Mission prise en charge','start':'Mission démarrée','suspend':'Mission suspendue','resume':'Mission reprise','complete':'Mission terminée','cancel':'Mission annulée','assign':'Mission affectée'}.get(e['action'],e['action']),e['actor'],f"{m['title']}"+(f" · {e['note']}" if e['note'] else ''),m['id'])
@@ -1840,6 +1857,108 @@ def receipt_history(c,rid):
             add(e['at'],e['kind'],f"{tag} · {e['title']}",e['actor'],e['detail'],un['id'])
     ev.sort(key=lambda e:(e['at'][:19],-1 if e['title']=='Réception enregistrée' else TIMELINE_RANK.get(e['kind'],5)))
     return ev
+DIM_LABELS={'length_cm':'longueur','width_cm':'largeur','height_cm':'hauteur','weight':'poids'}
+def _num(v):
+    return '—' if not v else (f'{v:g}' if isinstance(v,(int,float)) else str(v)).replace('.',',')
+RECEIPT_FIELDS={'awb':'LTA','shipper':'Expéditeur','carrier':'Transporteur','transport_ref':'Référence transport','folder_ref':'Référence dossier','nature':'Nature','notes':'Observations','weight':'Poids déclaré (kg)','apparent_condition':'État apparent','security_status':'Statut sûreté'}
+def dims_ok(x):
+    g=(lambda k:getattr(x,k,None)) if not isinstance(x,dict) else x.get
+    return all((g(k) or 0)>0 for k in ('length_cm','width_cm','height_cm'))
+def receipt_missing(c,rid):
+    """Ce qui manque pour la validation définitive."""
+    r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));out=[]
+    units=q(c,"SELECT * FROM units WHERE receipt_id=? ORDER BY unit_index,id",(rid,))
+    if not units:out.append('Aucune unité enregistrée')
+    nodim=[u for u in units if not dims_ok(u)]
+    if nodim:out.append(f"Dimensions manquantes : {len(nodim)} unité(s) ("+', '.join(((u.get('unit_type') or 'unité').capitalize()+(f" {u['unit_index']}/{u['unit_count']}" if u.get('unit_index') else '')) for u in nodim[:6])+(' …' if len(nodim)>6 else '')+')')
+    if not one(c,"SELECT id FROM documents WHERE kind='receipt' AND ref=? AND category='transport' LIMIT 1",(rid,)):out.append('Document de transport manquant (LTA, CMR ou bon de livraison)')
+    if not (r.get('awb') or '').strip() and not (r.get('transport_ref') or '').strip():out.append('Numéro de LTA ou référence transport manquant')
+    return out
+def receipt_state(c,rid):
+    r=one(c,'SELECT stage,validated_by,validated_at,revision FROM receipts WHERE id=?',(rid,))
+    return {**r,'missing':receipt_missing(c,rid) if r['stage']!='validated' else []}
+@app.get('/api/receipts/{rid}/dossier')
+def receipt_dossier_api(rid:str,u=Depends(auth)):
+    """Dossier complet de l'entrée : fiche, unités, documents, ce qui manque, historique."""
+    with db() as c:
+        r=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        units=q(c,'SELECT id,unit_type,unit_index,unit_count,quantity,weight,volume,length_cm,width_cm,height_cm,status,location_id,hold,version FROM units WHERE receipt_id=? ORDER BY unit_index,id',(rid,))
+        docs=q(c,"SELECT id,name,mime,uploaded,actor,category FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
+        return {'receipt':r,'state':receipt_state(c,rid),'units':units,'documents':docs,'history':receipt_history(c,rid),'mail_enabled':MAIL_BACKEND!='off' and bool(mail_recipients(c,r['warehouse']))}
+class ReceiptEdit(BaseModel):
+    awb:Optional[str]=Field(default=None,max_length=40);shipper:Optional[str]=Field(default=None,max_length=200);carrier:Optional[str]=Field(default=None,max_length=200)
+    transport_ref:Optional[str]=Field(default=None,max_length=100);folder_ref:Optional[str]=Field(default=None,max_length=100);nature:Optional[str]=Field(default=None,max_length=300)
+    notes:Optional[str]=Field(default=None,max_length=2000);weight:Optional[float]=Field(default=None,ge=0,le=500000)
+    apparent_condition:Optional[Literal['conforme','endommage','a_verifier']]=None;security_status:Optional[Literal['securise','non_securise','a_controler']]=None
+def _editable(c,u,rid):
+    r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+    require(r['stage']!='validated','Fiche validée : la rouvrir (exploitation) pour la modifier',409);return r
+@app.put('/api/receipts/{rid}')
+def edit_receipt(rid:str,x:ReceiptEdit,u=Depends(auth)):
+    """Compléter ou corriger la fiche. Chaque changement est inscrit, avant → après, dans l'historique."""
+    with tx() as c:
+        r=_editable(c,u,rid);changes={}
+        for k,v in x.model_dump(exclude_none=True).items():
+            if isinstance(v,str):v=v.strip()
+            if (r.get(k) if r.get(k) is not None else ('' if isinstance(v,str) else None))!=v:changes[k]=[r.get(k),v]
+        require(changes,'Aucune modification')
+        c.execute('UPDATE receipts SET '+','.join(f'{k}=?' for k in changes)+' WHERE id=?',[v[1] for v in changes.values()]+[rid])
+        audit(c,u['username'],'edit','receipt',rid,{'changes':changes})
+        # Un statut de sûreté ou un état apparent dégradé bloque la marchandise, comme à la réception.
+        held={'non_securise':('surete','Sûreté : non sécurisé'),'a_controler':('surete','Sûreté : à contrôler'),'endommage':('avarie','État apparent endommagé'),'a_verifier':('controle','État apparent à vérifier')}
+        for k in ('security_status','apparent_condition'):
+            if k in changes and changes[k][1] in held:
+                for un in q(c,"SELECT id FROM units WHERE receipt_id=? AND status NOT IN ('exited','depleted')",(rid,)):add_hold(c,u['username'],un['id'],held[changes[k][1]][0],held[changes[k][1]][1]+' (modification de la fiche)',rid)
+    return {'ok':True,'changes':list(changes)}
+class UnitDims(BaseModel):
+    length_cm:float=Field(gt=0,le=2000);width_cm:float=Field(gt=0,le=2000);height_cm:float=Field(gt=0,le=1000);weight_kg:Optional[float]=Field(default=None,ge=0,le=50000)
+@app.put('/api/units/{unit_id}/dimensions')
+def unit_dimensions(unit_id:str,x:UnitDims,u=Depends(auth)):
+    with tx() as c:
+        unit=unit_access(c,u,unit_id);require(unit['receipt_id'],'Unité sans fiche d’entrée')
+        _editable(c,u,unit['receipt_id'])
+        new={'length_cm':x.length_cm,'width_cm':x.width_cm,'height_cm':x.height_cm,**({'weight':x.weight_kg} if x.weight_kg is not None else {})}
+        changes={k:[unit.get(k),v] for k,v in new.items() if unit.get(k)!=v}
+        require(changes,'Aucune modification')
+        vol=round(x.length_cm*x.width_cm*x.height_cm/1e6,4)
+        c.execute('UPDATE units SET length_cm=?,width_cm=?,height_cm=?,weight=COALESCE(?,weight),volume=?,dimensions_ok=1,version=version+1 WHERE id=?',(x.length_cm,x.width_cm,x.height_cm,x.weight_kg,vol,unit_id))
+        tot=one(c,'SELECT COALESCE(SUM(volume),0) v FROM units WHERE receipt_id=?',(unit['receipt_id'],))['v']
+        c.execute('UPDATE receipts SET volume_m3=?,volumetric_weight=? WHERE id=?',(round(tot,4),round(tot*VOLUMETRIC_KG_PER_M3,2),unit['receipt_id']))
+        audit(c,u['username'],'unit_dimensions','receipt',unit['receipt_id'],{'unit':unit_id,'changes':changes})
+    return {'ok':True,'volume_m3':vol}
+@app.post('/api/receipts/{rid}/validate')
+def validate_receipt(rid:str,u=Depends(auth)):
+    """Validation définitive : refusée tant que dimensions et documents de transport manquent. Envoie la fiche au service."""
+    with tx() as c:
+        r=_editable(c,u,rid);missing=receipt_missing(c,rid)
+        require(not missing,'Fiche incomplète : '+' ; '.join(missing),409)
+        rev=(r.get('revision') or 0)+1
+        c.execute("UPDATE receipts SET stage='validated',validated_by=?,validated_at=?,revision=? WHERE id=?",(u['username'],now(),rev,rid))
+        mail=queue_receipt_mail(c,rid,r['warehouse'],'validation' if rev==1 else 'revalidation',u['username'],delay=0)
+        audit(c,u['username'],'validate','receipt',rid,{'revision':rev,'mail':mail})
+        notify(c,r['warehouse'],'receipt',rid,'Fiche d’entrée validée',f"{rid} validée par {u['username']}"+(' — envoyée au service' if mail else ''),u['username'])
+    return {'ok':True,'stage':'validated','revision':rev,'mail':mail}
+class ReceiptReopen(BaseModel):reason:str=Field(min_length=5,max_length=500)
+@app.post('/api/receipts/{rid}/reopen')
+def reopen_receipt(rid:str,x:ReceiptReopen,u=Depends(auth)):
+    role(u,'exploitation','manager','admin')
+    with tx() as c:
+        r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        require(r['stage']=='validated','Fiche non validée',409)
+        c.execute("UPDATE receipts SET stage='pending' WHERE id=?",(rid,))
+        audit(c,u['username'],'reopen','receipt',rid,{'reason':x.reason.strip()})
+    return {'ok':True,'stage':'pending'}
+@app.get('/api/receipts/{rid}/cover')
+def receipt_cover(rid:str,u=Depends(auth)):
+    """Récapitulatif A4 à imprimer à la validation, pour y agrafer les documents papier."""
+    with db() as c:
+        r=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        units=q(c,'SELECT * FROM units WHERE receipt_id=? ORDER BY unit_index,id',(rid,))
+        docs=q(c,"SELECT name,category,uploaded,actor FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
+        missing=receipt_missing(c,rid) if r['stage']!='validated' else []
+        audit(c,u['username'],'print_cover','receipt',rid,{'revision':r.get('revision')})
+    from app.pdf_report import receipt_cover as cover
+    return Response(content=cover(r,units,docs,missing,now()),media_type='application/pdf',headers={'Content-Disposition':f'inline; filename="recapitulatif-{rid}.pdf"'})
 @app.get('/api/receipts/{rid}/history')
 def receipt_history_api(rid:str,u=Depends(auth)):
     with db() as c:
@@ -2230,7 +2349,8 @@ def doc_access(c,u,kind,ref,write=False):
         row=one(c,f'SELECT warehouse FROM {DOC_TABLES[kind]} WHERE id=?',(ref,));require(row,'Dossier introuvable',404);access(u,row['warehouse'])
 
 @app.post('/api/documents/{kind}/{ref}')
-async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
+async def upload(kind:str,ref:str,file:UploadFile=File(...),category:str=Query('',max_length=20),u=Depends(auth)):
+    require(category in ('','transport','photo','autre'),'Catégorie de document invalide')
     with db() as c:doc_access(c,u,kind,ref,write=True)
     # 9 Mo : la passerelle HTTPS d'AWS limite chaque requête à 10 Mo (fichier + enveloppe multipart).
     raw=await file.read(9*1024*1024+1);require(len(raw)<=9*1024*1024,'Fichier supérieur à 9 Mo : réduire la taille ou la résolution de la photo')
@@ -2239,8 +2359,9 @@ async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
     i=uid('DOC');ref_path=store_ref(i+ext);mime={'.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg'}[ext]
     try:
         with tx() as c:
-            c.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?)',(i,kind,ref,Path(file.filename or 'document').name,mime,hashlib.sha256(raw).hexdigest(),ref_path,now(),u['username']))
-            audit(c,u['username'],'upload','document',i,{'kind':kind,'ref':ref})
+            c.execute('INSERT INTO documents(id,kind,ref,name,mime,sha256,path,uploaded,actor,category) VALUES(?,?,?,?,?,?,?,?,?,?)',(i,kind,ref,Path(file.filename or 'document').name,mime,hashlib.sha256(raw).hexdigest(),ref_path,now(),u['username'],category))
+            audit(c,u['username'],'upload','document',i,{'kind':kind,'ref':ref,'category':category,'name':Path(file.filename or 'document').name})
+            if kind=='receipt':audit(c,u['username'],'add_document','receipt',ref,{'name':Path(file.filename or 'document').name,'category':category or 'autre'})
             store_put(ref_path,raw,mime)  # écrit avant validation : en cas d'échec, ligne annulée et fichier supprimé
     except BaseException:
         store_delete(ref_path);raise
@@ -2249,7 +2370,7 @@ async def upload(kind:str,ref:str,file:UploadFile=File(...),u=Depends(auth)):
 def documents(kind:str,ref:str,u=Depends(auth)):
     with db() as c:
         doc_access(c,u,kind,ref)
-        return q(c,'SELECT id,kind,ref,name,mime,sha256,uploaded,actor FROM documents WHERE kind=? AND ref=?',(kind,ref))
+        return q(c,'SELECT id,kind,ref,name,mime,sha256,uploaded,actor,category FROM documents WHERE kind=? AND ref=?',(kind,ref))
 @app.get('/api/documents/{did}/download')
 def download(did:str,u=Depends(auth)):
     with db() as c:

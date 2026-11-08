@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.24 (recette)
+# TAF WAREHOUSE — V4.25 (recette)
+
+> **V4.25 :** fiche d’entrée « en attente de complément » tant que dimensions, document de transport et LTA manquent ; dossier de l’entrée modifiable (chaque changement avant → après dans l’historique) ; historique inaltérable (déclencheurs en base : ni modification ni suppression) ; validation définitive → e-mail au service et impression automatique du récapitulatif à agrafer ; étiquettes de traçabilité depuis le dossier ; réouverture motivée par l’exploitation. Impression sans boîte de dialogue : poste Chrome lancé avec `--kiosk-printing`.
 
 > **V4.24 :** nouvelle charte (polices Inter et Space Grotesk intégrées, `web/vendor/fonts`, licence OFL) ; accueil « Aujourd’hui » (attention, chiffres clés, parcours de la marchandise, dernières entrées, magasin en direct) ; poste magasin sur téléphone (« Mon poste », prise en charge, mission pas à pas : aller à l’emplacement, scanner chaque unité, terminer) ; plan des zones cliquable avec contenu et charge.
 
