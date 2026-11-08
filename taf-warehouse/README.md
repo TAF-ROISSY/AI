@@ -1,4 +1,9 @@
-# TAF WAREHOUSE — TEST V4.17
+# TAF WAREHOUSE — TEST V4.18
+
+> **V4.18 (campagnes d'inventaire)** :
+> - **Création :** le responsable crée une campagne par emplacement, par rack ou sur l'entrepôt entier, et l'affecte à un collaborateur habilité. Le périmètre est figé à la création, et une unité ne peut appartenir qu'à une seule campagne ouverte.
+> - **Comptage :** le compteur affecté saisit le comptage de chaque unité. Un comptage **conforme** est enregistré et validé, sans mouvement de stock. Un **écart** crée un comptage en attente, qui suit le circuit recomptage indépendant puis validation par une troisième personne, et une notification est envoyée. Le stock ne change qu'après cette validation.
+> - **Clôture :** impossible tant qu'il reste une unité non comptée ou un écart non traité. Rapport PDF au style TAF (écarts surlignés, décisions).
 
 > **V4.17** :
 > - **Réception :** le nombre de palettes ou de colis crée autant de lignes de colisage, numérotées N/total. Ce nombre est prérempli avec les colis constatés, et les dimensions de la première ligne peuvent être recopiées sur toutes.

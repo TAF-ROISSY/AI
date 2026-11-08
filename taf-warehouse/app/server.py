@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.17.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.18.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -302,6 +302,8 @@ def init():
         CREATE TABLE IF NOT EXISTS release_orders(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,reference TEXT NOT NULL,status TEXT NOT NULL,requested_by TEXT NOT NULL,created TEXT NOT NULL,authorized_by TEXT,authorized_at TEXT,closed_by TEXT,closed_at TEXT,close_reason TEXT);
         CREATE TABLE IF NOT EXISTS release_handovers(id TEXT PRIMARY KEY,order_id TEXT NOT NULL,driver_id TEXT NOT NULL,signature_name TEXT NOT NULL,signature_data TEXT NOT NULL,signed_at TEXT NOT NULL,actor TEXT NOT NULL,unit_ids TEXT NOT NULL,FOREIGN KEY(order_id) REFERENCES release_orders(id));
         CREATE TABLE IF NOT EXISTS release_refusals(id TEXT PRIMARY KEY,order_id TEXT NOT NULL,driver_id TEXT,reason TEXT NOT NULL,actor TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(order_id) REFERENCES release_orders(id));
+        CREATE TABLE IF NOT EXISTS inventory_campaigns(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,scope TEXT NOT NULL,scope_value TEXT,title TEXT NOT NULL,assignee TEXT NOT NULL,status TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,closed_by TEXT,closed_at TEXT,close_note TEXT);
+        CREATE TABLE IF NOT EXISTS campaign_items(campaign_id TEXT NOT NULL,unit_id TEXT NOT NULL,location_id TEXT,expected INTEGER NOT NULL,observed INTEGER,result TEXT,count_id TEXT,counted_by TEXT,counted_at TEXT,PRIMARY KEY(campaign_id,unit_id),FOREIGN KEY(campaign_id) REFERENCES inventory_campaigns(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
         """)
@@ -405,6 +407,11 @@ class TransferReceive(BaseModel):
     def note_on_discrepancy(self):
         if self.condition!='conforme' and len(self.note)<3:raise ValueError('Observation obligatoire en cas d’écart')
         return self
+class CampaignCreate(BaseModel):
+    warehouse:str;scope:Literal['warehouse','rack','location'];value:Optional[str]=None
+    assignee:str;title:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=150)]
+class CampaignCount(BaseModel):unit_id:str;observed:int=Field(ge=0,le=100000)
+class CampaignNote(BaseModel):note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=1000)]
 class ReleaseLine(BaseModel):unit_id:str;quantity:int=Field(gt=0)
 class ReleaseOrderCreate(BaseModel):warehouse:str;reference:Annotated[str,StringConstraints(strip_whitespace=True,min_length=1,max_length=100)];lines:list[ReleaseLine]=Field(min_length=1,max_length=200)
 class OrderPrepare(BaseModel):unit_id:str;note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=500)]
@@ -1115,6 +1122,105 @@ def create_count(x:CountCreate,u=Depends(auth),idempotency_key:Optional[str]=Hea
         i=uid('INV');c.execute('INSERT INTO counts VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,unit['warehouse'],unit['location_id'],unit['id'],unit['quantity'],x.observed,'pending',u['username'],now(),None,x.reason))
         audit(c,u['username'],'count','unit',unit['id'],{'observed':x.observed});save_request(c,u['id'],'inventory.create',idempotency_key,digest,{'id':i});c.commit()
     return {'id':i}
+# --- Lot 12 : campagnes d'inventaire -------------------------------------------------
+def _campaign(c,u,cid):
+    k=one(c,'SELECT * FROM inventory_campaigns WHERE id=?',(cid,));require(k,'Campagne inconnue',404);access(u,k['warehouse']);return k
+def _campaign_view(c,k):
+    items=q(c,'SELECT i.*,u.unit_type,u.unit_index,u.unit_count,u.description,c2.status count_status FROM campaign_items i JOIN units u ON u.id=i.unit_id LEFT JOIN counts c2 ON c2.id=i.count_id WHERE i.campaign_id=? ORDER BY i.location_id,i.unit_id',(k['id'],))
+    k['items']=items
+    k['progress']={'total':len(items),'counted':sum(1 for i in items if i['result']),'discrepancies':sum(1 for i in items if i['result']=='ecart')}
+    return k
+
+@app.post('/api/inventory-campaigns')
+def create_campaign(x:CampaignCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'exploitation','manager','admin');warehouse(x.warehouse);access(u,x.warehouse)
+    with tx() as c:
+        replay,digest=replay_request(c,u['id'],'campaign.create',idempotency_key,x.model_dump())
+        if replay is not None:return replay
+        a=one(c,'SELECT * FROM users WHERE lower(username)=? AND active=1 AND deleted_at IS NULL',(x.assignee.strip().lower(),))
+        require(a and x.warehouse in json.loads(a['warehouses']),'Collaborateur inconnu ou non habilité pour cet entrepôt')
+        cond,args="u.warehouse=? AND u.status='available' AND u.quantity>0 AND u.location_id IS NOT NULL",[x.warehouse]
+        if x.scope=='location':
+            require(x.value,'Emplacement à préciser');cond+=' AND u.location_id=?';args.append(x.value)
+        elif x.scope=='rack':
+            require(x.value,'Rack à préciser');cond+=' AND u.location_id LIKE ?';args.append(x.value.replace('%','')+'-%')
+        units=q(c,f'SELECT u.id,u.location_id,u.quantity FROM units u WHERE {cond} ORDER BY u.location_id,u.id',tuple(args))
+        require(units,'Aucune unité rangée dans ce périmètre')
+        busy=one(c,f"SELECT i.unit_id FROM campaign_items i JOIN inventory_campaigns k ON k.id=i.campaign_id WHERE k.status='open' AND i.unit_id IN ({','.join('?' for _ in units)})",tuple(x['id'] for x in units))
+        require(not busy,f"Unité {busy['unit_id'] if busy else ''} déjà dans une campagne ouverte",409)
+        cid=uid('CAMP')
+        c.execute('INSERT INTO inventory_campaigns(id,warehouse,scope,scope_value,title,assignee,status,created_by,created) VALUES(?,?,?,?,?,?,?,?,?)',(cid,x.warehouse,x.scope,x.value,x.title,a['username'],'open',u['username'],now()))
+        for un in units:c.execute('INSERT INTO campaign_items(campaign_id,unit_id,location_id,expected) VALUES(?,?,?,?)',(cid,un['id'],un['location_id'],un['quantity']))
+        audit(c,u['username'],'campaign_create','campaign',cid,{'scope':x.scope,'value':x.value,'units':len(units),'assignee':a['username']})
+        notify(c,x.warehouse,'campaign',cid,'Inventaire à réaliser',f"{x.title} : {len(units)} unité(s) à compter par {a['username']}.",u['username'])
+        response={'id':cid,'units':len(units)};save_request(c,u['id'],'campaign.create',idempotency_key,digest,response)
+    return response
+
+@app.get('/api/inventory-campaigns')
+def campaigns(u=Depends(auth)):
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:
+        return [_campaign_view(c,k) for k in q(c,f'SELECT * FROM inventory_campaigns WHERE warehouse IN ({marks}) ORDER BY created DESC LIMIT 100',u['warehouses'])]
+
+@app.post('/api/inventory-campaigns/{cid}/count')
+def campaign_count(cid:str,x:CampaignCount,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'worker','leader','manager','exploitation','admin')
+    with tx() as c:
+        replay,digest=replay_request(c,u['id'],'campaign.count',idempotency_key,{'ref':cid,'payload':x.model_dump()})
+        if replay is not None:return replay
+        k=_campaign(c,u,cid);require(k['status']=='open','Campagne clôturée',409)
+        require(u['username']==k['assignee'] or u['role'] in ('superadmin','admin','manager','leader'),'Campagne affectée à un autre collaborateur',403)
+        item=one(c,'SELECT * FROM campaign_items WHERE campaign_id=? AND unit_id=?',(cid,x.unit_id));require(item,'Unité hors de cette campagne',404)
+        require(not item['result'],'Unité déjà comptée',409)
+        unit=one(c,'SELECT * FROM units WHERE id=?',(x.unit_id,))
+        if x.observed==unit['quantity']:
+            # Conforme : aucun mouvement de stock, comptage enregistré et approuvé.
+            i=uid('INV');c.execute('INSERT INTO counts VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,unit['warehouse'],unit['location_id'],unit['id'],unit['quantity'],x.observed,'approved',u['username'],now(),'conforme',f'Campagne {cid}'))
+            result='conforme'
+        else:
+            require(unit['status']=='available' and unit['location_id'],'Unité indisponible pour un comptage')
+            require(not one(c,"SELECT id FROM counts WHERE unit_id=? AND status='pending'",(unit['id'],)),'Comptage en attente',409)
+            # Écart : comptage en attente, recomptage et validation indépendants obligatoires.
+            i=uid('INV');c.execute('INSERT INTO counts VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,unit['warehouse'],unit['location_id'],unit['id'],unit['quantity'],x.observed,'pending',u['username'],now(),None,f'Campagne {cid}'))
+            result='ecart'
+            notify(c,k['warehouse'],'count',i,'Écart d’inventaire',f"{k['title']} : {unit['id']} {x.observed} compté(s) pour {unit['quantity']} attendu(s). Recomptage requis.",u['username'])
+        c.execute('UPDATE campaign_items SET observed=?,result=?,count_id=?,counted_by=?,counted_at=? WHERE campaign_id=? AND unit_id=?',(x.observed,result,i,u['username'],now(),cid,x.unit_id))
+        audit(c,u['username'],'campaign_count','campaign',cid,{'unit':x.unit_id,'expected':unit['quantity'],'observed':x.observed,'result':result})
+        response={'ok':True,'result':result,'count_id':i};save_request(c,u['id'],'campaign.count',idempotency_key,digest,response)
+    return response
+
+@app.post('/api/inventory-campaigns/{cid}/close')
+def close_campaign(cid:str,x:CampaignNote,u=Depends(auth)):
+    role(u,'exploitation','manager','admin')
+    with tx() as c:
+        k=_campaign(c,u,cid);require(k['status']=='open','Campagne déjà clôturée',409)
+        require(not one(c,'SELECT unit_id FROM campaign_items WHERE campaign_id=? AND result IS NULL',(cid,)),'Toutes les unités doivent être comptées',409)
+        require(not one(c,"SELECT i.unit_id FROM campaign_items i JOIN counts n ON n.id=i.count_id WHERE i.campaign_id=? AND n.status='pending'",(cid,)),'Écarts en attente de recomptage ou de validation',409)
+        c.execute("UPDATE inventory_campaigns SET status='closed',closed_by=?,closed_at=?,close_note=? WHERE id=?",(u['username'],now(),x.note,cid))
+        audit(c,u['username'],'campaign_close','campaign',cid,{'note':x.note})
+    return {'ok':True}
+
+@app.post('/api/inventory-campaigns/{cid}/cancel')
+def cancel_campaign(cid:str,x:CampaignNote,u=Depends(auth)):
+    role(u,'exploitation','manager','admin')
+    with tx() as c:
+        k=_campaign(c,u,cid);require(k['status']=='open','Campagne déjà clôturée',409)
+        c.execute("UPDATE inventory_campaigns SET status='cancelled',closed_by=?,closed_at=?,close_note=? WHERE id=?",(u['username'],now(),x.note,cid))
+        audit(c,u['username'],'campaign_cancel','campaign',cid,{'note':x.note})
+    return {'ok':True}
+
+@app.get('/api/inventory-campaigns/{cid}/report')
+def campaign_report(cid:str,u=Depends(auth)):
+    with db() as c:
+        k=_campaign_view(c,_campaign(c,u,cid))
+        for i in k['items']:
+            n=one(c,'SELECT n.*,r.observed recount FROM counts n LEFT JOIN recounts r ON r.count_id=n.id WHERE n.id=?',(i['count_id'],)) if i['count_id'] else None
+            i['decision']=None if not n else ({'approved':'Validé','rejected':'Rejeté','pending':'En attente'}.get(n['status'],n['status'])+(f" par {n['reviewer']}" if n['reviewer'] and n['reviewer']!='conforme' else ''))
+            i['recount']=n['recount'] if n else None
+    from app.pdf_report import campaign_report as render
+    raw=render(k,now())
+    return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="inventaire-{cid}.pdf"'})
+
 @app.post('/api/counts/{cid}/review')
 def review_count(cid:str,x:CountReview,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     role(u,'manager','exploitation','admin')

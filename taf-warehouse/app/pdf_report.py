@@ -300,3 +300,33 @@ def handover_report(order, handover, lines, remaining, driver, generated_at):
               Spacer(1, 10), txt('Le transporteur reconnaît avoir pris en charge les unités ci-dessus. Signature électronique simple : identité déclarée '
                                  'par le signataire, non qualifiée. Toute réserve doit être portée sur le document de transport.', 'small')]
     return build('Bon de remise', handover['id'], 'REMIS ET SIGNÉ', 'green', story, generated_at, f"Ordre {order['id']}")
+
+
+def campaign_report(k, generated_at):
+    """Rapport de campagne d'inventaire."""
+    scope = {'warehouse': 'Entrepôt complet', 'rack': f"Rack {k.get('scope_value')}", 'location': f"Emplacement {k.get('scope_value')}"}.get(k['scope'], k['scope'])
+    p = k['progress']
+    story = [section('Campagne'), Spacer(1, 4),
+             field_grid([('Campagne', k['id']), ('Titre', k['title']), ('Entrepôt', k['warehouse']),
+                         ('Périmètre', scope), ('Compteur', k['assignee']), ('Créée par', k['created_by']),
+                         ('Créée le', fr_date(k['created'])), ('Clôturée par', k.get('closed_by')), ('Clôturée le', fr_date(k.get('closed_at')))]),
+             Spacer(1, 8),
+             field_grid([('Unités', p['total']), ('Comptées', p['counted']), ('Écarts', p['discrepancies'])]),
+             Spacer(1, 10), section('Résultats'), Spacer(1, 4)]
+    head = [Paragraph(h, S['cellhead']) for h in ('EMPLACEMENT', 'UNITÉ', 'ATTENDU', 'COMPTÉ', 'RECOMPTE', 'RÉSULTAT', 'DÉCISION')]
+    rows = [head] + [[txt(i['location_id'], 'cell'), txt(i['unit_id'], 'cell'), txt(i['expected'], 'cell'), txt(i['observed'], 'cell'),
+                      txt(i.get('recount'), 'cell'), txt({'conforme': 'Conforme', 'ecart': 'Écart'}.get(i['result'], 'Non compté'), 'cell'), txt(i.get('decision'), 'cell')] for i in k['items']]
+    t = Table(rows, colWidths=[CONTENT * w for w in (.15, .21, .1, .1, .11, .13, .2)], repeatRows=1)
+    style = [('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+             ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]
+    for r, i in enumerate(k['items'], 1):
+        if i['result'] == 'ecart':
+            style.append(('BACKGROUND', (0, r), (-1, r), RED_SOFT))
+    t.setStyle(TableStyle(style))
+    story.append(t)
+    if k.get('close_note'):
+        story += [Spacer(1, 10), callout('Observation de clôture', k['close_note'], 'navy')]
+    story += [Spacer(1, 10), txt('Les écarts ne modifient le stock qu’après recomptage indépendant et validation par une troisième personne habilitée. '
+                                 'Valeurs avant et après correction conservées dans le journal d’audit.', 'small')]
+    status = {'open': ('EN COURS', 'blue'), 'closed': ('CLÔTURÉE', 'green'), 'cancelled': ('ANNULÉE', 'red')}.get(k['status'], (k['status'].upper(), 'blue'))
+    return build('Rapport d\'inventaire', k['id'], status[0], status[1], story, generated_at, k['title'])
