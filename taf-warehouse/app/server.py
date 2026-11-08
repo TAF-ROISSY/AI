@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.13.1',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.14.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -298,7 +298,7 @@ def init():
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
           'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
-          'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0')],
+          'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT')],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
@@ -383,6 +383,7 @@ class ClaimAction(BaseModel):action:str;note:str=Field(min_length=5)
 class UserStatus(BaseModel):active:bool
 class UserReset(BaseModel):password:str=Field(min_length=12)
 class UserPermissions(BaseModel):can_lift_holds:bool
+class UserUpdate(BaseModel):role:str;warehouses:list[str]
 class TransferReceive(BaseModel):
     observed_quantity:int=Field(ge=0)
     condition:Literal['conforme','avarie','manquant','excedent','erreur_identification']='conforme'
@@ -601,14 +602,41 @@ def change_password(x:Password,u=Depends(auth)):
         c.execute('DELETE FROM sessions WHERE user_id=?',(u['id'],));audit(c,u['username'],'change_password','user',u['id'])
     return {'ok':True,'message':'Reconnectez-vous'}
 @app.get('/api/users')
-def users(u=Depends(auth)):
-    role(u,'admin');
-    with db() as c:return q(c,'SELECT id,username,role,warehouses,active,can_lift_holds FROM users ORDER BY username')
+def users(include_deleted:bool=False,u=Depends(auth)):
+    role(u,'admin')
+    with db() as c:
+        rows=q(c,'SELECT id,username,role,warehouses,active,can_lift_holds,deleted_at,deleted_by FROM users'+('' if include_deleted else ' WHERE deleted_at IS NULL')+' ORDER BY username')
+    for r in rows:r['warehouses']=json.loads(r['warehouses'])
+    return rows
+@app.put('/api/users/{userid}')
+def update_user(userid:str,x:UserUpdate,u=Depends(auth)):
+    """Le Super Admin modifie le rôle et les entrepôts d'un compte ; ses sessions sont fermées."""
+    role(u,'superadmin');require(x.role in ROLES,'Rôle invalide')
+    require(x.warehouses and len(set(x.warehouses))==len(x.warehouses) and all(w in WAREHOUSES for w in x.warehouses),'Entrepôts invalides')
+    with tx() as c:
+        t=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404);require(not t['deleted_at'],'Compte supprimé',409)
+        require(t['id']!=u['id'],'Un Super Admin ne peut pas modifier son propre rôle (demander à un autre Super Admin)')
+        c.execute('UPDATE users SET role=?,warehouses=? WHERE id=?',(x.role,json.dumps(x.warehouses),userid))
+        c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
+        audit(c,u['username'],'user_update','user',userid,{'username':t['username'],'before':{'role':t['role'],'warehouses':json.loads(t['warehouses'])},'after':x.model_dump()})
+    return {'ok':True}
+@app.delete('/api/users/{userid}')
+def delete_user(userid:str,u=Depends(auth)):
+    """Suppression = archivage : plus d'accès ni d'affichage, mais l'historique reste attribué au compte."""
+    role(u,'superadmin')
+    with tx() as c:
+        t=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404);require(not t['deleted_at'],'Compte déjà supprimé',409)
+        require(t['id']!=u['id'],'Impossible de supprimer son propre compte')
+        c.execute('UPDATE users SET active=0,deleted_at=?,deleted_by=? WHERE id=?',(now(),u['username'],userid))
+        c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
+        audit(c,u['username'],'user_delete','user',userid,{'username':t['username'],'role':t['role']})
+    return {'ok':True}
 @app.post('/api/users')
 def create_user(x:UserCreate,u=Depends(auth)):
     role(u,'superadmin');require(x.role in ROLES,'Rôle invalide');require(x.warehouses and all(w in WAREHOUSES for w in x.warehouses),'Entrepôts invalides')
     with tx() as c:
         password_policy(x.password)
+        require(2<=len(x.username.strip())<=60 and x.username.strip()==x.username,'Identifiant invalide (2 à 60 caractères, sans espace au début ou à la fin)')
         try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),x.username,password_hash(x.password),x.role,json.dumps(x.warehouses)))
         except IntegrityErrors:raise HTTPException(409,'Identifiant déjà utilisé')
         audit(c,u['username'],'create_user','user',x.username)
@@ -1663,6 +1691,7 @@ def user_status(userid:str,x:UserStatus,u=Depends(auth)):
     role(u,'superadmin')
     with db() as c:
         c.execute('BEGIN IMMEDIATE');target=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(target,'Utilisateur inconnu',404);require(target['id']!=u['id'],'Impossible de désactiver son propre compte')
+        require(not target.get('deleted_at'),'Compte supprimé : créer un nouveau compte',409)
         c.execute('UPDATE users SET active=? WHERE id=?',(int(x.active),userid))
         if not x.active:c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
         audit(c,u['username'],'user_status','user',userid,{'active':x.active});c.commit()

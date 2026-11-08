@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.13
+# TAF WAREHOUSE — TEST V4.14
+
+> **V4.14** : nouvelle page de connexion ; gestion complète des utilisateurs par le Super Admin (création multi-entrepôts, modification du rôle et des entrepôts, suppression par archivage qui conserve l'historique d'audit).
 
 > **V4.13 (lot 9, ordres de sortie multi-unités)** : voir `LOT9_ORDRES_SORTIE.md`.
 
