@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.11
+# TAF WAREHOUSE — TEST V4.12
+
+> **V4.12 (lot 8, réception complète et étiquettes)** : voir `LOT8_RECEPTION.md`. Recette en ligne : voir `DEPLOIEMENT_AWS.md`.
 
 > **V4.11 (lot 7, image Docker, infrastructure AWS, portail)** : voir `DEPLOIEMENT_AWS.md`. Rien n'est déployé.
 

@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.11.2',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.12.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -289,10 +289,12 @@ def init():
         CREATE TABLE IF NOT EXISTS task_events(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(task_id) REFERENCES tasks(id));
         CREATE TABLE IF NOT EXISTS unit_holds(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,kind TEXT NOT NULL,reason TEXT NOT NULL,ref TEXT,created TEXT NOT NULL,created_by TEXT NOT NULL,lifted_at TEXT,lifted_by TEXT,lift_reason TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE INDEX IF NOT EXISTS unit_holds_active ON unit_holds(unit_id) WHERE lifted_at IS NULL;
+        CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
         """)
         for table,fields in {
-          'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'")],
+          'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
+          'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0')],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
@@ -338,7 +340,18 @@ class Password(BaseModel):old:str;new:str=Field(min_length=12)
 class UserCreate(BaseModel):username:str;password:str=Field(min_length=12);role:str;warehouses:list[str]
 class ClientCreate(BaseModel):name:str
 class LocationPatch(BaseModel):capacity_kg:Optional[float]=None;capacity_m3:Optional[float]=None;verified:bool=False;blocked:bool=False;notes:str=''
-class ReceiptCreate(BaseModel):warehouse:str;client_id:str;awb:str='';expected:int=Field(ge=0);actual:int=Field(ge=0);weight:float=Field(ge=0);notes:str=''
+class PackageLine(BaseModel):
+    """Une ligne de colisage = une unité logistique (palette ou colis), identifiée individuellement."""
+    kind:Literal['palette','colis']='palette'
+    length_cm:float=Field(gt=0,le=2000);width_cm:float=Field(gt=0,le=2000);height_cm:float=Field(gt=0,le=1000)
+    weight_kg:float=Field(ge=0,le=50000);packages:int=Field(ge=1,le=10000);notes:str=Field(default='',max_length=500)
+class ReceiptCreate(BaseModel):
+    warehouse:str;client_id:str;awb:str='';expected:int=Field(ge=0);actual:int=Field(ge=0);weight:float=Field(ge=0);notes:str=''
+    shipper:str=Field(default='',max_length=200);carrier:str=Field(default='',max_length=200);transport_ref:str=Field(default='',max_length=100)
+    folder_ref:str=Field(default='',max_length=100);nature:str=Field(default='',max_length=300)
+    apparent_condition:Optional[Literal['conforme','endommage','a_verifier']]=None
+    security_status:Optional[Literal['securise','non_securise','a_controler']]=None
+    packages:list[PackageLine]=Field(default_factory=list,max_length=500)
 class UnitCreate(BaseModel):receipt_id:str;description:str;quantity:int=Field(gt=0);weight:float=Field(ge=0);volume:Optional[float]=Field(default=None,ge=0);dimensions_ok:bool=False;category:str='general';unit_type:Literal['colis','palette']='palette'
 class Move(BaseModel):unit_id:str;destination:str;expected_version:int;reason:str='Rangement interne'
 class Hold(BaseModel):hold:str;reason:str
@@ -616,15 +629,40 @@ def update_location(lid:str,x:LocationPatch,u=Depends(auth)):
 @app.get('/api/receipts')
 def receipts(u=Depends(auth)):
     with db() as c:return q(c,'SELECT r.*,c.name client FROM receipts r JOIN clients c ON c.id=r.client_id WHERE r.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC',u['warehouses'])
+VOLUMETRIC_KG_PER_M3=1000/6  # convention fret aérien IATA 1:6000
 @app.post('/api/receipts')
 def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     warehouse(x.warehouse);access(u,x.warehouse)
+    for line in x.packages:require(line.kind=='palette' or line.packages==1,'Une unité de type colis correspond à un seul colis')
+    # Totaux et incohérences calculés par le serveur, jamais saisis.
+    described=sum(l.packages for l in x.packages);weight_sum=sum(l.weight_kg for l in x.packages)
+    volume=sum(l.length_cm*l.width_cm*l.height_cm/1e6 for l in x.packages)
+    warnings=[]
+    if x.packages and described!=x.actual:warnings.append(f'Colis décrits ({described}) différents des colis reçus ({x.actual})')
+    if x.packages and abs(weight_sum-x.weight)>max(1,0.05*x.weight):warnings.append(f'Écart de poids : {round(weight_sum,1)} kg pesés pour {round(x.weight,1)} kg déclarés')
+    if x.expected!=x.actual:warnings.append(f'Colis reçus ({x.actual}) différents des colis attendus ({x.expected})')
+    status='discrepancy' if warnings else 'received'
     with tx() as c:
         replay,digest=replay_request(c,u['id'],'receipt.create',idempotency_key,x.model_dump())
         if replay is not None:return replay
-        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');i=uid('REC');status='discrepancy' if x.actual!=x.expected else 'received'
-        c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes) VALUES(?,?,?,?,?,?,?,?,?,?)',(i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes));audit(c,u['username'],'receive','receipt',i,{'status':status})
-        response={'id':i,'status':status};save_request(c,u['id'],'receipt.create',idempotency_key,digest,response)
+        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');i=uid('REC')
+        c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes,shipper,carrier,transport_ref,folder_ref,nature,apparent_condition,security_status,volume_m3,volumetric_weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                  (i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes,x.shipper,x.carrier,x.transport_ref,x.folder_ref,x.nature,x.apparent_condition,x.security_status,round(volume,4) if x.packages else None,round(volume*VOLUMETRIC_KG_PER_M3,2) if x.packages else None))
+        audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages)})
+        unit_ids=[];n=len(x.packages)
+        for idx,line in enumerate(x.packages,1):
+            uid_=uid('UNIT');unit_ids.append(uid_)
+            label=('Palette' if line.kind=='palette' else 'Colis')+f' {idx}/{n}'
+            c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count,length_cm,width_cm,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                      (uid_,i,x.warehouse,(x.nature or 'Marchandise')+' — '+label+(' — '+line.notes if line.notes else ''),line.packages,line.weight_kg,round(line.length_cm*line.width_cm*line.height_cm/1e6,4),1,'awaiting_putaway','general',line.kind,idx,n,line.length_cm,line.width_cm,line.height_cm))
+            event(c,u['username'],uid_,'receive',None,None,line.packages,i)
+            if status=='discrepancy':add_hold(c,u['username'],uid_,'ecart_reception','Écart réception '+i,i)
+            if x.security_status in ('non_securise','a_controler'):add_hold(c,u['username'],uid_,'surete','Sûreté : '+('non sécurisé' if x.security_status=='non_securise' else 'à contrôler'),i)
+            if x.apparent_condition=='endommage':add_hold(c,u['username'],uid_,'avarie','État apparent endommagé à réception',i)
+            elif x.apparent_condition=='a_verifier':add_hold(c,u['username'],uid_,'controle','État apparent à vérifier',i)
+        if status=='discrepancy':notify(c,x.warehouse,'receipt',i,'Écart de réception',' ; '.join(warnings)[:350],u['username'])
+        totals={'units':n,'packages':described,'weight_kg':round(weight_sum,2),'volume_m3':round(volume,4),'volumetric_weight_kg':round(volume*VOLUMETRIC_KG_PER_M3,2)} if x.packages else None
+        response={'id':i,'status':status,'units':unit_ids,'totals':totals,'warnings':warnings};save_request(c,u['id'],'receipt.create',idempotency_key,digest,response)
     return response
 @app.get('/api/units')
 def units(u=Depends(auth)):
@@ -1270,43 +1308,67 @@ def download(did:str,u=Depends(auth)):
     raw=store_get(d['path'])
     with tx() as c:audit(c,u['username'],'download','document',did,{'kind':d['kind'],'ref':d['ref']})
     return Response(content=raw,media_type='application/octet-stream',headers={'Content-Disposition':f'attachment; filename="{Path(d["path"]).name}"'})
+def _label_rows(c,u,ids):
+    rows=[]
+    for unit_id in ids:
+        unit=unit_access(c,u,unit_id)
+        r=one(c,'SELECT r.id,r.awb,c.name client FROM receipts r JOIN clients c ON c.id=r.client_id WHERE r.id=?',(unit['receipt_id'],)) if unit['receipt_id'] else None
+        rows.append((unit,r or {}))
+    return rows
+def _draw_label(pdf,unit,rec):
+    """Étiquette thermique 80 x 130 mm. Le QR code ne contient que l'identifiant de l'unité."""
+    import qrcode
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
+    W,H=80*mm,130*mm
+    pdf.setFillColorRGB(.06,.17,.28);pdf.rect(0,H-16*mm,W,16*mm,fill=1,stroke=0)
+    pdf.setFillColorRGB(1,1,1);pdf.setFont('Helvetica-Bold',17);pdf.drawString(6*mm,H-11*mm,'TAF')
+    pdf.setFont('Helvetica',6.5);pdf.drawString(19*mm,H-10.5*mm,'TRANS AIR FREIGHT · WAREHOUSE')
+    pdf.setFillColorRGB(0,0,0)
+    if unit.get('unit_index') and unit.get('unit_count'):
+        pdf.setFont('Helvetica-Bold',30);pdf.drawRightString(W-5*mm,H-30*mm,f"{unit['unit_index']}/{unit['unit_count']}")
+        pdf.setFont('Helvetica',7);pdf.drawRightString(W-5*mm,H-34*mm,('PALETTE' if unit.get('unit_type')=='palette' else 'COLIS'))
+    pdf.setFont('Helvetica-Bold',9);pdf.drawString(5*mm,H-23*mm,'Client');pdf.setFont('Helvetica-Bold',11);pdf.drawString(5*mm,H-28*mm,str(rec.get('client') or '—')[:24])
+    pdf.setFont('Helvetica',8);pdf.drawString(5*mm,H-34*mm,'LTA : '+str(rec.get('awb') or '—')[:26])
+    qr=qrcode.make(unit['id']);pdf.drawImage(ImageReader(qr.get_image().convert('RGB')),17*mm,40*mm,46*mm,46*mm)
+    pdf.setFont('Helvetica-Bold',10);pdf.drawCentredString(W/2,36*mm,unit['id'])
+    weight=f"{float(unit['weight'] or 0):.1f}".rstrip('0').rstrip('.').replace('.',',')
+    lines=[('Réception',rec.get('id') or '—'),('Poids',f"{weight} kg · {unit['quantity']} colis"),('Entrepôt',unit['warehouse']),('Emplacement',unit.get('location_id') or 'À RANGER')]
+    y=29
+    for k,v in lines:
+        pdf.setFont('Helvetica',7);pdf.drawString(5*mm,y*mm,k);pdf.setFont('Helvetica-Bold',8.5);pdf.drawString(24*mm,y*mm,str(v)[:30]);y-=6
+def _record_prints(c,u,ids,batch=None):
+    for unit_id in ids:
+        reprint=1 if one(c,'SELECT 1 x FROM label_prints WHERE unit_id=? LIMIT 1',(unit_id,)) else 0
+        c.execute('INSERT INTO label_prints(id,unit_id,actor,printed_at,reprint,batch) VALUES(?,?,?,?,?,?)',(uid('PRT'),unit_id,u['username'],now(),reprint,batch))
+    audit(c,u['username'],'label_print','unit',ids[0] if len(ids)==1 else ','.join(ids)[:200],{'units':len(ids),'batch':batch})
 @app.get('/api/labels/{unit_id}')
 def label(unit_id:str,u=Depends(auth)):
-    import qrcode
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import mm
-    with db() as c:unit=unit_access(c,u,unit_id)
-    buff=io.BytesIO();p=canvas.Canvas(buff,pagesize=(80*mm,130*mm));p.setFillColorRGB(.06,.17,.28);p.rect(0,105*mm,80*mm,25*mm,fill=1,stroke=0)
-    p.setFillColorRGB(1,1,1);p.setFont('Helvetica-Bold',20);p.drawString(8*mm,114*mm,'TAF WAREHOUSE')
-    qr=qrcode.make(unit['id']);from reportlab.lib.utils import ImageReader
-    p.drawImage(ImageReader(qr.get_image().convert('RGB')),15*mm,43*mm,50*mm,50*mm)
-    p.setFillColorRGB(0,0,0);p.setFont('Helvetica-Bold',10);p.drawCentredString(40*mm,38*mm,unit['id'])
-    p.setFont('Helvetica',9);p.drawString(7*mm,29*mm,'Entrepot: '+unit['warehouse']);p.drawString(7*mm,23*mm,'Quantite: '+str(unit['quantity']))
-    p.drawString(7*mm,17*mm,'Poids: '+str(unit['weight'])+' kg');p.drawString(7*mm,11*mm,'Position: '+str(unit['location_id'] or 'EN ATTENTE'))
-    p.save();buff.seek(0);return StreamingResponse(buff,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="etiquette-{unit_id}.pdf"'})
+    with db() as c:rows=_label_rows(c,u,[unit_id])
+    buff=io.BytesIO();p=canvas.Canvas(buff,pagesize=(80*mm,130*mm));_draw_label(p,*rows[0]);p.save()
+    with tx() as c:_record_prints(c,u,[unit_id])
+    buff.seek(0);return StreamingResponse(buff,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="etiquette-{unit_id}.pdf"'})
 @app.get('/api/labels-batch')
 def labels_batch(ids:str,u=Depends(auth)):
     """Planche d'etiquettes thermiques 80 x 130 mm, une page par unite."""
-    import qrcode
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import mm
-    from reportlab.lib.utils import ImageReader
     requested=[v.strip() for v in ids.split(',') if v.strip()]
     require(0<len(requested)<=40 and len(requested)==len(set(requested)),'Entre 1 et 40 identifiants distincts requis')
-    with db() as c:
-        units=[unit_access(c,u,v) for v in requested]
+    with db() as c:rows=_label_rows(c,u,requested)
     out=io.BytesIO();pdf=canvas.Canvas(out,pagesize=(80*mm,130*mm))
-    for unit in units:
-        pdf.setFillColorRGB(.06,.17,.28);pdf.rect(0,105*mm,80*mm,25*mm,fill=1,stroke=0)
-        pdf.setFillColorRGB(1,1,1);pdf.setFont('Helvetica-Bold',18);pdf.drawString(8*mm,114*mm,'TAF WAREHOUSE')
-        qr=qrcode.make(unit['id']);pdf.drawImage(ImageReader(qr.get_image().convert('RGB')),15*mm,43*mm,50*mm,50*mm)
-        pdf.setFillColorRGB(0,0,0);pdf.setFont('Helvetica-Bold',10);pdf.drawCentredString(40*mm,38*mm,unit['id'])
-        pdf.setFont('Helvetica',9)
-        for y,line in [(29,'Entrepot: '+unit['warehouse']),(23,'Quantite: '+str(unit['quantity'])),(17,'Poids: '+str(unit['weight'])+' kg'),(11,'Position: '+str(unit['location_id'] or 'EN ATTENTE'))]:
-            pdf.drawString(7*mm,y*mm,line[:48])
-        pdf.showPage()
-    pdf.save();out.seek(0)
+    for unit,rec in rows:_draw_label(pdf,unit,rec);pdf.showPage()
+    pdf.save()
+    with tx() as c:_record_prints(c,u,requested,uid('LOT'))
+    out.seek(0)
     return StreamingResponse(out,media_type='application/pdf',headers={'Content-Disposition':'attachment; filename="taf-etiquettes-80x130.pdf"'})
+@app.get('/api/labels/{unit_id}/history')
+def label_history(unit_id:str,u=Depends(auth)):
+    with db() as c:
+        unit_access(c,u,unit_id)
+        return q(c,'SELECT actor,printed_at,reprint,batch FROM label_prints WHERE unit_id=? ORDER BY printed_at,reprint,id',(unit_id,))
 
 @app.get('/api/reports/{kind}/{ref}')
 def report(kind:str,ref:str,u=Depends(auth)):

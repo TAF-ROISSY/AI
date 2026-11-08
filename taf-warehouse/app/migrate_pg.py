@@ -11,7 +11,7 @@ Les sessions ne sont pas copiées : tous les utilisateurs devront se reconnecter
 import hashlib, json, os, sqlite3, sys
 
 TABLES = ['users', 'login_security', 'mfa', 'mfa_recovery', 'idempotency', 'clients', 'locations', 'rack_rules',
-          'receipts', 'units', 'unit_holds', 'movements', 'transfers', 'transfer_refusals', 'counts', 'recounts',
+          'receipts', 'units', 'unit_holds', 'label_prints', 'movements', 'transfers', 'transfer_refusals', 'counts', 'recounts',
           'receipt_discrepancies', 'drivers', 'releases', 'missions', 'tasks', 'task_events', 'incidents', 'claims',
           'claim_actions', 'documents', 'notifications', 'notification_reads', 'audit']
 SKIPPED = {'sessions'}
