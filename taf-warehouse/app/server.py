@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.12.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.13.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -289,6 +289,9 @@ def init():
         CREATE TABLE IF NOT EXISTS task_events(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(task_id) REFERENCES tasks(id));
         CREATE TABLE IF NOT EXISTS unit_holds(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,kind TEXT NOT NULL,reason TEXT NOT NULL,ref TEXT,created TEXT NOT NULL,created_by TEXT NOT NULL,lifted_at TEXT,lifted_by TEXT,lift_reason TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE INDEX IF NOT EXISTS unit_holds_active ON unit_holds(unit_id) WHERE lifted_at IS NULL;
+        CREATE TABLE IF NOT EXISTS release_orders(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,reference TEXT NOT NULL,status TEXT NOT NULL,requested_by TEXT NOT NULL,created TEXT NOT NULL,authorized_by TEXT,authorized_at TEXT,closed_by TEXT,closed_at TEXT,close_reason TEXT);
+        CREATE TABLE IF NOT EXISTS release_handovers(id TEXT PRIMARY KEY,order_id TEXT NOT NULL,driver_id TEXT NOT NULL,signature_name TEXT NOT NULL,signature_data TEXT NOT NULL,signed_at TEXT NOT NULL,actor TEXT NOT NULL,unit_ids TEXT NOT NULL,FOREIGN KEY(order_id) REFERENCES release_orders(id));
+        CREATE TABLE IF NOT EXISTS release_refusals(id TEXT PRIMARY KEY,order_id TEXT NOT NULL,driver_id TEXT,reason TEXT NOT NULL,actor TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(order_id) REFERENCES release_orders(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
         """)
@@ -298,6 +301,7 @@ def init():
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0')],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
+          'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
           'transfers':[('received_quantity','INTEGER'),('received_condition','TEXT'),('received_note','TEXT'),('discrepancy_reviewed_by','TEXT'),('discrepancy_reviewed_at','TEXT'),('discrepancy_decision','TEXT'),('return_of','TEXT')],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
         }.items():
@@ -387,6 +391,12 @@ class TransferReceive(BaseModel):
     def note_on_discrepancy(self):
         if self.condition!='conforme' and len(self.note)<3:raise ValueError('Observation obligatoire en cas d’écart')
         return self
+class ReleaseLine(BaseModel):unit_id:str;quantity:int=Field(gt=0)
+class ReleaseOrderCreate(BaseModel):warehouse:str;reference:Annotated[str,StringConstraints(strip_whitespace=True,min_length=1,max_length=100)];lines:list[ReleaseLine]=Field(min_length=1,max_length=200)
+class OrderPrepare(BaseModel):unit_id:str;note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=500)]
+class OrderHandover(BaseModel):driver_id:str;signature_name:str=Field(min_length=2,max_length=150);signature_data:str=Field(min_length=100,max_length=450000);signature_consent:bool=False;unit_ids:Optional[list[str]]=None
+class OrderRefusal(BaseModel):driver_id:Optional[str]=None;reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=1000)]
+class OrderCancel(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=1000)]
 class TransferRefusal(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=10,max_length=3000)]
 class RefusalDecision(BaseModel):decision:Literal['return','accept_with_reserves'];note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
 class RefusalReview(BaseModel):approve:bool;note:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
@@ -1104,7 +1114,7 @@ def create_driver(x:DriverCreate,u=Depends(auth)):
 @app.get('/api/releases')
 def releases(u=Depends(auth)):
     marks=','.join('?' for _ in u['warehouses'])
-    with db() as c:return q(c,f"SELECT r.id,r.unit_id,r.quantity,r.status,r.requested_by,r.authorized_by,r.driver_id,r.signature_name,r.created,r.completed,CASE WHEN COALESCE(r.signature_data,'')='' THEN 0 ELSE 1 END has_signature,u.warehouse FROM releases r JOIN units u ON u.id=r.unit_id WHERE u.warehouse IN ({marks}) ORDER BY r.created DESC",u['warehouses'])
+    with db() as c:return q(c,f"SELECT r.id,r.unit_id,r.quantity,r.status,r.requested_by,r.authorized_by,r.driver_id,r.signature_name,r.created,r.completed,r.order_id,CASE WHEN COALESCE(r.signature_data,'')='' THEN 0 ELSE 1 END has_signature,u.warehouse FROM releases r JOIN units u ON u.id=r.unit_id WHERE u.warehouse IN ({marks}) ORDER BY r.created DESC",u['warehouses'])
 @app.post('/api/releases')
 def create_release(x:ReleaseCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key")):
     role(u,'exploitation','manager','admin')
@@ -1127,6 +1137,7 @@ def cancel_release(rid:str,u=Depends(auth)):
         r=one(c,'SELECT * FROM releases WHERE id=?',(rid,))
         require(r,'Sortie inconnue',404)
         unit=unit_access(c,u,r['unit_id'])
+        require(not r.get('order_id'),'Ligne gérée par un ordre de sortie : utiliser l’ordre',409)
         require(r['status'] in ('requested','authorized'),'Sortie déjà terminée ou annulée',409)
         require(u['role'] in ('superadmin','admin','manager','exploitation') or
                 (r['status']=='requested' and r['requested_by']==u['username']),
@@ -1141,7 +1152,7 @@ def cancel_release(rid:str,u=Depends(auth)):
 def authorize_release(rid:str,u=Depends(auth)):
     role(u,'exploitation','manager','admin')
     with db() as c:
-        c.execute('BEGIN IMMEDIATE');r=one(c,'SELECT * FROM releases WHERE id=?',(rid,));require(r,'Sortie inconnue',404);unit=unit_access(c,u,r['unit_id']);require(r['status']=='requested','Statut invalide');require(not unit['hold'] and unit['status']=='available','Unité bloquée')
+        c.execute('BEGIN IMMEDIATE');r=one(c,'SELECT * FROM releases WHERE id=?',(rid,));require(r,'Sortie inconnue',404);require(not r.get('order_id'),'Ligne gérée par un ordre de sortie : utiliser l’ordre',409);unit=unit_access(c,u,r['unit_id']);require(r['status']=='requested','Statut invalide');require(not unit['hold'] and unit['status']=='available','Unité bloquée')
         require(not one(c,"SELECT id FROM transfers WHERE unit_id=? AND status IN ('requested','approved','in_transit')",(unit['id'],)),'Transfert actif',409)
         c.execute("UPDATE releases SET status='authorized',authorized_by=? WHERE id=?",(u['username'],rid));audit(c,u['username'],'authorize','release',rid);notify(c,unit['warehouse'],'release',rid,'Sortie autorisée','La sortie peut être remise après signature du chauffeur.',u['username']);c.commit()
     return {'ok':True}
@@ -1151,7 +1162,7 @@ def complete_release(rid:str,x:ReleaseComplete,u=Depends(auth),idempotency_key:O
     with db() as c:
         c.execute('BEGIN IMMEDIATE');replay,digest=replay_request(c,u['id'],'release.complete',idempotency_key,{'ref':rid,'payload':x.model_dump()});
         if replay is not None:return replay
-        r=one(c,'SELECT * FROM releases WHERE id=?',(rid,));require(r,'Sortie inconnue',404);unit=unit_access(c,u,r['unit_id']);require(r['status']=='authorized','Autorisation exploitation requise')
+        r=one(c,'SELECT * FROM releases WHERE id=?',(rid,));require(r,'Sortie inconnue',404);require(not r.get('order_id'),'Ligne gérée par un ordre de sortie : utiliser l’ordre',409);unit=unit_access(c,u,r['unit_id']);require(r['status']=='authorized','Autorisation exploitation requise')
         require(unit['status']=='available' and not unit['hold'],'Unité bloquée')
         require(not one(c,"SELECT id FROM transfers WHERE unit_id=? AND status IN ('requested','approved','in_transit')",(unit['id'],)),'Transfert actif',409)
         require(not one(c,"SELECT id FROM counts WHERE unit_id=? AND status='pending'",(unit['id'],)),'Inventaire actif',409)
@@ -1171,6 +1182,144 @@ def complete_release(rid:str,x:ReleaseComplete,u=Depends(auth),idempotency_key:O
         c.execute("UPDATE releases SET status='completed',driver_id=?,signature_name=?,signature_data=?,completed=? WHERE id=?",(x.driver_id,x.signature_name,x.signature_data,now(),rid))
         event(c,u['username'],unit['id'],'exit',unit['location_id'],None,r['quantity'],rid);audit(c,u['username'],'handover','release',rid,{'driver':x.driver_id});notify(c,unit['warehouse'],'release',rid,'Sortie remise','Remise signée enregistrée.',u['username']);save_request(c,u['id'],'release.complete',idempotency_key,digest,{'ok':True});c.commit()
     return {'ok':True}
+# --- Lot 9 : ordres de sortie multi-unités -------------------------------------------
+def check_signature_png(data):
+    require(data.startswith('data:image/png;base64,'),'Signature manuscrite PNG requise')
+    try:raw=base64.b64decode(data.split(',',1)[1],validate=True)
+    except (ValueError,binascii.Error):raise HTTPException(400,'Signature PNG invalide')
+    require(raw.startswith(b'\x89PNG\r\n\x1a\n') and 300<len(raw)<320000,'Image de signature invalide ou trop volumineuse')
+def _order(c,u,oid):
+    o=one(c,'SELECT * FROM release_orders WHERE id=?',(oid,));require(o,'Ordre de sortie inconnu',404);access(u,o['warehouse']);return o
+def _order_lines(c,oid):return q(c,'SELECT * FROM releases WHERE order_id=? ORDER BY created,id',(oid,))
+def _unit_releasable(c,unit):
+    require(unit['status']=='available' and not unit['hold'] and unit['quantity']>0,f"Unité {unit['id']} bloquée ou indisponible")
+    require(not one(c,"SELECT id FROM transfers WHERE unit_id=? AND status IN ('requested','approved','in_transit')",(unit['id'],)),f"Transfert actif sur {unit['id']}",409)
+    require(not one(c,"SELECT id FROM counts WHERE unit_id=? AND status='pending'",(unit['id'],)),f"Inventaire en cours sur {unit['id']}",409)
+
+@app.post('/api/release-orders')
+def create_release_order(x:ReleaseOrderCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'exploitation','manager','admin');warehouse(x.warehouse);access(u,x.warehouse)
+    require(len({l.unit_id for l in x.lines})==len(x.lines),'Une unité ne peut figurer qu’une fois dans un ordre')
+    with tx() as c:
+        replay,digest=replay_request(c,u['id'],'release_order.create',idempotency_key,x.model_dump())
+        if replay is not None:return replay
+        oid=uid('ORD');t=now()
+        c.execute('INSERT INTO release_orders(id,warehouse,reference,status,requested_by,created) VALUES(?,?,?,?,?,?)',(oid,x.warehouse,x.reference,'requested',u['username'],t))
+        for line in x.lines:
+            unit=unit_access(c,u,line.unit_id);require(unit['warehouse']==x.warehouse,f"Unité {unit['id']} hors entrepôt {x.warehouse}")
+            _unit_releasable(c,unit)
+            reserved=one(c,"SELECT COALESCE(SUM(quantity),0) n FROM releases WHERE unit_id=? AND status IN ('requested','authorized')",(unit['id'],))['n']
+            require(reserved+line.quantity<=unit['quantity'],f"Quantité insuffisante ou déjà réservée pour {unit['id']}")
+            c.execute("INSERT INTO releases(id,unit_id,quantity,status,requested_by,created,order_id) VALUES(?,?,?,'requested',?,?,?)",(uid('OUT'),unit['id'],line.quantity,u['username'],t,oid))
+        audit(c,u['username'],'request','release_order',oid,{'reference':x.reference,'lines':len(x.lines)})
+        notify(c,x.warehouse,'release',oid,'Ordre de sortie à préparer',f"{x.reference} : {len(x.lines)} unité(s) à préparer et contrôler.",u['username'])
+        response={'id':oid,'status':'requested'};save_request(c,u['id'],'release_order.create',idempotency_key,digest,response)
+    return response
+
+@app.get('/api/release-orders')
+def release_orders(u=Depends(auth)):
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:
+        orders=q(c,f'SELECT * FROM release_orders WHERE warehouse IN ({marks}) ORDER BY created DESC LIMIT 300',u['warehouses'])
+        for o in orders:
+            o['lines']=q(c,'SELECT r.id,r.unit_id,r.quantity,r.status,r.prepared_by,r.prepared_at,r.prepare_note,r.handover_id,r.weight_out,u.unit_type,u.unit_index,u.unit_count,u.description,u.location_id FROM releases r JOIN units u ON u.id=r.unit_id WHERE r.order_id=? ORDER BY r.created,r.id',(o['id'],))
+            o['handovers']=q(c,'SELECT id,driver_id,signature_name,signed_at,actor,unit_ids FROM release_handovers WHERE order_id=? ORDER BY signed_at,id',(o['id'],))
+            o['refusals']=q(c,'SELECT id,driver_id,reason,actor,created FROM release_refusals WHERE order_id=? ORDER BY created,id',(o['id'],))
+        return orders
+
+@app.post('/api/release-orders/{oid}/prepare')
+def prepare_release_order(oid:str,x:OrderPrepare,u=Depends(auth)):
+    role(u,'worker','leader','manager','admin')
+    with tx() as c:
+        o=_order(c,u,oid);require(o['status']=='requested','Préparation impossible à ce stade',409)
+        line=one(c,"SELECT * FROM releases WHERE order_id=? AND unit_id=?",(oid,x.unit_id));require(line,'Unité absente de cet ordre',404)
+        require(line['status']=='requested' and not line['prepared_at'],'Unité déjà préparée',409)
+        unit=one(c,'SELECT * FROM units WHERE id=?',(x.unit_id,));require(not unit['hold'],f"Unité {unit['id']} bloquée : préparation interdite")
+        c.execute('UPDATE releases SET prepared_by=?,prepared_at=?,prepare_note=? WHERE id=?',(u['username'],now(),x.note,line['id']))
+        audit(c,u['username'],'prepare','release_order',oid,{'unit':x.unit_id,'note':x.note})
+        if not one(c,"SELECT id FROM releases WHERE order_id=? AND status='requested' AND prepared_at IS NULL",(oid,)):
+            c.execute("UPDATE release_orders SET status='prepared' WHERE id=?",(oid,))
+            notify(c,o['warehouse'],'release',oid,'Ordre de sortie préparé',f"{o['reference']} : autorisation de libération requise.",u['username'])
+    return {'ok':True}
+
+@app.post('/api/release-orders/{oid}/authorize')
+def authorize_release_order(oid:str,u=Depends(auth)):
+    role(u,'exploitation','manager','admin')
+    with tx() as c:
+        o=_order(c,u,oid);require(o['status']=='prepared','Préparation et contrôle de toutes les unités requis avant autorisation',409)
+        for line in _order_lines(c,oid):
+            if line['status']=='requested':_unit_releasable(c,one(c,'SELECT * FROM units WHERE id=?',(line['unit_id'],)))
+        c.execute("UPDATE releases SET status='authorized',authorized_by=? WHERE order_id=? AND status='requested'",(u['username'],oid))
+        c.execute("UPDATE release_orders SET status='authorized',authorized_by=?,authorized_at=? WHERE id=?",(u['username'],now(),oid))
+        audit(c,u['username'],'authorize','release_order',oid)
+        notify(c,o['warehouse'],'release',oid,'Sortie autorisée',f"{o['reference']} : remise au transporteur après signature.",u['username'])
+    return {'ok':True}
+
+@app.post('/api/release-orders/{oid}/complete')
+def complete_release_order(oid:str,x:OrderHandover,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
+    role(u,'worker','leader','manager','admin')
+    require(x.signature_consent,'Le transporteur doit confirmer la signature de la remise');check_signature_png(x.signature_data)
+    with tx() as c:
+        replay,digest=replay_request(c,u['id'],'release_order.complete',idempotency_key,{'ref':oid,'payload':x.model_dump()})
+        if replay is not None:return replay
+        o=_order(c,u,oid);require(o['status'] in ('authorized','partial'),'Autorisation exploitation requise ou ordre déjà remis',409)
+        require(one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Transporteur inconnu')
+        pending=[l for l in _order_lines(c,oid) if l['status']=='authorized']
+        if x.unit_ids is not None:
+            wanted=set(x.unit_ids);require(wanted and wanted<={l['unit_id'] for l in pending},'Unités à remettre absentes ou déjà remises')
+            pending=[l for l in pending if l['unit_id'] in wanted]
+        require(pending,'Aucune unité à remettre',409)
+        hid=uid('REM');t=now()
+        for line in pending:
+            unit=one(c,'SELECT * FROM units WHERE id=?',(line['unit_id'],));_unit_releasable(c,unit)
+            require(unit['quantity']>=line['quantity'],f"Quantité insuffisante pour {unit['id']}")
+            remaining=unit['quantity']-line['quantity']
+            new_weight=round(unit['weight']*remaining/unit['quantity'],3) if unit['quantity'] else 0
+            c.execute("UPDATE units SET quantity=?,weight=?,status=CASE WHEN ?=0 THEN 'exited' ELSE status END,version=version+1 WHERE id=?",(remaining,new_weight,remaining,unit['id']))
+            c.execute("UPDATE releases SET status='completed',driver_id=?,signature_name=?,completed=?,handover_id=?,weight_out=? WHERE id=?",(x.driver_id,x.signature_name,t,hid,round(unit['weight']-new_weight,3),line['id']))
+            event(c,u['username'],unit['id'],'exit',unit['location_id'],None,line['quantity'],oid)
+        c.execute('INSERT INTO release_handovers(id,order_id,driver_id,signature_name,signature_data,signed_at,actor,unit_ids) VALUES(?,?,?,?,?,?,?,?)',(hid,oid,x.driver_id,x.signature_name,x.signature_data,t,u['username'],json.dumps([l['unit_id'] for l in pending])))
+        status='partial' if one(c,"SELECT id FROM releases WHERE order_id=? AND status='authorized'",(oid,)) else 'completed'
+        c.execute('UPDATE release_orders SET status=? WHERE id=?',(status,oid))
+        audit(c,u['username'],'handover','release_order',oid,{'handover':hid,'units':[l['unit_id'] for l in pending],'driver':x.driver_id})
+        notify(c,o['warehouse'],'release',oid,'Sortie remise' if status=='completed' else 'Sortie partielle remise',f"{o['reference']} : {len(pending)} unité(s) remise(s) et signée(s)."+(' Reliquat en attente.' if status=='partial' else ''),u['username'])
+        response={'ok':True,'status':status,'handover_id':hid};save_request(c,u['id'],'release_order.complete',idempotency_key,digest,response)
+    return response
+
+@app.post('/api/release-orders/{oid}/refuse-signature')
+def refuse_release_signature(oid:str,x:OrderRefusal,u=Depends(auth)):
+    role(u,'worker','leader','manager','admin')
+    with tx() as c:
+        o=_order(c,u,oid);require(o['status'] in ('authorized','partial'),'Aucune remise en cours',409)
+        c.execute('INSERT INTO release_refusals(id,order_id,driver_id,reason,actor,created) VALUES(?,?,?,?,?,?)',(uid('RFS'),oid,x.driver_id,x.reason,u['username'],now()))
+        audit(c,u['username'],'signature_refused','release_order',oid,{'reason':x.reason,'driver':x.driver_id})
+        notify(c,o['warehouse'],'release',oid,'Refus de signature transporteur',f"{o['reference']} : {x.reason}"[:350],u['username'])
+    return {'ok':True,'status':o['status']}
+
+@app.post('/api/release-orders/{oid}/cancel')
+def cancel_release_order(oid:str,x:OrderCancel,u=Depends(auth)):
+    role(u,'exploitation','manager','admin')
+    with tx() as c:
+        o=_order(c,u,oid);require(o['status'] in ('requested','prepared','authorized','partial'),'Ordre déjà clôturé',409)
+        c.execute("UPDATE releases SET status='cancelled' WHERE order_id=? AND status IN ('requested','authorized')",(oid,))
+        status='closed_partial' if one(c,"SELECT id FROM releases WHERE order_id=? AND status='completed'",(oid,)) else 'cancelled'
+        c.execute('UPDATE release_orders SET status=?,closed_by=?,closed_at=?,close_reason=? WHERE id=?',(status,u['username'],now(),x.reason,oid))
+        audit(c,u['username'],'cancel','release_order',oid,{'reason':x.reason,'status':status})
+        notify(c,o['warehouse'],'release',oid,'Ordre de sortie annulé' if status=='cancelled' else 'Reliquat de sortie annulé',f"{o['reference']} : {x.reason}"[:350],u['username'])
+    return {'ok':True,'status':status}
+
+@app.get('/api/release-orders/{oid}/handovers/{hid}/pdf')
+def release_order_handover_pdf(oid:str,hid:str,u=Depends(auth)):
+    with db() as c:
+        o=_order(c,u,oid)
+        h=one(c,'SELECT * FROM release_handovers WHERE id=? AND order_id=?',(hid,oid));require(h,'Remise inconnue',404)
+        lines=q(c,'SELECT r.*,u.unit_type,u.unit_index,u.unit_count,u.description,r2.awb,cl.name client FROM releases r JOIN units u ON u.id=r.unit_id LEFT JOIN receipts r2 ON r2.id=u.receipt_id LEFT JOIN clients cl ON cl.id=r2.client_id WHERE r.handover_id=? ORDER BY r.created,r.id',(hid,))
+        remaining=q(c,"SELECT unit_id,quantity FROM releases WHERE order_id=? AND status='authorized'",(oid,))
+        driver=one(c,'SELECT * FROM drivers WHERE id=?',(h['driver_id'],))
+    from app.pdf_report import handover_report
+    raw=handover_report(o,h,lines,remaining,driver,now())
+    return Response(content=raw,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="bon-remise-{oid}-{hid}.pdf"'})
+
 @app.get('/api/releases/{rid}/handover-pdf')
 def handover_pdf(rid:str,u=Depends(auth)):
     from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Image

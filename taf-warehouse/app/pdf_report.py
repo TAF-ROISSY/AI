@@ -256,3 +256,47 @@ def refusal_report(refusal, transfer, unit, driver, docs, generated_at):
                                  'Signature électronique simple : identités déclarées par les comptes utilisateurs, non qualifiée.', 'small')]
     return build('Rapport de refus de transfert', refusal['id'], 'REFUS VALIDÉ' if validated else 'REFUS À VALIDER',
                  'red' if validated else 'blue', story, generated_at, 'Document généré automatiquement')
+
+
+def signature_image(data_url, max_w=70 * mm, max_h=28 * mm):
+    import base64
+    raw = base64.b64decode(data_url.split(',', 1)[1])
+    iw, ih = ImageReader(io.BytesIO(raw)).getSize()
+    scale = min(max_w / iw, max_h / ih)
+    return Image(io.BytesIO(raw), width=iw * scale, height=ih * scale)
+
+
+def handover_report(order, handover, lines, remaining, driver, generated_at):
+    """Bon de remise signé d'un ordre de sortie (une remise = un bon)."""
+    driver = driver or {}
+    first = lines[0] if lines else {}
+    story = [
+        section('Sortie'), Spacer(1, 4),
+        field_grid([
+            ('Ordre de sortie', order['id']), ('Référence', order['reference']), ('Entrepôt', order['warehouse']),
+            ('Client', first.get('client')), ('LTA', first.get('awb')), ('Remise n°', handover['id']),
+            ('Autorisé par', order.get('authorized_by')), ('Remis par', handover['actor']), ('Date de remise', fr_date(handover['signed_at'])),
+        ]),
+        Spacer(1, 10), section('Transporteur'), Spacer(1, 4),
+        field_grid([('Société', driver.get('company')), ('Chauffeur', driver.get('name')), ('Immatriculation', driver.get('plate'))]),
+        Spacer(1, 10), section(f'Unités remises ({len(lines)})'), Spacer(1, 4),
+    ]
+    head = [Paragraph(h, S['cellhead']) for h in ('UNITÉ', 'TYPE', 'DESCRIPTION', 'COLIS', 'POIDS')]
+    rows = [head] + [[txt(l['unit_id'], 'cell'),
+                      txt(f"{(l.get('unit_type') or '').capitalize()} {l['unit_index']}/{l['unit_count']}" if l.get('unit_index') else (l.get('unit_type') or '').capitalize(), 'cell'),
+                      txt(l.get('description'), 'cell'), txt(l['quantity'], 'cell'), txt(f"{fr_number(l.get('weight_out'))} kg", 'cell')] for l in lines]
+    rows.append([txt('Total', 'cellhead'), '', '', txt(sum(l['quantity'] for l in lines), 'cellhead'), txt(f"{fr_number(sum(l.get('weight_out') or 0 for l in lines))} kg", 'cellhead')])
+    t = Table(rows, colWidths=[CONTENT * .22, CONTENT * .14, CONTENT * .38, CONTENT * .1, CONTENT * .16], repeatRows=1)
+    t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -2), 0.3, LINE), ('LINEABOVE', (0, -1), (-1, -1), 0.8, NAVY),
+                           ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
+    story.append(t)
+    if remaining:
+        story += [Spacer(1, 8), callout('Reliquat restant en entrepôt', ', '.join(f"{r['unit_id']} ({r['quantity']} colis)" for r in remaining), 'navy')]
+    sig = Table([[[Paragraph('SIGNATURE DU TRANSPORTEUR', S['label']), txt(handover['signature_name'], 'value'), txt(fr_date(handover['signed_at']), 'small')],
+                  signature_image(handover['signature_data'])]], colWidths=[CONTENT * .45, CONTENT * .55])
+    sig.setStyle(TableStyle([('BOX', (0, 0), (-1, -1), 0.6, LINE), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEFTPADDING', (0, 0), (-1, -1), 9),
+                             ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8)]))
+    story += [Spacer(1, 12), KeepTogether([section('Remise et signature'), Spacer(1, 5), sig]),
+              Spacer(1, 10), txt('Le transporteur reconnaît avoir pris en charge les unités ci-dessus. Signature électronique simple : identité déclarée '
+                                 'par le signataire, non qualifiée. Toute réserve doit être portée sur le document de transport.', 'small')]
+    return build('Bon de remise', handover['id'], 'REMIS ET SIGNÉ', 'green', story, generated_at, f"Ordre {order['id']}")

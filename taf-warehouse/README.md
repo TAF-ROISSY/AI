@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.12
+# TAF WAREHOUSE — TEST V4.13
+
+> **V4.13 (lot 9, ordres de sortie multi-unités)** : voir `LOT9_ORDRES_SORTIE.md`.
 
 > **V4.12 (lot 8, réception complète et étiquettes)** : voir `LOT8_RECEPTION.md`. Recette en ligne : voir `DEPLOIEMENT_AWS.md`.
 
