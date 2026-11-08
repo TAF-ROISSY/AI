@@ -30,14 +30,14 @@ Tests automatisés : **SQLite 124 réussis + 2 réservés à PostgreSQL ; Postgr
 ## Points à valider ou à décider
 
 1. **Capacités des emplacements :** saisir la charge et le volume validés (écran Emplacements). Sans cela, aucun rangement en rack n'est possible.
-2. **Durée de conservation des pièces d'identité des chauffeurs (RGPD)**, pour mettre en place leur suppression automatique.
+2. ~~Durée de conservation des pièces d'identité~~ : décidée (1 an après le dernier passage), effacement automatique en V4.22.
 3. **Essais sur iPhone et iPad réels :** signature, appareil photo, scanner QR. Essais sur l'imprimante thermique réelle.
 4. **Test de restauration de la base** avant la production (procédure dans `DEPLOIEMENT_AWS.md`).
 5. **Sécurité du compte :**
    - AWS est utilisé avec le compte « root », alors qu'un administrateur nominatif est recommandé ;
    - le dépôt GitHub `taf-roissy/AI` est public ;
    - la double authentification est désactivée.
-6. **Notifications externes** (e-mail, SMS) : non activées, conformément aux règles du projet.
+6. **E-mails** : fiche de réception envoyée par Amazon SES (V4.22). Compte SES en mode « bac à sable » : seules les adresses vérifiées reçoivent. Demander l'accès production avant d'ajouter afrique@ / export@.
 7. **Logo TAF** à fournir pour les PDF et l'écran de connexion.
 
 ## Limites connues

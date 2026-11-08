@@ -13,7 +13,7 @@ import hashlib, json, os, sqlite3, sys
 TABLES = ['users', 'login_security', 'mfa', 'mfa_recovery', 'idempotency', 'clients', 'locations', 'rack_rules',
           'receipts', 'units', 'unit_holds', 'label_prints', 'movements', 'transfers', 'transfer_refusals', 'counts', 'recounts', 'inventory_campaigns', 'campaign_items',
           'receipt_discrepancies', 'drivers', 'release_orders', 'releases', 'release_handovers', 'release_refusals', 'missions', 'mission_events', 'tasks', 'task_events', 'incidents', 'claims',
-          'claim_actions', 'documents', 'notifications', 'notification_reads', 'audit']
+          'claim_actions', 'documents', 'notifications', 'notification_reads', 'mail_routes', 'mail_outbox', 'audit']
 SKIPPED = {'sessions'}
 
 

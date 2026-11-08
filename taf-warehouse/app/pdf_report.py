@@ -402,3 +402,215 @@ def dossier_report(kind, item, logs, docs, extra, generated_at):
     st = str(item.get('status') or '').lower()
     badge = ('CLÔTURÉ', 'green') if st in ('closed', 'done', 'resolved') else ('ANNULÉ', 'red') if st == 'cancelled' else ('EN COURS', 'blue')
     return build(title, item['id'], badge[0], badge[1], story, generated_at, item['warehouse'])
+
+
+# --- Notice d'information transporteur (sûreté du fret aérien et données personnelles) -------------
+
+NOTICE_TEXT = {
+    'fr': {
+        'kicker': 'NOTICE D’INFORMATION AUX TRANSPORTEURS',
+        'title': 'Pourquoi nous vous demandons votre pièce d’identité',
+        'lead': ('Nos entrepôts traitent du fret destiné au transport aérien. La réglementation de sûreté nous impose de vérifier '
+                 'l’identité de chaque personne qui dépose ou enlève de la marchandise, et de pouvoir le prouver. '
+                 'Cette notice vous explique ce que nous enregistrons, comment vos données sont protégées et quand elles sont effacées.'),
+        'cards': [
+            ('1', 'Une obligation de sûreté',
+             'Le fret aérien est soumis à la réglementation européenne de sûreté de l’aviation civile '
+             '(règlement d’exécution (UE) 2015/1998) et au programme de sûreté de TAF. Nous devons pouvoir établir, '
+             'à tout moment et lors des contrôles des autorités, qui a remis ou pris en charge chaque marchandise.'),
+            ('2', 'Ce que nous enregistrons',
+             'Votre nom, votre société, l’immatriculation du véhicule, le type et le numéro de votre pièce d’identité, '
+             'une photo de cette pièce, ainsi que les dates de vos passages et les bons de remise que vous signez. Rien d’autre.'),
+            ('3', 'Un hébergement sécurisé en France',
+             'Les données sont hébergées dans le centre de données Amazon Web Services de Paris. Fichiers et base de données '
+             'sont chiffrés, les échanges passent par une connexion chiffrée (HTTPS). Seuls l’exploitation et les responsables '
+             'habilités y ont accès, avec un compte personnel, et chaque consultation est enregistrée.'),
+            ('4', 'Effacement automatique',
+             'La photo et le numéro de votre pièce d’identité sont effacés automatiquement un an après votre dernier passage '
+             'dans nos entrepôts. Votre nom reste uniquement sur les bons de remise signés, conservés pour la traçabilité des marchandises.'),
+        ],
+        'banner': 'EFFACEMENT AUTOMATIQUE 1 AN APRÈS VOTRE DERNIER PASSAGE',
+        'never': 'Vos données ne sont ni vendues, ni cédées, ni utilisées à des fins commerciales.',
+        'rights_title': 'Vos droits',
+        'rights': ('Vous pouvez demander à accéder à vos données, les faire corriger, en demander l’effacement ou la limitation, '
+                   'en écrivant à {contact}. Vous pouvez aussi adresser une réclamation à la CNIL (www.cnil.fr). '
+                   'Le contrôle d’identité étant une obligation de sûreté, sans pièce d’identité la marchandise ne peut être ni remise ni enlevée.'),
+        'controller': 'Responsable du traitement : TAF — Trans Air Freight · Finalité : sûreté du fret aérien et traçabilité des remises · '
+                      'Base légale : obligation légale (article 6.1.c du RGPD).',
+        'yours': 'Vos informations enregistrées',
+        'f_name': 'Nom', 'f_company': 'Société', 'f_plate': 'Immatriculation', 'f_id': 'Pièce d’identité',
+        'f_last': 'Dernier passage', 'f_erase': 'Effacement prévu au plus tard le',
+        'ack_title': 'Accusé de lecture',
+        'ack': 'Je reconnais avoir reçu et lu cette notice d’information.',
+        'sig_name': 'Nom et prénom', 'sig_date': 'Date', 'sig_sign': 'Signature',
+    },
+    'en': {
+        'kicker': 'INFORMATION NOTICE FOR CARRIERS AND DRIVERS',
+        'title': 'Why we ask for your identity document',
+        'lead': ('Our warehouses handle air cargo. Aviation security rules require us to check the identity of every person who '
+                 'delivers or collects goods, and to be able to prove it. This notice explains what we record, how your data '
+                 'is protected and when it is deleted.'),
+        'cards': [
+            ('1', 'A security requirement',
+             'Air cargo is subject to the European civil aviation security rules (Commission Implementing Regulation (EU) 2015/1998) '
+             'and to TAF’s security programme. We must be able to show, at any time and during inspections by the authorities, '
+             'who delivered or collected each consignment.'),
+            ('2', 'What we record',
+             'Your name, your company, the vehicle registration, the type and number of your identity document, a photo of this '
+             'document, the dates of your visits and the delivery notes you sign. Nothing else.'),
+            ('3', 'Secure hosting in France',
+             'Data is hosted in the Amazon Web Services data centre in Paris. Files and database are encrypted and all exchanges '
+             'use an encrypted connection (HTTPS). Only authorised operations staff and managers can access it, each with a '
+             'personal account, and every access is logged.'),
+            ('4', 'Automatic deletion',
+             'The photo and number of your identity document are automatically deleted one year after your last visit to our '
+             'warehouses. Your name only remains on the signed delivery notes, kept for cargo traceability.'),
+        ],
+        'banner': 'AUTOMATICALLY DELETED 1 YEAR AFTER YOUR LAST VISIT',
+        'never': 'Your data is never sold, transferred to third parties or used for marketing.',
+        'rights_title': 'Your rights',
+        'rights': ('You may request access to your data, its correction, deletion or restriction by writing to {contact}. '
+                   'You may also lodge a complaint with the French data protection authority, CNIL (www.cnil.fr). '
+                   'As identity checks are a security requirement, goods cannot be released or collected without an identity document.'),
+        'controller': 'Data controller: TAF — Trans Air Freight · Purpose: air cargo security and traceability of handovers · '
+                      'Legal basis: legal obligation (Article 6(1)(c) GDPR).',
+        'yours': 'Your recorded information',
+        'f_name': 'Name', 'f_company': 'Company', 'f_plate': 'Vehicle registration', 'f_id': 'Identity document',
+        'f_last': 'Last visit', 'f_erase': 'Deletion no later than',
+        'ack_title': 'Acknowledgement',
+        'ack': 'I acknowledge that I have received and read this information notice.',
+        'sig_name': 'Full name', 'sig_date': 'Date', 'sig_sign': 'Signature',
+    },
+}
+
+
+def _fr_day(value):
+    try:
+        return datetime.fromisoformat(str(value)).strftime('%d/%m/%Y')
+    except (TypeError, ValueError):
+        return '—'
+
+
+def _notice_page(lang, driver, contact):
+    from reportlab.platypus import PageBreak  # noqa: F401  (import local : utilisé par l'appelant)
+    T = NOTICE_TEXT[lang]
+    kicker = ParagraphStyle('nk', parent=S['label'], fontName='Helvetica-Bold', textColor=BLUE, fontSize=8, leading=10)
+    title = ParagraphStyle('nt', fontName='Helvetica-Bold', fontSize=17, leading=21, textColor=NAVY, spaceAfter=2)
+    lead = ParagraphStyle('nl', parent=S['body'], fontSize=9.6, leading=13.6)
+    card_t = ParagraphStyle('nct', fontName='Helvetica-Bold', fontSize=10.5, leading=13, textColor=NAVY)
+    card_b = ParagraphStyle('ncb', parent=S['body'], fontSize=8.5, leading=11.6)
+    num = ParagraphStyle('nn', fontName='Helvetica-Bold', fontSize=15, leading=18, textColor=colors.white, alignment=1)
+    story = [Paragraph(T['kicker'], kicker), Spacer(1, 3), Paragraph(escape(T['title']), title), Spacer(1, 4),
+             Paragraph(escape(T['lead']), lead), Spacer(1, 7)]
+
+    def card(n, head, body):
+        badge = Table([[Paragraph(n, num)]], colWidths=[9 * mm], rowHeights=[9 * mm])
+        badge.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), NAVY), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                   ('LEFTPADDING', (0, 0), (-1, -1), 0), ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                                   ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 1)]))
+        inner = Table([[badge, Paragraph(escape(head), card_t)], ['', Paragraph(escape(body), card_b)]],
+                      colWidths=[12 * mm, CONTENT / 2 - 12 * mm - 14])
+        inner.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('SPAN', (0, 0), (0, 1)),
+                                   ('LEFTPADDING', (0, 0), (-1, -1), 0), ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                                   ('TOPPADDING', (1, 0), (1, 0), 1), ('BOTTOMPADDING', (1, 0), (1, 0), 3)]))
+        return inner
+
+    cards = [card(*x) for x in T['cards']]
+    grid = Table([[cards[0], cards[1]], [cards[2], cards[3]]], colWidths=[CONTENT / 2] * 2)
+    grid.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('BACKGROUND', (0, 0), (-1, -1), SOFT),
+                              ('LINEAFTER', (0, 0), (0, -1), 4, colors.white), ('LINEBELOW', (0, 0), (-1, 0), 4, colors.white),
+                              ('LEFTPADDING', (0, 0), (-1, -1), 9), ('RIGHTPADDING', (0, 0), (-1, -1), 7),
+                              ('TOPPADDING', (0, 0), (-1, -1), 7), ('BOTTOMPADDING', (0, 0), (-1, -1), 7)]))
+    banner = Table([[Paragraph(escape(T['banner']), ParagraphStyle('nb', fontName='Helvetica-Bold', fontSize=10.5, leading=13,
+                                                                 textColor=colors.white, alignment=1))]], colWidths=[CONTENT])
+    banner.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), GREEN), ('TOPPADDING', (0, 0), (-1, -1), 7), ('BOTTOMPADDING', (0, 0), (-1, -1), 8)]))
+    story += [grid, Spacer(1, 6), banner, Spacer(1, 4),
+              Paragraph(escape(T['never']), ParagraphStyle('nv', parent=S['small'], alignment=1, textColor=INK)), Spacer(1, 2)]
+    story += [section(T['rights_title']), Spacer(1, 3), Paragraph(escape(T['rights'].format(contact=contact)), card_b), Spacer(1, 3),
+              Paragraph(escape(T['controller']), S['small'])]
+    if driver:
+        story += [Spacer(1, 2), section(T['yours']), Spacer(1, 3),
+                  field_grid([(T['f_name'], driver.get('name')), (T['f_company'], driver.get('company')), (T['f_plate'], driver.get('plate')),
+                              (T['f_id'], driver.get('id_label')), (T['f_last'], _fr_day(driver.get('last_seen'))),
+                              (T['f_erase'], _fr_day(driver.get('erase_on')))])]
+    line = lambda label: [Paragraph(escape(label.upper()), S['label']), Spacer(1, 13),
+                          Table([['']], colWidths=[CONTENT / 3 - 14], style=[('LINEBELOW', (0, 0), (-1, -1), 0.6, MUTED)])]
+    ack = Table([[Paragraph(escape(T['ack']), S['body']), '', ''],
+                 [line(T['sig_name']), line(T['sig_date']), line(T['sig_sign'])]], colWidths=[CONTENT / 3] * 3)
+    ack.setStyle(TableStyle([('SPAN', (0, 0), (-1, 0)), ('BOX', (0, 0), (-1, -1), 0.6, LINE), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                             ('LEFTPADDING', (0, 0), (-1, -1), 8), ('TOPPADDING', (0, 0), (-1, -1), 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 9)]))
+    story += [Spacer(1, 2), KeepTogether([section(T['ack_title']), Spacer(1, 3), ack])]
+    return story
+
+
+def driver_notice(driver, contact, generated_at, ref='NOTICE-SURETE'):
+    """Notice d'information remise au transporteur : page française puis page anglaise."""
+    from reportlab.platypus import PageBreak
+    story = _notice_page('fr', driver, contact) + [PageBreak()] + _notice_page('en', driver, contact)
+    return build('Contrôle d’identité · Identity check', ref, 'SÛRETÉ FRET AÉRIEN', 'blue', story, generated_at,
+                 'Information RGPD — à remettre au transporteur')
+
+
+# --- Fiche de réception ---------------------------------------------------------------------------
+
+def receipt_report(rec, units, discrepancies, holds, problems, docs, received_by, generated_at):
+    """Fiche de réception : conforme (verte) ou problème de réception (rouge)."""
+    photos = [d for d in docs if Path(d['path']).suffix in ('.png', '.jpg')]
+    cond = {'conforme': 'Conforme', 'endommage': 'Endommagé', 'a_verifier': 'À vérifier'}
+    sec = {'securise': 'Sécurisé', 'a_controler': 'À contrôler', 'non_securise': 'Non sécurisé'}
+    weighed = sum(u.get('weight') or 0 for u in units)
+    story = [section('Réception'), Spacer(1, 4),
+             field_grid([('Réception', rec['id']), ('Entrepôt', rec['warehouse']), ('Date', fr_date(rec['created'])),
+                         ('Client', rec.get('client')), ('LTA', rec.get('awb')), ('Référence dossier', rec.get('folder_ref')),
+                         ('Expéditeur', rec.get('shipper')), ('Transporteur', rec.get('carrier')), ('Référence transport', rec.get('transport_ref')),
+                         ('Nature', rec.get('nature')), ('État apparent', cond.get(rec.get('apparent_condition'), rec.get('apparent_condition'))),
+                         ('Statut sûreté', sec.get(rec.get('security_status'), rec.get('security_status')))]),
+             Spacer(1, 10), section('Quantités et poids'), Spacer(1, 4),
+             field_grid([('Colis prévus', rec.get('expected')), ('Colis reçus', rec.get('actual')), ('Unités créées', len(units)),
+                         ('Poids déclaré', f"{fr_number(rec.get('weight'))} kg"), ('Poids pesé', f"{fr_number(weighed)} kg" if units else '—'),
+                         ('Volume', f"{fr_number(rec.get('volume_m3'), 3)} m³" if rec.get('volume_m3') else '—'),
+                         ('Poids volumétrique (1:6000)', f"{fr_number(rec.get('volumetric_weight'))} kg" if rec.get('volumetric_weight') else '—'),
+                         ('Réceptionné par', received_by), ('Observations', rec.get('notes'))])]
+    if problems:
+        story += [Spacer(1, 10), callout('Problèmes constatés', '\n'.join('• ' + p for p in problems), 'red')]
+    else:
+        story += [Spacer(1, 10), callout('Contrôle de réception', 'Quantités, poids, état apparent et sûreté conformes. Aucune réserve.', 'navy')]
+    head = [Paragraph(h, S['cellhead']) for h in ('UNITÉ', 'TYPE', 'DIMENSIONS (CM)', 'COLIS', 'POIDS', 'EMPLACEMENT')]
+    rows = [head] + [[txt(u['id'], 'cell'),
+                      txt(f"{(u.get('unit_type') or '').capitalize()} {u['unit_index']}/{u['unit_count']}" if u.get('unit_index') else (u.get('unit_type') or '').capitalize(), 'cell'),
+                      txt(f"{fr_number(u.get('length_cm'), 0)} × {fr_number(u.get('width_cm'), 0)} × {fr_number(u.get('height_cm'), 0)}" if u.get('length_cm') else '—', 'cell'),
+                      txt(u['quantity'], 'cell'), txt(f"{fr_number(u.get('weight'))} kg", 'cell'),
+                      txt(u.get('location_id') or 'À ranger', 'cell')] for u in units]
+    if units:
+        rows.append([txt('Total', 'cellhead'), '', '', txt(sum(u['quantity'] for u in units), 'cellhead'), txt(f'{fr_number(weighed)} kg', 'cellhead'), ''])
+        t = Table(rows, colWidths=[CONTENT * .25, CONTENT * .15, CONTENT * .2, CONTENT * .1, CONTENT * .13, CONTENT * .17], repeatRows=1)
+        t.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -2), 0.3, LINE), ('LINEABOVE', (0, -1), (-1, -1), 0.8, NAVY),
+                               ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
+    else:
+        t = txt('Aucune unité enregistrée.', 'small')
+    story += [Spacer(1, 10), section(f'Colisage ({len(units)} unité(s))'), Spacer(1, 4), t]
+    if discrepancies:
+        kinds = {'missing': 'Colis manquants', 'excess': 'Excédent', 'damage': 'Avarie', 'documentation': 'Documents', 'other': 'Autre'}
+        st = {'open': 'Ouvert', 'accepted': 'Accepté', 'rejected': 'Refusé'}
+        head = [Paragraph(h, S['cellhead']) for h in ('ÉCART', 'NATURE', 'DESCRIPTION', 'DÉCLARÉ PAR', 'STATUT')]
+        drows = [head] + [[txt(d['id'], 'cell'), txt(kinds.get(d['kind'], d['kind']), 'cell'), txt(d['description'], 'cell'),
+                           txt(f"{d['reported_by']} · {fr_date(d['created'])}", 'cell'), txt(st.get(d['status'], d['status']), 'cell')] for d in discrepancies]
+        dt = Table(drows, colWidths=[CONTENT * .2, CONTENT * .14, CONTENT * .34, CONTENT * .2, CONTENT * .12], repeatRows=1)
+        dt.setStyle(TableStyle([('LINEBELOW', (0, 0), (-1, 0), 0.8, NAVY), ('LINEBELOW', (0, 1), (-1, -1), 0.3, LINE),
+                                ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4)]))
+        story += [Spacer(1, 10), KeepTogether([section('Écarts déclarés'), Spacer(1, 4), dt])]
+    grouped = {}
+    for h_ in holds:
+        grouped.setdefault(h_['reason'], []).append(h_['unit_id'])
+    if holds:
+        story += [Spacer(1, 10), KeepTogether([section('Blocages en cours'), Spacer(1, 4),
+                  txt('\n'.join(f"• {reason} — {len(ids)} unité(s) : {', '.join(ids)}" for reason, ids in grouped.items()), 'body')])]
+    story += [Spacer(1, 10), KeepTogether([section(f'Photos ({len(photos)})'), Spacer(1, 5), photo_grid(photos)])]
+    if len(photos) > 6:
+        story.append(txt(f'{len(photos) - 6} photo(s) supplémentaire(s) dans le dossier de réception.', 'small'))
+    story += [Spacer(1, 8), KeepTogether([section('Pièces jointes'), Spacer(1, 4), attachments_table(docs)])]
+    story += [Spacer(1, 10), txt('Fiche établie à partir des saisies du magasin dans TAF WAREHOUSE. Les blocages éventuels restent en place '
+                                 'jusqu’à leur levée par une personne habilitée.', 'small')]
+    ok = not problems
+    return build('Fiche de réception', rec['id'], 'RÉCEPTION CONFORME' if ok else 'PROBLÈME DE RÉCEPTION', 'green' if ok else 'red',
+                 story, generated_at, rec['warehouse'] + (' · LTA ' + rec['awb'] if rec.get('awb') else ''))

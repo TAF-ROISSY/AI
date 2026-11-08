@@ -19,6 +19,10 @@ Parameters:
     Description: Budget TAF valide le 7/11/2026 - 2 EUR par jour en moyenne, soit environ 60 EUR par mois (AWS Budgets s'exprime en USD).
     Default: 65
     MinValue: 10
+  MailFromAddress:
+    Type: String
+    Description: Expediteur des fiches de reception (identite SES verifiee).
+    Default: christophe@taftrans.fr
   InstanceType:
     Type: String
     Default: t3.small
@@ -285,6 +289,10 @@ Resources:
               - Effect: Allow
                 Action: ['logs:CreateLogStream', 'logs:PutLogEvents', 'logs:DescribeLogStreams']
                 Resource: !GetAtt AppLogGroup.Arn   # l'ARN d'un groupe de journaux se termine deja par :*
+              - Effect: Allow   # lot 14 : envoi des fiches de reception, uniquement depuis l'adresse validee
+                Action: ['ses:SendEmail', 'ses:SendRawEmail']
+                Resource: '*'
+                Condition: {StringEquals: {'ses:FromAddress': !Ref MailFromAddress}}
       Tags:
         - {Key: Application, Value: taf-warehouse}
   InstanceProfile:

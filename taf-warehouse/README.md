@@ -1,5 +1,7 @@
-# TAF WAREHOUSE — V4.21 (recette)
+# TAF WAREHOUSE — V4.22 (recette)
 
+> **V4.22 :** notice transporteur (FR/EN) sur le contrôle d'identité, effacement automatique des pièces d'identité 1 an après le dernier passage, fiche de réception PDF envoyée par e-mail aux destinataires de chaque entrepôt (écran « E-mails des fiches »). Réglages : `TAF_MAIL_BACKEND=ses`, `TAF_MAIL_FROM`, `TAF_MAIL_DEFAULT_TO`, `TAF_MAIL_DELAY_SECONDS` (180), `TAF_IDENTITY_RETENTION_DAYS` (365), `TAF_PRIVACY_CONTACT`.
+>
 > **État complet, points à valider et limites : `ETAT_V4_21.md`.** V4.21 : bon de transfert, bon de remise unitaire et rapports d'incident, de litige et de mission au style TAF.
 
 > **V4.20 (recherche, chronologie, scanner iPhone, plan des racks)** :

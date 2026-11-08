@@ -4,7 +4,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request, Query
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request, Query, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.21.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.22.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -81,6 +81,16 @@ def store_delete(ref):
         if ref.startswith('s3:'):_s3().delete_object(Bucket=S3_BUCKET,Key=ref[3:])
         else:Path(ref).unlink(missing_ok=True)
     except Exception:pass  # nettoyage au mieux ; l'échec d'origine est remonté
+def store_erase(ref):
+    """Effacement définitif (RGPD) : le compartiment S3 est versionné, toutes les versions sont supprimées. Lève en cas d'échec."""
+    if ref.startswith('s3:'):
+        key=ref[3:];s3=_s3()
+        versions=s3.list_object_versions(Bucket=S3_BUCKET,Prefix=key)
+        targets=[{'Key':v['Key'],'VersionId':v['VersionId']} for v in versions.get('Versions',[])+versions.get('DeleteMarkers',[]) if v['Key']==key]
+        if targets:
+            r=s3.delete_objects(Bucket=S3_BUCKET,Delete={'Objects':targets,'Quiet':True})
+            if r.get('Errors'):raise RuntimeError('Effacement S3 incomplet : '+str(r['Errors'][0].get('Message','')))
+    else:Path(ref).unlink(missing_ok=True)
 # A stable 32-byte Fernet key is mandatory for new MFA enrollment.
 # Store it outside the application/database and back it up securely.
 def mfa_cipher():
@@ -308,6 +318,8 @@ def init():
         CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
+        CREATE TABLE IF NOT EXISTS mail_routes(warehouse TEXT PRIMARY KEY,recipients TEXT NOT NULL DEFAULT '[]',updated TEXT,updated_by TEXT);
+        CREATE TABLE IF NOT EXISTS mail_outbox(id TEXT PRIMARY KEY,kind TEXT NOT NULL,ref TEXT NOT NULL,warehouse TEXT NOT NULL,reason TEXT NOT NULL,status TEXT NOT NULL,created TEXT NOT NULL,created_by TEXT NOT NULL,not_before TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,recipients TEXT,subject TEXT,sent_at TEXT,last_error TEXT,provider_id TEXT);
         """)
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
@@ -315,7 +327,7 @@ def init():
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
-          'drivers':[('id_type','TEXT'),('id_number','TEXT')],
+          'drivers':[('id_type','TEXT'),('id_number','TEXT'),('identity_erased_at','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
           'transfers':[('received_quantity','INTEGER'),('received_condition','TEXT'),('received_note','TEXT'),('discrepancy_reviewed_by','TEXT'),('discrepancy_reviewed_at','TEXT'),('discrepancy_decision','TEXT'),('return_of','TEXT')],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
@@ -351,6 +363,10 @@ def init():
                             c.execute('INSERT INTO locations(id,warehouse,zone,verified) VALUES(?,?,?,0)',(f'{code}-R{rack:02d}-{level}{n}',wh,f'Rack {rack:02d} / {level}'))
                 c.execute('INSERT INTO locations(id,warehouse,zone,verified) VALUES(?,?,?,0)',(f'{code}-TEMP',wh,'Zone temporaire'))
             audit(c,'system','bootstrap','system','initial',{'warning':'all rack capacities unverified'})
+        default_to=[x.strip() for x in os.getenv('TAF_MAIL_DEFAULT_TO','').split(',') if x.strip()]
+        for wh in (WAREHOUSES if one(c,'SELECT id FROM users LIMIT 1') else []):  # base vide (migration) : rien
+            if not one(c,'SELECT warehouse FROM mail_routes WHERE warehouse=?',(wh,)):
+                c.execute('INSERT INTO mail_routes(warehouse,recipients,updated,updated_by) VALUES(?,?,?,?)',(wh,json.dumps(default_to),now(),'system'))
 init()
 
 class Login(BaseModel):username:str;password:str;otp:Optional[str]=None;recovery_code:Optional[str]=None
@@ -741,6 +757,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
             elif x.apparent_condition=='a_verifier':add_hold(c,u['username'],uid_,'controle','État apparent à vérifier',i)
         if status=='discrepancy':notify(c,x.warehouse,'receipt',i,'Écart de réception',' ; '.join(warnings)[:350],u['username'])
         totals={'units':n,'packages':described,'weight_kg':round(weight_sum,2),'volume_m3':round(volume,4),'volumetric_weight_kg':round(volume*VOLUMETRIC_KG_PER_M3,2)} if x.packages else None
+        queue_receipt_mail(c,i,x.warehouse,'reception',u['username'])
         response={'id':i,'status':status,'units':unit_ids,'totals':totals,'warnings':warnings};save_request(c,u['id'],'receipt.create',idempotency_key,digest,response)
     return response
 @app.get('/api/units')
@@ -1366,6 +1383,7 @@ def report_discrepancy(rid:str,x:DiscrepancyCreate,u=Depends(auth)):
             add_hold(c,u['username'],held['id'],'ecart_reception','Écart réception '+i,i)
         audit(c,u['username'],'report_discrepancy','receipt',rid,{'discrepancy_id':i,'kind':x.kind})
         notify(c,r['warehouse'],'receipt',rid,'Écart de réception','Contrôle exploitation obligatoire.',u['username'])
+        queue_receipt_mail(c,rid,r['warehouse'],'discrepancy',u['username'])
         c.commit()
     return {'id':i,'status':'open'}
 
@@ -1389,7 +1407,10 @@ def review_discrepancy(did:str,x:DiscrepancyReview,u=Depends(auth)):
 def drivers(u=Depends(auth)):
     office=u['role'] in IDENTITY_ROLES
     with db() as c:
-        rows=q(c,"SELECT d.id,d.name,d.company,d.plate,d.created,d.id_type,d.id_number,CASE WHEN EXISTS (SELECT 1 FROM documents x WHERE x.kind='driver' AND x.ref=d.id) THEN 1 ELSE 0 END has_identity FROM drivers d ORDER BY d.created DESC")
+        rows=q(c,"SELECT d.id,d.name,d.company,d.plate,d.created,d.id_type,d.id_number,d.identity_erased_at,CASE WHEN EXISTS (SELECT 1 FROM documents x WHERE x.kind='driver' AND x.ref=d.id) THEN 1 ELSE 0 END has_identity FROM drivers d ORDER BY d.created DESC")
+        for r in rows:
+            if office and (r['has_identity'] or r.get('id_number')):
+                r['last_seen']=driver_last_seen(c,r['id']);r['erase_on']=erase_date(r['last_seen'])
     for r in rows:
         if not office:r.pop('id_number',None)
     return rows
@@ -1400,6 +1421,245 @@ def create_driver(x:DriverCreate,u=Depends(auth)):
     with tx() as c:
         i=uid('DRV');c.execute('INSERT INTO drivers(id,name,company,plate,phone,created,id_type,id_number) VALUES(?,?,?,?,?,?,?,?)',(i,x.name.strip(),x.company,x.plate.strip().upper(),x.phone,now(),x.id_type,x.id_number.strip()));audit(c,u['username'],'create','driver',i)
     return {'id':i}
+
+# --- Lot 14 : pièces d'identité (notice, conservation 1 an) ---------------------------------------
+PRIVACY_CONTACT=os.getenv('TAF_PRIVACY_CONTACT','christophe@taftrans.fr')
+IDENTITY_RETENTION_DAYS=int(os.getenv('TAF_IDENTITY_RETENTION_DAYS','365'))
+ID_LABELS={'CNI':'CNI','passeport':'Passeport','permis':'Permis de conduire','titre_sejour':'Titre de séjour','autre':'Autre pièce'}
+def driver_last_seen(c,driver_id):
+    """Dernier passage : création, remise signée, sortie, refus, transfert ou nouvelle photo de pièce."""
+    d=one(c,'SELECT created FROM drivers WHERE id=?',(driver_id,));seen=[d['created']] if d else []
+    for sql in ('SELECT MAX(signed_at) v FROM release_handovers WHERE driver_id=?',"SELECT MAX(completed) v FROM releases WHERE driver_id=? AND status='completed'",
+                'SELECT MAX(created) v FROM release_refusals WHERE driver_id=?','SELECT MAX(dispatched_at) v FROM transfers WHERE driver_id=?',
+                "SELECT MAX(uploaded) v FROM documents WHERE kind='driver' AND ref=?"):
+        v=one(c,sql,(driver_id,))['v']
+        if v:seen.append(v)
+    return max(seen) if seen else None
+def erase_date(last_seen):
+    return (datetime.fromisoformat(last_seen)+timedelta(days=IDENTITY_RETENTION_DAYS)).isoformat(timespec='seconds') if last_seen else None
+def purge_identities(actor='system'):
+    """Efface photo, type et numéro de pièce des chauffeurs dont le dernier passage date de plus d'un an."""
+    cutoff=(datetime.now(timezone.utc)-timedelta(days=IDENTITY_RETENTION_DAYS)).isoformat(timespec='seconds')
+    with db() as c:
+        candidates=[r['id'] for r in q(c,"SELECT d.id FROM drivers d WHERE COALESCE(d.id_number,'')!='' OR COALESCE(d.id_type,'')!='' OR EXISTS (SELECT 1 FROM documents x WHERE x.kind='driver' AND x.ref=d.id)")]
+    purged=[]
+    for did in candidates:
+        with tx() as c:
+            last=driver_last_seen(c,did)
+            if last and last>=cutoff:continue
+            docs=q(c,"SELECT id,path FROM documents WHERE kind='driver' AND ref=?",(did,))
+            for d in docs:store_erase(d['path'])   # fichiers d'abord : un échec annule la transaction
+            c.execute("DELETE FROM documents WHERE kind='driver' AND ref=?",(did,))
+            c.execute("UPDATE drivers SET id_type=NULL,id_number='',identity_erased_at=? WHERE id=?",(now(),did))
+            audit(c,actor,'purge_identity','driver',did,{'documents':len(docs),'last_seen':last,'retention_days':IDENTITY_RETENTION_DAYS})
+        purged.append(did)
+    return purged
+
+def _notice_response(driver,ref,name):
+    from app.pdf_report import driver_notice
+    pdf=driver_notice(driver,PRIVACY_CONTACT,now(),ref)
+    return Response(content=pdf,media_type='application/pdf',headers={'Content-Disposition':f'inline; filename="{name}"'})
+@app.get('/api/drivers/notice')
+def blank_driver_notice(u=Depends(auth)):
+    """Notice vierge à imprimer et remettre au transporteur (français et anglais)."""
+    return _notice_response(None,'NOTICE-SURETE','notice-transporteur.pdf')
+@app.get('/api/drivers/{did}/notice')
+def driver_notice_pdf(did:str,u=Depends(auth)):
+    office=u['role'] in IDENTITY_ROLES
+    with db() as c:
+        d=one(c,'SELECT * FROM drivers WHERE id=?',(did,));require(d,'Chauffeur introuvable',404)
+        last=driver_last_seen(c,did)
+        has_photo=bool(one(c,"SELECT id FROM documents WHERE kind='driver' AND ref=? LIMIT 1",(did,)))
+        audit(c,u['username'],'notice','driver',did)
+    if d.get('identity_erased_at'):label='Effacée le '+d['identity_erased_at'][:10]
+    else:
+        label=ID_LABELS.get(d.get('id_type') or '','Non renseignée')
+        if office and d.get('id_number'):label+=' n° ••••'+d['id_number'][-4:]
+        if has_photo:label+=' · photo enregistrée'
+    info={**d,'id_label':label,'last_seen':last,'erase_on':erase_date(last) if not d.get('identity_erased_at') else None}
+    return _notice_response(info,did,f'notice-{did}.pdf')
+@app.post('/api/admin/purge-identities')
+def purge_identities_now(u=Depends(auth)):
+    role(u,'superadmin')
+    purged=purge_identities(u['username'])
+    return {'purged':purged,'retention_days':IDENTITY_RETENTION_DAYS}
+
+# --- Lot 14 : fiche de réception et envoi par e-mail -------------------------------------------------
+MAIL_BACKEND=os.getenv('TAF_MAIL_BACKEND','off')      # off | ses | memory (tests)
+MAIL_FROM=os.getenv('TAF_MAIL_FROM','')
+MAIL_DELAY=int(os.getenv('TAF_MAIL_DELAY_SECONDS','180'))  # laisse le temps d'ajouter les photos
+MAIL_MAX_ATTEMPTS=5
+MAIL_SENT=[]
+EMAIL_RE=re.compile(r'^[^@\s,;<>]+@[^@\s,;<>]+\.[A-Za-z]{2,}$')
+def mail_recipients(c,wh):
+    r=one(c,'SELECT recipients FROM mail_routes WHERE warehouse=?',(wh,))
+    return json.loads(r['recipients']) if r else []
+def queue_receipt_mail(c,rec_id,wh,reason,actor,delay=None):
+    """Programme l'envoi de la fiche ; un envoi déjà en attente pour la même réception est regroupé."""
+    if MAIL_BACKEND=='off' or not mail_recipients(c,wh):return None
+    at=(datetime.now(timezone.utc)+timedelta(seconds=MAIL_DELAY if delay is None else delay)).isoformat(timespec='seconds')
+    pending=one(c,"SELECT id,not_before FROM mail_outbox WHERE kind='receipt' AND ref=? AND status='pending'",(rec_id,))
+    if pending:
+        c.execute('UPDATE mail_outbox SET reason=?,not_before=? WHERE id=?',(reason,min(at,pending['not_before']),pending['id']));return pending['id']
+    i=uid('MAIL')
+    c.execute("INSERT INTO mail_outbox(id,kind,ref,warehouse,reason,status,created,created_by,not_before) VALUES(?,?,?,?,?,'pending',?,?,?)",(i,'receipt',rec_id,wh,reason,now(),actor,at))
+    return i
+def receipt_problems(c,rec,units):
+    p=[]
+    if rec['expected']!=rec['actual']:p.append(f"Colis reçus ({rec['actual']}) différents des colis attendus ({rec['expected']})")
+    described=sum(u['quantity'] for u in units if u.get('unit_index'));weighed=sum(u['weight'] or 0 for u in units)
+    if units and any(u.get('unit_index') for u in units) and described!=rec['actual']:p.append(f"Colis décrits au colisage ({described}) différents des colis reçus ({rec['actual']})")
+    if units and rec.get('weight') and abs(weighed-rec['weight'])>max(1,0.05*rec['weight']):p.append(f"Écart de poids : {round(weighed,1)} kg pesés pour {round(rec['weight'],1)} kg déclarés")
+    if rec.get('apparent_condition')=='endommage':p.append('État apparent : marchandise endommagée')
+    elif rec.get('apparent_condition')=='a_verifier':p.append('État apparent : à vérifier')
+    if rec.get('security_status')=='non_securise':p.append('Sûreté : marchandise non sécurisée')
+    elif rec.get('security_status')=='a_controler':p.append('Sûreté : marchandise à contrôler')
+    kinds={'missing':'Colis manquants','excess':'Excédent','damage':'Avarie','documentation':'Documents','other':'Autre'}
+    for d in q(c,"SELECT * FROM receipt_discrepancies WHERE receipt_id=? AND status!='rejected' ORDER BY created",(rec['id'],)):
+        p.append(f"Écart déclaré {d['id']} ({kinds.get(d['kind'],d['kind'])}) : {d['description']}")
+    if rec['status']=='discrepancy' and not p:p.append('Écart de réception signalé')
+    return p
+def receipt_dossier(c,rid):
+    rec=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,));require(rec,'Réception introuvable',404)
+    units=q(c,'SELECT * FROM units WHERE receipt_id=? ORDER BY unit_index,id',(rid,))
+    discrepancies=q(c,'SELECT * FROM receipt_discrepancies WHERE receipt_id=? ORDER BY created',(rid,))
+    holds=q(c,'SELECT h.unit_id,h.reason FROM unit_holds h JOIN units x ON x.id=h.unit_id WHERE x.receipt_id=? AND h.lifted_at IS NULL ORDER BY h.created',(rid,))
+    docs=q(c,"SELECT * FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
+    who=one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,))
+    return rec,units,discrepancies,holds,docs,(who or {}).get('actor'),receipt_problems(c,rec,units)
+def receipt_pdf(c,rid):
+    from app.pdf_report import receipt_report
+    rec,units,disc,holds,docs,who,problems=receipt_dossier(c,rid)
+    for d in docs:
+        if Path(d['path']).suffix in ('.png','.jpg'):d['content']=store_get(d['path'])
+    return rec,problems,who,receipt_report(rec,units,disc,holds,problems,docs,who,now())
+@app.get('/api/receipts/{rid}/report')
+def receipt_report_pdf(rid:str,u=Depends(auth)):
+    with db() as c:
+        r=one(c,'SELECT warehouse FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        _,_,_,pdf=receipt_pdf(c,rid)
+    return Response(content=pdf,media_type='application/pdf',headers={'Content-Disposition':f'inline; filename="fiche-reception-{rid}.pdf"'})
+@app.post('/api/receipts/{rid}/email')
+def receipt_email_now(rid:str,background:BackgroundTasks,u=Depends(auth)):
+    role(u,'leader','manager','exploitation','admin')
+    require(MAIL_BACKEND!='off','Envoi d’e-mails non activé sur ce serveur',409)
+    with tx() as c:
+        r=one(c,'SELECT warehouse FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        require(mail_recipients(c,r['warehouse']),'Aucun destinataire configuré pour cet entrepôt',409)
+        mid=queue_receipt_mail(c,rid,r['warehouse'],'manual',u['username'],delay=0)
+        audit(c,u['username'],'mail_request','receipt',rid,{'outbox':mid})
+    background.add_task(process_mail_outbox)
+    return {'id':mid,'status':'pending'}
+def compose_receipt_mail(c,rid):
+    rec,problems,who,pdf=receipt_pdf(c,rid)
+    title='PROBLÈME DE RÉCEPTION' if problems else 'Réception conforme'
+    subject=f"[TAF WAREHOUSE] {title} · {rec['warehouse']} · LTA {rec.get('awb') or '—'} · {rec['client']} · {rec['id']}"
+    lines=[f"Réception {rec['id']} — entrepôt {rec['warehouse']}, le {rec['created'][:10]} à {rec['created'][11:16]} UTC",
+           f"Client : {rec['client']}",f"LTA : {rec.get('awb') or '—'}",f"Colis : {rec['actual']} reçus / {rec['expected']} prévus — poids déclaré {rec.get('weight') or 0} kg",
+           f"Réceptionné par : {who or '—'}"]
+    if problems:body=lines+['','PROBLÈMES CONSTATÉS :']+['- '+p for p in problems]+['','La marchandise concernée reste bloquée jusqu’à sa levée par une personne habilitée.']
+    else:body=lines+['','Réception conforme : quantités, poids, état apparent et sûreté sans réserve.']
+    text='Bonjour,\n\n'+'\n'.join(body)+'\n\nLa fiche de réception complète (PDF) est jointe à ce message.\n\nTAF WAREHOUSE — message automatique, merci de ne pas répondre.\n'
+    from html import escape as h
+    color='#B42318' if problems else '#1E7A46'
+    items=''.join(f'<li>{h(p)}</li>' for p in problems)
+    html=(f'<div style="font-family:Arial,Helvetica,sans-serif;color:#1B2733;max-width:640px">'
+          f'<div style="background:#0F2B47;color:#fff;padding:14px 18px"><b style="font-size:18px">TAF</b> <span style="font-size:11px;letter-spacing:2px">WAREHOUSE</span></div>'
+          f'<div style="background:{color};color:#fff;padding:9px 18px;font-weight:bold">{h(title.upper())}</div><div style="padding:14px 18px;line-height:1.55">'
+          +'<br>'.join(h(x) for x in lines)
+          +(f'<p style="color:#B42318;font-weight:bold;margin:14px 0 4px">Problèmes constatés</p><ul style="margin:0">{items}</ul><p>La marchandise concernée reste bloquée jusqu’à sa levée par une personne habilitée.</p>' if problems else '<p>Réception conforme : quantités, poids, état apparent et sûreté sans réserve.</p>')
+          +'<p>La fiche de réception complète (PDF) est jointe à ce message.</p></div>'
+          '<div style="color:#5B6B7A;font-size:11px;padding:0 18px 14px">TAF WAREHOUSE — message automatique, merci de ne pas répondre.</div></div>')
+    return subject,text,html,[(f"fiche-reception-{rec['id']}.pdf",pdf,'application/pdf')]
+def send_mail(to,subject,text,html,attachments):
+    from email.message import EmailMessage
+    from email.utils import formataddr
+    msg=EmailMessage();msg['From']=formataddr(('TAF WAREHOUSE',MAIL_FROM or 'noreply@localhost'));msg['To']=', '.join(to);msg['Subject']=subject
+    msg.set_content(text);msg.add_alternative(html,subtype='html')
+    for name,data,mime in attachments:
+        main,sub=mime.split('/');msg.add_attachment(data,maintype=main,subtype=sub,filename=name)
+    if MAIL_BACKEND=='memory':
+        MAIL_SENT.append({'to':list(to),'subject':subject,'text':text,'attachments':[(n,d) for n,d,_ in attachments]});return 'memory-'+uuid.uuid4().hex[:8]
+    if MAIL_BACKEND=='ses':
+        require(MAIL_FROM,'TAF_MAIL_FROM manquant',500)
+        import boto3
+        r=boto3.client('sesv2',region_name=_aws_region()).send_email(FromEmailAddress=MAIL_FROM,Destination={'ToAddresses':list(to)},Content={'Raw':{'Data':msg.as_bytes()}})
+        return r['MessageId']
+    raise RuntimeError('Envoi d’e-mails désactivé')
+_mail_lock=threading.Lock()
+def process_mail_outbox(limit=20):
+    """Envoie les e-mails arrivés à échéance. Un échec est retenté (5 essais), puis signalé en notification interne."""
+    if MAIL_BACKEND=='off':return 0
+    with _mail_lock:
+        with db() as c:due=q(c,"SELECT id FROM mail_outbox WHERE status='pending' AND not_before<=? ORDER BY not_before LIMIT ?",(now(),limit))
+        sent=0
+        for m in due:
+            with tx() as c:
+                if c.execute("UPDATE mail_outbox SET status='sending',attempts=attempts+1 WHERE id=? AND status='pending'",(m['id'],)).rowcount!=1:continue
+                row=one(c,'SELECT * FROM mail_outbox WHERE id=?',(m['id'],))
+            try:
+                with db() as c:
+                    to=mail_recipients(c,row['warehouse'])
+                    if not to:raise RuntimeError('Aucun destinataire configuré')
+                    subject,text,html,att=compose_receipt_mail(c,row['ref'])
+                pid=send_mail(to,subject,text,html,att)
+                with tx() as c:
+                    c.execute("UPDATE mail_outbox SET status='sent',sent_at=?,recipients=?,subject=?,provider_id=?,last_error=NULL WHERE id=?",(now(),json.dumps(to),subject,pid,row['id']))
+                    audit(c,'system','mail_sent',row['kind'],row['ref'],{'outbox':row['id'],'to':to})
+                sent+=1
+            except Exception as e:
+                err=(getattr(e,'detail',None) or str(e))[:300];final=row['attempts']>=MAIL_MAX_ATTEMPTS
+                retry=(datetime.now(timezone.utc)+timedelta(minutes=5*row['attempts'])).isoformat(timespec='seconds')
+                with tx() as c:
+                    c.execute('UPDATE mail_outbox SET status=?,not_before=?,last_error=? WHERE id=?',('failed' if final else 'pending',retry,err,row['id']))
+                    if final:notify(c,row['warehouse'],'receipt',row['ref'],'E-mail non envoyé',('Fiche de réception non transmise : '+err)[:350],'system')
+        return sent
+class MailRoute(BaseModel):recipients:list[str]=Field(max_length=10)
+@app.get('/api/mail-routes')
+def mail_routes(u=Depends(auth)):
+    role(u,'admin','manager')
+    with db() as c:rows=q(c,'SELECT * FROM mail_routes ORDER BY warehouse')
+    for r in rows:r['recipients']=json.loads(r['recipients'])
+    return {'enabled':MAIL_BACKEND!='off','sender':MAIL_FROM,'delay_seconds':MAIL_DELAY,'routes':rows}
+@app.put('/api/mail-routes/{wh}')
+def set_mail_route(wh:str,x:MailRoute,u=Depends(auth)):
+    role(u,'superadmin');warehouse(wh)
+    to=[]
+    for a in x.recipients:
+        a=a.strip().lower()
+        if a:require(EMAIL_RE.match(a),f'Adresse e-mail invalide : {a}');to.append(a)
+    with tx() as c:
+        c.execute('UPDATE mail_routes SET recipients=?,updated=?,updated_by=? WHERE warehouse=?',(json.dumps(sorted(set(to),key=to.index)),now(),u['username'],wh))
+        audit(c,u['username'],'mail_route','warehouse',wh,{'recipients':to})
+    return {'ok':True}
+@app.get('/api/mail-outbox')
+def mail_outbox(u=Depends(auth)):
+    role(u,'admin','manager','exploitation')
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:rows=q(c,f'SELECT id,kind,ref,warehouse,reason,status,created,created_by,not_before,attempts,recipients,subject,sent_at,last_error FROM mail_outbox WHERE warehouse IN ({marks}) ORDER BY created DESC LIMIT 100',u['warehouses'])
+    for r in rows:r['recipients']=json.loads(r['recipients']) if r['recipients'] else []
+    return rows
+
+# Tâches de fond : envoi des e-mails (toutes les 30 s) et effacement des pièces d'identité (toutes les 6 h).
+def _background_loop():
+    try:
+        with db() as c:c.execute("UPDATE mail_outbox SET status='pending' WHERE status='sending'")  # reprise après arrêt brutal
+    except Exception as e:print('TAF WAREHOUSE tâches de fond :',e,flush=True)
+    last_purge=0.0
+    while True:
+        try:process_mail_outbox()
+        except Exception as e:print('TAF WAREHOUSE envoi e-mails :',e,flush=True)
+        if time.time()-last_purge>6*3600:
+            try:
+                purged=purge_identities()
+                if purged:print(f'TAF WAREHOUSE : {len(purged)} pièce(s) d’identité effacée(s)',flush=True)
+            except Exception as e:print('TAF WAREHOUSE effacement pièces :',e,flush=True)
+            last_purge=time.time()
+        time.sleep(30)
+@app.on_event('startup')
+def _start_background():
+    if os.getenv('TAF_BACKGROUND','1')=='1':threading.Thread(target=_background_loop,name='taf-background',daemon=True).start()
+
 @app.get('/api/releases')
 def releases(u=Depends(auth)):
     marks=','.join('?' for _ in u['warehouses'])
