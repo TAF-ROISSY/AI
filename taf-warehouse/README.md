@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — TEST V4.14
+# TAF WAREHOUSE — TEST V4.15
+
+> **V4.15** : connexion des magasiniers et chefs d'équipe par **prénom + code PIN à 6 chiffres** (codes trop simples refusés, verrouillage après 5 erreurs, attribution et réinitialisation par le Super Admin, changement par l'utilisateur). Les comptes de bureau gardent mot de passe et double authentification ; le code de double authentification n'est demandé qu'aux comptes qui l'ont activé. Identifiants insensibles à la casse (4.14.1).
 
 > **V4.14** : nouvelle page de connexion ; gestion complète des utilisateurs par le Super Admin (création multi-entrepôts, modification du rôle et des entrepôts, suppression par archivage qui conserve l'historique d'audit).
 

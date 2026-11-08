@@ -54,7 +54,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.14.1',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.15.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -135,6 +135,14 @@ def password_hash(p,salt=None):
 def password_policy(value):
     require(len(value)>=12 and len(value)<=128 and any(c.islower() for c in value) and any(c.isupper() for c in value) and any(c.isdigit() for c in value) and any(not c.isalnum() for c in value), 'Mot de passe : 12 à 128 caractères, majuscule, minuscule, chiffre et symbole')
 
+# Connexion par code PIN (prénom + 6 chiffres) réservée au personnel d'entrepôt.
+PIN_ROLES={r.strip() for r in os.getenv('TAF_PIN_ROLES','worker,leader').split(',') if r.strip()}
+COMMON_PINS={'000000','111111','121212','123123','112233','123321','159753','147258','258369','696969','101010','131313','999999','202020','200000','100000'}
+def pin_policy(pin):
+    require(isinstance(pin,str) and re.fullmatch(r'[0-9]{6}',pin or ''),'Code PIN : exactement 6 chiffres')
+    digits=[int(d) for d in pin]
+    steps={digits[i+1]-digits[i] for i in range(5)}
+    require(len(set(pin))>1 and steps not in ({1},{-1}) and pin not in COMMON_PINS and pin[:3]!=pin[3:] and pin[:2]*3!=pin,'Code PIN trop simple (suites, répétitions, codes courants interdits)')
 def verify(p,encoded):
     try:
         salt,digest=encoded.split('$'); return hmac.compare_digest(password_hash(p,salt).split('$')[1],digest)
@@ -298,7 +306,7 @@ def init():
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
           'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
-          'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT')],
+          'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
@@ -341,7 +349,9 @@ init()
 class Login(BaseModel):username:str;password:str;otp:Optional[str]=None;recovery_code:Optional[str]=None
 class MFAConfirm(BaseModel):otp:str=Field(min_length=6,max_length=6)
 class Password(BaseModel):old:str;new:str=Field(min_length=12)
-class UserCreate(BaseModel):username:str;password:str=Field(min_length=12);role:str;warehouses:list[str]
+class UserCreate(BaseModel):username:str;password:Optional[str]=None;pin:Optional[str]=None;role:str;warehouses:list[str]
+class PinReset(BaseModel):pin:str
+class PinChange(BaseModel):old:str;new:str
 class ClientCreate(BaseModel):name:str
 class LocationPatch(BaseModel):capacity_kg:Optional[float]=None;capacity_m3:Optional[float]=None;verified:bool=False;blocked:bool=False;notes:str=''
 class PackageLine(BaseModel):
@@ -404,12 +414,12 @@ class RefusalReview(BaseModel):approve:bool;note:Annotated[str,StringConstraints
 class TransferDiscrepancyReview(BaseModel):accept_observed:bool;decision:Annotated[str,StringConstraints(strip_whitespace=True,min_length=5,max_length=2000)]
 class HoldLift(BaseModel):reason:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=1000)]
 
-MFA_EXEMPT_PATHS={'/api/me','/api/logout','/api/password','/api/mfa/setup','/api/mfa/confirm','/api/mfa/status'}
+MFA_EXEMPT_PATHS={'/api/me','/api/logout','/api/password','/api/pin','/api/mfa/setup','/api/mfa/confirm','/api/mfa/status'}
 def auth(request:Request,authorization:Optional[str]=Header(None)):
     require(authorization and authorization.startswith('Bearer '),'Connexion requise',401)
     digest=hashlib.sha256(authorization[7:].encode()).hexdigest()
     with db() as c:
-        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds,COALESCE(m.enabled,0) mfa_enabled FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN mfa m ON m.user_id=u.id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
+        u=one(c,'SELECT u.id,u.username,u.role,u.warehouses,u.active,u.can_lift_holds,u.auth_mode,COALESCE(m.enabled,0) mfa_enabled FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN mfa m ON m.user_id=u.id WHERE s.tokenhash=? AND s.expires>?',(digest,int(time.time())))
     require(u and u['active'],'Session expirée',401)
     u['warehouses']=json.loads(u['warehouses']);u['mfa_enabled']=bool(u['mfa_enabled']);u['mfa_required']=u['role'] in MFA_REQUIRED_ROLES
     if u['mfa_required'] and not u['mfa_enabled'] and request.url.path not in MFA_EXEMPT_PATHS:
@@ -540,6 +550,9 @@ def login(x:Login,request:Request):
             raise HTTPException(401,'Identifiants invalides')
         mfa_record=one(c,'SELECT enabled FROM mfa WHERE user_id=?',(u['id'],))
         mfa_valid=True
+        if mfa_record and mfa_record['enabled'] and not (x.otp or '').strip() and not (x.recovery_code or '').strip():
+            c.commit()  # mot de passe correct : on demande le code, sans compter d'échec
+            raise HTTPException(401,'Code de double authentification requis')
         if mfa_record and mfa_record['enabled']:
             mfa_valid=validate_otp(c,u['id'],x.otp)
             if not mfa_valid and x.recovery_code:
@@ -605,7 +618,7 @@ def change_password(x:Password,u=Depends(auth)):
 def users(include_deleted:bool=False,u=Depends(auth)):
     role(u,'admin')
     with db() as c:
-        rows=q(c,'SELECT id,username,role,warehouses,active,can_lift_holds,deleted_at,deleted_by FROM users'+('' if include_deleted else ' WHERE deleted_at IS NULL')+' ORDER BY username')
+        rows=q(c,'SELECT id,username,role,warehouses,active,can_lift_holds,deleted_at,deleted_by,auth_mode FROM users'+('' if include_deleted else ' WHERE deleted_at IS NULL')+' ORDER BY username')
     for r in rows:r['warehouses']=json.loads(r['warehouses'])
     return rows
 @app.put('/api/users/{userid}')
@@ -616,6 +629,7 @@ def update_user(userid:str,x:UserUpdate,u=Depends(auth)):
     with tx() as c:
         t=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404);require(not t['deleted_at'],'Compte supprimé',409)
         require(t['id']!=u['id'],'Un Super Admin ne peut pas modifier son propre rôle (demander à un autre Super Admin)')
+        require(t.get('auth_mode')!='pin' or x.role in PIN_ROLES,'Ce compte se connecte par code PIN : rôle réservé aux comptes à mot de passe (créer un compte dédié)')
         c.execute('UPDATE users SET role=?,warehouses=? WHERE id=?',(x.role,json.dumps(x.warehouses),userid))
         c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
         audit(c,u['username'],'user_update','user',userid,{'username':t['username'],'before':{'role':t['role'],'warehouses':json.loads(t['warehouses'])},'after':x.model_dump()})
@@ -634,14 +648,19 @@ def delete_user(userid:str,u=Depends(auth)):
 @app.post('/api/users')
 def create_user(x:UserCreate,u=Depends(auth)):
     role(u,'superadmin');require(x.role in ROLES,'Rôle invalide');require(x.warehouses and all(w in WAREHOUSES for w in x.warehouses),'Entrepôts invalides')
+    require((x.password is None)!=(x.pin is None),'Indiquer soit un mot de passe, soit un code PIN')
+    if x.pin is not None:
+        require(x.role in PIN_ROLES,'Code PIN réservé aux magasiniers et chefs d’équipe : utiliser un mot de passe pour ce rôle')
+        pin_policy(x.pin);secret,mode=x.pin,'pin'
+    else:
+        password_policy(x.password);secret,mode=x.password,'password'
     with tx() as c:
-        password_policy(x.password)
         name=x.username.strip().lower()
         require(2<=len(name)<=60 and ' ' not in name,'Identifiant invalide (2 à 60 caractères, sans espace)')
         require(not one(c,'SELECT id FROM users WHERE lower(username)=?',(name,)),'Identifiant déjà utilisé',409)
-        try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active) VALUES(?,?,?,?,?,1)',(uid('USR'),name,password_hash(x.password),x.role,json.dumps(x.warehouses)))
+        try:c.execute('INSERT INTO users(id,username,passhash,role,warehouses,active,auth_mode) VALUES(?,?,?,?,?,1,?)',(uid('USR'),name,password_hash(secret),x.role,json.dumps(x.warehouses),mode))
         except IntegrityErrors:raise HTTPException(409,'Identifiant déjà utilisé')
-        audit(c,u['username'],'create_user','user',x.username)
+        audit(c,u['username'],'create_user','user',name,{'role':x.role,'auth_mode':mode})
     return {'ok':True}
 @app.get('/api/clients')
 def clients(u=Depends(auth)):
@@ -1708,11 +1727,31 @@ def user_permissions(userid:str,x:UserPermissions,u=Depends(auth)):
         audit(c,u['username'],'user_permissions','user',userid,x.model_dump());c.commit()
     return {'ok':True}
 
+@app.post('/api/users/{userid}/reset-pin')
+def reset_user_pin(userid:str,x:PinReset,u=Depends(auth)):
+    role(u,'superadmin');pin_policy(x.pin)
+    with tx() as c:
+        t=one(c,'SELECT * FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404);require(not t['deleted_at'],'Compte supprimé',409)
+        require(t.get('auth_mode')=='pin','Ce compte se connecte par mot de passe')
+        c.execute('UPDATE users SET passhash=? WHERE id=?',(password_hash(x.pin),userid));c.execute('DELETE FROM sessions WHERE user_id=?',(userid,))
+        c.execute('DELETE FROM login_security WHERE username=?',(t['username'],))
+        audit(c,u['username'],'reset_pin','user',userid,{'username':t['username']})
+    return {'ok':True}
+@app.post('/api/pin')
+def change_own_pin(x:PinChange,u=Depends(auth)):
+    require(u.get('auth_mode')=='pin','Votre compte utilise un mot de passe')
+    with tx() as c:
+        row=one(c,'SELECT passhash FROM users WHERE id=?',(u['id'],));require(verify(x.old,row['passhash']),'Code PIN actuel incorrect',403)
+        pin_policy(x.new);require(x.new!=x.old,'Nouveau code identique')
+        c.execute('UPDATE users SET passhash=? WHERE id=?',(password_hash(x.new),u['id']));c.execute('DELETE FROM sessions WHERE user_id=?',(u['id'],))
+        audit(c,u['username'],'change_pin','user',u['id'])
+    return {'ok':True,'message':'Reconnectez-vous avec votre nouveau code'}
 @app.post('/api/users/{userid}/reset-password')
 def reset_user_password(userid:str,x:UserReset,u=Depends(auth)):
     role(u,'superadmin')
     with db() as c:
-        c.execute('BEGIN IMMEDIATE');require(one(c,'SELECT id FROM users WHERE id=?',(userid,)),'Utilisateur inconnu',404)
+        c.execute('BEGIN IMMEDIATE');t=one(c,'SELECT id,auth_mode FROM users WHERE id=?',(userid,));require(t,'Utilisateur inconnu',404)
+        require(t.get('auth_mode')!='pin','Compte à code PIN : utiliser la réinitialisation du code PIN')
         password_policy(x.password)
         c.execute('UPDATE users SET passhash=? WHERE id=?',(password_hash(x.password),userid));c.execute('DELETE FROM sessions WHERE user_id=?',(userid,));audit(c,u['username'],'reset_password','user',userid);c.commit()
     return {'ok':True}
