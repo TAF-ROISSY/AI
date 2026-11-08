@@ -3,7 +3,7 @@ import os, re, sqlite3, json, secrets, hashlib, hmac, time, uuid, io, csv, base6
 from collections import defaultdict, deque
 from pathlib import Path
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Depends, Request, Query
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.18.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.19.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -130,6 +130,7 @@ WAREHOUSES=['Afrique','Maritime','Moyen-Orient','TMS']
 ROLES=['superadmin','admin','exploitation','manager','leader','worker']
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
+def now_precise(): return datetime.now(timezone.utc).isoformat(timespec='microseconds')  # ordre des événements rapprochés
 def uid(prefix): return f'{prefix}-{uuid.uuid4().hex[:10].upper()}'
 def password_hash(p,salt=None):
     salt=salt or secrets.token_hex(16)
@@ -304,6 +305,7 @@ def init():
         CREATE TABLE IF NOT EXISTS release_refusals(id TEXT PRIMARY KEY,order_id TEXT NOT NULL,driver_id TEXT,reason TEXT NOT NULL,actor TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(order_id) REFERENCES release_orders(id));
         CREATE TABLE IF NOT EXISTS inventory_campaigns(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,scope TEXT NOT NULL,scope_value TEXT,title TEXT NOT NULL,assignee TEXT NOT NULL,status TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,closed_by TEXT,closed_at TEXT,close_note TEXT);
         CREATE TABLE IF NOT EXISTS campaign_items(campaign_id TEXT NOT NULL,unit_id TEXT NOT NULL,location_id TEXT,expected INTEGER NOT NULL,observed INTEGER,result TEXT,count_id TEXT,counted_by TEXT,counted_at TEXT,PRIMARY KEY(campaign_id,unit_id),FOREIGN KEY(campaign_id) REFERENCES inventory_campaigns(id));
+        CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
         """)
@@ -311,7 +313,7 @@ def init():
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
           'receipts':[('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
-          'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''")],
+          'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'drivers':[('id_type','TEXT'),('id_number','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
@@ -384,7 +386,14 @@ class DiscrepancyReview(BaseModel):approve:bool;decision:str=Field(min_length=5,
 class DriverCreate(BaseModel):name:str;company:str='';plate:str='';phone:str='';id_type:Optional[Literal['CNI','passeport','permis','titre_sejour','autre']]=None;id_number:str=Field(default='',max_length=40)
 class ReleaseCreate(BaseModel):unit_id:str;quantity:int=Field(gt=0)
 class ReleaseComplete(BaseModel):driver_id:str;signature_name:str=Field(min_length=2,max_length=150);signature_data:str=Field(min_length=100,max_length=450000);signature_consent:bool=False
-class MissionCreate(BaseModel):warehouse:str;title:str;leader:str=''
+MISSION_OPEN=('open','to_assign','assigned','in_progress','suspended')  # 'open' : missions créées avant la V4.19
+MISSION_TYPES=('reception','rangement','preparation','inventaire','transfert','controle','incident','autre')
+class MissionCreate(BaseModel):
+    warehouse:str;title:Annotated[str,StringConstraints(strip_whitespace=True,min_length=3,max_length=200)];leader:str=''
+    type:Literal['reception','rangement','preparation','inventaire','transfert','controle','incident','autre']='autre'
+    assignee:str='';priority:Literal['low','normal','high','urgent']='normal';due_at:Optional[str]=None;description:str=Field(default='',max_length=2000)
+class MissionAction(BaseModel):action:Literal['start','suspend','resume','complete','cancel'];note:str=Field(default='',max_length=1000)
+class MissionAssign(BaseModel):assignee:str
 class TaskCreate(BaseModel):title:str;assignee:str=''
 class IncidentCreate(BaseModel):warehouse:str;unit_id:Optional[str]=None;location_id:Optional[str]=None;category:str;severity:str;description:str
 class IncidentUpdate(BaseModel):status:str;resolution:str='';owner:str=''
@@ -1555,17 +1564,61 @@ def handover_pdf(rid:str,u=Depends(auth)):
 
 @app.get('/api/missions')
 def missions(u=Depends(auth)):
-    with db() as c:return q(c,'SELECT * FROM missions WHERE warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC',u['warehouses'])
+    t=now()
+    with db() as c:
+        rows=q(c,'SELECT * FROM missions WHERE warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY created DESC LIMIT 500',u['warehouses'])
+        for m in rows:
+            m['events']=q(c,'SELECT actor,action,note,created FROM mission_events WHERE mission_id=? ORDER BY created,id',(m['id'],))
+            m['late']=bool(m.get('due_at') and m['status'] in ('to_assign','assigned','in_progress','suspended','open') and m['due_at']<t[:16])
+    return rows
+def _mission_assignee(c,warehouse_,name):
+    if not name.strip():return None
+    a=one(c,'SELECT username,warehouses FROM users WHERE lower(username)=? AND active=1 AND deleted_at IS NULL',(name.strip().lower(),))
+    require(a and warehouse_ in json.loads(a['warehouses']),'Collaborateur inconnu ou non habilité pour cet entrepôt');return a['username']
 @app.post('/api/missions')
 def create_mission(x:MissionCreate,u=Depends(auth)):
-    access(u,x.warehouse);role(u,'exploitation','manager','admin')
+    role(u,'exploitation','manager','admin','leader');warehouse(x.warehouse);access(u,x.warehouse)
     with tx() as c:
-        i=uid('MIS');c.execute('INSERT INTO missions(id,warehouse,title,leader,status,created,closed) VALUES(?,?,?,?,?,?,?)',(i,x.warehouse,x.title,x.leader,'open',now(),None));audit(c,u['username'],'create','mission',i)
+        who=_mission_assignee(c,x.warehouse,x.assignee)
+        i=uid('MIS');c.execute('INSERT INTO missions(id,warehouse,title,leader,status,created,closed,type,assignee,priority,due_at,description,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                               (i,x.warehouse,x.title,x.leader,'assigned' if who else 'to_assign',now(),None,x.type,who,x.priority,x.due_at,x.description,u['username']))
+        audit(c,u['username'],'create','mission',i,{'type':x.type,'assignee':who,'priority':x.priority,'due_at':x.due_at})
+        notify(c,x.warehouse,'mission',i,'Nouvelle mission'+(f' pour {who}' if who else ' à affecter'),x.title,u['username'])
     return {'id':i}
+MISSION_FLOW={'start':({'assigned'},'in_progress'),'suspend':({'in_progress'},'suspended'),'resume':({'suspended'},'in_progress'),
+              'complete':({'in_progress'},'done'),'cancel':({'to_assign','assigned','in_progress','suspended','open'},'cancelled')}
+@app.post('/api/missions/{mid}/status')
+def mission_status(mid:str,x:MissionAction,u=Depends(auth)):
+    with tx() as c:
+        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse'])
+        allowed,target=MISSION_FLOW[x.action]
+        require(m['status'] in allowed,'Action impossible dans l’état actuel de la mission',409)
+        office=u['role'] in ('superadmin','admin','manager','exploitation')
+        if x.action=='cancel':require(office,'Annulation réservée à l’exploitation et aux responsables',403)
+        else:require(m['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Mission affectée à un autre collaborateur',403)
+        if x.action in ('suspend','cancel','complete'):require(len(x.note.strip())>=3,'Motif ou compte rendu obligatoire')
+        sets={'start':'started_at=COALESCE(started_at,?)','complete':'completed_at=?,completed_by=?','cancel':'closed=?'}.get(x.action)
+        vals={'start':(now(),),'complete':(now(),u['username']),'cancel':(now(),)}.get(x.action,())
+        c.execute(f"UPDATE missions SET status=?{','+sets if sets else ''} WHERE id=?",(target,*vals,mid))
+        c.execute('INSERT INTO mission_events(id,mission_id,actor,action,note,created) VALUES(?,?,?,?,?,?)',(uid('MEV'),mid,u['username'],x.action,x.note.strip(),now_precise()))
+        audit(c,u['username'],'mission_'+x.action,'mission',mid,{'note':x.note})
+        if x.action in ('suspend','complete','cancel'):notify(c,m['warehouse'],'mission',mid,{'suspend':'Mission suspendue','complete':'Mission terminée','cancel':'Mission annulée'}[x.action],f"{m['title']} : {x.note}"[:300],u['username'])
+    return {'ok':True,'status':target}
+@app.post('/api/missions/{mid}/assign')
+def mission_assign(mid:str,x:MissionAssign,u=Depends(auth)):
+    role(u,'exploitation','manager','admin','leader')
+    with tx() as c:
+        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse'])
+        require(m['status'] in ('to_assign','assigned','suspended'),'Mission terminée ou annulée',409)
+        who=_mission_assignee(c,m['warehouse'],x.assignee);require(who,'Collaborateur obligatoire')
+        c.execute("UPDATE missions SET assignee=?,status=CASE WHEN status='to_assign' THEN 'assigned' ELSE status END WHERE id=?",(who,mid))
+        c.execute('INSERT INTO mission_events(id,mission_id,actor,action,note,created) VALUES(?,?,?,?,?,?)',(uid('MEV'),mid,u['username'],'assign',who,now_precise()))
+        audit(c,u['username'],'mission_assign','mission',mid,{'assignee':who});notify(c,m['warehouse'],'mission',mid,f'Mission affectée à {who}',m['title'],u['username'])
+    return {'ok':True}
 @app.post('/api/missions/{mid}/tasks')
 def add_task(mid:str,x:TaskCreate,u=Depends(auth)):
     with tx() as c:
-        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status']=='open','Mission clôturée')
+        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status'] in MISSION_OPEN,'Mission clôturée')
         i=uid('TSK');c.execute('INSERT INTO tasks(id,mission_id,title,assignee,status) VALUES(?,?,?,?,?)',(i,mid,x.title,x.assignee,'open'));audit(c,u['username'],'create','task',i)
     return {'id':i}
 @app.get('/api/tasks')
@@ -1574,7 +1627,7 @@ def tasks(u=Depends(auth)):
 @app.post('/api/tasks/{tid}/done')
 def task_done(tid:str,u=Depends(auth)):
     with tx() as c:
-        t=one(c,'SELECT t.*,m.warehouse,m.status mission_status FROM tasks t JOIN missions m ON m.id=t.mission_id WHERE t.id=?',(tid,));require(t,'Tâche inconnue',404);access(u,t['warehouse']);require(t['mission_status']=='open','Mission clôturée')
+        t=one(c,'SELECT t.*,m.warehouse,m.status mission_status FROM tasks t JOIN missions m ON m.id=t.mission_id WHERE t.id=?',(tid,));require(t,'Tâche inconnue',404);access(u,t['warehouse']);require(t['mission_status'] in MISSION_OPEN,'Mission clôturée')
         require(not t['assignee'] or t['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Tâche attribuée à un autre utilisateur',403)
         c.execute("UPDATE tasks SET status='done',completed_at=?,completed_by=? WHERE id=?",(now(),u['username'],tid));audit(c,u['username'],'done','task',tid)
     return {'ok':True}
@@ -1582,7 +1635,7 @@ def task_done(tid:str,u=Depends(auth)):
 def close_mission(mid:str,u=Depends(auth)):
     role(u,'leader','exploitation','manager','admin')
     with db() as c:
-        c.execute('BEGIN IMMEDIATE');m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status']=='open','Mission déjà clôturée')
+        c.execute('BEGIN IMMEDIATE');m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status'] in MISSION_OPEN,'Mission déjà clôturée')
         require(not one(c,"SELECT id FROM tasks WHERE mission_id=? AND status!='done'",(mid,)),'Tâches non terminées')
         c.execute("UPDATE missions SET status='closed',closed=? WHERE id=?",(now(),mid));audit(c,u['username'],'close','mission',mid);c.commit()
     return {'ok':True}
@@ -1790,6 +1843,48 @@ def mark_notification(nid:str,u=Depends(auth)):
         c.commit()
     return {'ok':True}
 
+@app.get('/api/dashboard/ops')
+def dashboard_ops(warehouse:Optional[str]=None,u=Depends(auth)):
+    """Indicateurs réels et situations à traiter, filtrés par entrepôt habilité."""
+    whs=u['warehouses']
+    if warehouse:access(u,warehouse);whs=[warehouse]
+    m=','.join('?' for _ in whs);w=tuple(whs);t=now();day=t[:10]
+    ago=lambda h:(datetime.now(timezone.utc)-timedelta(hours=h)).isoformat(timespec='seconds')
+    with db() as c:
+        n=lambda sql,args=():c.execute(sql,w+tuple(args)).fetchone()[0]
+        present=one(c,f"SELECT COUNT(*) n,COALESCE(SUM(quantity),0) colis,COALESCE(SUM(weight),0) kg FROM units WHERE warehouse IN ({m}) AND status IN ('available','awaiting_putaway')",w)
+        used=n(f"SELECT COUNT(DISTINCT location_id) FROM units WHERE warehouse IN ({m}) AND status='available' AND location_id IS NOT NULL")
+        locs=n(f"SELECT COUNT(*) FROM locations WHERE warehouse IN ({m})")
+        open_m=('to_assign','assigned','in_progress','suspended','open')
+        kpis={'receipts_today':n(f"SELECT COUNT(*) FROM receipts WHERE warehouse IN ({m}) AND created>=?",(day,)),
+              'units_present':present['n'],'packages_present':present['colis'],'weight_kg':round(present['kg'],1),
+              'awaiting_putaway':n(f"SELECT COUNT(*) FROM units WHERE warehouse IN ({m}) AND status='awaiting_putaway'"),
+              'held_units':n(f"SELECT COUNT(*) FROM units WHERE warehouse IN ({m}) AND hold!='' AND status NOT IN ('exited','depleted')"),
+              'locations_used':used,'locations_total':locs,'occupancy_pct':round(100*used/locs,1) if locs else 0,
+              'orders_to_prepare':n(f"SELECT COUNT(*) FROM release_orders WHERE warehouse IN ({m}) AND status='requested'"),
+              'orders_to_authorize':n(f"SELECT COUNT(*) FROM release_orders WHERE warehouse IN ({m}) AND status='prepared'"),
+              'orders_to_hand_over':n(f"SELECT COUNT(*) FROM release_orders WHERE warehouse IN ({m}) AND status IN ('authorized','partial')"),
+              'transfers_in_transit':c.execute(f"SELECT COUNT(*) FROM transfers WHERE status IN ('in_transit','discrepancy','refusal_pending','refused') AND (source IN ({m}) OR destination IN ({m}))",w+w).fetchone()[0],
+              'campaigns_open':n(f"SELECT COUNT(*) FROM inventory_campaigns WHERE warehouse IN ({m}) AND status='open'"),
+              'discrepancies_open':n(f"SELECT COUNT(*) FROM receipt_discrepancies WHERE warehouse IN ({m}) AND status='open'")+n(f"SELECT COUNT(*) FROM counts WHERE warehouse IN ({m}) AND status='pending'"),
+              'incidents_open':n(f"SELECT COUNT(*) FROM incidents WHERE warehouse IN ({m}) AND status NOT IN ('resolved','closed')"),
+              'claims_open':n(f"SELECT COUNT(*) FROM claims WHERE warehouse IN ({m}) AND status!='closed'"),
+              'missions_open':n(f"SELECT COUNT(*) FROM missions WHERE warehouse IN ({m}) AND status IN ({','.join('?'*len(open_m))})",open_m),
+              'missions_late':n(f"SELECT COUNT(*) FROM missions WHERE warehouse IN ({m}) AND status IN ({','.join('?'*len(open_m))}) AND due_at IS NOT NULL AND due_at<?",open_m+(t[:16],))}
+        alerts=[]
+        def alert(code,level,title,rows):
+            if rows:alerts.append({'code':code,'level':level,'title':title,'count':len(rows),'refs':[r['ref'] for r in rows][:50]})
+        alert('putaway_late','warning','Marchandise à ranger depuis plus de 24 h',q(c,f"SELECT DISTINCT u.id ref FROM units u JOIN movements mv ON mv.unit_id=u.id AND mv.kind IN ('receive','transfer_receive') WHERE u.warehouse IN ({m}) AND u.status='awaiting_putaway' AND mv.at<?",w+(ago(24),)))
+        alert('orders_waiting','warning','Ordres de sortie en attente depuis plus de 48 h',q(c,f"SELECT id ref FROM release_orders WHERE warehouse IN ({m}) AND status IN ('requested','prepared','authorized','partial') AND created<?",w+(ago(48),)))
+        alert('transfer_late','danger','Transferts en transit depuis plus de 72 h',q(c,f"SELECT id ref FROM transfers WHERE status='in_transit' AND dispatched_at<? AND (source IN ({m}) OR destination IN ({m}))",(ago(72),)+w+w))
+        alert('incident_no_owner','danger','Incidents ouverts sans responsable',q(c,f"SELECT id ref FROM incidents WHERE warehouse IN ({m}) AND status NOT IN ('resolved','closed') AND COALESCE(owner,'')=''",w))
+        alert('discrepancy_open','warning','Écarts non résolus',q(c,f"SELECT id ref FROM receipt_discrepancies WHERE warehouse IN ({m}) AND status='open' UNION SELECT id ref FROM counts WHERE warehouse IN ({m}) AND status='pending'",w+w))
+        alert('missions_late','danger','Missions en retard',q(c,f"SELECT id ref FROM missions WHERE warehouse IN ({m}) AND status IN ({','.join('?'*len(open_m))}) AND due_at IS NOT NULL AND due_at<?",w+open_m+(t[:16],)))
+        alert('missions_unassigned','info','Missions à affecter',q(c,f"SELECT id ref FROM missions WHERE warehouse IN ({m}) AND status='to_assign'",w))
+        workload=q(c,f"SELECT assignee,COUNT(*) open,SUM(CASE WHEN due_at IS NOT NULL AND due_at<? THEN 1 ELSE 0 END) late,SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) in_progress FROM missions WHERE warehouse IN ({m}) AND assignee IS NOT NULL AND status IN ({','.join('?'*len(open_m))}) GROUP BY assignee ORDER BY open DESC",(t[:16],)+w+open_m)
+        activity=q(c,f"SELECT mv.actor,COUNT(*) movements,SUM(CASE WHEN mv.kind='receive' THEN 1 ELSE 0 END) receptions,SUM(CASE WHEN mv.kind='exit' THEN 1 ELSE 0 END) sorties FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.at>=? GROUP BY mv.actor ORDER BY movements DESC",w+(day,))
+    return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity}
+
 @app.get('/api/dashboard')
 def dashboard(u=Depends(auth)):
     with db() as c:
@@ -1823,7 +1918,7 @@ def set_rack_rule(lid:str,x:RackRule,u=Depends(auth)):
 def plan_mission(mid:str,x:MissionPlan,u=Depends(auth)):
     role(u,'leader','manager','exploitation','admin');require(x.priority in ('low','normal','high','urgent'),'Priorité invalide')
     with tx() as c:
-        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status']=='open','Mission clôturée')
+        m=one(c,'SELECT * FROM missions WHERE id=?',(mid,));require(m,'Mission inconnue',404);access(u,m['warehouse']);require(m['status'] in MISSION_OPEN,'Mission clôturée')
         c.execute('UPDATE missions SET priority=?,due_at=?,description=? WHERE id=?',(x.priority,x.due_at,x.description,mid));audit(c,u['username'],'plan','mission',mid,x.model_dump())
     return {'ok':True}
 
@@ -1831,7 +1926,7 @@ def plan_mission(mid:str,x:MissionPlan,u=Depends(auth)):
 def plan_task(tid:str,x:TaskPlan,u=Depends(auth)):
     role(u,'leader','manager','exploitation','admin');require(x.priority in ('low','normal','high','urgent'),'Priorité invalide')
     with tx() as c:
-        t=one(c,'SELECT t.*,m.warehouse,m.status mission_status FROM tasks t JOIN missions m ON m.id=t.mission_id WHERE t.id=?',(tid,));require(t,'Tâche inconnue',404);access(u,t['warehouse']);require(t['mission_status']=='open' and t['status']!='done','Tâche non modifiable')
+        t=one(c,'SELECT t.*,m.warehouse,m.status mission_status FROM tasks t JOIN missions m ON m.id=t.mission_id WHERE t.id=?',(tid,));require(t,'Tâche inconnue',404);access(u,t['warehouse']);require(t['mission_status'] in MISSION_OPEN and t['status']!='done','Tâche non modifiable')
         if x.assignee:
             user=one(c,'SELECT * FROM users WHERE username=? AND active=1',(x.assignee,));require(user and t['warehouse'] in json.loads(user['warehouses']),'Collaborateur non habilité pour cet entrepôt')
         c.execute('UPDATE tasks SET assignee=?,priority=?,due_at=?,notes=? WHERE id=?',(x.assignee,x.priority,x.due_at,x.notes,tid));audit(c,u['username'],'plan','task',tid,x.model_dump())
@@ -1841,7 +1936,7 @@ def plan_task(tid:str,x:TaskPlan,u=Depends(auth)):
 def start_task(tid:str,x:TaskAction,u=Depends(auth)):
     with db() as c:
         c.execute('BEGIN IMMEDIATE');t=one(c,'SELECT t.*,m.warehouse,m.status mission_status FROM tasks t JOIN missions m ON m.id=t.mission_id WHERE t.id=?',(tid,));require(t,'Tâche inconnue',404);access(u,t['warehouse'])
-        require(t['mission_status']=='open' and t['status']=='open','Tâche non démarrable')
+        require(t['mission_status'] in MISSION_OPEN and t['status']=='open','Tâche non démarrable')
         require(not t['assignee'] or t['assignee']==u['username'] or u['role'] in ('superadmin','admin','manager','leader'),'Tâche attribuée à un autre utilisateur',403)
         c.execute("UPDATE tasks SET status='in_progress',started_at=? WHERE id=?",(now(),tid));c.execute('INSERT INTO task_events VALUES(?,?,?,?,?,?)',(uid('EVT'),tid,u['username'],'start',x.note,now()));audit(c,u['username'],'start','task',tid);c.commit()
     return {'ok':True}

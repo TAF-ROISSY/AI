@@ -1,4 +1,8 @@
-# TAF WAREHOUSE — TEST V4.18
+# TAF WAREHOUSE — TEST V4.19
+
+> **V4.19 (missions et tableau de bord)** :
+> - **Missions :** 8 types, affectation à un collaborateur habilité, priorité, échéance et consignes. Cycle à affecter → affectée → en cours → suspendue → terminée, ou annulée. Motif obligatoire pour suspendre, terminer ou annuler. Historique des événements, retards signalés, réaffectation.
+> - **Tableau de bord opérationnel** (`/api/dashboard/ops`, filtrable par entrepôt) : 17 indicateurs réels, une liste « À traiter » (marchandise à ranger depuis plus de 24 h, sorties en attente depuis plus de 48 h, transferts en transit depuis plus de 72 h, incidents sans responsable, écarts, missions en retard ou à affecter), la charge par collaborateur et l'activité du jour.
 
 > **V4.18 (campagnes d'inventaire)** :
 > - **Création :** le responsable crée une campagne par emplacement, par rack ou sur l'entrepôt entier, et l'affecte à un collaborateur habilité. Le périmètre est figé à la création, et une unité ne peut appartenir qu'à une seule campagne ouverte.
