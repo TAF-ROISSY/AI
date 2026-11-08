@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.25 (recette)
+# TAF WAREHOUSE — V4.26 (recette)
+
+> **V4.26 :** l’e-mail de la fiche validée contient un lien vers le dossier et un lien par document (connexion requise ; `TAF_PUBLIC_URL`).
 
 > **V4.25 :** fiche d’entrée « en attente de complément » tant que dimensions, document de transport et LTA manquent ; dossier de l’entrée modifiable (chaque changement avant → après dans l’historique) ; historique inaltérable (déclencheurs en base : ni modification ni suppression) ; validation définitive → e-mail au service et impression automatique du récapitulatif à agrafer ; étiquettes de traçabilité depuis le dossier ; réouverture motivée par l’exploitation. Impression sans boîte de dialogue : poste Chrome lancé avec `--kiosk-printing`.
 

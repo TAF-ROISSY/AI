@@ -119,3 +119,15 @@ def test_other_warehouse_cannot_edit(env):
     assert c.put(f'/api/receipts/{rid}', headers=h['mag_mar'], json={'notes': 'x'}).status_code == 403
     assert c.get(f'/api/receipts/{rid}/dossier', headers=h['mag_mar']).status_code == 403
     assert c.post(f'/api/documents/receipt/{rid}', headers=h['mag'], params={'category': 'pirate'}, files={'file': ('a.pdf', b'%PDF-1', 'application/pdf')}).status_code == 400
+
+
+def test_mail_contains_links_to_documents(env):
+    c, h, server = env['c'], env['h'], env['server']
+    server.MAIL_BACKEND = 'memory'; server.MAIL_DELAY = 0; server.MAIL_SENT.clear(); server.PUBLIC_URL = 'https://warehouse.example'
+    c.put('/api/mail-routes/Afrique', headers=h['admin'], json={'recipients': ['christophe@taftrans.fr']})
+    rid, _ = entry(env, dims=True, awb='057-9')
+    did = transport_doc(env, rid).json()['id']
+    c.post(f'/api/receipts/{rid}/validate', headers=h['mag']); server.process_mail_outbox()
+    text = server.MAIL_SENT[-1]['text']
+    assert f'https://warehouse.example/#entree={rid}' in text and f'#entree={rid}&doc={did}' in text and 'lta.pdf (document de transport)' in text
+    assert 'connexion TAF WAREHOUSE requise' in text

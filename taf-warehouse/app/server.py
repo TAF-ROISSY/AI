@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.25.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.26.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -1522,6 +1522,7 @@ def purge_identities_now(u=Depends(auth)):
 # --- Lot 14 : fiche de réception et envoi par e-mail -------------------------------------------------
 MAIL_BACKEND=os.getenv('TAF_MAIL_BACKEND','off')      # off | ses | memory (tests)
 MAIL_FROM=os.getenv('TAF_MAIL_FROM','')
+PUBLIC_URL=os.getenv('TAF_PUBLIC_URL','').rstrip('/')  # adresse de l'application, pour les liens des e-mails
 MAIL_DELAY=int(os.getenv('TAF_MAIL_DELAY_SECONDS','180'))  # laisse le temps d'ajouter les photos
 MAIL_MAX_ATTEMPTS=5
 MAIL_SENT=[]
@@ -1595,8 +1596,18 @@ def compose_receipt_mail(c,rid):
            f"Réceptionné par : {who or '—'}"]
     if problems:body=lines+['','PROBLÈMES CONSTATÉS :']+['- '+p for p in problems]+['','La marchandise concernée reste bloquée jusqu’à sa levée par une personne habilitée.']
     else:body=lines+['','Réception conforme : quantités, poids, état apparent et sûreté sans réserve.']
-    text='Bonjour,\n\n'+'\n'.join(body)+'\n\nLa fiche de réception complète (PDF) est jointe à ce message.\n\nTAF WAREHOUSE — message automatique, merci de ne pas répondre.\n'
+    from urllib.parse import quote
+    docs=q(c,"SELECT id,name,category FROM documents WHERE kind='receipt' AND ref=? ORDER BY uploaded",(rid,))
+    cat={'transport':'document de transport','photo':'photo'}
+    dossier=f"{PUBLIC_URL}/#entree={quote(rid)}" if PUBLIC_URL else ''
+    links=[(f"{d['name']} ({cat.get(d['category'],'document')})",f"{dossier}&doc={quote(d['id'])}" if dossier else '') for d in docs]
+    doc_txt=(['','Documents de l’expédition (connexion TAF WAREHOUSE requise) :']+([f'- Dossier complet : {dossier}'] if dossier else [])+[f'- {n} : {u}' if u else f'- {n}' for n,u in links]) if (docs or dossier) else []
+    text='Bonjour,\n\n'+'\n'.join(body+doc_txt)+'\n\nLa fiche de réception complète (PDF) est jointe à ce message.\n\nTAF WAREHOUSE — message automatique, merci de ne pas répondre.\n'
     from html import escape as h
+    doc_html=(f'<p style="margin:14px 0 6px;font-weight:bold">Documents de l’expédition</p>'
+              +(f'<p style="margin:0 0 8px"><a href="{h(dossier)}" style="display:inline-block;background:#1F6FA8;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Ouvrir le dossier {h(rid)}</a></p>' if dossier else '')
+              +'<ul style="margin:0">'+''.join(f'<li>{f"<a href={chr(34)}{h(u)}{chr(34)}>{h(n)}</a>" if u else h(n)}</li>' for n,u in links)+'</ul>'
+              +'<p style="color:#5B6B7A;font-size:12px;margin:6px 0 0">Liens sécurisés : connexion TAF WAREHOUSE requise.</p>') if (docs or dossier) else ''
     color='#B42318' if problems else '#1E7A46'
     items=''.join(f'<li>{h(p)}</li>' for p in problems)
     html=(f'<div style="font-family:Arial,Helvetica,sans-serif;color:#1B2733;max-width:640px">'
@@ -1604,7 +1615,7 @@ def compose_receipt_mail(c,rid):
           f'<div style="background:{color};color:#fff;padding:9px 18px;font-weight:bold">{h(title.upper())}</div><div style="padding:14px 18px;line-height:1.55">'
           +'<br>'.join(h(x) for x in lines)
           +(f'<p style="color:#B42318;font-weight:bold;margin:14px 0 4px">Problèmes constatés</p><ul style="margin:0">{items}</ul><p>La marchandise concernée reste bloquée jusqu’à sa levée par une personne habilitée.</p>' if problems else '<p>Réception conforme : quantités, poids, état apparent et sûreté sans réserve.</p>')
-          +'<p>La fiche de réception complète (PDF) est jointe à ce message.</p></div>'
+          +doc_html+'<p>La fiche de réception complète (PDF) est jointe à ce message.</p></div>'
           '<div style="color:#5B6B7A;font-size:11px;padding:0 18px 14px">TAF WAREHOUSE — message automatique, merci de ne pas répondre.</div></div>')
     return subject,text,html,[(f"fiche-reception-{rec['id']}.pdf",pdf,'application/pdf')]
 def send_mail(to,subject,text,html,attachments):
