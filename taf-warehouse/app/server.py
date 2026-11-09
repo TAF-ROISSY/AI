@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.31.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.32.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -336,7 +336,7 @@ def init():
         """)
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
-          'receipts':[('driver_id','TEXT'),('pallets_expected','INTEGER'),('drums_expected','INTEGER'),('accepted','INTEGER NOT NULL DEFAULT 1'),('refusal_reason',"TEXT NOT NULL DEFAULT ''"),('shipper_address',"TEXT NOT NULL DEFAULT ''"),('consignee',"TEXT NOT NULL DEFAULT ''"),('consignee_address',"TEXT NOT NULL DEFAULT ''"),('stage',"TEXT NOT NULL DEFAULT 'pending'"),('validated_by','TEXT'),('validated_at','TEXT'),('revision','INTEGER NOT NULL DEFAULT 0'),('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
+          'receipts':[('cancel_reason','TEXT'),('cancelled_by','TEXT'),('cancelled_at','TEXT'),('driver_id','TEXT'),('pallets_expected','INTEGER'),('drums_expected','INTEGER'),('accepted','INTEGER NOT NULL DEFAULT 1'),('refusal_reason',"TEXT NOT NULL DEFAULT ''"),('shipper_address',"TEXT NOT NULL DEFAULT ''"),('consignee',"TEXT NOT NULL DEFAULT ''"),('consignee_address',"TEXT NOT NULL DEFAULT ''"),('stage',"TEXT NOT NULL DEFAULT 'pending'"),('validated_by','TEXT'),('validated_at','TEXT'),('revision','INTEGER NOT NULL DEFAULT 0'),('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT'),('receipt_id','TEXT'),('unit_ids','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
@@ -779,7 +779,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
         replay,digest=replay_request(c,u['id'],'receipt.create',idempotency_key,x.model_dump())
         if replay is not None:return replay
         dgac=(x.driver_id,x.pallets_expected,x.drums_expected,x.shipper_address.strip(),x.consignee.strip(),x.consignee_address.strip())
-        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');require(not x.driver_id or one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Remettant (chauffeur) inconnu');i=f"E-{next_seq(c,'receipt'):06d}"
+        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');require(x.driver_id,'Sélectionnez ou créez la fiche du chauffeur (remettant) avant de valider l’entrée',400);require(one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Remettant (chauffeur) inconnu');i=f"E-{next_seq(c,'receipt'):06d}"
         c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes,shipper,carrier,transport_ref,folder_ref,nature,apparent_condition,security_status,volume_m3,volumetric_weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   (i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes,x.shipper,x.carrier,x.transport_ref,x.folder_ref,x.nature,x.apparent_condition,x.security_status,round(volume,4) if x.packages else None,round(volume*VOLUMETRIC_KG_PER_M3,2) if x.packages else None))
         c.execute('UPDATE receipts SET driver_id=?,pallets_expected=?,drums_expected=?,shipper_address=?,consignee=?,consignee_address=? WHERE id=?',(*dgac,i))
@@ -802,7 +802,8 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
     return response
 @app.get('/api/units')
 def units(u=Depends(auth)):
-    with db() as c:return q(c,'SELECT u.*,r.awb,c.name client FROM units u LEFT JOIN receipts r ON r.id=u.receipt_id LEFT JOIN clients c ON c.id=r.client_id WHERE u.warehouse IN ('+','.join('?' for _ in u['warehouses'])+') ORDER BY u.id DESC',u['warehouses'])
+    marks=','.join('?' for _ in u['warehouses'])
+    with db() as c:return q(c,f"SELECT u.*,r.awb,c.name client FROM units u LEFT JOIN receipts r ON r.id=u.receipt_id LEFT JOIN clients c ON c.id=r.client_id WHERE u.status!='cancelled' AND u.warehouse IN ({marks}) ORDER BY u.id DESC",u['warehouses'])
 @app.post('/api/units')
 def create_unit(x:UnitCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     require(x.unit_type=='palette' or x.quantity==1,'Une unité de type colis correspond à un seul colis')
@@ -957,7 +958,7 @@ def unit_events(c,unit):
         def add(at,kind,title,actor=None,detail='',ref=None):
             if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail,'ref':ref})
         rc=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(unit['receipt_id'],)) if unit['receipt_id'] else None
-        labels={'move':('move','Rangement / déplacement'),'transfer_depart':('transfer_out','Départ en transfert'),'transfer_receive':('transfer_in','Arrivée de transfert'),
+        labels={'cancel':('exit','Annulation de la fiche d’entrée'),'move':('move','Rangement / déplacement'),'transfer_depart':('transfer_out','Départ en transfert'),'transfer_receive':('transfer_in','Arrivée de transfert'),
                 'inventory_adjustment':('inventory','Correction d’inventaire'),'transfer_adjustment':('inventory','Ajustement après écart de transfert'),'refusal_return':('transfer_out','Retour après refus')}
         for mv in q(c,'SELECT * FROM movements WHERE unit_id=? ORDER BY at,id',(unit_id,)):
             if mv['kind']=='receive':
@@ -2001,7 +2002,7 @@ def receipt_history(c,rid):
     ev=[]
     def add(at,kind,title,actor=None,detail='',ref=None):
         if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail or '','ref':ref})
-    labels={'print_cover':'Récapitulatif à agrafer imprimé','edit':'Fiche modifiée','validate':'Validation définitive de la fiche','reopen':'Fiche rouverte pour modification','add_document':'Document ajouté','unit_dimensions':'Dimensions saisies','receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
+    labels={'cancel':'Fiche annulée (erreur)','print_cover':'Récapitulatif à agrafer imprimé','edit':'Fiche modifiée','validate':'Validation définitive de la fiche','reopen':'Fiche rouverte pour modification','add_document':'Document ajouté','unit_dimensions':'Dimensions saisies','receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
     for a in q(c,"SELECT * FROM audit WHERE kind='receipt' AND ref=? ORDER BY at,id",(rid,)):
         d=json.loads(a['details'] or '{}') if a.get('details') else {}
         detail={'receive':lambda: f"{d.get('units',0)} unité(s)"+(' · '+' ; '.join(d.get('warnings',[])) if d.get('warnings') else ''),
@@ -2009,6 +2010,7 @@ def receipt_history(c,rid):
                 'unit_dimensions':lambda: f"{d.get('unit')} : "+' ; '.join(f"{DIM_LABELS.get(k,k)} {_num(v[0])} → {_num(v[1])} {'kg' if k=='weight' else 'cm'}" for k,v in d.get('changes',{}).items()),
                 'validate':lambda: f"révision {d.get('revision')}"+(' · e-mail au service' if d.get('mail') else ''),
                 'reopen':lambda: d.get('reason',''),
+                'cancel':lambda: d.get('reason','')+(f" · {d.get('units')} unité(s) retirée(s) du stock" if d.get('units') else ''),
                 'add_document':lambda: f"{d.get('name','')} ({ {'transport':'document de transport','photo':'photo'}.get(d.get('category'),'autre') })",
                 'mail_sent':lambda: ', '.join(d.get('to',[])),'request_mission':lambda: f"{d.get('mission')} · {d.get('units')} unité(s)"}.get(a['action'],lambda:'')()
         add(a['at'],'receipt',labels.get(a['action'],a['action']),a['actor'],detail,rid)
@@ -2033,6 +2035,7 @@ def dims_ok(x):
 def receipt_missing(c,rid):
     """Ce qui manque pour la validation définitive."""
     r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));out=[]
+    if r.get('stage')=='cancelled':return []
     units=q(c,"SELECT * FROM units WHERE receipt_id=? ORDER BY unit_index,id",(rid,))
     if not units:out.append('Aucune unité enregistrée')
     nodim=[u for u in units if not dims_ok(u)]
@@ -2064,6 +2067,7 @@ class ReceiptEdit(BaseModel):
     shipper_address:Optional[str]=Field(default=None,max_length=200);consignee:Optional[str]=Field(default=None,max_length=200);consignee_address:Optional[str]=Field(default=None,max_length=200)
 def _editable(c,u,rid):
     r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+    require(r['stage']!='cancelled','Fiche annulée : aucune modification possible',409)
     require(r['stage']!='validated','Fiche validée : la rouvrir (exploitation) pour la modifier',409);return r
 @app.put('/api/receipts/{rid}')
 def edit_receipt(rid:str,x:ReceiptEdit,u=Depends(auth)):
@@ -2100,6 +2104,39 @@ def unit_dimensions(unit_id:str,x:UnitDims,u=Depends(auth)):
         c.execute('UPDATE receipts SET volume_m3=?,volumetric_weight=? WHERE id=?',(round(tot,4),round(tot*VOLUMETRIC_KG_PER_M3,2),unit['receipt_id']))
         audit(c,u['username'],'unit_dimensions','receipt',unit['receipt_id'],{'unit':unit_id,'changes':changes})
     return {'ok':True,'volume_m3':vol}
+class ReceiptCancel(BaseModel):reason:str=Field(min_length=5,max_length=500)
+@app.post('/api/receipts/{rid}/cancel')
+def cancel_receipt(rid:str,x:ReceiptCancel,u=Depends(auth)):
+    """Annule une fiche d'entrée créée par erreur. Rien n'est effacé : le numéro n'est pas réutilisé et
+    l'historique reste consultable. Refusé si la marchandise a déjà été sortie, transférée ou inventoriée."""
+    with tx() as c:
+        r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
+        require(r['stage']!='cancelled','Fiche déjà annulée',409)
+        require(r['stage']!='validated','Fiche validée : l’exploitation doit d’abord la rouvrir',409)
+        creator=(one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,)) or {}).get('actor')
+        require(u['role'] in ('superadmin','admin','manager','exploitation') or u['username']==creator,'Annulation réservée à l’auteur de la fiche et à l’exploitation',403)
+        units=q(c,'SELECT * FROM units WHERE receipt_id=?',(rid,))
+        ids=[x_['id'] for x_ in units]
+        if ids:
+            m=','.join('?' for _ in ids)
+            moved=q(c,f"SELECT DISTINCT unit_id,kind FROM movements WHERE unit_id IN ({m}) AND kind NOT IN ('receive','move')",ids)
+            require(not moved,'Annulation impossible : marchandise déjà sortie, transférée ou corrigée ('+', '.join(sorted({x_['kind'] for x_ in moved}))+')',409)
+            require(not one(c,f"SELECT id FROM releases WHERE unit_id IN ({m}) AND status IN ('requested','authorized','completed')",ids),'Annulation impossible : une sortie est en cours ou réalisée',409)
+            require(not one(c,f"SELECT id FROM transfers WHERE unit_id IN ({m}) AND status NOT IN ('cancelled','refused')",ids),'Annulation impossible : un transfert concerne cette marchandise',409)
+            require(not one(c,f"SELECT id FROM counts WHERE unit_id IN ({m})",ids),'Annulation impossible : la marchandise a été inventoriée',409)
+        t=now()
+        for un in units:
+            event(c,u['username'],un['id'],'cancel',un['location_id'],None,un['quantity'],rid)
+            c.execute("UPDATE unit_holds SET lifted_at=?,lifted_by=?,lift_reason=? WHERE unit_id=? AND lifted_at IS NULL",(t,u['username'],'Fiche annulée',un['id']))
+            c.execute("UPDATE units SET status='cancelled',location_id=NULL,hold='',version=version+1 WHERE id=?",(un['id'],))
+        for mi in q(c,"SELECT id FROM missions WHERE receipt_id=? AND status IN ('to_assign','assigned','in_progress','suspended')",(rid,)):
+            c.execute("UPDATE missions SET status='cancelled',closed=? WHERE id=?",(t,mi['id']))
+            c.execute('INSERT INTO mission_events(id,mission_id,actor,action,note,created) VALUES(?,?,?,?,?,?)',(uid('MEV'),mi['id'],u['username'],'cancel','Fiche d’entrée annulée : '+x.reason.strip(),now_precise()))
+        c.execute("UPDATE mail_outbox SET status='cancelled' WHERE kind='receipt' AND ref=? AND status='pending'",(rid,))
+        c.execute("UPDATE receipts SET stage='cancelled',cancel_reason=?,cancelled_by=?,cancelled_at=? WHERE id=?",(x.reason.strip(),u['username'],t,rid))
+        audit(c,u['username'],'cancel','receipt',rid,{'reason':x.reason.strip(),'units':len(units)})
+        notify(c,r['warehouse'],'receipt',rid,f'Fiche {rid} annulée',x.reason.strip()[:300],u['username'])
+    return {'ok':True,'stage':'cancelled','units':len(units)}
 @app.post('/api/receipts/{rid}/validate')
 def validate_receipt(rid:str,u=Depends(auth)):
     """Validation définitive : refusée tant que dimensions et documents de transport manquent. Envoie la fiche au service."""
@@ -2718,7 +2755,7 @@ def dashboard_ops(warehouse:Optional[str]=None,u=Depends(auth)):
               'exited':n(f"SELECT COUNT(DISTINCT mv.unit_id) FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.kind='exit' AND mv.at>=?",(day,))}
         live=q(c,f"SELECT id,title,assignee,status,type,started_at FROM missions WHERE warehouse IN ({m}) AND status IN ('in_progress','assigned','suspended') AND assignee IS NOT NULL ORDER BY started_at DESC LIMIT 12",w)
         waiting=q(c,f"SELECT id,title,priority,description,created,due_at FROM missions WHERE warehouse IN ({m}) AND status='to_assign' ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,created LIMIT 5",w)
-        recent=q(c,f"SELECT r.id,r.awb,r.expected,r.actual,r.weight,r.status,r.created,r.security_status,r.apparent_condition,cl.name client,(SELECT COUNT(*) FROM units x WHERE x.receipt_id=r.id) units,(SELECT COUNT(*) FROM missions mi WHERE mi.receipt_id=r.id AND mi.status IN ('to_assign','assigned','in_progress','suspended')) missions FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.warehouse IN ({m}) ORDER BY r.created DESC LIMIT 6",w)
+        recent=q(c,f"SELECT r.id,r.awb,r.expected,r.actual,r.weight,r.status,r.created,r.security_status,r.apparent_condition,cl.name client,(SELECT COUNT(*) FROM units x WHERE x.receipt_id=r.id) units,(SELECT COUNT(*) FROM missions mi WHERE mi.receipt_id=r.id AND mi.status IN ('to_assign','assigned','in_progress','suspended')) missions FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.warehouse IN ({m}) AND r.stage!='cancelled' ORDER BY r.created DESC LIMIT 6",w)
         for r in recent:r['problem']=r['status']=='discrepancy' or r['expected']!=r['actual'] or r.get('security_status') in ('a_controler','non_securise') or r.get('apparent_condition') in ('endommage','a_verifier')
     return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity,'flow':flow,'live':live,'waiting':waiting,'recent':recent}
 

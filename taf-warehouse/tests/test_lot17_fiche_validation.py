@@ -162,11 +162,53 @@ def test_validated_sheet_is_the_dgac_form(env):
 def test_validation_requires_driver_and_reasons(env):
     c, h = env['c'], env['h']
     cl = c.get('/api/clients', headers=h['admin']).json()[0]
-    rid = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '1', 'expected': 1, 'actual': 1, 'weight': 10,
-                                                          'packages': [{'kind': 'fut', 'length_cm': 60, 'width_cm': 60, 'height_cm': 90, 'weight_kg': 10, 'packages': 1}]}).json()['id']
+    body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '1', 'expected': 1, 'actual': 1, 'weight': 10,
+            'packages': [{'kind': 'fut', 'length_cm': 60, 'width_cm': 60, 'height_cm': 90, 'weight_kg': 10, 'packages': 1}]}
+    r = c.post('/api/receipts', headers=h['mag'], json=body, _no_driver=True)
+    assert r.status_code == 400 and 'chauffeur' in r.text                      # chauffeur obligatoire avant de valider l'entrée
+    rid = c.post('/api/receipts', headers=h['mag'], json=body).json()['id']
     transport_doc(env, rid)
     miss = ' '.join(dossier(env, rid)['state']['missing'])
-    assert 'Remettant' in miss and 'Expéditeur' in miss
+    assert 'Expéditeur' in miss
     c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'accepted': False, 'shipper': 'X'})
     assert 'raisons' in ' '.join(dossier(env, rid)['state']['missing'])
     assert dossier(env, rid)['units'][0]['unit_type'] == 'fut'
+
+
+def test_cancel_wrong_entry(env):
+    c, h, server = env['c'], env['h'], env['server']
+    rid, units = entry(env, dims=True, awb='057-9')
+    putaway_unit = units[0]
+    from helpers import putaway
+    putaway(server, putaway_unit)
+    mid = c.post(f'/api/receipts/{rid}/missions', headers=h['expl'], json={'description': 'Préparer'}).json()['id']
+    assert c.post(f'/api/receipts/{rid}/cancel', headers=h['mag_mar'], json={'reason': 'Erreur de saisie'}).status_code == 403
+    assert c.post(f'/api/receipts/{rid}/cancel', headers=h['mag'], json={'reason': 'x'}).status_code == 422   # motif obligatoire
+    r = c.post(f'/api/receipts/{rid}/cancel', headers=h['mag'], json={'reason': 'Doublon de la fiche E-000002'})
+    assert r.status_code == 200 and r.json()['units'] == 2
+    d = dossier(env, rid)
+    assert d['state']['stage'] == 'cancelled' and d['receipt']['cancel_reason'] == 'Doublon de la fiche E-000002'
+    assert 'Fiche annulée (erreur)' in [e['title'] for e in d['history']]
+    assert all(u['id'] not in units for u in c.get('/api/units', headers=h['mag']).json())     # retirées du stock
+    assert next(m for m in c.get('/api/missions', headers=h['expl']).json() if m['id'] == mid)['status'] == 'cancelled'
+    assert c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'notes': 'x'}).status_code == 409
+    assert c.post(f'/api/receipts/{rid}/cancel', headers=h['mag'], json={'reason': 'Encore une fois'}).status_code == 409
+    nxt, _ = entry(env)
+    assert nxt != rid and int(nxt[2:]) == int(rid[2:]) + 1                     # numéro jamais réutilisé
+    with server.db() as db:                                                      # rien n'est effacé
+        assert db.execute('SELECT COUNT(*) FROM units WHERE receipt_id=?', (rid,)).fetchone()[0] == 2
+
+
+def test_cancel_refused_after_exit_or_validation(env):
+    c, h = env['c'], env['h']
+    rid, units = entry(env, dims=True, awb='057-9')
+    transport_doc(env, rid)
+    c.post(f'/api/receipts/{rid}/validate', headers=h['mag'])
+    r = c.post(f'/api/receipts/{rid}/cancel', headers=h['expl'], json={'reason': 'Erreur de client'})
+    assert r.status_code == 409 and 'rouvrir' in r.text
+    rid2, units2 = entry(env)
+    assert c.post(f'/api/receipts/{rid2}/cancel', headers=h['expl2'], json={'reason': 'Erreur de client'}).status_code == 200   # exploitation
+    rid3, _ = entry(env)
+    other = c.post('/api/users', headers=h['admin'], json={'username': 'mag2', 'pin': '482915', 'role': 'worker', 'warehouses': ['Afrique']})
+    tok = c.post('/api/login', json={'username': 'mag2', 'password': '482915'}).json()['token']
+    assert c.post(f'/api/receipts/{rid3}/cancel', headers={'Authorization': 'Bearer ' + tok}, json={'reason': 'Pas ma fiche'}).status_code == 403

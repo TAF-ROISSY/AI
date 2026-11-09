@@ -1,4 +1,24 @@
 import os,base64,uuid,pytest
+
+
+@pytest.fixture(autouse=True)
+def driver_for_receipts(monkeypatch):
+    """Lot 19 : le chauffeur (remettant) est obligatoire à l'entrée. Les tests qui créent une réception
+    sans le préciser reçoivent un chauffeur de test, créé avec les mêmes droits que la requête."""
+    from starlette.testclient import TestClient as _TC
+    original = _TC.post
+    def post(self, url, *a, **kw):
+        body = kw.get('json')
+        if str(url).endswith('/api/receipts') and isinstance(body, dict) and 'driver_id' not in body and not kw.pop('_no_driver', False):
+            import sys
+            server = sys.modules.get('app.server')
+            if server is not None:
+                with server.db() as db:   # insertion directe : un seul chauffeur par base, sans audit
+                    if not db.execute("SELECT id FROM drivers WHERE id='DRV-TEST'").fetchone():
+                        db.execute("INSERT INTO drivers(id,name,company,plate,phone,created,id_type,id_number) VALUES('DRV-TEST','Chauffeur Test','Transports Test','','',?, 'CNI','T0000')", (server.now(),))
+                kw['json'] = {**body, 'driver_id': 'DRV-TEST'}
+        return original(self, url, *a, **kw)
+    monkeypatch.setattr(_TC, 'post', post)
 @pytest.fixture(autouse=True)
 def test_mfa_key(monkeypatch):
     monkeypatch.setenv("TAF_MFA_ENCRYPTION_KEY",base64.urlsafe_b64encode(b"test-only-key-for-warehouse-1234").decode())
