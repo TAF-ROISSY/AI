@@ -32,7 +32,7 @@ def test_pin_only_for_floor_roles(env):
     assert create(env, 'awa', role='worker', pin='482915', password=PWD).status_code == 400  # l'un ou l'autre
 
 
-@pytest.mark.parametrize('pin', ['123456', '000000', '111111', '654321', '12345', '1234567', '12a456', '123123'])
+@pytest.mark.parametrize('pin', ['123456', '000000', '111111', '654321', '12345', '1234567', '12a456', '123123', '1234', '1111', '1212', '123', '4321'])
 def test_weak_or_malformed_pins_rejected(env, pin):
     assert create(env, 'moussa', pin=pin).status_code in (400, 422)
 
@@ -130,3 +130,11 @@ def test_production_accepts_explicit_mfa_opt_out(monkeypatch, tmp_path):
         importlib.reload(server)
     assert 'double authentification' not in str(err.value) and 'PostgreSQL' in str(err.value)
     monkeypatch.setenv('TAF_ENV', 'test'); importlib.reload(server)
+
+
+def test_four_digit_pin_accepted(env):
+    c, h = env['c'], env['h']
+    r = c.post('/api/users', headers=h['admin'], json={'username': 'moussa', 'pin': '1703', 'role': 'worker', 'warehouses': ['Afrique']})
+    assert r.status_code == 200, r.text
+    r = c.post('/api/login', json={'username': 'Moussa', 'password': '1703'})
+    assert r.status_code == 200, r.text

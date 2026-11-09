@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.26.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.27.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -158,12 +158,15 @@ def password_policy(value):
 
 # Connexion par code PIN (prénom + 6 chiffres) réservée au personnel d'entrepôt.
 PIN_ROLES={r.strip() for r in os.getenv('TAF_PIN_ROLES','worker,leader').split(',') if r.strip()}
-COMMON_PINS={'000000','111111','121212','123123','112233','123321','159753','147258','258369','696969','101010','131313','999999','202020','200000','100000'}
+COMMON_PINS={'0000','1111','1234','4321','1212','2580','0852','1004','2000','1122','6969','1313','1010','2468','1357','0007','7777','000000','111111','121212','123123','112233','123321','159753','147258','258369','696969','101010','131313','999999','202020','200000','100000'}
 def pin_policy(pin):
-    require(isinstance(pin,str) and re.fullmatch(r'[0-9]{6}',pin or ''),'Code PIN : exactement 6 chiffres')
+    """Code PIN de 4 à 6 chiffres (5 erreurs = blocage 15 min). Interdits : suites, répétitions, codes courants."""
+    require(isinstance(pin,str) and re.fullmatch(r'[0-9]{4,6}',pin or ''),'Code PIN : 4 à 6 chiffres')
     digits=[int(d) for d in pin]
-    steps={digits[i+1]-digits[i] for i in range(5)}
-    require(len(set(pin))>1 and steps not in ({1},{-1}) and pin not in COMMON_PINS and pin[:3]!=pin[3:] and pin[:2]*3!=pin,'Code PIN trop simple (suites, répétitions, codes courants interdits)')
+    steps={digits[i+1]-digits[i] for i in range(len(pin)-1)}
+    half=len(pin)//2
+    simple=len(set(pin))==1 or steps in ({1},{-1}) or pin in COMMON_PINS or (len(pin)%2==0 and pin[:half]==pin[half:]) or (len(pin)==6 and pin[:2]*3==pin)
+    require(not simple,f'Code PIN « {pin} » trop simple : pas de suite (1234), de répétition (1111, 1212) ni de code courant')
 def verify(p,encoded):
     try:
         salt,digest=encoded.split('$'); return hmac.compare_digest(password_hash(p,salt).split('$')[1],digest)
