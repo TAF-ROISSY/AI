@@ -109,3 +109,11 @@ def test_tv_screen_link(env):
     assert c.post(f'/api/tv-screens/{sid}/revoke', headers=h['resp']).status_code == 200
     assert c.get('/api/tv/data', headers={'X-TV-Token': tok}).status_code == 401
     assert c.get('/tv.html').status_code == 200
+
+
+def test_tv_inside_application(env):
+    c, h = env['c'], env['h']
+    d = c.get('/api/tv/me', headers=h['mag']).json()
+    assert d['warehouses'] == ['Afrique'] and 'kpis' in d
+    assert c.get('/api/tv/me', headers=h['mag'], params={'warehouse': 'Maritime'}).status_code == 403
+    assert c.get('/api/tv/me').status_code == 401

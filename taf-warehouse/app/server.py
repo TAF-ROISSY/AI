@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.39.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.40.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -2933,14 +2933,22 @@ def tv_data(x_tv_token:Optional[str]=Header(None,alias='X-TV-Token')):
     with db() as c:
         scr=one(c,'SELECT * FROM tv_screens WHERE token_hash=? AND revoked_at IS NULL',(hashlib.sha256(x_tv_token.encode()).hexdigest(),))
     require(scr,'Lien d’affichage invalide ou révoqué',401)
-    whs=json.loads(scr['warehouses']);fake={'username':'tv:'+scr['id'],'role':'tv','warehouses':whs}
+    with db() as c:c.execute('UPDATE tv_screens SET last_seen=? WHERE id=?',(now(),scr['id']))
+    return tv_payload(scr['name'],json.loads(scr['warehouses']))
+@app.get('/api/tv/me')
+def tv_me(warehouse:Optional[str]=None,u=Depends(auth)):
+    """Écran TV ouvert depuis l'application : mêmes données, avec les droits de l'utilisateur connecté."""
+    whs=[warehouse] if warehouse else u['warehouses']
+    for w in whs:access(u,w)
+    return tv_payload('Écran exploitation',whs)
+def tv_payload(name,whs):
+    fake={'username':'tv','role':'tv','warehouses':whs}
     d=dashboard_ops(None,fake)
     today=paris(now()).date();mon=today-timedelta(days=today.weekday());sat=mon+timedelta(days=5)
     m=','.join('?' for _ in whs)
     with db() as c:
         week=q(c,f"SELECT planned_date d,COUNT(*) n,COALESCE(SUM(packages),0) colis,SUM(CASE WHEN kind='conteneur' THEN 1 ELSE 0 END) ctn,SUM(CASE WHEN status='received' THEN 1 ELSE 0 END) recu FROM arrivals WHERE warehouse IN ({m}) AND status!='cancelled' AND planned_date BETWEEN ? AND ? GROUP BY planned_date",whs+[mon.isoformat(),sat.isoformat()])
         exits=one(c,f"SELECT COUNT(DISTINCT mv.unit_id) n FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.kind='exit' AND mv.at>=?",whs+[now()[:10]])['n']
-        c.execute('UPDATE tv_screens SET last_seen=? WHERE id=?',(now(),scr['id']))
     wk={r['d']:r for r in week}
     days=[{'date':(mon+timedelta(days=i)).isoformat(),**{k:(wk.get((mon+timedelta(days=i)).isoformat()) or {}).get(k,0) for k in ('n','colis','ctn','recu')}} for i in range(6)]
     first=lambda n:(n or '').split('@')[0].split('.')[0].capitalize()
@@ -2948,7 +2956,7 @@ def tv_data(x_tv_token:Optional[str]=Header(None,alias='X-TV-Token')):
     waiting=[{'title':r['title'],'priority':r['priority']} for r in d['waiting']]
     recent=[{k:r[k] for k in ('id','client','actual','expected','weight','problem','created')} for r in d['recent']]
     arr=[{k:a.get(k) for k in ('kind','planned_date','slot_start','slot_end','reference','container_no','container_size','dock','packages','weight','designation','status','client','late')} for a in d['arrivals_today']]
-    return {'screen':scr['name'],'warehouses':whs,'generated_at':d['generated_at'],'kpis':d['kpis'],'flow':d['flow'],'exits_today':exits,'alerts':[{k:a[k] for k in ('level','title','count')} for a in d['alerts']],
+    return {'screen':name,'warehouses':whs,'generated_at':d['generated_at'],'kpis':d['kpis'],'flow':d['flow'],'exits_today':exits,'alerts':[{k:a[k] for k in ('level','title','count')} for a in d['alerts']],
             'live':live,'waiting':waiting,'recent':recent,'arrivals_today':arr,'week':days}
 
 @app.get('/api/dashboard')

@@ -167,14 +167,14 @@ footer .lab.ok{background:var(--green);color:#032417}
   </main>
   <footer><div class="lab" id="tick-lab">ALERTES</div><div class="ticker"><div id="ticker"></div></div></footer>
 </div>
-<div class="gate" id="gate" hidden><div><h1>Écran TAF WAREHOUSE</h1><p id="gate-txt"></p></div></div>
+<a id="back" href="/" style="position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:20;background:#1F6FA8;color:#fff;text-decoration:none;font-weight:700;padding:.7rem 1.4rem;border-radius:1rem;font-size:1.1rem;display:none">‹ Retour à l’application</a><button id="fs" style="position:fixed;top:1rem;right:1rem;z-index:20;background:#0F2238;color:#EAF2FA;border:1px solid #1B3150;border-radius:1rem;padding:.7rem 1.2rem;font:inherit;font-size:1.1rem;display:none;cursor:pointer">Plein écran</button><div class="gate" id="gate" hidden><div><h1>Écran TAF WAREHOUSE</h1><p id="gate-txt"></p></div></div>
 <script>
 const $=id=>document.getElementById(id),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const token=new URLSearchParams(location.hash.slice(1)).get('k');
+const HP=new URLSearchParams(location.hash.slice(1)),token=HP.get('k'),session=!token?sessionStorage.getItem('taf_token'):null,whp=HP.get('wh');
 let last=null,lastOk=0,prev={};
 const fmt=n=>Number(n||0).toLocaleString('fr-FR',{maximumFractionDigits:1});
 function gate(t){$('gate').hidden=false;$('gate-txt').textContent=t}
-if(!token)gate('Ce lien d’affichage est incomplet. Créez un lien dans TAF WAREHOUSE (Utilisateurs › Écrans TV) et ouvrez-le sur la télévision.');
+if(!token&&!session)gate('Connectez-vous à TAF WAREHOUSE puis ouvrez « Écran TV » dans le menu, ou utilisez un lien d’affichage. Créez un lien dans TAF WAREHOUSE (Utilisateurs › Écrans TV) et ouvrez-le sur la télévision.');
 // Horloge
 function tick(){let d=new Date();$('clock').innerHTML=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}<small>${String(d.getSeconds()).padStart(2,'0')}</small>`;
 $('date').textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -216,10 +216,13 @@ $('recent').innerHTML=d.recent.slice(0,6).map(r=>`<div class="entry"><span class
 let al=d.alerts||[];$('tick-lab').textContent=al.length?'ALERTES':'TOUT VA BIEN';$('tick-lab').classList.toggle('ok',!al.length);
 let items=al.length?al.map(a=>`<span><b>${a.count}</b> · ${esc(a.title)}</span>`):[`<span>Aucune situation urgente à traiter · ${fmt(d.flow.in_stock)} unité(s) en stock · ${fmt(k.occupancy_pct)} % d’occupation</span>`];
 let tk=$('ticker'),html=items.join('');if(tk.dataset.h!==html){tk.dataset.h=html;tk.innerHTML=html}}
-async function load(){if(!token)return;try{let r=await fetch('/api/tv/data',{headers:{'X-TV-Token':token},cache:'no-store'});
-if(r.status===401){let e=await r.json().catch(()=>({}));return gate((e.detail||'Lien d’affichage invalide')+'. Demandez un nouveau lien au responsable.')}
+async function load(){if(!token&&!session)return;try{let r=token?await fetch('/api/tv/data',{headers:{'X-TV-Token':token},cache:'no-store'}):await fetch('/api/tv/me'+(whp?'?warehouse='+encodeURIComponent(whp):''),{headers:{Authorization:'Bearer '+session},cache:'no-store'});
+if(r.status===401||r.status===403){let e=await r.json().catch(()=>({}));return gate((e.detail||'Lien d’affichage invalide')+(token?'. Demandez un nouveau lien au responsable.':'. Reconnectez-vous à TAF WAREHOUSE.'))}
 if(!r.ok)throw Error(r.status);let d=await r.json();$('gate').hidden=true;last=d;lastOk=Date.now();render(d)}catch(e){/* garde l'affichage précédent ; l'indicateur passe au rouge après 1 min */}}
 load();setInterval(load,15000);
+// Depuis l'application : boutons « Retour » et « Plein écran » visibles quand la souris bouge.
+if(session){let t;document.addEventListener('mousemove',()=>{document.body.style.cursor='default';$('back').style.display='block';$('fs').style.display='block';clearTimeout(t);t=setTimeout(()=>{document.body.style.cursor='none';$('back').style.display='none';$('fs').style.display='none'},3000)});
+$('fs').onclick=()=>{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>{})}}
 // Rechargement complet chaque nuit à 3 h (mise à jour de l'application, mémoire).
 setInterval(()=>{let d=new Date();if(d.getHours()===3&&d.getMinutes()===0)location.reload()},60000);
 </script>
