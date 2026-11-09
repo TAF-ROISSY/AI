@@ -180,7 +180,7 @@ def test_location_status_rules(env):
     assert r.status_code == 409 and 'endommagé' in r.text
     plan = c.get('/api/locations/plan', headers=h['mag'], params={'warehouse': 'Afrique'}).json()
     cell = {x['id']: x for rk in plan['racks'] for lv in rk['levels'] for x in lv['cells']}['AFR-G-1-01']
-    assert cell['state'] == 'out' and cell['status_label'] == 'Endommagé' and cell['status_note'] == 'Lisse tordue'
+    assert cell['state'] == 'endommage' and cell['status_label'] == 'Endommagé' and cell['status_note'] == 'Lisse tordue'
     assert c.put('/api/locations/AFR-G-1-01/status', headers=h['resp'], json={'status': 'ok', 'note': 'Lisse remplacée'}).status_code == 200
     # Rack entier
     r = c.post('/api/locations/structure-status', headers=h['mag'], json={'warehouse': 'Afrique', 'structure': 'D', 'status': 'inspection', 'note': 'Contrôle annuel'})

@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.29.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.30.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -999,7 +999,7 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         o=occ.get(l['id'],{})
         n=o.get('units',0)
         st=l.get('status') or 'ok'
-        state='blocked' if l['blocked'] else 'out' if st in ('endommage','maintenance','inspection') else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'internal' if l['id'] in internal else 'booked' if st=='reserve' else 'unverified' if not l['verified'] else 'free'
+        state='blocked' if l['blocked'] else st if st in ('endommage','maintenance','inspection') else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'internal' if l['id'] in internal else 'booked' if st=='reserve' else 'unverified' if not l['verified'] else 'free'
         cell={'id':l['id'],'position':pos,'state':state,'units':n,'kg':round(o.get('kg',0),1),'m3':round(o.get('m3',0),3),
               'capacity_kg':l['capacity_kg'],'capacity_m3':l['capacity_m3'],'verified':bool(l['verified']),
               'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None,
@@ -1012,7 +1012,7 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         levels=[{'level':lv,'cells':sorted(cells,key=lambda x:x['position'])} for lv,cells in sorted(racks[rack].items(),reverse=top_first)]
         out.append({'rack':rack,'kind':kinds[rack],'label':STRUCTURE_LABEL(kinds[rack],rack),'levels':levels})
     states=[cell['state'] for r in out for lv in r['levels'] for cell in lv['cells']]
-    return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','internal','booked','reserved','held','out','blocked','unverified')}}
+    return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','internal','booked','reserved','held','inspection','endommage','maintenance','blocked','unverified')}}
 
 @app.get('/api/transfers')
 def transfers(u=Depends(auth)):
