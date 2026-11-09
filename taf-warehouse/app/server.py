@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.35.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.36.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -329,6 +329,7 @@ def init():
         CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
+        CREATE TABLE IF NOT EXISTS arrivals(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'transport',planned_date TEXT,slot_start TEXT,slot_end TEXT,reference TEXT NOT NULL DEFAULT '',client_id TEXT,pickup_name TEXT NOT NULL DEFAULT '',pickup_address TEXT NOT NULL DEFAULT '',carrier TEXT NOT NULL DEFAULT '',packages INTEGER,weight REAL,dimensions TEXT NOT NULL DEFAULT '',designation TEXT NOT NULL DEFAULT '',client_ref TEXT NOT NULL DEFAULT '',container_no TEXT NOT NULL DEFAULT '',container_size TEXT NOT NULL DEFAULT '',seal_no TEXT NOT NULL DEFAULT '',dock TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'planned',receipt_id TEXT,created_by TEXT NOT NULL,created TEXT NOT NULL,updated TEXT,cancel_reason TEXT);
         CREATE TABLE IF NOT EXISTS location_internal(id TEXT PRIMARY KEY,location_id TEXT NOT NULL,description TEXT NOT NULL,service TEXT NOT NULL DEFAULT '',contact TEXT NOT NULL DEFAULT '',quantity TEXT NOT NULL DEFAULT '',since TEXT,until TEXT,notes TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL,created TEXT NOT NULL,released_at TEXT,released_by TEXT,release_note TEXT,FOREIGN KEY(location_id) REFERENCES locations(id));
         CREATE TABLE IF NOT EXISTS counters(name TEXT PRIMARY KEY,value INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS mail_routes(warehouse TEXT PRIMARY KEY,recipients TEXT NOT NULL DEFAULT '[]',updated TEXT,updated_by TEXT);
@@ -420,6 +421,7 @@ class ReceiptCreate(BaseModel):
     packages:list[PackageLine]=Field(default_factory=list,max_length=500)
     driver_id:Optional[str]=None;pallets_expected:Optional[int]=Field(default=None,ge=0,le=10000);drums_expected:Optional[int]=Field(default=None,ge=0,le=10000)
     shipper_address:str=Field(default='',max_length=200);consignee:str=Field(default='',max_length=200);consignee_address:str=Field(default='',max_length=200)
+    arrival_id:Optional[str]=Field(default=None,max_length=40)
 class UnitCreate(BaseModel):receipt_id:str;description:str;quantity:int=Field(gt=0);weight:float=Field(ge=0);volume:Optional[float]=Field(default=None,ge=0);dimensions_ok:bool=False;category:str='general';unit_type:Literal['colis','palette']='palette'
 class Move(BaseModel):unit_id:str;destination:str;expected_version:int;reason:str='Rangement interne'
 class Hold(BaseModel):hold:str;reason:str
@@ -783,7 +785,12 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
         c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes,shipper,carrier,transport_ref,folder_ref,nature,apparent_condition,security_status,volume_m3,volumetric_weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   (i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes,x.shipper,x.carrier,x.transport_ref,x.folder_ref,x.nature,x.apparent_condition,x.security_status,round(volume,4) if x.packages else None,round(volume*VOLUMETRIC_KG_PER_M3,2) if x.packages else None))
         c.execute('UPDATE receipts SET driver_id=?,pallets_expected=?,drums_expected=?,shipper_address=?,consignee=?,consignee_address=? WHERE id=?',(*dgac,i))
-        audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages)})
+        if x.arrival_id:
+            a_=one(c,'SELECT * FROM arrivals WHERE id=?',(x.arrival_id,))
+            require(a_ and a_['warehouse']==x.warehouse and a_['status']=='planned','Arrivée prévue introuvable ou déjà réceptionnée',409)
+            c.execute("UPDATE arrivals SET status='received',receipt_id=?,updated=? WHERE id=?",(i,now(),x.arrival_id))
+            audit(c,u['username'],'arrival_received','arrival',x.arrival_id,{'receipt':i})
+        audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages),'arrival':x.arrival_id})
         unit_ids=[];n=len(x.packages)
         for idx,line in enumerate(x.packages,1):
             uid_=uid('UNIT');unit_ids.append(uid_)
@@ -2114,6 +2121,105 @@ def unit_dimensions(unit_id:str,x:UnitDims,u=Depends(auth)):
         c.execute('UPDATE receipts SET volume_m3=?,volumetric_weight=? WHERE id=?',(round(tot,4),round(tot*VOLUMETRIC_KG_PER_M3,2),unit['receipt_id']))
         audit(c,u['username'],'unit_dimensions','receipt',unit['receipt_id'],{'unit':unit_id,'changes':changes})
     return {'ok':True,'volume_m3':vol}
+# --- Lot 20 : planning des arrivées (exploitation ↔ magasin) ---------------------------------------
+DATE_RE=re.compile(r'^\d{4}-\d{2}-\d{2}$');TIME_RE=re.compile(r'^([01]\d|2[0-3]):[0-5]\d$');CONTAINER_RE=re.compile(r'^[A-Z]{4}\d{7}$')
+class ArrivalIn(BaseModel):
+    warehouse:str;kind:Literal['transport','conteneur']='transport'
+    planned_date:Optional[str]=None;slot_start:Optional[str]=None;slot_end:Optional[str]=None
+    reference:str=Field(default='',max_length=60);client_id:Optional[str]=None
+    pickup_name:str=Field(default='',max_length=200);pickup_address:str=Field(default='',max_length=300);carrier:str=Field(default='',max_length=200)
+    packages:Optional[int]=Field(default=None,ge=0,le=100000);weight:Optional[float]=Field(default=None,ge=0,le=1000000)
+    dimensions:str=Field(default='',max_length=300);designation:str=Field(default='',max_length=300);client_ref:str=Field(default='',max_length=100)
+    container_no:str=Field(default='',max_length=20);container_size:Literal['','20','40','40HC','45HC','20RF','40RF']='';seal_no:str=Field(default='',max_length=40)
+    dock:str=Field(default='',max_length=40);notes:str=Field(default='',max_length=1000)
+def _check_arrival(c,x):
+    warehouse(x.warehouse)
+    require(x.planned_date is None or DATE_RE.match(x.planned_date),'Date au format AAAA-MM-JJ')
+    for t in (x.slot_start,x.slot_end):require(t is None or t=='' or TIME_RE.match(t),'Heure au format HH:MM')
+    require(not (x.slot_start and x.slot_end) or x.slot_end>x.slot_start,'Fin du créneau après le début')
+    require(not x.client_id or one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu')
+    if x.kind=='conteneur':
+        no=x.container_no.replace(' ','').upper()
+        require(CONTAINER_RE.match(no),'N° de conteneur : 4 lettres et 7 chiffres (ex. MSCU1234567)')
+        x.container_no=no
+    else:require(x.reference.strip() or x.client_ref.strip() or x.designation.strip(),'Indiquer au moins le n° de bon de transport, une référence ou la désignation')
+ARR_FIELDS=('kind','planned_date','slot_start','slot_end','reference','client_id','pickup_name','pickup_address','carrier','packages','weight','dimensions','designation','client_ref','container_no','container_size','seal_no','dock','notes')
+@app.get('/api/arrivals')
+def arrivals(start:Optional[str]=None,end:Optional[str]=None,warehouse:Optional[str]=None,u=Depends(auth)):
+    """Arrivées prévues d'une période (start..end inclus) + celles « à venir » sans date."""
+    whs=[warehouse] if warehouse else u['warehouses']
+    for w in whs:access(u,w)
+    m=','.join('?' for _ in whs);args=list(whs);cond=''
+    if start and end:
+        require(DATE_RE.match(start) and DATE_RE.match(end),'Dates invalides')
+        today_=datetime.now(timezone.utc).date().isoformat()
+        # Les arrivées en retard (date dépassée, pas encore reçues) restent visibles dans la semaine en cours.
+        cond=" AND (a.planned_date IS NULL OR (a.planned_date BETWEEN ? AND ?) OR (a.planned_date<? AND a.status='planned' AND ? BETWEEN ? AND ?))";args+=[start,end,today_,today_,start,end]
+    with db() as c:
+        rows=q(c,f"SELECT a.*,cl.name client FROM arrivals a LEFT JOIN clients cl ON cl.id=a.client_id WHERE a.warehouse IN ({m}) AND a.status!='cancelled'{cond} ORDER BY a.planned_date,a.slot_start,a.created",args)
+    today=datetime.now(timezone.utc).date().isoformat()
+    for r in rows:r['late']=bool(r['planned_date'] and r['planned_date']<today and r['status']=='planned')
+    return rows
+@app.post('/api/arrivals')
+def create_arrival(x:ArrivalIn,u=Depends(auth)):
+    role(u,'exploitation','manager','admin','leader');access(u,x.warehouse)
+    with tx() as c:
+        _check_arrival(c,x);i=uid('ARR');vals=x.model_dump()
+        c.execute(f"INSERT INTO arrivals(id,warehouse,{','.join(ARR_FIELDS)},status,created_by,created,updated) VALUES(?,?,{','.join('?' for _ in ARR_FIELDS)},'planned',?,?,?)",
+                  (i,x.warehouse,*[vals[k] if vals[k]!='' or k in ('reference',) else (None if k in ('slot_start','slot_end','planned_date') else '') for k in ARR_FIELDS],u['username'],now(),now()))
+        audit(c,u['username'],'arrival_create','arrival',i,{k:vals[k] for k in ('kind','planned_date','reference','container_no')})
+        label=('Conteneur '+x.container_no) if x.kind=='conteneur' else ('Arrivée '+(x.reference or x.designation or ''))
+        notify(c,x.warehouse,'arrival',i,'Arrivée prévue : '+label.strip(),f"{x.planned_date or 'à venir'}{' '+x.slot_start if x.slot_start else ''}{(' – '+x.slot_end) if x.slot_end else ''} · {x.packages or '?'} colis",u['username'])
+    return {'id':i}
+def _arrival(c,u,aid):
+    a=one(c,'SELECT * FROM arrivals WHERE id=?',(aid,));require(a,'Arrivée inconnue',404);access(u,a['warehouse']);return a
+@app.put('/api/arrivals/{aid}')
+def update_arrival(aid:str,x:ArrivalIn,u=Depends(auth)):
+    role(u,'exploitation','manager','admin','leader')
+    with tx() as c:
+        a=_arrival(c,u,aid);require(a['status']=='planned','Arrivée déjà réceptionnée ou annulée',409);require(x.warehouse==a['warehouse'],'Changement d’entrepôt impossible')
+        _check_arrival(c,x);vals=x.model_dump()
+        new={k:(vals[k] if vals[k]!='' else (None if k in ('slot_start','slot_end','planned_date') else '')) for k in ARR_FIELDS}
+        changes={k:[a.get(k),v] for k,v in new.items() if (a.get(k) or None)!=(v or None)}
+        require(changes,'Aucune modification')
+        c.execute('UPDATE arrivals SET '+','.join(f'{k}=?' for k in changes)+',updated=? WHERE id=?',[v[1] for v in changes.values()]+[now(),aid])
+        audit(c,u['username'],'arrival_update','arrival',aid,{'changes':changes})
+    return {'ok':True}
+class ArrivalMove(BaseModel):planned_date:Optional[str]=None;slot_start:Optional[str]=None;slot_end:Optional[str]=None;reason:str=Field(default='',max_length=300)
+@app.post('/api/arrivals/{aid}/move')
+def move_arrival(aid:str,x:ArrivalMove,u=Depends(auth)):
+    """Glisser-déposer d'une tuile : nouveau jour (ou « à venir »), créneau éventuel ; tracé dans l'historique."""
+    require(x.planned_date is None or DATE_RE.match(x.planned_date),'Date au format AAAA-MM-JJ')
+    for t in (x.slot_start,x.slot_end):require(not t or TIME_RE.match(t),'Heure au format HH:MM')
+    with tx() as c:
+        a=_arrival(c,u,aid);require(a['status']=='planned','Arrivée déjà réceptionnée ou annulée',409)
+        ss=x.slot_start if x.slot_start is not None else a['slot_start'];se=x.slot_end if x.slot_end is not None else a['slot_end']
+        require(not (ss and se) or se>ss,'Fin du créneau après le début')
+        if x.planned_date==a['planned_date'] and ss==a['slot_start'] and se==a['slot_end']:return {'ok':True,'unchanged':True}
+        c.execute('UPDATE arrivals SET planned_date=?,slot_start=?,slot_end=?,updated=? WHERE id=?',(x.planned_date,ss or None,se or None,now(),aid))
+        audit(c,u['username'],'arrival_move','arrival',aid,{'from':a['planned_date'],'to':x.planned_date,'slot':[ss,se],'reason':x.reason.strip()})
+        late=a['planned_date'] and x.planned_date and x.planned_date>a['planned_date']
+        notify(c,a['warehouse'],'arrival',aid,('Arrivée retardée' if late else 'Arrivée replanifiée')+f" : {a['container_no'] or a['reference'] or a['designation']}",f"{a['planned_date'] or 'à venir'} → {x.planned_date or 'à venir'}"+(f' · {x.reason.strip()}' if x.reason.strip() else ''),u['username'])
+    return {'ok':True}
+class ArrivalCancel(BaseModel):reason:str=Field(min_length=3,max_length=300)
+@app.post('/api/arrivals/{aid}/cancel')
+def cancel_arrival(aid:str,x:ArrivalCancel,u=Depends(auth)):
+    role(u,'exploitation','manager','admin','leader')
+    with tx() as c:
+        a=_arrival(c,u,aid);require(a['status']=='planned','Arrivée déjà réceptionnée ou annulée',409)
+        c.execute("UPDATE arrivals SET status='cancelled',cancel_reason=?,updated=? WHERE id=?",(x.reason.strip(),now(),aid))
+        audit(c,u['username'],'arrival_cancel','arrival',aid,{'reason':x.reason.strip()})
+    return {'ok':True}
+@app.get('/api/arrivals/{aid}')
+def arrival_detail(aid:str,u=Depends(auth)):
+    with db() as c:
+        a=_arrival(c,u,aid)
+        a['client']=(one(c,'SELECT name FROM clients WHERE id=?',(a['client_id'],)) or {}).get('name') if a.get('client_id') else None
+        h=q(c,"SELECT at,actor,action,details FROM audit WHERE kind='arrival' AND ref=? ORDER BY at,id",(aid,))
+    for e in h:e['details']=json.loads(e['details'] or '{}')
+    a['history']=h
+    return a
+
 class ReceiptLines(BaseModel):kind:Literal['palette','colis','fut']='colis'
 @app.post('/api/receipts/{rid}/lines')
 def receipt_lines(rid:str,x:ReceiptLines,u=Depends(auth)):
