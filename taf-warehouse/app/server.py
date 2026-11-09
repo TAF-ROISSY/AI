@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.43.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.44.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -2737,7 +2737,14 @@ def download(did:str,u=Depends(auth)):
         doc_access(c,u,d['kind'],d['ref'])
     raw=store_get(d['path'])
     with tx() as c:audit(c,u['username'],'download','document',did,{'kind':d['kind'],'ref':d['ref']})
-    return Response(content=raw,media_type='application/octet-stream',headers={'Content-Disposition':f'attachment; filename="{Path(d["path"]).name}"'})
+    import mimetypes
+    from urllib.parse import quote
+    fname=d.get('name') or Path(d['path']).name
+    mime=(d.get('mime') or '').strip().lower()
+    if not mime or mime=='application/octet-stream':mime=mimetypes.guess_type(fname)[0] or mimetypes.guess_type(d['path'])[0] or 'application/octet-stream'
+    if mime not in ('application/pdf','image/jpeg','image/png','image/webp','image/heic','image/heif','image/gif'):mime='application/octet-stream'
+    ascii_name=''.join(ch if 32<ord(ch)<127 and ch not in '"\\;' else '_' for ch in fname) or 'document'
+    return Response(content=raw,media_type=mime,headers={'Content-Disposition':f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(fname)}",'X-Content-Type-Options':'nosniff'})
 def _label_rows(c,u,ids):
     rows=[]
     for unit_id in ids:

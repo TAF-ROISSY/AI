@@ -251,3 +251,19 @@ def test_validation_requires_weight_count_shipper_and_transport_number(env):
     assert 'document de transport manquant' in miss.lower() and 'Poids brut' in miss
     c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'transport_ref': 'CMR-77', 'weight': 300})
     assert dossier(env, rid)['state']['missing'] == []                           # LTA, destinataire, réf. dossier facultatifs
+
+
+def test_document_download_keeps_type_and_name(env):
+    """Lot 22 : « Ouvrir » affiche les photos et PDF (type et nom réels), jamais de HTML exécutable."""
+    c, h = env['c'], env['h']
+    rid, _ = entry(env)
+    for name, raw, mime, expect in [('remas.jpg', b'\xff\xd8\xff\xe0jpg', 'image/jpeg', 'image/jpeg'), ('lta.pdf', b'%PDF-1.4 x', 'application/pdf', 'application/pdf'),
+                                    ('piege.html', b'<script>alert(1)</script>', 'text/html', 'application/octet-stream')]:
+        up = c.post(f'/api/documents/receipt/{rid}', headers=h['mag'], params={'category': 'photo'}, files={'file': (name, raw, mime)})
+        if up.status_code != 200:
+            assert name.endswith('.html'), up.text
+            continue
+        r = c.get(f"/api/documents/{up.json()['id']}/download", headers=h['mag'])
+        assert r.status_code == 200 and r.content == raw
+        assert r.headers['content-type'].split(';')[0] == expect
+        assert name in r.headers['content-disposition'] and r.headers['x-content-type-options'] == 'nosniff'
