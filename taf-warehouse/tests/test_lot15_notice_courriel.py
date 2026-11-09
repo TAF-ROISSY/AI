@@ -86,7 +86,7 @@ def receipt(env, **over):
     cl = c.get('/api/clients', headers=h['admin']).json()[0]
     pk = [{'kind': 'palette', 'length_cm': 120, 'width_cm': 80, 'height_cm': 150, 'weight_kg': 200, 'packages': 2}] * 2
     drv = c.post('/api/drivers', headers=h['mag'], json={'name': 'Ali Diallo', 'company': 'Trans Sahel', 'id_type': 'CNI', 'id_number': 'X123'}).json()['id']
-    body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '057-11112222', 'expected': 4, 'actual': 4, 'weight': 400, 'packages': pk, 'shipper': 'SODECO', 'driver_id': drv, **over}
+    body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '057-11112222', 'expected': 4, 'actual': 4, 'weight': 400, 'packages': pk, 'shipper': 'SODECO', 'transport_ref': 'CMR-1', 'driver_id': drv, **over}
     r = c.post('/api/receipts', headers=h['mag'], json=body)
     assert r.status_code == 200, r.text
     rid = r.json()['id']

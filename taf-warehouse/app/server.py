@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.40.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.41.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -142,6 +142,11 @@ ROLES=['superadmin','admin','exploitation','manager','leader','worker']
 def now(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
 def now_precise(): return datetime.now(timezone.utc).isoformat(timespec='microseconds')  # ordre des événements rapprochés
 def uid(prefix): return f'{prefix}-{uuid.uuid4().hex[:10].upper()}'
+def unit_id_for(c,receipt_id,idx=None):
+    """Identifiant lisible d'une unité : n° d'entrée + rang (E-000012-03)."""
+    n=idx or (one(c,'SELECT COUNT(*) n FROM units WHERE receipt_id=?',(receipt_id,))['n']+1)
+    while one(c,'SELECT id FROM units WHERE id=?',(f'{receipt_id}-{n:02d}',)):n+=1
+    return f'{receipt_id}-{n:02d}'
 def next_seq(c,name):
     """Compteur unique, appelé dans une transaction d'écriture (verrou global : pas de doublon)."""
     r=one(c,'SELECT value FROM counters WHERE name=?',(name,))
@@ -794,7 +799,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
         audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages),'arrival':x.arrival_id})
         unit_ids=[];n=len(x.packages)
         for idx,line in enumerate(x.packages,1):
-            uid_=uid('UNIT');unit_ids.append(uid_)
+            uid_=unit_id_for(c,i,idx);unit_ids.append(uid_)
             label={'palette':'Palette','colis':'Colis','fut':'Fût'}[line.kind]+f' {idx}/{n}'
             c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count,length_cm,width_cm,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                       (uid_,i,x.warehouse,(x.nature or 'Marchandise')+' — '+label+(' — '+line.notes if line.notes else ''),line.packages,line.weight_kg,round(line.length_cm*line.width_cm*line.height_cm/1e6,4) if dims_ok(line) else None,int(dims_ok(line)),'awaiting_putaway','general',line.kind,idx,n,line.length_cm,line.width_cm,line.height_cm))
@@ -823,7 +828,7 @@ def create_unit(x:UnitCreate,u=Depends(auth),idempotency_key:Optional[str]=Heade
         # Quantités initiales (mouvements de réception), indépendantes des sorties ultérieures.
         registered=one(c,"SELECT COALESCE(SUM(m.quantity),0) n FROM movements m JOIN units x ON x.id=m.unit_id WHERE m.kind='receive' AND x.receipt_id=?",(r['id'],))['n']
         require(registered+x.quantity<=r['actual'],f"Colis enregistrés ({registered}+{x.quantity}) supérieurs aux colis reçus ({r['actual']}) : signaler un écart de réception",409)
-        i=uid('UNIT');c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'awaiting_putaway',x.category.strip().lower() or 'general',x.unit_type))
+        i=unit_id_for(c,r['id']);c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,r['id'],r['warehouse'],x.description,x.quantity,x.weight,x.volume,int(x.dimensions_ok),'awaiting_putaway',x.category.strip().lower() or 'general',x.unit_type))
         event(c,u['username'],i,'receive',None,None,x.quantity,r['id']);audit(c,u['username'],'create','unit',i,{'unit_type':x.unit_type,'quantity':x.quantity})
         if r['status']=='discrepancy':
             last=one(c,"SELECT id FROM receipt_discrepancies WHERE receipt_id=? ORDER BY created DESC,id DESC LIMIT 1",(r['id'],))
@@ -1475,7 +1480,9 @@ def drivers(u=Depends(auth)):
 @app.post('/api/drivers')
 def create_driver(x:DriverCreate,u=Depends(auth)):
     role(u,'worker','leader','manager','exploitation','admin')
-    require(bool(x.name.strip()),'Nom du transporteur obligatoire')
+    require(len(x.name.strip())>=3,'Nom et prénom du chauffeur obligatoires')
+    require(x.company.strip(),'Société de transport obligatoire')
+    require(x.id_type and x.id_number.strip(),'Pièce d’identité obligatoire : type et numéro')
     with tx() as c:
         i=uid('DRV');c.execute('INSERT INTO drivers(id,name,company,plate,phone,created,id_type,id_number) VALUES(?,?,?,?,?,?,?,?)',(i,x.name.strip(),x.company,x.plate.strip().upper(),x.phone,now(),x.id_type,x.id_number.strip()));audit(c,u['username'],'create','driver',i)
     return {'id':i}
@@ -2049,8 +2056,10 @@ def receipt_missing(c,rid):
     if not units:out.append('Aucune unité enregistrée')
     nodim=[u for u in units if not dims_ok(u)]
     if nodim:out.append(f"Dimensions manquantes : {len(nodim)} unité(s) ("+', '.join(((u.get('unit_type') or 'unité').capitalize()+(f" {u['unit_index']}/{u['unit_count']}" if u.get('unit_index') else '')) for u in nodim[:6])+(' …' if len(nodim)>6 else '')+')')
-    if not one(c,"SELECT id FROM documents WHERE kind='receipt' AND ref=? AND category='transport' LIMIT 1",(rid,)):out.append('Document de transport manquant (LTA, CMR ou bon de livraison)')
-    if not (r.get('awb') or '').strip() and not (r.get('transport_ref') or '').strip():out.append('Numéro de LTA ou référence transport manquant')
+    if not one(c,"SELECT id FROM documents WHERE kind='receipt' AND ref=? AND category='transport' LIMIT 1",(rid,)):out.append('Photo ou copie du document de transport manquante')
+    if not (r.get('transport_ref') or '').strip():out.append('Numéro du document de transport manquant')
+    if not (r.get('weight') or 0)>0:out.append('Poids brut déclaré manquant')
+    if not (r.get('actual') or 0)>0:out.append('Nombre de colis reçus manquant')
     if not r.get('driver_id'):out.append('Remettant (chauffeur et pièce d’identité) non renseigné')
     if not (r.get('shipper') or '').strip():out.append('Expéditeur non renseigné')
     if r.get('accepted') in (0,False) and not (r.get('refusal_reason') or '').strip():out.append('Expédition refusée : raisons à préciser')
@@ -2234,7 +2243,7 @@ def receipt_lines(rid:str,x:ReceiptLines,u=Depends(auth)):
         start=len(units);total=start+missing;ids=[]
         label={'palette':'Palette','colis':'Colis','fut':'Fût'}[x.kind]
         for k in range(missing):
-            i=uid('UNIT');idx=start+k+1;ids.append(i)
+            idx=start+k+1;i=unit_id_for(c,rid,idx);ids.append(i)
             c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
                       (i,rid,r['warehouse'],(r.get('nature') or 'Marchandise')+f' — {label} {idx}/{total}',1,0,None,0,'awaiting_putaway','general',x.kind,idx,total))
             event(c,u['username'],i,'receive',None,None,1,rid)

@@ -13,7 +13,7 @@ def entry(env, dims=False, awb=''):
     cl = c.get('/api/clients', headers=h['admin']).json()[0]
     d = {'length_cm': 120, 'width_cm': 80, 'height_cm': 150} if dims else {}
     drv = c.post('/api/drivers', headers=h['mag'], json={'name': 'Ali Diallo', 'company': 'Trans Sahel', 'id_type': 'passeport', 'id_number': 'P998877'}).json()['id']
-    r = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': awb, 'expected': 2, 'actual': 2, 'weight': 300, 'shipper': 'SODECO', 'driver_id': drv, 'pallets_expected': 2,
+    r = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': awb, 'expected': 2, 'actual': 2, 'weight': 300, 'shipper': 'SODECO', 'transport_ref': 'CMR-1', 'driver_id': drv, 'pallets_expected': 2,
                                                          'packages': [{'kind': 'palette', 'weight_kg': 150, 'packages': 1, **d}] * 2})
     assert r.status_code == 200, r.text
     return r.json()['id'], r.json()['units']
@@ -33,7 +33,7 @@ def test_entry_without_dims_is_pending_and_cannot_be_validated(env):
     d = dossier(env, rid)
     assert d['state']['stage'] == 'pending'
     miss = ' '.join(d['state']['missing'])
-    assert 'Dimensions manquantes : 2' in miss and 'Document de transport' in miss and 'LTA' in miss
+    assert 'Dimensions manquantes : 2' in miss and 'document de transport' in miss
     assert all(u['volume'] is None for u in d['units'])
     # Étiquettes de traçabilité disponibles dès l'entrée
     assert c.get('/api/labels-batch', headers=h['mag'], params={'ids': ','.join(units)}).status_code == 200
@@ -231,3 +231,23 @@ def test_missing_packing_lines_created_automatically(env):
     assert 'Lignes de colisage créées' in [e['title'] for e in dossier(env, rid)['history']]
     rec = next(x for x in c.get('/api/receipts', headers=h['mag']).json() if x['id'] == rid)
     assert rec['status'] == 'received'                                          # pas d'écart de poids fictif
+
+
+def test_driver_mandatory_fields_and_simple_unit_numbers(env):
+    c, h = env['c'], env['h']
+    for body in ({'name': 'Ali'}, {'name': 'Ali Diallo', 'company': 'Trans'}, {'name': 'Ali Diallo', 'company': '', 'id_type': 'CNI', 'id_number': 'X'}):
+        assert c.post('/api/drivers', headers=h['mag'], json=body, _raw=True).status_code == 400
+    assert c.post('/api/drivers', headers=h['mag'], json={'name': 'Ali DIALLO', 'company': 'Trans Sahel', 'id_type': 'CNI', 'id_number': 'X1'}, _raw=True).status_code == 200
+    rid, units = entry(env)
+    assert units == [f'{rid}-01', f'{rid}-02']                                   # numérotation simple : entrée + rang
+
+
+def test_validation_requires_weight_count_shipper_and_transport_number(env):
+    c, h = env['c'], env['h']
+    rid, units = entry(env, dims=True)
+    transport_doc(env, rid)
+    c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'transport_ref': '', 'weight': 0})
+    miss = ' '.join(dossier(env, rid)['state']['missing'])
+    assert 'document de transport manquant' in miss.lower() and 'Poids brut' in miss
+    c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'transport_ref': 'CMR-77', 'weight': 300})
+    assert dossier(env, rid)['state']['missing'] == []                           # LTA, destinataire, réf. dossier facultatifs

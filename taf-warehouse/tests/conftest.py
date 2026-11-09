@@ -9,6 +9,8 @@ def driver_for_receipts(monkeypatch):
     original = _TC.post
     def post(self, url, *a, **kw):
         body = kw.get('json')
+        if str(url).endswith('/api/drivers') and isinstance(body, dict) and not kw.pop('_raw', False):
+            kw['json'] = {'company': 'Transports Test', 'id_type': 'CNI', 'id_number': 'T0000', **body}
         if str(url).endswith('/api/receipts') and isinstance(body, dict) and 'driver_id' not in body and not kw.pop('_no_driver', False):
             import sys
             server = sys.modules.get('app.server')
