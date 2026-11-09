@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.38.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.39.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -329,6 +329,7 @@ def init():
         CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
+        CREATE TABLE IF NOT EXISTS tv_screens(id TEXT PRIMARY KEY,name TEXT NOT NULL,warehouses TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_by TEXT NOT NULL,created TEXT NOT NULL,revoked_at TEXT,last_seen TEXT);
         CREATE TABLE IF NOT EXISTS arrivals(id TEXT PRIMARY KEY,warehouse TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'transport',planned_date TEXT,slot_start TEXT,slot_end TEXT,reference TEXT NOT NULL DEFAULT '',client_id TEXT,pickup_name TEXT NOT NULL DEFAULT '',pickup_address TEXT NOT NULL DEFAULT '',carrier TEXT NOT NULL DEFAULT '',packages INTEGER,weight REAL,dimensions TEXT NOT NULL DEFAULT '',designation TEXT NOT NULL DEFAULT '',client_ref TEXT NOT NULL DEFAULT '',container_no TEXT NOT NULL DEFAULT '',container_size TEXT NOT NULL DEFAULT '',seal_no TEXT NOT NULL DEFAULT '',dock TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'planned',receipt_id TEXT,created_by TEXT NOT NULL,created TEXT NOT NULL,updated TEXT,cancel_reason TEXT);
         CREATE TABLE IF NOT EXISTS location_internal(id TEXT PRIMARY KEY,location_id TEXT NOT NULL,description TEXT NOT NULL,service TEXT NOT NULL DEFAULT '',contact TEXT NOT NULL DEFAULT '',quantity TEXT NOT NULL DEFAULT '',since TEXT,until TEXT,notes TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL,created TEXT NOT NULL,released_at TEXT,released_by TEXT,release_note TEXT,FOREIGN KEY(location_id) REFERENCES locations(id));
         CREATE TABLE IF NOT EXISTS counters(name TEXT PRIMARY KEY,value INTEGER NOT NULL);
@@ -2899,6 +2900,56 @@ def dashboard_ops(warehouse:Optional[str]=None,u=Depends(auth)):
         arr_today=q(c,f"SELECT a.id,a.kind,a.planned_date,a.slot_start,a.slot_end,a.reference,a.container_no,a.container_size,a.dock,a.pickup_name,a.packages,a.weight,a.designation,a.status,a.receipt_id,a.warehouse,cl.name client FROM arrivals a LEFT JOIN clients cl ON cl.id=a.client_id WHERE a.warehouse IN ({m}) AND a.status!='cancelled' AND (a.planned_date=? OR (a.planned_date<? AND a.status='planned')) ORDER BY CASE WHEN a.planned_date<? THEN 0 ELSE 1 END,COALESCE(a.slot_start,'99'),a.created",w+(today_p,today_p,today_p))
         for a_ in arr_today:a_['late']=a_['planned_date']<today_p and a_['status']=='planned'
     return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity,'flow':flow,'live':live,'waiting':waiting,'recent':recent,'arrivals_today':arr_today}
+
+# --- Lot 21 : écran TV de l'exploitation (lecture seule, lien d'affichage révocable) ----------------
+class TvScreenIn(BaseModel):name:str=Field(min_length=2,max_length=80);warehouses:list[str]=Field(min_length=1,max_length=4)
+@app.post('/api/tv-screens')
+def create_tv_screen(x:TvScreenIn,u=Depends(auth)):
+    role(u,'admin','manager')
+    for w in x.warehouses:warehouse(w);access(u,w)
+    token=secrets.token_urlsafe(32)
+    with tx() as c:
+        i=uid('TV');c.execute('INSERT INTO tv_screens(id,name,warehouses,token_hash,created_by,created) VALUES(?,?,?,?,?,?)',(i,x.name.strip(),json.dumps(sorted(set(x.warehouses))),hashlib.sha256(token.encode()).hexdigest(),u['username'],now()))
+        audit(c,u['username'],'tv_create','tv',i,{'name':x.name,'warehouses':x.warehouses})
+    return {'id':i,'token':token,'path':'/tv.html#k='+token}
+@app.get('/api/tv-screens')
+def tv_screens(u=Depends(auth)):
+    role(u,'admin','manager')
+    with db() as c:rows=q(c,'SELECT id,name,warehouses,created_by,created,revoked_at,last_seen FROM tv_screens ORDER BY created DESC')
+    for r in rows:r['warehouses']=json.loads(r['warehouses'])
+    return [r for r in rows if u['role']=='superadmin' or set(r['warehouses'])<=set(u['warehouses'])]
+@app.post('/api/tv-screens/{sid}/revoke')
+def revoke_tv_screen(sid:str,u=Depends(auth)):
+    role(u,'admin','manager')
+    with tx() as c:
+        r=one(c,'SELECT * FROM tv_screens WHERE id=?',(sid,));require(r,'Écran inconnu',404)
+        for w in json.loads(r['warehouses']):access(u,w)
+        c.execute('UPDATE tv_screens SET revoked_at=? WHERE id=? AND revoked_at IS NULL',(now(),sid));audit(c,u['username'],'tv_revoke','tv',sid)
+    return {'ok':True}
+@app.get('/api/tv/data')
+def tv_data(x_tv_token:Optional[str]=Header(None,alias='X-TV-Token')):
+    """Données de l'écran TV : uniquement des indicateurs d'exploitation, sans donnée personnelle de chauffeur."""
+    require(x_tv_token,'Lien d’affichage manquant',401)
+    with db() as c:
+        scr=one(c,'SELECT * FROM tv_screens WHERE token_hash=? AND revoked_at IS NULL',(hashlib.sha256(x_tv_token.encode()).hexdigest(),))
+    require(scr,'Lien d’affichage invalide ou révoqué',401)
+    whs=json.loads(scr['warehouses']);fake={'username':'tv:'+scr['id'],'role':'tv','warehouses':whs}
+    d=dashboard_ops(None,fake)
+    today=paris(now()).date();mon=today-timedelta(days=today.weekday());sat=mon+timedelta(days=5)
+    m=','.join('?' for _ in whs)
+    with db() as c:
+        week=q(c,f"SELECT planned_date d,COUNT(*) n,COALESCE(SUM(packages),0) colis,SUM(CASE WHEN kind='conteneur' THEN 1 ELSE 0 END) ctn,SUM(CASE WHEN status='received' THEN 1 ELSE 0 END) recu FROM arrivals WHERE warehouse IN ({m}) AND status!='cancelled' AND planned_date BETWEEN ? AND ? GROUP BY planned_date",whs+[mon.isoformat(),sat.isoformat()])
+        exits=one(c,f"SELECT COUNT(DISTINCT mv.unit_id) n FROM movements mv JOIN units un ON un.id=mv.unit_id WHERE un.warehouse IN ({m}) AND mv.kind='exit' AND mv.at>=?",whs+[now()[:10]])['n']
+        c.execute('UPDATE tv_screens SET last_seen=? WHERE id=?',(now(),scr['id']))
+    wk={r['d']:r for r in week}
+    days=[{'date':(mon+timedelta(days=i)).isoformat(),**{k:(wk.get((mon+timedelta(days=i)).isoformat()) or {}).get(k,0) for k in ('n','colis','ctn','recu')}} for i in range(6)]
+    first=lambda n:(n or '').split('@')[0].split('.')[0].capitalize()
+    live=[{'who':first(r['assignee']),'title':r['title'],'status':r['status']} for r in d['live']]
+    waiting=[{'title':r['title'],'priority':r['priority']} for r in d['waiting']]
+    recent=[{k:r[k] for k in ('id','client','actual','expected','weight','problem','created')} for r in d['recent']]
+    arr=[{k:a.get(k) for k in ('kind','planned_date','slot_start','slot_end','reference','container_no','container_size','dock','packages','weight','designation','status','client','late')} for a in d['arrivals_today']]
+    return {'screen':scr['name'],'warehouses':whs,'generated_at':d['generated_at'],'kpis':d['kpis'],'flow':d['flow'],'exits_today':exits,'alerts':[{k:a[k] for k in ('level','title','count')} for a in d['alerts']],
+            'live':live,'waiting':waiting,'recent':recent,'arrivals_today':arr,'week':days}
 
 @app.get('/api/dashboard')
 def dashboard(u=Depends(auth)):

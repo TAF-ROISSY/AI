@@ -87,3 +87,25 @@ def test_today_arrivals_on_dashboard(env):
     ids = [x['id'] for x in d['arrivals_today']]
     assert ids == [a2, a1] and d['arrivals_today'][0]['late'] is True and d['arrivals_today'][1]['slot_start'] == '08:00'
     assert c.get('/api/dashboard/ops', headers=h['expl_mar']).json()['arrivals_today'] == []
+
+
+def test_tv_screen_link(env):
+    c, h, server = env['c'], env['h'], env['server']
+    today = server.paris(server.now()).date().isoformat()
+    arr(env, planned_date=today, slot_start='08:00', slot_end='10:00', kind='conteneur', container_no='MSCU1234567')
+    assert c.post('/api/tv-screens', headers=h['mag'], json={'name': 'TV', 'warehouses': ['Afrique']}).status_code == 403
+    assert c.post('/api/tv-screens', headers=h['resp'], json={'name': 'TV', 'warehouses': ['Maritime']}).status_code == 403
+    r = c.post('/api/tv-screens', headers=h['resp'], json={'name': 'TV exploitation', 'warehouses': ['Afrique']})
+    assert r.status_code == 200 and r.json()['path'].startswith('/tv.html#k=')
+    tok, sid = r.json()['token'], r.json()['id']
+    assert c.get('/api/tv/data').status_code == 401
+    assert c.get('/api/tv/data', headers={'X-TV-Token': 'faux'}).status_code == 401
+    d = c.get('/api/tv/data', headers={'X-TV-Token': tok}).json()
+    assert d['screen'] == 'TV exploitation' and d['warehouses'] == ['Afrique'] and len(d['week']) == 6
+    assert d['arrivals_today'][0]['container_no'] == 'MSCU1234567' and 'kpis' in d and 'exits_today' in d
+    assert 'driver' not in str(d).lower()                                           # aucune donnée de chauffeur
+    rows = c.get('/api/tv-screens', headers=h['resp']).json()
+    assert rows[0]['last_seen'] and 'token' not in rows[0]
+    assert c.post(f'/api/tv-screens/{sid}/revoke', headers=h['resp']).status_code == 200
+    assert c.get('/api/tv/data', headers={'X-TV-Token': tok}).status_code == 401
+    assert c.get('/tv.html').status_code == 200
