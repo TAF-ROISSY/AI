@@ -74,3 +74,16 @@ def test_cancel_and_edit(env):
     assert c.post(f'/api/arrivals/{aid}/cancel', headers=h['mag'], json={'reason': 'Annulé'}).status_code == 403
     assert c.post(f'/api/arrivals/{aid}/cancel', headers=h['expl'], json={'reason': 'Annulé par le client'}).status_code == 200
     assert c.get('/api/arrivals', headers=h['mag']).json() == []
+
+
+def test_today_arrivals_on_dashboard(env):
+    from datetime import datetime, timezone
+    c, h, server = env['c'], env['h'], env['server']
+    today = server.paris(server.now()).date().isoformat()
+    a1 = arr(env, planned_date=today, slot_start='08:00', slot_end='10:00', kind='conteneur', container_no='MSCU1234567').json()['id']
+    a2 = arr(env, planned_date='2020-01-06').json()['id']                         # en retard
+    arr(env, planned_date='2099-01-05')                                            # plus tard : absent
+    d = c.get('/api/dashboard/ops', headers=h['mag'], params={'warehouse': 'Afrique'}).json()
+    ids = [x['id'] for x in d['arrivals_today']]
+    assert ids == [a2, a1] and d['arrivals_today'][0]['late'] is True and d['arrivals_today'][1]['slot_start'] == '08:00'
+    assert c.get('/api/dashboard/ops', headers=h['expl_mar']).json()['arrivals_today'] == []

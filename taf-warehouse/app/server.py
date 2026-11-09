@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.37.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.38.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -2895,7 +2895,10 @@ def dashboard_ops(warehouse:Optional[str]=None,u=Depends(auth)):
         waiting=q(c,f"SELECT id,title,priority,description,created,due_at FROM missions WHERE warehouse IN ({m}) AND status='to_assign' ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,created LIMIT 5",w)
         recent=q(c,f"SELECT r.id,r.awb,r.expected,r.actual,r.weight,r.status,r.created,r.security_status,r.apparent_condition,cl.name client,(SELECT COUNT(*) FROM units x WHERE x.receipt_id=r.id) units,(SELECT COUNT(*) FROM missions mi WHERE mi.receipt_id=r.id AND mi.status IN ('to_assign','assigned','in_progress','suspended')) missions FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.warehouse IN ({m}) AND r.stage!='cancelled' ORDER BY r.created DESC LIMIT 6",w)
         for r in recent:r['problem']=r['status']=='discrepancy' or r['expected']!=r['actual'] or r.get('security_status') in ('a_controler','non_securise') or r.get('apparent_condition') in ('endommage','a_verifier')
-    return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity,'flow':flow,'live':live,'waiting':waiting,'recent':recent}
+        today_p=paris(t).date().isoformat()
+        arr_today=q(c,f"SELECT a.id,a.kind,a.planned_date,a.slot_start,a.slot_end,a.reference,a.container_no,a.container_size,a.dock,a.pickup_name,a.packages,a.weight,a.designation,a.status,a.receipt_id,a.warehouse,cl.name client FROM arrivals a LEFT JOIN clients cl ON cl.id=a.client_id WHERE a.warehouse IN ({m}) AND a.status!='cancelled' AND (a.planned_date=? OR (a.planned_date<? AND a.status='planned')) ORDER BY CASE WHEN a.planned_date<? THEN 0 ELSE 1 END,COALESCE(a.slot_start,'99'),a.created",w+(today_p,today_p,today_p))
+        for a_ in arr_today:a_['late']=a_['planned_date']<today_p and a_['status']=='planned'
+    return {'generated_at':t,'warehouses':whs,'kpis':kpis,'alerts':alerts,'workload':workload,'activity':activity,'flow':flow,'live':live,'waiting':waiting,'recent':recent,'arrivals_today':arr_today}
 
 @app.get('/api/dashboard')
 def dashboard(u=Depends(auth)):
