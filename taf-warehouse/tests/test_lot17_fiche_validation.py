@@ -212,3 +212,22 @@ def test_cancel_refused_after_exit_or_validation(env):
     other = c.post('/api/users', headers=h['admin'], json={'username': 'mag2', 'pin': '482915', 'role': 'worker', 'warehouses': ['Afrique']})
     tok = c.post('/api/login', json={'username': 'mag2', 'password': '482915'}).json()['token']
     assert c.post(f'/api/receipts/{rid3}/cancel', headers={'Authorization': 'Bearer ' + tok}, json={'reason': 'Pas ma fiche'}).status_code == 403
+
+
+def test_missing_packing_lines_created_automatically(env):
+    c, h = env['c'], env['h']
+    cl = c.get('/api/clients', headers=h['admin']).json()[0]
+    rid = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'expected': 5, 'actual': 5, 'weight': 345}).json()['id']
+    assert dossier(env, rid)['units'] == []
+    r = c.post(f'/api/receipts/{rid}/lines', headers=h['mag'], json={})
+    assert r.status_code == 200 and r.json()['created'] == 5
+    units = dossier(env, rid)['units']
+    assert [(u['unit_type'], u['unit_index'], u['unit_count'], u['quantity']) for u in units] == [('colis', i, 5, 1) for i in range(1, 6)]
+    assert c.post(f'/api/receipts/{rid}/lines', headers=h['mag'], json={}).status_code == 409   # rien de plus à créer
+    r = c.put(f"/api/units/{units[0]['id']}/dimensions", headers=h['mag'], json={'length_cm': 120, 'width_cm': 80, 'height_cm': 100, 'weight_kg': 70, 'unit_type': 'palette'})
+    assert r.status_code == 200 and dossier(env, rid)['units'][0]['unit_type'] == 'palette'
+    assert c.put(f"/api/units/{units[1]['id']}/dimensions", headers=h['mag'], json={'unit_type': 'fut', 'weight_kg': 40}).status_code == 200   # type seul
+    assert c.put(f"/api/units/{units[1]['id']}/dimensions", headers=h['mag'], json={'length_cm': 50}).status_code == 400
+    assert 'Lignes de colisage créées' in [e['title'] for e in dossier(env, rid)['history']]
+    rec = next(x for x in c.get('/api/receipts', headers=h['mag']).json() if x['id'] == rid)
+    assert rec['status'] == 'received'                                          # pas d'écart de poids fictif

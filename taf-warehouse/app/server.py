@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.34.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.35.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -772,7 +772,7 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
     volume=sum(l.length_cm*l.width_cm*l.height_cm/1e6 for l in x.packages)
     warnings=[]
     if x.packages and described!=x.actual:warnings.append(f'Colis décrits ({described}) différents des colis reçus ({x.actual})')
-    if x.packages and abs(weight_sum-x.weight)>max(1,0.05*x.weight):warnings.append(f'Écart de poids : {round(weight_sum,1)} kg pesés pour {round(x.weight,1)} kg déclarés')
+    if x.packages and weight_sum>0 and abs(weight_sum-x.weight)>max(1,0.05*x.weight):warnings.append(f'Écart de poids : {round(weight_sum,1)} kg pesés pour {round(x.weight,1)} kg déclarés')
     if x.expected!=x.actual:warnings.append(f'Colis reçus ({x.actual}) différents des colis attendus ({x.expected})')
     status='discrepancy' if warnings else 'received'
     with tx() as c:
@@ -2002,7 +2002,7 @@ def receipt_history(c,rid):
     ev=[]
     def add(at,kind,title,actor=None,detail='',ref=None):
         if at:ev.append({'at':at,'kind':kind,'title':title,'actor':actor,'detail':detail or '','ref':ref})
-    labels={'cancel':'Fiche annulée (erreur)','print_cover':'Récapitulatif à agrafer imprimé','edit':'Fiche modifiée','validate':'Validation définitive de la fiche','reopen':'Fiche rouverte pour modification','add_document':'Document ajouté','unit_dimensions':'Dimensions saisies','receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
+    labels={'add_lines':'Lignes de colisage créées','cancel':'Fiche annulée (erreur)','print_cover':'Récapitulatif à agrafer imprimé','edit':'Fiche modifiée','validate':'Validation définitive de la fiche','reopen':'Fiche rouverte pour modification','add_document':'Document ajouté','unit_dimensions':'Dimensions saisies','receive':'Réception enregistrée','report_discrepancy':'Écart déclaré','review_discrepancy':'Écart tranché','request_mission':'Demande au magasin','mail_request':'Envoi manuel de la fiche','mail_sent':'Fiche de réception envoyée par e-mail'}
     for a in q(c,"SELECT * FROM audit WHERE kind='receipt' AND ref=? ORDER BY at,id",(rid,)):
         d=json.loads(a['details'] or '{}') if a.get('details') else {}
         detail={'receive':lambda: f"{d.get('units',0)} unité(s)"+(' · '+' ; '.join(d.get('warnings',[])) if d.get('warnings') else ''),
@@ -2010,6 +2010,7 @@ def receipt_history(c,rid):
                 'unit_dimensions':lambda: f"{d.get('unit')} : "+' ; '.join(f"{DIM_LABELS.get(k,k)} {_num(v[0])} → {_num(v[1])} {'kg' if k=='weight' else 'cm'}" for k,v in d.get('changes',{}).items()),
                 'validate':lambda: f"révision {d.get('revision')}"+(' · e-mail au service' if d.get('mail') else ''),
                 'reopen':lambda: d.get('reason',''),
+                'add_lines':lambda: f"{d.get('lines')} ligne(s) · 1 colis par ligne",
                 'cancel':lambda: d.get('reason','')+(f" · {d.get('units')} unité(s) retirée(s) du stock" if d.get('units') else ''),
                 'add_document':lambda: f"{d.get('name','')} ({ {'transport':'document de transport','photo':'photo'}.get(d.get('category'),'autre') })",
                 'mail_sent':lambda: ', '.join(d.get('to',[])),'request_mission':lambda: f"{d.get('mission')} · {d.get('units')} unité(s)"}.get(a['action'],lambda:'')()
@@ -2089,21 +2090,52 @@ def edit_receipt(rid:str,x:ReceiptEdit,u=Depends(auth)):
                 for un in q(c,"SELECT id FROM units WHERE receipt_id=? AND status NOT IN ('exited','depleted')",(rid,)):add_hold(c,u['username'],un['id'],held[changes[k][1]][0],held[changes[k][1]][1]+' (modification de la fiche)',rid)
     return {'ok':True,'changes':list(changes)}
 class UnitDims(BaseModel):
-    length_cm:float=Field(gt=0,le=2000);width_cm:float=Field(gt=0,le=2000);height_cm:float=Field(gt=0,le=1000);weight_kg:Optional[float]=Field(default=None,ge=0,le=50000)
+    length_cm:Optional[float]=Field(default=None,gt=0,le=2000);width_cm:Optional[float]=Field(default=None,gt=0,le=2000);height_cm:Optional[float]=Field(default=None,gt=0,le=1000);weight_kg:Optional[float]=Field(default=None,ge=0,le=50000)
+    unit_type:Optional[Literal['palette','colis','fut']]=None
 @app.put('/api/units/{unit_id}/dimensions')
 def unit_dimensions(unit_id:str,x:UnitDims,u=Depends(auth)):
     with tx() as c:
         unit=unit_access(c,u,unit_id);require(unit['receipt_id'],'Unité sans fiche d’entrée')
         _editable(c,u,unit['receipt_id'])
-        new={'length_cm':x.length_cm,'width_cm':x.width_cm,'height_cm':x.height_cm,**({'weight':x.weight_kg} if x.weight_kg is not None else {})}
+        dims=[x.length_cm,x.width_cm,x.height_cm]
+        require(all(v is not None for v in dims) or all(v is None for v in dims),'Indiquer longueur, largeur et hauteur ensemble')
+        if dims[0] is None:
+            new={**({'weight':x.weight_kg} if x.weight_kg is not None else {}),**({'unit_type':x.unit_type} if x.unit_type else {})}
+            changes={k:[unit.get(k),v] for k,v in new.items() if unit.get(k)!=v};require(changes,'Aucune modification')
+            c.execute('UPDATE units SET weight=COALESCE(?,weight),unit_type=COALESCE(?,unit_type),version=version+1 WHERE id=?',(x.weight_kg,x.unit_type,unit_id))
+            audit(c,u['username'],'unit_dimensions','receipt',unit['receipt_id'],{'unit':unit_id,'changes':changes})
+            return {'ok':True,'volume_m3':unit.get('volume')}
+        new={'length_cm':x.length_cm,'width_cm':x.width_cm,'height_cm':x.height_cm,**({'weight':x.weight_kg} if x.weight_kg is not None else {}),**({'unit_type':x.unit_type} if x.unit_type else {})}
         changes={k:[unit.get(k),v] for k,v in new.items() if unit.get(k)!=v}
         require(changes,'Aucune modification')
         vol=round(x.length_cm*x.width_cm*x.height_cm/1e6,4)
-        c.execute('UPDATE units SET length_cm=?,width_cm=?,height_cm=?,weight=COALESCE(?,weight),volume=?,dimensions_ok=1,version=version+1 WHERE id=?',(x.length_cm,x.width_cm,x.height_cm,x.weight_kg,vol,unit_id))
+        c.execute('UPDATE units SET length_cm=?,width_cm=?,height_cm=?,weight=COALESCE(?,weight),unit_type=COALESCE(?,unit_type),volume=?,dimensions_ok=1,version=version+1 WHERE id=?',(x.length_cm,x.width_cm,x.height_cm,x.weight_kg,x.unit_type,vol,unit_id))
         tot=one(c,'SELECT COALESCE(SUM(volume),0) v FROM units WHERE receipt_id=?',(unit['receipt_id'],))['v']
         c.execute('UPDATE receipts SET volume_m3=?,volumetric_weight=? WHERE id=?',(round(tot,4),round(tot*VOLUMETRIC_KG_PER_M3,2),unit['receipt_id']))
         audit(c,u['username'],'unit_dimensions','receipt',unit['receipt_id'],{'unit':unit_id,'changes':changes})
     return {'ok':True,'volume_m3':vol}
+class ReceiptLines(BaseModel):kind:Literal['palette','colis','fut']='colis'
+@app.post('/api/receipts/{rid}/lines')
+def receipt_lines(rid:str,x:ReceiptLines,u=Depends(auth)):
+    """Crée automatiquement une ligne de colisage par colis reçu non encore décrit (1 colis par ligne)."""
+    with tx() as c:
+        r=_editable(c,u,rid)
+        units=q(c,'SELECT quantity,unit_index FROM units WHERE receipt_id=?',(rid,))
+        missing=(r['actual'] or 0)-sum(un['quantity'] for un in units)
+        require(missing>0,'Tous les colis reçus ont déjà une ligne de colisage',409)
+        require(missing<=500,'Plus de 500 lignes : créer le colisage en plusieurs fois')
+        start=len(units);total=start+missing;ids=[]
+        label={'palette':'Palette','colis':'Colis','fut':'Fût'}[x.kind]
+        for k in range(missing):
+            i=uid('UNIT');idx=start+k+1;ids.append(i)
+            c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                      (i,rid,r['warehouse'],(r.get('nature') or 'Marchandise')+f' — {label} {idx}/{total}',1,0,None,0,'awaiting_putaway','general',x.kind,idx,total))
+            event(c,u['username'],i,'receive',None,None,1,rid)
+            for h_ in q(c,"SELECT DISTINCT kind,reason,ref FROM unit_holds WHERE unit_id IN (SELECT id FROM units WHERE receipt_id=? AND id!=?) AND lifted_at IS NULL",(rid,i)):
+                add_hold(c,u['username'],i,h_['kind'],h_['reason'],h_['ref'])
+        c.execute('UPDATE units SET unit_count=? WHERE receipt_id=?',(total,rid))
+        audit(c,u['username'],'add_lines','receipt',rid,{'lines':missing,'kind':x.kind})
+    return {'created':missing,'ids':ids}
 class ReceiptCancel(BaseModel):reason:str=Field(min_length=5,max_length=500)
 @app.post('/api/receipts/{rid}/cancel')
 def cancel_receipt(rid:str,x:ReceiptCancel,u=Depends(auth)):
