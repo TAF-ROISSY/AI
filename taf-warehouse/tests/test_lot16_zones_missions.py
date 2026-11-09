@@ -249,3 +249,11 @@ def test_reserve_without_note(env):
     _racks(env)
     assert c.put('/api/locations/AFR-G-1-03/status', headers=h['resp'], json={'status': 'reserve'}).status_code == 200
     assert c.put('/api/locations/AFR-G-1-03/status', headers=h['resp'], json={'status': 'ok'}).status_code == 200
+
+
+def test_feed_alerts_only_for_shop_roles(env):
+    """Lot 23 : seules les équipes du magasin (magasinier, chef d'équipe) reçoivent les alertes de demandes."""
+    c, h = env['c'], env['h']
+    for who in ('admin', 'expl', 'resp'):
+        r = c.get('/api/missions/feed', headers=h[who]).json()
+        assert r['count'] == 0 and r['missions'] == [] and r['shop'] is False

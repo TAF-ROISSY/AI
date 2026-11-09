@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.44.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.45.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -2004,9 +2004,11 @@ def receipt_mission(rid:str,x:ReceiptMission,u=Depends(auth)):
         audit(c,u['username'],'create','mission',i,{'type':x.type,'receipt':rid})
         notify(c,r['warehouse'],'mission',i,'🔔 Nouvelle demande au magasin'+(f' pour {who}' if who else ''),title[:300],u['username'])
     return {'id':i,'status':'assigned' if who else 'to_assign'}
+SHOP_ROLES=('worker','leader')  # seuls les postes magasin reçoivent les alertes
 @app.get('/api/missions/feed')
 def missions_feed(u=Depends(auth)):
     """Alertes des postes magasin : missions en attente de prise en charge et missions qui me sont affectées."""
+    if u['role'] not in SHOP_ROLES:return {'missions':[],'count':0,'at':now(),'shop':False}
     marks=','.join('?' for _ in u['warehouses'])
     with db() as c:
         rows=q(c,f"SELECT id,warehouse,title,type,priority,status,assignee,created,receipt_id,due_at FROM missions WHERE warehouse IN ({marks}) AND (status='to_assign' OR (status='assigned' AND assignee=?)) ORDER BY created DESC LIMIT 50",[*u['warehouses'],u['username']])
