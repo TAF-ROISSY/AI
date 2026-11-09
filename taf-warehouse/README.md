@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.26 (recette)
+# TAF WAREHOUSE — V4.28 (recette)
+
+> **V4.28 :** la fiche de réception validée est le **bordereau de réception DGAC « Regulated Agent » v2.5 (mars 2026)**, reproduit à l’identique : le PDF officiel (`app/templates/bordereau_reception_v2_5.pdf`) sert de fond et seules les valeurs sont écrites dans les cases (expéditeur, destinataire, remettant et pièce d’identité, nature, marquages, colis / fûts / palettes annoncés et constatés, emballage conforme, expédition acceptée, agent, date et heure de Paris, dimensions et poids volume par unité ; 25 lignes par page 2, pages ajoutées au-delà). Avant validation : fiche de travail interne. Validation : remettant et expéditeur obligatoires, raisons obligatoires si refus. Code PIN de 4 à 6 chiffres (V4.27).
 
 > **V4.26 :** l’e-mail de la fiche validée contient un lien vers le dossier et un lien par document (connexion requise ; `TAF_PUBLIC_URL`).
 

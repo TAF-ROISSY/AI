@@ -85,7 +85,8 @@ def receipt(env, **over):
     c, h = env['c'], env['h']
     cl = c.get('/api/clients', headers=h['admin']).json()[0]
     pk = [{'kind': 'palette', 'length_cm': 120, 'width_cm': 80, 'height_cm': 150, 'weight_kg': 200, 'packages': 2}] * 2
-    body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '057-11112222', 'expected': 4, 'actual': 4, 'weight': 400, 'packages': pk, **over}
+    drv = c.post('/api/drivers', headers=h['mag'], json={'name': 'Ali Diallo', 'company': 'Trans Sahel', 'id_type': 'CNI', 'id_number': 'X123'}).json()['id']
+    body = {'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '057-11112222', 'expected': 4, 'actual': 4, 'weight': 400, 'packages': pk, 'shipper': 'SODECO', 'driver_id': drv, **over}
     r = c.post('/api/receipts', headers=h['mag'], json=body)
     assert r.status_code == 200, r.text
     rid = r.json()['id']
@@ -102,9 +103,9 @@ def test_conform_receipt_sends_green_sheet(env):
     m = server.MAIL_SENT[0]
     assert m['to'] == ['christophe@taftrans.fr'] and 'Réception conforme' in m['subject'] and 'LTA 057-11112222' in m['subject'] and rid in m['subject']
     name, pdf = m['attachments'][0]
-    assert name == f'fiche-reception-{rid}.pdf'
+    assert name == f'bordereau-reception-{rid}.pdf'
     t = pdf_text(pdf)
-    assert 'RÉCEPTION CONFORME' in t and 'Palette 1/2' in t.replace('Palette  1/2', 'Palette 1/2')
+    assert 'BORDEREAU DE RECEPTION' in t and 'SODECO' in t and 'Ali Diallo' in t
     out = env['c'].get('/api/mail-outbox', headers=env['h']['expl']).json()
     assert out[0]['status'] == 'sent' and out[0]['recipients'] == ['christophe@taftrans.fr']
     assert server.process_mail_outbox() == 0                                        # pas de doublon
@@ -117,7 +118,7 @@ def test_problem_receipt_and_later_discrepancy(env):
     server.process_mail_outbox()
     m = server.MAIL_SENT[-1]
     assert 'PROBLÈME DE RÉCEPTION' in m['subject'] and 'Colis reçus (3) différents des colis attendus (4)' in m['text'] and 'Sûreté' in m['text']
-    assert 'PROBLÈME DE RÉCEPTION' in pdf_text(m['attachments'][0][1])
+    assert 'BORDEREAU DE RECEPTION' in pdf_text(m['attachments'][0][1])
     ok = receipt(env)
     server.process_mail_outbox()
     env['c'].post(f'/api/receipts/{ok}/discrepancy', headers=env['h']['mag'], json={'kind': 'damage', 'description': 'Palette 2 film déchiré'})
@@ -162,5 +163,5 @@ def test_routes_isolation_and_failures(env):
 def test_receipt_report_download(env):
     rid = receipt(env)
     r = env['c'].get(f'/api/receipts/{rid}/report', headers=env['h']['mag'])
-    assert r.status_code == 200 and 'FICHE DE RÉCEPTION' in pdf_text(r.content).upper()
+    assert r.status_code == 200 and 'BORDEREAU DE RECEPTION' in pdf_text(r.content).upper()
     assert env['c'].get(f'/api/receipts/{rid}/report', headers=env['h']['mag_mar']).status_code == 403

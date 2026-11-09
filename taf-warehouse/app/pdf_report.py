@@ -804,3 +804,95 @@ def receipt_cover(rec, units, docs, missing, generated_at):
 
 def dims_ok_row(u):
     return all((u.get(k) or 0) > 0 for k in ('length_cm', 'width_cm', 'height_cm'))
+
+
+# --- Bordereau de réception DGAC (Regulated Agent, version 2.5 – mars 2026) -------------------------
+# Document validé par la DGAC : le modèle officiel est reproduit tel quel (fichier PDF d'origine en
+# arrière-plan) et seules les valeurs sont écrites dans les zones prévues. Aucun élément n'est ajouté.
+BORDEREAU_TEMPLATE = Path(__file__).parent / 'templates' / 'bordereau_reception_v2_5.pdf'
+BORDEREAU_ROWS = 25  # lignes de dimensions par page 2
+
+
+def _fit(c, text, x, y, max_w, size=9, font='Helvetica', align='left'):
+    text = '' if text is None else str(text)
+    while size > 5.5 and c.stringWidth(text, font, size) > max_w:
+        size -= 0.5
+    while text and c.stringWidth(text, font, size) > max_w:
+        text = text[:-1]
+    c.setFont(font, size)
+    if align == 'center':
+        c.drawCentredString(x, y, text)
+    else:
+        c.drawString(x, y, text)
+
+
+def _cross(c, x, y, s=6.5):
+    """Coche une case (x, y = centre, repère PDF)."""
+    c.setLineWidth(1.1)
+    c.line(x - s / 2, y - s / 2, x + s / 2, y + s / 2)
+    c.line(x - s / 2, y + s / 2, x + s / 2, y - s / 2)
+
+
+def bordereau_reception(d):
+    """d : dictionnaire des valeurs (voir server.bordereau_values). Retourne le PDF."""
+    from pypdf import PdfReader, PdfWriter
+    PH = 841.92
+    Y = lambda top: PH - top  # coordonnées mesurées depuis le haut de la page
+    ink = colors.HexColor('#0B1F4D')
+
+    def overlay(draw):
+        buf = io.BytesIO()
+        c = rl_canvas.Canvas(buf, pagesize=(595.32, PH))
+        c.setFillColor(ink); c.setStrokeColor(ink)
+        draw(c)
+        c.save(); buf.seek(0)
+        return PdfReader(buf).pages[0]
+
+    def page1(c):
+        _fit(c, d.get('shipper'), 112, Y(106), 175)
+        _fit(c, d.get('shipper2'), 46, Y(130), 240)
+        _fit(c, d.get('consignee'), 380, Y(106), 172)
+        _fit(c, d.get('consignee2'), 304, Y(130), 250)
+        _fit(c, d.get('driver_name'), 42, Y(166), 140)
+        _fit(c, d.get('driver_company'), 192, Y(166), 140)
+        box = {'CNI': 159.0, 'permis': 166.5, 'passeport': 176.5}.get(d.get('id_type'))
+        if box:
+            _cross(c, 346.6, Y(box))
+        _fit(c, d.get('id_number'), 445, Y(167), 110)
+        for i, line in enumerate((d.get('nature_lines') or [])[:2]):
+            _fit(c, line, 48, Y(225 + 19 * i), 240)
+        for i, line in enumerate((d.get('marking_lines') or [])[:2]):
+            _fit(c, line, 318, Y(225 + 19 * i), 238)
+        for top, (a, b) in ((299, d.get('packages', (None, None))), (365, d.get('drums', (None, None)))
+                            , (420, d.get('pallets', (None, None)))):
+            _fit(c, '' if a is None else a, 73.5, Y(top), 48, size=12, font='Helvetica-Bold', align='center')
+            _fit(c, '' if b is None else b, 130.5, Y(top), 48, size=12, font='Helvetica-Bold', align='center')
+        if d.get('packaging_ok') is not None:
+            _cross(c, 492.6 if d['packaging_ok'] else 526.6, Y(287.6), 5.6)
+        for i, line in enumerate((d.get('packaging_comment_lines') or [])[:2]):
+            _fit(c, line, 266 if i == 0 else 216, Y(291 + 22 * i), 228 if i == 0 else 335, size=8.5)
+        if d.get('accepted') is not None:
+            _cross(c, 493.0 if d['accepted'] else 527.0, Y(346.0), 6.0)
+        _fit(c, d.get('refusal_reason'), 403, Y(345), 80, size=8)
+        _fit(c, d.get('refusal_reason2'), 216, Y(369.5), 220, size=8)
+        _fit(c, d.get('agent'), 452, Y(369.5), 92)
+        _fit(c, d.get('date'), 252, Y(406), 75)
+        _fit(c, d.get('time'), 366, Y(406), 60)
+
+    rows = d.get('rows') or []
+    template = PdfReader(str(BORDEREAU_TEMPLATE))
+    out = PdfWriter()
+    p1 = out.add_page(template.pages[0])
+    p1.merge_page(overlay(page1))
+    chunks = [rows[i:i + BORDEREAU_ROWS] for i in range(0, max(len(rows), 1), BORDEREAU_ROWS)]
+    for chunk in chunks:
+        def page2(c, chunk=chunk):
+            for i, r in enumerate(chunk):
+                top = 63.0 if i == 0 else 69.5 + 28.33 * (i - 1) + 18.5
+                for j, v in enumerate(r):
+                    _fit(c, v, 87.75 + 104.5 * j, Y(top), 98, size=10, align='center')
+        p = out.add_page(PdfReader(str(BORDEREAU_TEMPLATE)).pages[1])
+        p.merge_page(overlay(page2))
+    out.add_metadata({'/Title': f"Bordereau de réception {d.get('reference', '')}", '/Author': 'TAF WAREHOUSE'})
+    buf = io.BytesIO(); out.write(buf)
+    return buf.getvalue()

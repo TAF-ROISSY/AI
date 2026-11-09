@@ -12,7 +12,8 @@ def entry(env, dims=False, awb=''):
     c, h = env['c'], env['h']
     cl = c.get('/api/clients', headers=h['admin']).json()[0]
     d = {'length_cm': 120, 'width_cm': 80, 'height_cm': 150} if dims else {}
-    r = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': awb, 'expected': 2, 'actual': 2, 'weight': 300,
+    drv = c.post('/api/drivers', headers=h['mag'], json={'name': 'Ali Diallo', 'company': 'Trans Sahel', 'id_type': 'passeport', 'id_number': 'P998877'}).json()['id']
+    r = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': awb, 'expected': 2, 'actual': 2, 'weight': 300, 'shipper': 'SODECO', 'driver_id': drv, 'pallets_expected': 2,
                                                          'packages': [{'kind': 'palette', 'weight_kg': 150, 'packages': 1, **d}] * 2})
     assert r.status_code == 200, r.text
     return r.json()['id'], r.json()['units']
@@ -60,7 +61,7 @@ def test_complete_edit_and_validate(env):
     r = c.post(f'/api/receipts/{rid}/validate', headers=h['mag'])
     assert r.status_code == 200 and r.json()['revision'] == 1 and r.json()['mail']
     assert server.process_mail_outbox() == 1 and rid in server.MAIL_SENT[-1]['subject']
-    assert 'RÉCEPTION CONFORME' in pdf_text(server.MAIL_SENT[-1]['attachments'][0][1])
+    assert 'BORDEREAU DE RECEPTION' in pdf_text(server.MAIL_SENT[-1]['attachments'][0][1])
     # Fiche validée : verrouillée
     assert c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'notes': 'x'}).status_code == 409
     assert c.put(f'/api/units/{units[0]}/dimensions', headers=h['mag'], json={'length_cm': 1, 'width_cm': 1, 'height_cm': 1}).status_code == 409
@@ -131,3 +132,41 @@ def test_mail_contains_links_to_documents(env):
     text = server.MAIL_SENT[-1]['text']
     assert f'https://warehouse.example/#entree={rid}' in text and f'#entree={rid}&doc={did}' in text and 'lta.pdf (document de transport)' in text
     assert 'connexion TAF WAREHOUSE requise' in text
+
+
+def test_validated_sheet_is_the_dgac_form(env):
+    c, h, server = env['c'], env['h'], env['server']
+    server.MAIL_BACKEND = 'memory'; server.MAIL_DELAY = 0; server.MAIL_SENT.clear()
+    c.put('/api/mail-routes/Afrique', headers=h['admin'], json={'recipients': ['christophe@taftrans.fr']})
+    rid, units = entry(env, dims=True, awb='057-12345678')
+    c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'nature': 'Pièces détachées', 'consignee': 'TAF CLIENT', 'apparent_condition': 'endommage'})
+    transport_doc(env, rid)
+    before = pdf_text(c.get(f'/api/receipts/{rid}/report', headers=h['mag']).content)
+    assert 'Fiche de réception' in before and 'BORDEREAU' not in before         # fiche de travail tant que non validée
+    assert c.post(f'/api/receipts/{rid}/validate', headers=h['mag']).status_code == 200
+    r = c.get(f'/api/receipts/{rid}/report', headers=h['mag'])
+    assert 'bordereau-reception' in r.headers['content-disposition']
+    reader = PdfReader(io.BytesIO(r.content))
+    assert len(reader.pages) == 2
+    t = pdf_text(r.content)
+    for expected in ('BORDEREAU DE RECEPTION', 'Regulated Agent', 'Version 2.5', 'SODECO', 'TAF CLIENT', 'Ali Diallo', 'Trans Sahel', 'P998877',
+                     'Pièces détachées', 'LTA 057-12345678', 'Emballage endommagé', 'Mag', '120', '80', '150 kg', '240 kg'):
+        assert expected in t, expected
+    # Le modèle officiel est conservé tel quel : mêmes éléments que le PDF d'origine.
+    template = PdfReader(str(server.Path(server.__file__).parent / 'templates' / 'bordereau_reception_v2_5.pdf'))
+    assert reader.pages[0].mediabox == template.pages[0].mediabox
+    server.process_mail_outbox()
+    assert server.MAIL_SENT[-1]['attachments'][0][0] == f'bordereau-reception-{rid}.pdf'
+
+
+def test_validation_requires_driver_and_reasons(env):
+    c, h = env['c'], env['h']
+    cl = c.get('/api/clients', headers=h['admin']).json()[0]
+    rid = c.post('/api/receipts', headers=h['mag'], json={'warehouse': 'Afrique', 'client_id': cl['id'], 'awb': '1', 'expected': 1, 'actual': 1, 'weight': 10,
+                                                          'packages': [{'kind': 'fut', 'length_cm': 60, 'width_cm': 60, 'height_cm': 90, 'weight_kg': 10, 'packages': 1}]}).json()['id']
+    transport_doc(env, rid)
+    miss = ' '.join(dossier(env, rid)['state']['missing'])
+    assert 'Remettant' in miss and 'Expéditeur' in miss
+    c.put(f'/api/receipts/{rid}', headers=h['mag'], json={'accepted': False, 'shipper': 'X'})
+    assert 'raisons' in ' '.join(dossier(env, rid)['state']['missing'])
+    assert dossier(env, rid)['units'][0]['unit_type'] == 'fut'

@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.27.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.28.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -335,7 +335,7 @@ def init():
         """)
         for table,fields in {
           'units': [('category',"TEXT NOT NULL DEFAULT 'general'"),('unit_type',"TEXT NOT NULL DEFAULT 'palette'"),('unit_index','INTEGER'),('unit_count','INTEGER'),('length_cm','REAL'),('width_cm','REAL'),('height_cm','REAL')],
-          'receipts':[('stage',"TEXT NOT NULL DEFAULT 'pending'"),('validated_by','TEXT'),('validated_at','TEXT'),('revision','INTEGER NOT NULL DEFAULT 0'),('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
+          'receipts':[('driver_id','TEXT'),('pallets_expected','INTEGER'),('drums_expected','INTEGER'),('accepted','INTEGER NOT NULL DEFAULT 1'),('refusal_reason',"TEXT NOT NULL DEFAULT ''"),('shipper_address',"TEXT NOT NULL DEFAULT ''"),('consignee',"TEXT NOT NULL DEFAULT ''"),('consignee_address',"TEXT NOT NULL DEFAULT ''"),('stage',"TEXT NOT NULL DEFAULT 'pending'"),('validated_by','TEXT'),('validated_at','TEXT'),('revision','INTEGER NOT NULL DEFAULT 0'),('shipper','TEXT'),('carrier','TEXT'),('transport_ref','TEXT'),('folder_ref','TEXT'),('nature','TEXT'),('apparent_condition','TEXT'),('security_status','TEXT'),('volume_m3','REAL'),('volumetric_weight','REAL')],
           'users':[('can_lift_holds','INTEGER NOT NULL DEFAULT 0'),('deleted_at','TEXT'),('deleted_by','TEXT'),('auth_mode',"TEXT NOT NULL DEFAULT 'password'")],
           'missions':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('description',"TEXT NOT NULL DEFAULT ''"),('type',"TEXT NOT NULL DEFAULT 'autre'"),('assignee','TEXT'),('created_by','TEXT'),('started_at','TEXT'),('completed_by','TEXT'),('completed_at','TEXT'),('receipt_id','TEXT'),('unit_ids','TEXT')],
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
@@ -407,7 +407,7 @@ class ClientCreate(BaseModel):name:str
 class LocationPatch(BaseModel):capacity_kg:Optional[float]=None;capacity_m3:Optional[float]=None;verified:bool=False;blocked:bool=False;notes:str=''
 class PackageLine(BaseModel):
     """Une ligne de colisage = une unité logistique (palette ou colis), identifiée individuellement."""
-    kind:Literal['palette','colis']='palette'
+    kind:Literal['palette','colis','fut']='palette'
     length_cm:float=Field(default=0,ge=0,le=2000);width_cm:float=Field(default=0,ge=0,le=2000);height_cm:float=Field(default=0,ge=0,le=1000)  # 0 = à compléter
     weight_kg:float=Field(ge=0,le=50000);packages:int=Field(ge=1,le=10000);notes:str=Field(default='',max_length=500)
 class ReceiptCreate(BaseModel):
@@ -417,6 +417,8 @@ class ReceiptCreate(BaseModel):
     apparent_condition:Optional[Literal['conforme','endommage','a_verifier']]=None
     security_status:Optional[Literal['securise','non_securise','a_controler']]=None
     packages:list[PackageLine]=Field(default_factory=list,max_length=500)
+    driver_id:Optional[str]=None;pallets_expected:Optional[int]=Field(default=None,ge=0,le=10000);drums_expected:Optional[int]=Field(default=None,ge=0,le=10000)
+    shipper_address:str=Field(default='',max_length=200);consignee:str=Field(default='',max_length=200);consignee_address:str=Field(default='',max_length=200)
 class UnitCreate(BaseModel):receipt_id:str;description:str;quantity:int=Field(gt=0);weight:float=Field(ge=0);volume:Optional[float]=Field(default=None,ge=0);dimensions_ok:bool=False;category:str='general';unit_type:Literal['colis','palette']='palette'
 class Move(BaseModel):unit_id:str;destination:str;expected_version:int;reason:str='Rangement interne'
 class Hold(BaseModel):hold:str;reason:str
@@ -760,7 +762,7 @@ VOLUMETRIC_KG_PER_M3=1000/6  # convention fret aérien IATA 1:6000
 @app.post('/api/receipts')
 def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]=Header(None,alias='Idempotency-Key')):
     warehouse(x.warehouse);access(u,x.warehouse)
-    for line in x.packages:require(line.kind=='palette' or line.packages==1,'Une unité de type colis correspond à un seul colis')
+    for line in x.packages:require(line.kind!='colis' or line.packages==1,'Une unité de type colis correspond à un seul colis')
     # Totaux et incohérences calculés par le serveur, jamais saisis.
     described=sum(l.packages for l in x.packages);weight_sum=sum(l.weight_kg for l in x.packages)
     volume=sum(l.length_cm*l.width_cm*l.height_cm/1e6 for l in x.packages)
@@ -772,14 +774,16 @@ def create_receipt(x:ReceiptCreate,u=Depends(auth),idempotency_key:Optional[str]
     with tx() as c:
         replay,digest=replay_request(c,u['id'],'receipt.create',idempotency_key,x.model_dump())
         if replay is not None:return replay
-        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');i=f"E-{next_seq(c,'receipt'):06d}"
+        dgac=(x.driver_id,x.pallets_expected,x.drums_expected,x.shipper_address.strip(),x.consignee.strip(),x.consignee_address.strip())
+        require(one(c,'SELECT id FROM clients WHERE id=?',(x.client_id,)),'Client inconnu');require(not x.driver_id or one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Remettant (chauffeur) inconnu');i=f"E-{next_seq(c,'receipt'):06d}"
         c.execute('INSERT INTO receipts(id,warehouse,client_id,awb,expected,actual,weight,status,created,notes,shipper,carrier,transport_ref,folder_ref,nature,apparent_condition,security_status,volume_m3,volumetric_weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                   (i,x.warehouse,x.client_id,x.awb,x.expected,x.actual,x.weight,status,now(),x.notes,x.shipper,x.carrier,x.transport_ref,x.folder_ref,x.nature,x.apparent_condition,x.security_status,round(volume,4) if x.packages else None,round(volume*VOLUMETRIC_KG_PER_M3,2) if x.packages else None))
+        c.execute('UPDATE receipts SET driver_id=?,pallets_expected=?,drums_expected=?,shipper_address=?,consignee=?,consignee_address=? WHERE id=?',(*dgac,i))
         audit(c,u['username'],'receive','receipt',i,{'status':status,'warnings':warnings,'units':len(x.packages)})
         unit_ids=[];n=len(x.packages)
         for idx,line in enumerate(x.packages,1):
             uid_=uid('UNIT');unit_ids.append(uid_)
-            label=('Palette' if line.kind=='palette' else 'Colis')+f' {idx}/{n}'
+            label={'palette':'Palette','colis':'Colis','fut':'Fût'}[line.kind]+f' {idx}/{n}'
             c.execute('INSERT INTO units(id,receipt_id,warehouse,description,quantity,weight,volume,dimensions_ok,status,category,unit_type,unit_index,unit_count,length_cm,width_cm,height_cm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                       (uid_,i,x.warehouse,(x.nature or 'Marchandise')+' — '+label+(' — '+line.notes if line.notes else ''),line.packages,line.weight_kg,round(line.length_cm*line.width_cm*line.height_cm/1e6,4) if dims_ok(line) else None,int(dims_ok(line)),'awaiting_putaway','general',line.kind,idx,n,line.length_cm,line.width_cm,line.height_cm))
             event(c,u['username'],uid_,'receive',None,None,line.packages,i)
@@ -1567,9 +1571,65 @@ def receipt_dossier(c,rid):
     who=one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,))
     rec['history']=receipt_history(c,rid);rec['missing']=receipt_missing(c,rid) if rec.get('stage')!='validated' else []
     return rec,units,discrepancies,holds,docs,(who or {}).get('actor'),receipt_problems(c,rec,units)
+PARIS=None
+def paris(iso):
+    """Date et heure locales (Paris) d'un horodatage UTC."""
+    global PARIS
+    if PARIS is None:
+        from zoneinfo import ZoneInfo
+        PARIS=ZoneInfo('Europe/Paris')
+    d=datetime.fromisoformat(iso)
+    return d.astimezone(PARIS)
+def _wrap(text,width):
+    words=(text or '').split();lines=[];cur=''
+    for w_ in words:
+        if len(cur)+len(w_)+1>width and cur:lines.append(cur);cur=w_
+        else:cur=(cur+' '+w_).strip()
+    if cur:lines.append(cur)
+    return lines
+def _n(v,d=0):
+    if v is None:return ''
+    s_=f'{v:.{d}f}'.replace('.',',')
+    return s_[:-2] if d and s_.endswith(',0') else s_
+def bordereau_values(c,rid):
+    """Valeurs du bordereau de réception DGAC (Regulated Agent, v2.5), à partir de la fiche validée."""
+    r=one(c,'SELECT r.*,cl.name client FROM receipts r JOIN clients cl ON cl.id=r.client_id WHERE r.id=?',(rid,))
+    units=q(c,'SELECT * FROM units WHERE receipt_id=? ORDER BY unit_index,id',(rid,))
+    drv=one(c,'SELECT * FROM drivers WHERE id=?',(r['driver_id'],)) if r.get('driver_id') else None
+    who=one(c,"SELECT actor FROM audit WHERE action='receive' AND kind='receipt' AND ref=? ORDER BY at LIMIT 1",(rid,))
+    disc=q(c,"SELECT kind,description FROM receipt_discrepancies WHERE receipt_id=? AND status!='rejected' ORDER BY created",(rid,))
+    when=paris(r['created'])
+    cond=r.get('apparent_condition') or 'conforme'
+    comment=[]
+    if cond!='conforme':comment.append({'endommage':'Emballage endommagé','a_verifier':'Emballage à vérifier'}[cond])
+    comment+=[d['description'] for d in disc if d['kind'] in ('damage','other')]
+    comment_lines=_wrap(' ; '.join(comment),60)
+    if len(comment_lines)>1:comment_lines=[comment_lines[0],' '.join(comment_lines[1:])]
+    reason=_wrap(r.get('refusal_reason') or '',22) if not r.get('accepted',1) else []
+    count=lambda k:sum(1 for x_ in units if x_.get('unit_type')==k)
+    marks=' · '.join(x_ for x_ in (('LTA '+r['awb']) if r.get('awb') else '',('Réf. '+r['transport_ref']) if r.get('transport_ref') else '',f'Entrée {rid}') if x_)
+    rows=[]
+    for x_ in units:
+        L,W_,H_=x_.get('length_cm'),x_.get('width_cm'),x_.get('height_cm')
+        vol=L*W_*H_/6000 if (L and W_ and H_) else None
+        rows.append((_n(L),_n(W_),_n(H_),_n(x_.get('weight'),1)+' kg' if x_.get('weight') is not None else '',_n(vol,1)+' kg' if vol else ''))
+    id_type={'CNI':'CNI','titre_sejour':'CNI','permis':'permis','passeport':'passeport'}.get((drv or {}).get('id_type') or '')
+    return {'reference':rid,'shipper':r.get('shipper'),'shipper2':r.get('shipper_address'),
+            'consignee':r.get('consignee') or r['client'],'consignee2':r.get('consignee_address'),
+            'driver_name':(drv or {}).get('name'),'driver_company':(drv or {}).get('company'),'id_type':id_type,
+            'id_number':((drv or {}).get('id_number') or ('(effacé — conservation 1 an)' if (drv or {}).get('identity_erased_at') else '')),
+            'nature_lines':_wrap(r.get('nature') or '',48)[:2],'marking_lines':[marks]+_wrap(r.get('notes') or '',48)[:1],
+            'packages':(r.get('expected'),r.get('actual')),'drums':(r.get('drums_expected'),count('fut')),'pallets':(r.get('pallets_expected'),count('palette')),
+            'packaging_ok':cond=='conforme','packaging_comment_lines':comment_lines,
+            'accepted':bool(r.get('accepted',1)),'refusal_reason':reason[0] if reason else '','refusal_reason2':' '.join(reason[1:]),
+            'agent':((who or {}).get('actor') or '').split('@')[0].replace('.',' ').title(),
+            'date':when.strftime('%d/%m/%Y'),'time':when.strftime('%H:%M'),'rows':rows}
 def receipt_pdf(c,rid):
-    from app.pdf_report import receipt_report
+    from app.pdf_report import receipt_report,bordereau_reception
     rec,units,disc,holds,docs,who,problems=receipt_dossier(c,rid)
+    if rec.get('stage')=='validated':
+        # Fiche validée : bordereau officiel DGAC, à l'identique du modèle.
+        return rec,problems,who,bordereau_reception(bordereau_values(c,rid))
     for d in docs:
         if Path(d['path']).suffix in ('.png','.jpg'):d['content']=store_get(d['path'])
     return rec,problems,who,receipt_report(rec,units,disc,holds,problems,docs,who,now())
@@ -1578,7 +1638,7 @@ def receipt_report_pdf(rid:str,u=Depends(auth)):
     with db() as c:
         r=one(c,'SELECT warehouse FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
         _,_,_,pdf=receipt_pdf(c,rid)
-    return Response(content=pdf,media_type='application/pdf',headers={'Content-Disposition':f'inline; filename="fiche-reception-{rid}.pdf"'})
+    return Response(content=pdf,media_type='application/pdf',headers={'Content-Disposition':f'inline; filename="bordereau-reception-{rid}.pdf"'})
 @app.post('/api/receipts/{rid}/email')
 def receipt_email_now(rid:str,background:BackgroundTasks,u=Depends(auth)):
     role(u,'leader','manager','exploitation','admin')
@@ -1605,7 +1665,7 @@ def compose_receipt_mail(c,rid):
     dossier=f"{PUBLIC_URL}/#entree={quote(rid)}" if PUBLIC_URL else ''
     links=[(f"{d['name']} ({cat.get(d['category'],'document')})",f"{dossier}&doc={quote(d['id'])}" if dossier else '') for d in docs]
     doc_txt=(['','Documents de l’expédition (connexion TAF WAREHOUSE requise) :']+([f'- Dossier complet : {dossier}'] if dossier else [])+[f'- {n} : {u}' if u else f'- {n}' for n,u in links]) if (docs or dossier) else []
-    text='Bonjour,\n\n'+'\n'.join(body+doc_txt)+'\n\nLa fiche de réception complète (PDF) est jointe à ce message.\n\nTAF WAREHOUSE — message automatique, merci de ne pas répondre.\n'
+    text='Bonjour,\n\n'+'\n'.join(body+doc_txt)+'\n\nLe bordereau de réception (PDF) est joint à ce message.\n\nTAF WAREHOUSE — message automatique, merci de ne pas répondre.\n'
     from html import escape as h
     doc_html=(f'<p style="margin:14px 0 6px;font-weight:bold">Documents de l’expédition</p>'
               +(f'<p style="margin:0 0 8px"><a href="{h(dossier)}" style="display:inline-block;background:#1F6FA8;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Ouvrir le dossier {h(rid)}</a></p>' if dossier else '')
@@ -1618,9 +1678,9 @@ def compose_receipt_mail(c,rid):
           f'<div style="background:{color};color:#fff;padding:9px 18px;font-weight:bold">{h(title.upper())}</div><div style="padding:14px 18px;line-height:1.55">'
           +'<br>'.join(h(x) for x in lines)
           +(f'<p style="color:#B42318;font-weight:bold;margin:14px 0 4px">Problèmes constatés</p><ul style="margin:0">{items}</ul><p>La marchandise concernée reste bloquée jusqu’à sa levée par une personne habilitée.</p>' if problems else '<p>Réception conforme : quantités, poids, état apparent et sûreté sans réserve.</p>')
-          +doc_html+'<p>La fiche de réception complète (PDF) est jointe à ce message.</p></div>'
+          +doc_html+'<p>Le bordereau de réception (PDF) est joint à ce message.</p></div>'
           '<div style="color:#5B6B7A;font-size:11px;padding:0 18px 14px">TAF WAREHOUSE — message automatique, merci de ne pas répondre.</div></div>')
-    return subject,text,html,[(f"fiche-reception-{rec['id']}.pdf",pdf,'application/pdf')]
+    return subject,text,html,[((f"bordereau-reception-{rec['id']}.pdf" if rec.get('stage')=='validated' else f"fiche-reception-{rec['id']}.pdf"),pdf,'application/pdf')]
 def send_mail(to,subject,text,html,attachments):
     from email.message import EmailMessage
     from email.utils import formataddr
@@ -1874,7 +1934,7 @@ def receipt_history(c,rid):
 DIM_LABELS={'length_cm':'longueur','width_cm':'largeur','height_cm':'hauteur','weight':'poids'}
 def _num(v):
     return '—' if not v else (f'{v:g}' if isinstance(v,(int,float)) else str(v)).replace('.',',')
-RECEIPT_FIELDS={'awb':'LTA','shipper':'Expéditeur','carrier':'Transporteur','transport_ref':'Référence transport','folder_ref':'Référence dossier','nature':'Nature','notes':'Observations','weight':'Poids déclaré (kg)','apparent_condition':'État apparent','security_status':'Statut sûreté'}
+RECEIPT_FIELDS={'driver_id':'Remettant','pallets_expected':'Palettes annoncées','drums_expected':'Fûts annoncés','accepted':'Expédition acceptée','refusal_reason':'Raisons du refus','shipper_address':'Adresse expéditeur','consignee':'Destinataire','consignee_address':'Adresse destinataire','awb':'LTA','shipper':'Expéditeur','carrier':'Transporteur','transport_ref':'Référence transport','folder_ref':'Référence dossier','nature':'Nature','notes':'Observations','weight':'Poids déclaré (kg)','apparent_condition':'État apparent','security_status':'Statut sûreté'}
 def dims_ok(x):
     g=(lambda k:getattr(x,k,None)) if not isinstance(x,dict) else x.get
     return all((g(k) or 0)>0 for k in ('length_cm','width_cm','height_cm'))
@@ -1887,6 +1947,9 @@ def receipt_missing(c,rid):
     if nodim:out.append(f"Dimensions manquantes : {len(nodim)} unité(s) ("+', '.join(((u.get('unit_type') or 'unité').capitalize()+(f" {u['unit_index']}/{u['unit_count']}" if u.get('unit_index') else '')) for u in nodim[:6])+(' …' if len(nodim)>6 else '')+')')
     if not one(c,"SELECT id FROM documents WHERE kind='receipt' AND ref=? AND category='transport' LIMIT 1",(rid,)):out.append('Document de transport manquant (LTA, CMR ou bon de livraison)')
     if not (r.get('awb') or '').strip() and not (r.get('transport_ref') or '').strip():out.append('Numéro de LTA ou référence transport manquant')
+    if not r.get('driver_id'):out.append('Remettant (chauffeur et pièce d’identité) non renseigné')
+    if not (r.get('shipper') or '').strip():out.append('Expéditeur non renseigné')
+    if r.get('accepted') in (0,False) and not (r.get('refusal_reason') or '').strip():out.append('Expédition refusée : raisons à préciser')
     return out
 def receipt_state(c,rid):
     r=one(c,'SELECT stage,validated_by,validated_at,revision FROM receipts WHERE id=?',(rid,))
@@ -1904,6 +1967,9 @@ class ReceiptEdit(BaseModel):
     transport_ref:Optional[str]=Field(default=None,max_length=100);folder_ref:Optional[str]=Field(default=None,max_length=100);nature:Optional[str]=Field(default=None,max_length=300)
     notes:Optional[str]=Field(default=None,max_length=2000);weight:Optional[float]=Field(default=None,ge=0,le=500000)
     apparent_condition:Optional[Literal['conforme','endommage','a_verifier']]=None;security_status:Optional[Literal['securise','non_securise','a_controler']]=None
+    driver_id:Optional[str]=Field(default=None,max_length=40);pallets_expected:Optional[int]=Field(default=None,ge=0,le=10000);drums_expected:Optional[int]=Field(default=None,ge=0,le=10000)
+    accepted:Optional[bool]=None;refusal_reason:Optional[str]=Field(default=None,max_length=300)
+    shipper_address:Optional[str]=Field(default=None,max_length=200);consignee:Optional[str]=Field(default=None,max_length=200);consignee_address:Optional[str]=Field(default=None,max_length=200)
 def _editable(c,u,rid):
     r=one(c,'SELECT * FROM receipts WHERE id=?',(rid,));require(r,'Réception introuvable',404);access(u,r['warehouse'])
     require(r['stage']!='validated','Fiche validée : la rouvrir (exploitation) pour la modifier',409);return r
@@ -1912,7 +1978,9 @@ def edit_receipt(rid:str,x:ReceiptEdit,u=Depends(auth)):
     """Compléter ou corriger la fiche. Chaque changement est inscrit, avant → après, dans l'historique."""
     with tx() as c:
         r=_editable(c,u,rid);changes={}
+        if x.driver_id:require(one(c,'SELECT id FROM drivers WHERE id=?',(x.driver_id,)),'Remettant (chauffeur) inconnu')
         for k,v in x.model_dump(exclude_none=True).items():
+            if isinstance(v,bool):v=int(v)
             if isinstance(v,str):v=v.strip()
             if (r.get(k) if r.get(k) is not None else ('' if isinstance(v,str) else None))!=v:changes[k]=[r.get(k),v]
         require(changes,'Aucune modification')
