@@ -232,3 +232,20 @@ def test_remove_all_racks_of_warehouse(env):
     r = c.post('/api/locations/remove-all', headers=h['resp'], json={**body, 'scope': 'all'})
     ids = {l['id'] for l in c.get('/api/locations', headers=h['mag'], params={'warehouse': 'Afrique'}).json()}
     assert 'AFR-SOL-A-01' not in ids and 'AFR-TEMP' in ids
+
+
+def test_closed_location_status(env):
+    c, h = env['c'], env['h']
+    _racks(env)
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['mag'], json={'status': 'ferme', 'note': 'Zone condamnée'}).status_code == 403
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['resp'], json={'status': 'ferme', 'note': 'Zone condamnée'}).status_code == 200
+    plan = c.get('/api/locations/plan', headers=h['mag'], params={'warehouse': 'Afrique'}).json()
+    cell = {x['id']: x for rk in plan['racks'] for lv in rk['levels'] for x in lv['cells']}['AFR-G-1-01']
+    assert cell['state'] == 'blocked' and cell['status_label'] == 'Emplacement fermé'
+
+
+def test_reserve_without_note(env):
+    c, h = env['c'], env['h']
+    _racks(env)
+    assert c.put('/api/locations/AFR-G-1-03/status', headers=h['resp'], json={'status': 'reserve'}).status_code == 200
+    assert c.put('/api/locations/AFR-G-1-03/status', headers=h['resp'], json={'status': 'ok'}).status_code == 200

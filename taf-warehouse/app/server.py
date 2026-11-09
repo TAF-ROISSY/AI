@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.30.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.31.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -999,7 +999,7 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         o=occ.get(l['id'],{})
         n=o.get('units',0)
         st=l.get('status') or 'ok'
-        state='blocked' if l['blocked'] else st if st in ('endommage','maintenance','inspection') else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'internal' if l['id'] in internal else 'booked' if st=='reserve' else 'unverified' if not l['verified'] else 'free'
+        state='blocked' if l['blocked'] or st=='ferme' else st if st in ('endommage','maintenance','inspection') else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'internal' if l['id'] in internal else 'booked' if st=='reserve' else 'unverified' if not l['verified'] else 'free'
         cell={'id':l['id'],'position':pos,'state':state,'units':n,'kg':round(o.get('kg',0),1),'m3':round(o.get('m3',0),3),
               'capacity_kg':l['capacity_kg'],'capacity_m3':l['capacity_m3'],'verified':bool(l['verified']),
               'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None,
@@ -1846,12 +1846,12 @@ def generate_locations(x:LocationGenerate,u=Depends(auth)):
                       (x.capacity_kg,x.capacity_m3,int(verified),int(verified),x.proof.strip(),lid))
         audit(c,u['username'],'generate_locations','warehouse',x.warehouse,{'kind':x.kind,'names':x.names,'count':x.count,'levels':x.levels,'positions':x.positions,'created':len(fresh),'reactivated':len(revived),'verified':verified})
     return {'created':len(fresh),'reactivated':len(revived),'skipped':len(rows)-len(fresh)-len(revived),'ids':[r[0] for r in fresh+revived]}
-LOC_STATUS={'ok':'En service','reserve':'Réservé','inspection':'À inspecter','endommage':'Endommagé','maintenance':'En maintenance'}
-class LocStatus(BaseModel):status:Literal['ok','reserve','inspection','endommage','maintenance'];note:str=Field(default='',max_length=300)
+LOC_STATUS={'ok':'En service','reserve':'Réservé','inspection':'À inspecter','endommage':'Endommagé','maintenance':'En maintenance','ferme':'Emplacement fermé'}
+class LocStatus(BaseModel):status:Literal['ok','reserve','inspection','endommage','maintenance','ferme'];note:str=Field(default='',max_length=300)
 def _set_status(c,u,locs,x):
     # Tout le monde peut signaler un problème ; seuls le responsable et l'administration remettent en service.
-    if x.status in ('ok','reserve'):role(u,'manager','admin')
-    else:require(len(x.note.strip())>=3,'Décrire le problème constaté (au moins 3 caractères)')
+    if x.status in ('ok','reserve','ferme'):role(u,'manager','admin')
+    if x.status not in ('ok','reserve'):require(len(x.note.strip())>=3,'Indiquer le motif de fermeture' if x.status=='ferme' else 'Décrire le problème constaté (au moins 3 caractères)')
     for l in locs:
         c.execute('UPDATE locations SET status=?,status_note=?,status_at=?,status_by=? WHERE id=?',(x.status,x.note.strip(),now(),u['username'],l['id']))
         audit(c,u['username'],'location_status','location',l['id'],{'from':l.get('status') or 'ok','to':x.status,'note':x.note.strip()})
