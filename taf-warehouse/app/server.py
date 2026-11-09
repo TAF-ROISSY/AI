@@ -56,7 +56,7 @@ def production_problems():
     return problems
 if PRODUCTION and production_problems():
     raise RuntimeError('Démarrage en production refusé : '+' ; '.join(production_problems()))
-app=FastAPI(title='TAF WAREHOUSE API',version='4.28.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
+app=FastAPI(title='TAF WAREHOUSE API',version='4.29.0',**({'docs_url':None,'redoc_url':None,'openapi_url':None} if PRODUCTION else {}))
 
 # --- Stockage des documents : disque local (poste de test) ou S3 privé (serveur) -------
 _s3_client=None
@@ -329,6 +329,7 @@ def init():
         CREATE TABLE IF NOT EXISTS mission_events(id TEXT PRIMARY KEY,mission_id TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,note TEXT NOT NULL,created TEXT NOT NULL,FOREIGN KEY(mission_id) REFERENCES missions(id));
         CREATE TABLE IF NOT EXISTS label_prints(id TEXT PRIMARY KEY,unit_id TEXT NOT NULL,actor TEXT NOT NULL,printed_at TEXT NOT NULL,reprint INTEGER NOT NULL DEFAULT 0,batch TEXT,FOREIGN KEY(unit_id) REFERENCES units(id));
         CREATE TABLE IF NOT EXISTS transfer_refusals(id TEXT PRIMARY KEY,transfer_id TEXT NOT NULL,reason TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,status TEXT NOT NULL,reviewed_by TEXT,reviewed_at TEXT,review_note TEXT,report_document_id TEXT,FOREIGN KEY(transfer_id) REFERENCES transfers(id));
+        CREATE TABLE IF NOT EXISTS location_internal(id TEXT PRIMARY KEY,location_id TEXT NOT NULL,description TEXT NOT NULL,service TEXT NOT NULL DEFAULT '',contact TEXT NOT NULL DEFAULT '',quantity TEXT NOT NULL DEFAULT '',since TEXT,until TEXT,notes TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL,created TEXT NOT NULL,released_at TEXT,released_by TEXT,release_note TEXT,FOREIGN KEY(location_id) REFERENCES locations(id));
         CREATE TABLE IF NOT EXISTS counters(name TEXT PRIMARY KEY,value INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS mail_routes(warehouse TEXT PRIMARY KEY,recipients TEXT NOT NULL DEFAULT '[]',updated TEXT,updated_by TEXT);
         CREATE TABLE IF NOT EXISTS mail_outbox(id TEXT PRIMARY KEY,kind TEXT NOT NULL,ref TEXT NOT NULL,warehouse TEXT NOT NULL,reason TEXT NOT NULL,status TEXT NOT NULL,created TEXT NOT NULL,created_by TEXT NOT NULL,not_before TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,recipients TEXT,subject TEXT,sent_at TEXT,last_error TEXT,provider_id TEXT);
@@ -341,7 +342,7 @@ def init():
           'tasks':[('priority',"TEXT NOT NULL DEFAULT 'normal'"),('due_at','TEXT'),('started_at','TEXT'),('completed_at','TEXT'),('completed_by','TEXT'),('notes',"TEXT NOT NULL DEFAULT ''")],
           'documents':[('category',"TEXT NOT NULL DEFAULT ''")],
           'drivers':[('id_type','TEXT'),('id_number','TEXT'),('identity_erased_at','TEXT')],
-          'locations':[('kind',"TEXT NOT NULL DEFAULT 'rack'"),('structure','TEXT'),('level','TEXT'),('position','INTEGER'),('active','INTEGER NOT NULL DEFAULT 1'),('created_by','TEXT'),('created','TEXT')],
+          'locations':[('status',"TEXT NOT NULL DEFAULT 'ok'"),('status_note',"TEXT NOT NULL DEFAULT ''"),('status_at','TEXT'),('status_by','TEXT'),('kind',"TEXT NOT NULL DEFAULT 'rack'"),('structure','TEXT'),('level','TEXT'),('position','INTEGER'),('active','INTEGER NOT NULL DEFAULT 1'),('created_by','TEXT'),('created','TEXT')],
           'releases':[('order_id','TEXT'),('prepared_by','TEXT'),('prepared_at','TEXT'),('prepare_note','TEXT'),('handover_id','TEXT'),('weight_out','REAL')],
           'transfers':[('received_quantity','INTEGER'),('received_condition','TEXT'),('received_note','TEXT'),('discrepancy_reviewed_by','TEXT'),('discrepancy_reviewed_at','TEXT'),('discrepancy_decision','TEXT'),('return_of','TEXT')],
           'claims':[('closed_by','TEXT'),('closed_at','TEXT'),('evidence_reviewed',"INTEGER NOT NULL DEFAULT 0")]
@@ -515,6 +516,9 @@ def unit_access(c,u,unit_id):
     x=one(c,'SELECT * FROM units WHERE id=?',(unit_id,));require(x,'Unité introuvable',404);access(u,x['warehouse']);return x
 
 def capacity(c,location,extra_weight,extra_volume,exclude_unit=None):
+    st=location.get('status') or 'ok' if location else 'ok'
+    require(st in ('ok','reserve'),f"Emplacement {LOC_STATUS.get(st,st).lower()} : rangement interdit"+(f" ({location.get('status_note')})" if location and location.get('status_note') else ''),409)
+    require(not (location and one(c,'SELECT id FROM location_internal WHERE location_id=? AND released_at IS NULL',(location['id'],))),'Emplacement occupé par un stockage interne TAF',409)
     require(location and location['verified'] and not location['blocked'],'Capacité non vérifiée ou emplacement bloqué')
     require(location['capacity_kg'] is not None and location['capacity_m3'] is not None,'Capacités techniques manquantes')
     vals=(location['id'],) if not exclude_unit else (location['id'],exclude_unit)
@@ -986,6 +990,7 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         locs=q(c,'SELECT * FROM locations WHERE warehouse=? ORDER BY id',(warehouse,))
         occ={r['location_id']:r for r in q(c,"SELECT location_id,COUNT(*) units,COALESCE(SUM(weight),0) kg,COALESCE(SUM(volume),0) m3,SUM(CASE WHEN hold!='' THEN 1 ELSE 0 END) held FROM units WHERE warehouse=? AND status='available' AND location_id IS NOT NULL GROUP BY location_id",(warehouse,))}
         reserved={r['location_id'] for r in q(c,"SELECT DISTINCT un.location_id FROM releases r JOIN units un ON un.id=r.unit_id WHERE un.warehouse=? AND r.status IN ('requested','authorized')",(warehouse,))}
+        internal={r['location_id']:r for r in q(c,'SELECT i.* FROM location_internal i JOIN locations l ON l.id=i.location_id WHERE l.warehouse=? AND i.released_at IS NULL',(warehouse,))}
     racks={};kinds={}
     for l in locs:
         if not l.get('active',1):continue
@@ -993,10 +998,12 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         kinds[rack]=l.get('kind') or 'rack'
         o=occ.get(l['id'],{})
         n=o.get('units',0)
-        state='blocked' if l['blocked'] else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'unverified' if not l['verified'] else 'free'
+        st=l.get('status') or 'ok'
+        state='blocked' if l['blocked'] else 'out' if st in ('endommage','maintenance','inspection') else 'held' if o.get('held') else 'reserved' if l['id'] in reserved else 'occupied' if n else 'internal' if l['id'] in internal else 'booked' if st=='reserve' else 'unverified' if not l['verified'] else 'free'
         cell={'id':l['id'],'position':pos,'state':state,'units':n,'kg':round(o.get('kg',0),1),'m3':round(o.get('m3',0),3),
               'capacity_kg':l['capacity_kg'],'capacity_m3':l['capacity_m3'],'verified':bool(l['verified']),
-              'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None}
+              'load_pct':round(100*o.get('kg',0)/l['capacity_kg'],1) if l['capacity_kg'] else None,
+              'status':st,'status_label':LOC_STATUS.get(st,st),'status_note':l.get('status_note') or '','status_by':l.get('status_by'),'status_at':l.get('status_at'),'internal':internal.get(l['id'])}
         racks.setdefault(rack,{}).setdefault(str(level),[]).append(cell)
     order={'rack':0,'shelf':1,'floor':2,'vault':3,'other':4,'temp':5}
     out=[]
@@ -1005,7 +1012,7 @@ def locations_plan(warehouse:str,u=Depends(auth)):
         levels=[{'level':lv,'cells':sorted(cells,key=lambda x:x['position'])} for lv,cells in sorted(racks[rack].items(),reverse=top_first)]
         out.append({'rack':rack,'kind':kinds[rack],'label':STRUCTURE_LABEL(kinds[rack],rack),'levels':levels})
     states=[cell['state'] for r in out for lv in r['levels'] for cell in lv['cells']]
-    return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','reserved','held','blocked','unverified')}}
+    return {'warehouse':warehouse,'racks':out,'summary':{s_:states.count(s_) for s_ in ('free','occupied','internal','booked','reserved','held','out','blocked','unverified')}}
 
 @app.get('/api/transfers')
 def transfers(u=Depends(auth)):
@@ -1839,6 +1846,90 @@ def generate_locations(x:LocationGenerate,u=Depends(auth)):
                       (x.capacity_kg,x.capacity_m3,int(verified),int(verified),x.proof.strip(),lid))
         audit(c,u['username'],'generate_locations','warehouse',x.warehouse,{'kind':x.kind,'names':x.names,'count':x.count,'levels':x.levels,'positions':x.positions,'created':len(fresh),'reactivated':len(revived),'verified':verified})
     return {'created':len(fresh),'reactivated':len(revived),'skipped':len(rows)-len(fresh)-len(revived),'ids':[r[0] for r in fresh+revived]}
+LOC_STATUS={'ok':'En service','reserve':'Réservé','inspection':'À inspecter','endommage':'Endommagé','maintenance':'En maintenance'}
+class LocStatus(BaseModel):status:Literal['ok','reserve','inspection','endommage','maintenance'];note:str=Field(default='',max_length=300)
+def _set_status(c,u,locs,x):
+    # Tout le monde peut signaler un problème ; seuls le responsable et l'administration remettent en service.
+    if x.status in ('ok','reserve'):role(u,'manager','admin')
+    else:require(len(x.note.strip())>=3,'Décrire le problème constaté (au moins 3 caractères)')
+    for l in locs:
+        c.execute('UPDATE locations SET status=?,status_note=?,status_at=?,status_by=? WHERE id=?',(x.status,x.note.strip(),now(),u['username'],l['id']))
+        audit(c,u['username'],'location_status','location',l['id'],{'from':l.get('status') or 'ok','to':x.status,'note':x.note.strip()})
+@app.put('/api/locations/{lid}/status')
+def location_status(lid:str,x:LocStatus,u=Depends(auth)):
+    with tx() as c:
+        l=one(c,'SELECT * FROM locations WHERE id=? AND active=1',(lid,));require(l,'Emplacement inconnu',404);access(u,l['warehouse'])
+        _set_status(c,u,[l],x)
+        if x.status in ('endommage','maintenance','inspection'):notify(c,l['warehouse'],'location',lid,f"Emplacement {lid} : {LOC_STATUS[x.status].lower()}",x.note.strip()[:300],u['username'])
+    return {'ok':True,'status':x.status}
+class StructureStatus(LocStatus):warehouse:str;structure:str=Field(min_length=1,max_length=20)
+@app.post('/api/locations/structure-status')
+def structure_status(x:StructureStatus,u=Depends(auth)):
+    """Statut d'un rack entier (tous ses emplacements)."""
+    access(u,x.warehouse)
+    with tx() as c:
+        locs=q(c,'SELECT * FROM locations WHERE warehouse=? AND structure=? AND active=1',(x.warehouse,x.structure));require(locs,'Structure introuvable',404)
+        _set_status(c,u,locs,x)
+        if x.status in ('endommage','maintenance','inspection'):notify(c,x.warehouse,'location',x.structure,f"{x.structure} : {LOC_STATUS[x.status].lower()}",x.note.strip()[:300],u['username'])
+    return {'ok':True,'updated':len(locs)}
+class InternalStock(BaseModel):
+    description:str=Field(min_length=3,max_length=300);service:str=Field(default='',max_length=100);contact:str=Field(default='',max_length=100)
+    quantity:str=Field(default='',max_length=60);since:Optional[str]=None;until:Optional[str]=None;notes:str=Field(default='',max_length=1000)
+@app.post('/api/locations/{lid}/internal')
+def internal_stock(lid:str,x:InternalStock,u=Depends(auth)):
+    """Déclare l'emplacement occupé par un stockage interne TAF (matériel, consommables, archives…)."""
+    role(u,'worker','leader','manager','exploitation','admin')
+    with tx() as c:
+        l=one(c,'SELECT * FROM locations WHERE id=? AND active=1',(lid,));require(l,'Emplacement inconnu',404);access(u,l['warehouse'])
+        require(not one(c,"SELECT id FROM units WHERE location_id=? AND status NOT IN ('exited','depleted')",(lid,)),'Emplacement déjà occupé par de la marchandise',409)
+        cur=one(c,'SELECT * FROM location_internal WHERE location_id=? AND released_at IS NULL',(lid,))
+        vals=(x.description.strip(),x.service.strip(),x.contact.strip(),x.quantity.strip(),x.since or now()[:10],x.until,x.notes.strip())
+        if cur:
+            c.execute('UPDATE location_internal SET description=?,service=?,contact=?,quantity=?,since=?,until=?,notes=? WHERE id=?',(*vals,cur['id']));i=cur['id']
+            audit(c,u['username'],'internal_update','location',lid,{'id':i,'before':{k:cur[k] for k in ('description','service','quantity','until')},'after':x.model_dump()})
+        else:
+            i=uid('INT');c.execute('INSERT INTO location_internal(id,location_id,description,service,contact,quantity,since,until,notes,created_by,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(i,lid,*vals,u['username'],now()))
+            audit(c,u['username'],'internal_declare','location',lid,{'id':i,**x.model_dump()})
+    return {'id':i}
+class InternalRelease(BaseModel):note:str=Field(default='',max_length=300)
+@app.post('/api/locations/{lid}/internal/release')
+def internal_release(lid:str,x:InternalRelease,u=Depends(auth)):
+    with tx() as c:
+        l=one(c,'SELECT * FROM locations WHERE id=?',(lid,));require(l,'Emplacement inconnu',404);access(u,l['warehouse'])
+        cur=one(c,'SELECT * FROM location_internal WHERE location_id=? AND released_at IS NULL',(lid,));require(cur,'Aucun stockage interne sur cet emplacement',404)
+        c.execute('UPDATE location_internal SET released_at=?,released_by=?,release_note=? WHERE id=?',(now(),u['username'],x.note.strip(),cur['id']))
+        audit(c,u['username'],'internal_release','location',lid,{'id':cur['id'],'description':cur['description'],'note':x.note.strip()})
+    return {'ok':True}
+@app.get('/api/locations/{lid}/detail')
+def location_detail(lid:str,u=Depends(auth)):
+    with db() as c:
+        l=one(c,'SELECT * FROM locations WHERE id=?',(lid,));require(l,'Emplacement inconnu',404);access(u,l['warehouse'])
+        units=q(c,"SELECT u.id,u.receipt_id,u.unit_type,u.unit_index,u.unit_count,u.quantity,u.weight,u.hold,u.status,cl.name client,r.awb FROM units u LEFT JOIN receipts r ON r.id=u.receipt_id LEFT JOIN clients cl ON cl.id=r.client_id WHERE u.location_id=? AND u.status NOT IN ('exited','depleted') ORDER BY u.receipt_id,u.unit_index",(lid,))
+        internal=one(c,'SELECT * FROM location_internal WHERE location_id=? AND released_at IS NULL',(lid,))
+        history=q(c,"SELECT at,actor,action,details FROM audit WHERE kind='location' AND ref=? ORDER BY at DESC,id DESC LIMIT 30",(lid,))
+        candidates=q(c,"SELECT u.id,u.receipt_id,u.unit_type,u.unit_index,u.unit_count,u.quantity,u.weight,u.version,u.location_id,u.status FROM units u WHERE u.warehouse=? AND u.status IN ('awaiting_putaway','available') AND COALESCE(u.hold,'')='' AND COALESCE(u.location_id,'')!=? ORDER BY CASE WHEN u.status='awaiting_putaway' THEN 0 ELSE 1 END,u.receipt_id DESC LIMIT 200",(l['warehouse'],lid))
+    for h in history:h['details']=json.loads(h['details'] or '{}')
+    return {'location':{**l,'status_label':LOC_STATUS.get(l.get('status') or 'ok')},'units':units,'internal':internal,'history':history,'candidates':candidates}
+class WarehouseClear(BaseModel):warehouse:str;scope:Literal['rack','all']='rack';reason:str=Field(min_length=5,max_length=300)
+@app.post('/api/locations/remove-all')
+def remove_all_locations(x:WarehouseClear,u=Depends(auth)):
+    """Supprime en un bloc les emplacements VIDES d'un entrepôt (tous les racks, ou toutes les zones hors zone temporaire)."""
+    role(u,'admin','manager');warehouse(x.warehouse);access(u,x.warehouse)
+    with tx() as c:
+        kinds="('rack')" if x.scope=='rack' else "('rack','shelf','floor','vault','other')"
+        locs=[r['id'] for r in q(c,f"SELECT id FROM locations WHERE warehouse=? AND active=1 AND kind IN {kinds}",(x.warehouse,))]
+        require(locs,'Aucun emplacement à supprimer',404)
+        marks=','.join('?' for _ in locs)
+        busy={r['location_id'] for r in q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks}) AND status NOT IN ('exited','depleted')",locs)}
+        busy|={r['location_id'] for r in q(c,f"SELECT location_id FROM location_internal WHERE location_id IN ({marks}) AND released_at IS NULL",locs)}
+        used={r['l'] for r in q(c,f"SELECT DISTINCT destination l FROM movements WHERE destination IN ({marks})",locs)}|{r['l'] for r in q(c,f"SELECT DISTINCT location_id l FROM units WHERE location_id IN ({marks})",locs)}|{r['l'] for r in q(c,f"SELECT location_id l FROM rack_rules WHERE location_id IN ({marks})",locs)}|{r['l'] for r in q(c,f"SELECT DISTINCT location_id l FROM location_internal WHERE location_id IN ({marks})",locs)}
+        removed=archived=0
+        for lid in locs:
+            if lid in busy:continue
+            if lid in used:c.execute('UPDATE locations SET active=0 WHERE id=?',(lid,));archived+=1
+            else:c.execute('DELETE FROM locations WHERE id=?',(lid,));removed+=1
+        audit(c,u['username'],'remove_all_locations','warehouse',x.warehouse,{'scope':x.scope,'removed':removed,'archived':archived,'kept_busy':sorted(busy),'reason':x.reason})
+    return {'removed':removed+archived,'archived':archived,'kept':sorted(busy)}
 class StructureRemove(BaseModel):warehouse:str;structure:str=Field(min_length=1,max_length=20);reason:str=Field(min_length=5,max_length=300)
 @app.post('/api/locations/remove-structure')
 def remove_structure(x:StructureRemove,u=Depends(auth)):
@@ -1848,10 +1939,11 @@ def remove_structure(x:StructureRemove,u=Depends(auth)):
         locs=[r['id'] for r in q(c,'SELECT id FROM locations WHERE warehouse=? AND structure=? AND active=1',(x.warehouse,x.structure))]
         require(locs,'Structure introuvable',404)
         marks=','.join('?' for _ in locs)
-        busy=q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks}) AND status NOT IN ('exited','depleted')",locs)
+        busy=q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks}) AND status NOT IN ('exited','depleted') UNION SELECT location_id FROM location_internal WHERE location_id IN ({marks}) AND released_at IS NULL",locs+locs)
         require(not busy,'Emplacements encore occupés : '+', '.join(b['location_id'] for b in busy[:5]),409)
         used={r['location_id'] for r in q(c,f"SELECT DISTINCT destination location_id FROM movements WHERE destination IN ({marks})",locs)}
         used|={r['location_id'] for r in q(c,f"SELECT DISTINCT location_id FROM units WHERE location_id IN ({marks})",locs)}
+        used|={r['location_id'] for r in q(c,f"SELECT DISTINCT location_id FROM location_internal WHERE location_id IN ({marks})",locs)}
         for lid in locs:
             if lid in used or one(c,'SELECT location_id FROM rack_rules WHERE location_id=?',(lid,)):c.execute('UPDATE locations SET active=0 WHERE id=?',(lid,))  # historique conservé
             else:c.execute('DELETE FROM locations WHERE id=?',(lid,))

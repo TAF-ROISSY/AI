@@ -1,4 +1,6 @@
-# TAF WAREHOUSE — V4.28 (recette)
+# TAF WAREHOUSE — V4.29 (recette)
+
+> **V4.29 :** module Emplacements revu — choix de l’entrepôt dans la création, plusieurs racks d’un coup, **suppression en bloc** des emplacements vides d’un entrepôt (racks ou toutes zones) ; clic sur un emplacement : contenu (ouvre le dossier de l’entrée), « Ranger ici », **stockage interne TAF** (contenu, quantité, service, dates) et libération ; **statut** par emplacement et par rack (en service, réservé, à inspecter, endommagé, maintenance) : tout le monde signale un problème, seul le responsable remet en service ; rangement interdit hors service ou sur stockage interne.
 
 > **V4.28 :** la fiche de réception validée est le **bordereau de réception DGAC « Regulated Agent » v2.5 (mars 2026)**, reproduit à l’identique : le PDF officiel (`app/templates/bordereau_reception_v2_5.pdf`) sert de fond et seules les valeurs sont écrites dans les cases (expéditeur, destinataire, remettant et pièce d’identité, nature, marquages, colis / fûts / palettes annoncés et constatés, emballage conforme, expédition acceptée, agent, date et heure de Paris, dimensions et poids volume par unité ; 25 lignes par page 2, pages ajoutées au-delà). Avant validation : fiche de travail interne. Validation : remettant et expéditeur obligatoires, raisons obligatoires si refus. Code PIN de 4 à 6 chiffres (V4.27).
 

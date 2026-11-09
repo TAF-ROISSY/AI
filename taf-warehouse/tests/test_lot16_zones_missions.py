@@ -160,3 +160,75 @@ def test_dashboard_flow_live_and_recent(env):
     assert d['live'][0]['assignee'] == 'mag' and d['waiting'] == []
     recent = {r['id']: r for r in d['recent']}
     assert recent[bad]['problem'] is True and recent[rec]['problem'] is False and recent[rec]['missions'] == 1
+
+
+# --- Lot 18 : statut des racks, stockage interne TAF, suppression en bloc ---------------------------
+def _racks(env):
+    gen(env, kind='rack', names=['G', 'D'], levels=2, positions=3, capacity_kg=1000, capacity_m3=3, proof='Plaque constructeur')
+
+
+def test_location_status_rules(env):
+    c, h = env['c'], env['h']
+    _racks(env)
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['mag'], json={'status': 'endommage', 'note': ''}).status_code == 400   # motif obligatoire
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['mag'], json={'status': 'endommage', 'note': 'Lisse tordue'}).status_code == 200
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['mag'], json={'status': 'ok'}).status_code == 403                     # remise en service : responsable
+    rec = env['receipt']()
+    unit = env['unit'](rec, placed=False).json()['id']
+    v = c.get('/api/units', headers=h['mag']).json()[0]['version']
+    r = c.post('/api/move', headers=h['mag'], json={'unit_id': unit, 'destination': 'AFR-G-1-01', 'expected_version': v})
+    assert r.status_code == 409 and 'endommagé' in r.text
+    plan = c.get('/api/locations/plan', headers=h['mag'], params={'warehouse': 'Afrique'}).json()
+    cell = {x['id']: x for rk in plan['racks'] for lv in rk['levels'] for x in lv['cells']}['AFR-G-1-01']
+    assert cell['state'] == 'out' and cell['status_label'] == 'Endommagé' and cell['status_note'] == 'Lisse tordue'
+    assert c.put('/api/locations/AFR-G-1-01/status', headers=h['resp'], json={'status': 'ok', 'note': 'Lisse remplacée'}).status_code == 200
+    # Rack entier
+    r = c.post('/api/locations/structure-status', headers=h['mag'], json={'warehouse': 'Afrique', 'structure': 'D', 'status': 'inspection', 'note': 'Contrôle annuel'})
+    assert r.status_code == 200 and r.json()['updated'] == 6
+    hist = c.get('/api/locations/AFR-D-2-03/detail', headers=h['mag']).json()['history']
+    assert hist[0]['action'] == 'location_status' and hist[0]['details']['to'] == 'inspection'
+
+
+def test_internal_storage_and_detail(env):
+    c, h = env['c'], env['h']
+    _racks(env)
+    r = c.post('/api/locations/AFR-G-2-02/internal', headers=h['mag'], json={'description': 'Films étirables et feuillards', 'service': 'Magasin', 'quantity': '12 rouleaux'})
+    assert r.status_code == 200
+    d = c.get('/api/locations/AFR-G-2-02/detail', headers=h['mag']).json()
+    assert d['internal']['description'] == 'Films étirables et feuillards' and d['internal']['since']
+    plan = c.get('/api/locations/plan', headers=h['mag'], params={'warehouse': 'Afrique'}).json()
+    assert plan['summary']['internal'] == 1
+    rec = env['receipt']()
+    unit = env['unit'](rec, placed=False).json()['id']
+    v = next(x for x in c.get('/api/units', headers=h['mag']).json() if x['id'] == unit)['version']
+    r = c.post('/api/move', headers=h['mag'], json={'unit_id': unit, 'destination': 'AFR-G-2-02', 'expected_version': v})
+    assert r.status_code == 409 and 'stockage interne' in r.text
+    assert any(x['id'] == unit for x in c.get('/api/locations/AFR-G-1-03/detail', headers=h['mag']).json()['candidates'])
+    assert c.post('/api/move', headers=h['mag'], json={'unit_id': unit, 'destination': 'AFR-G-1-03', 'expected_version': v}).status_code == 200
+    d = c.get('/api/locations/AFR-G-1-03/detail', headers=h['mag']).json()
+    assert d['units'][0]['receipt_id'] == rec                                    # le clic ouvre le dossier de cette entrée
+    assert c.post('/api/locations/AFR-G-1-03/internal', headers=h['mag'], json={'description': 'Archives'}).status_code == 409
+    assert c.post('/api/locations/AFR-G-2-02/internal/release', headers=h['mag'], json={'note': 'Consommés'}).status_code == 200
+    assert c.get('/api/locations/AFR-G-2-02/detail', headers=h['mag']).json()['internal'] is None
+    assert c.post('/api/locations/AFR-G-2-02/internal', headers=h['mag_mar'], json={'description': 'xxx'}).status_code == 403
+
+
+def test_remove_all_racks_of_warehouse(env):
+    c, h = env['c'], env['h']
+    _racks(env)
+    gen(env, kind='floor', names=['A'], positions=2)
+    rec = env['receipt']()
+    unit = env['unit'](rec, placed=False).json()['id']
+    v = next(x for x in c.get('/api/units', headers=h['mag']).json() if x['id'] == unit)['version']
+    c.post('/api/move', headers=h['mag'], json={'unit_id': unit, 'destination': 'AFR-D-1-01', 'expected_version': v})
+    c.post('/api/locations/AFR-G-1-02/internal', headers=h['mag'], json={'description': 'Palettes vides'})
+    body = {'warehouse': 'Afrique', 'scope': 'rack', 'reason': 'Réaménagement'}
+    assert c.post('/api/locations/remove-all', headers=h['mag'], json=body).status_code == 403
+    r = c.post('/api/locations/remove-all', headers=h['resp'], json=body)
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()['kept']) == ['AFR-D-1-01', 'AFR-G-1-02']                  # occupés : conservés
+    ids = {l['id'] for l in c.get('/api/locations', headers=h['mag'], params={'warehouse': 'Afrique'}).json()}
+    assert 'AFR-G-2-03' not in ids and 'AFR-R01-A1' not in ids and {'AFR-D-1-01', 'AFR-G-1-02', 'AFR-SOL-A-01', 'AFR-TEMP'} <= ids
+    r = c.post('/api/locations/remove-all', headers=h['resp'], json={**body, 'scope': 'all'})
+    ids = {l['id'] for l in c.get('/api/locations', headers=h['mag'], params={'warehouse': 'Afrique'}).json()}
+    assert 'AFR-SOL-A-01' not in ids and 'AFR-TEMP' in ids
